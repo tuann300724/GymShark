@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -12,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/toast';
-import { Flame, AlertCircle, UserPlus } from 'lucide-react';
+import { Dumbbell, AlertCircle, UserPlus } from 'lucide-react';
 
 const registerSchema = z
   .object({
@@ -76,37 +77,51 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-950 relative overflow-hidden py-10">
-      <div className="absolute top-1/4 -left-20 w-96 h-96 bg-emerald-600/20 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-teal-600/10 rounded-full blur-3xl pointer-events-none" />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-ink p-4 py-10">
+      {/* Background photo + heavy overlay */}
+      <div className="absolute inset-0" aria-hidden>
+        <Image
+          src="/images/gym-wide.jpg"
+          alt=""
+          fill
+          sizes="100vw"
+          className="object-cover"
+          priority
+        />
+        <div className="absolute inset-0 bg-ink/90" />
+        <div className="absolute inset-x-0 top-0 h-px bg-line" />
+      </div>
 
-      <div className="w-full max-w-lg relative z-10">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-400 text-white shadow-lg shadow-emerald-500/25 mb-3">
-            <Flame className="w-8 h-8 animate-pulse" />
+      <div className="relative z-10 w-full max-w-lg animate-fade-in">
+        {/* Brand */}
+        <div className="mb-8 text-center">
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-neon/40 bg-surface text-neon">
+            <Dumbbell className="h-7 w-7" />
           </div>
-          <h1 className="text-2xl font-black tracking-tight text-white">
-            GYM<span className="text-emerald-500">MASTER</span> PRO
+          <h1 className="font-display text-3xl font-extrabold uppercase leading-none tracking-tight text-chalk">
+            GYM<span className="text-neon">MASTER</span> PRO
           </h1>
-          <p className="text-xs text-slate-400 mt-1 uppercase tracking-widest font-semibold">
+          <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-muted">
             Đăng ký tài khoản hội viên
           </p>
         </div>
 
-        <Card className="border-slate-800 bg-slate-900/90 shadow-2xl backdrop-blur-xl">
+        <Card className="border-line bg-surface/95 shadow-2xl backdrop-blur-xl">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-xl text-white flex items-center gap-2">
-              <UserPlus className="w-5 h-5 text-emerald-400" />
+            <CardTitle className="flex items-center gap-2.5 font-display text-2xl font-bold uppercase tracking-tight text-chalk">
+              <span className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-neon/25 bg-neon/10 text-neon">
+                <UserPlus className="h-4 w-4" />
+              </span>
               Tạo tài khoản hội viên
             </CardTitle>
-            <CardDescription className="text-slate-400">
+            <CardDescription>
               Điền thông tin bên dưới để bắt đầu hành trình fitness của bạn
             </CardDescription>
           </CardHeader>
           <CardContent>
             {errorMessage && (
-              <div className="mb-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              <div className="mb-4 flex items-start gap-2 rounded-[10px] border border-danger/30 bg-danger/10 p-3 text-xs text-danger">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>{errorMessage}</span>
               </div>
             )}
@@ -119,7 +134,7 @@ export default function RegisterPage() {
                 {...register('fullName')}
               />
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Input
                   label="Email (*)"
                   type="email"
@@ -135,7 +150,7 @@ export default function RegisterPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Input
                   label="Mật khẩu (*)"
                   type="password"
@@ -152,7 +167,7 @@ export default function RegisterPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Input
                   label="Ngày sinh"
                   type="date"
@@ -178,19 +193,14 @@ export default function RegisterPage() {
                 {...register('address')}
               />
 
-              <Button
-                type="submit"
-                variant="primary"
-                className="w-full h-11 text-sm font-bold shadow-lg shadow-emerald-600/30"
-                isLoading={isLoading}
-              >
+              <Button type="submit" variant="primary" className="h-11 w-full text-sm font-bold" isLoading={isLoading}>
                 Đăng ký
               </Button>
             </form>
 
-            <p className="mt-4 text-center text-xs text-slate-400">
+            <p className="mt-4 text-center text-xs text-muted">
               Đã có tài khoản?{' '}
-              <Link href="/login" className="text-emerald-400 font-semibold hover:underline">
+              <Link href="/login" className="font-semibold text-neon hover:underline">
                 Đăng nhập
               </Link>
             </p>

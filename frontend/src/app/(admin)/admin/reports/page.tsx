@@ -6,7 +6,7 @@ import apiClient from '@/lib/axios';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { StatCard } from '@/components/ui/stat-card';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
-import { BarChart3, TrendingUp, Users, DollarSign, Calendar, ArrowUpRight } from 'lucide-react';
+import { BarChart3, TrendingUp, Users, DollarSign, Check } from 'lucide-react';
 
 export default function ReportsPage() {
   const { data: summary, isLoading: isSummaryLoading } = useQuery({
@@ -28,11 +28,11 @@ export default function ReportsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-          <BarChart3 className="w-6 h-6 text-emerald-500" />
+        <h1 className="text-2xl font-bold tracking-tight text-chalk flex items-center gap-2">
+          <BarChart3 className="w-6 h-6 text-neon" />
           Báo Cáo & Phân Tích Hoạt Động (Reports)
         </h1>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+        <p className="text-xs text-muted mt-1">
           Báo cáo doanh thu kinh doanh, tăng trưởng hội viên và hiệu suất phục vụ theo chu kỳ
         </p>
       </div>
@@ -43,7 +43,7 @@ export default function ReportsPage() {
           value={formatCurrency(summary?.totalRevenue || 2400000)}
           subtitle="Doanh thu thực nhận"
           icon={DollarSign}
-          colorScheme="emerald"
+          colorScheme="neon"
         />
         <StatCard
           title="Lượng Hội Viên Tích Cực"
@@ -65,33 +65,36 @@ export default function ReportsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base font-bold flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-emerald-500" />
+            <TrendingUp className="w-4 h-4 text-neon" />
             Nhật Ký Dòng Tiền & Doanh Số Gần Đây
           </CardTitle>
           <CardDescription>Danh sách các khoản thu được ghi nhận trên hệ thống</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {isRevenueLoading ? (
-            <div className="py-16 text-center text-xs text-slate-400">Đang tổng hợp báo cáo...</div>
+            <div className="py-16 text-center text-xs text-muted">Đang tổng hợp báo cáo...</div>
           ) : revenueData?.data && revenueData.data.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-xs text-left">
-                <thead className="text-[11px] uppercase tracking-wider text-slate-400 bg-slate-50/50 dark:bg-slate-950/40 border-b border-slate-100 dark:border-slate-800">
+                <thead className="text-[11px] uppercase tracking-wider text-muted bg-ink border-b border-line">
                   <tr>
                     <th className="py-3 px-4">Thời gian</th>
                     <th className="py-3 px-4">Số tiền</th>
                     <th className="py-3 px-4 text-right">Trạng thái hạch toán</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
+                <tbody className="divide-y divide-line font-medium">
                   {revenueData.data.map((item: any, idx: number) => (
-                    <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
-                      <td className="py-3 px-4 font-mono text-slate-500">{formatDateTime(item.createdAt)}</td>
-                      <td className="py-3 px-4 font-bold text-emerald-600 dark:text-emerald-400">
+                    <tr key={idx} className="hover:bg-line/20 transition-colors">
+                      <td className="py-3 px-4 font-mono text-muted">{formatDateTime(item.createdAt)}</td>
+                      <td className="py-3 px-4 font-bold text-neon">
                         {formatCurrency(item.amount)}
                       </td>
-                      <td className="py-3 px-4 text-right text-emerald-500 font-semibold">
-                        ✓ Đã ghi nhận sổ quỹ
+                      <td className="py-3 px-4 text-right text-neon font-semibold">
+                        <span className="inline-flex items-center gap-1.5">
+                          <Check className="w-3.5 h-3.5" />
+                          Đã ghi nhận sổ quỹ
+                        </span>
                       </td>
                     </tr>
                   ))}
@@ -99,7 +102,7 @@ export default function ReportsPage() {
               </table>
             </div>
           ) : (
-            <div className="py-16 text-center text-xs text-slate-400">Chưa có phát sinh giao dịch nào.</div>
+            <div className="py-16 text-center text-xs text-muted">Chưa có phát sinh giao dịch nào.</div>
           )}
         </CardContent>
       </Card>

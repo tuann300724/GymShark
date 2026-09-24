@@ -2,6 +2,10 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
+/**
+ * Design system Dark Cinematic + Neon Fitness là dark-only.
+ * Provider luôn giữ lớp `dark` trên <html> để nhận diện khớp với token màu.
+ */
 type Theme = 'dark' | 'light';
 
 interface ThemeContextType {
@@ -15,40 +19,26 @@ const ThemeContext = createContext<ThemeContextType>({
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('dark');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    const savedTheme = localStorage.getItem('gym_theme') as Theme | null;
-    if (savedTheme) {
-      setTheme(savedTheme);
-      document.documentElement.classList.toggle('dark', savedTheme === 'dark');
-    } else {
-      // Default to dark mode for fitness feel
-      setTheme('dark');
-      document.documentElement.classList.add('dark');
-    }
+    // Dark-only brand: luôn ép dark, bỏ lưu trữ light cũ nếu có.
+    localStorage.setItem('gym_theme', 'dark');
+    document.documentElement.classList.add('dark');
   }, []);
 
   const toggleTheme = () => {
-    const nextTheme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(nextTheme);
-    localStorage.setItem('gym_theme', nextTheme);
-    if (nextTheme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    // No-op: giao diện chỉ có chế độ dark theo design system.
+    document.documentElement.classList.add('dark');
   };
 
-  // Avoid hydration mismatch
   if (!mounted) {
     return <div className="dark">{children}</div>;
   }
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme: 'dark', toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   );

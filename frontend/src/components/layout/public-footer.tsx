@@ -4,20 +4,21 @@ import React from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { publicApi } from '@/services/package.service';
-import { Flame, MapPin, Phone, Mail, Facebook, Instagram, Youtube } from 'lucide-react';
+import { Dumbbell, MapPin, Phone, Mail, Facebook, Instagram, Youtube } from 'lucide-react';
 
 const QUICK_LINKS = [
   { name: 'Trang chủ', href: '/' },
-  { name: 'Giới thiệu', href: '/about' },
   { name: 'Gói tập', href: '/packages' },
   { name: 'Huấn luyện viên', href: '/trainers' },
   { name: 'Lịch tập', href: '/schedule' },
+  { name: 'Blog', href: '/blog' },
   { name: 'Liên hệ', href: '/contact' },
 ];
 
 const SERVICE_LINKS = [
   { name: 'Đăng ký hội viên', href: '/register' },
   { name: 'Đăng nhập', href: '/login' },
+  { name: 'Về GymMaster', href: '/about' },
 ];
 
 export function PublicFooter() {
@@ -34,66 +35,53 @@ export function PublicFooter() {
   const email = branch?.email || 'lienhe@gymmaster.vn';
 
   return (
-    <footer className="border-t border-slate-800 bg-slate-950 text-slate-300">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
+    <footer className="border-t border-line bg-ink">
+      <div className="container-x py-14">
+        <div className="grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-4">
           {/* Brand */}
           <div className="space-y-4">
-            <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white shadow-lg shadow-emerald-500/25">
-                <Flame className="w-5 h-5" />
-              </div>
-              <div className="leading-tight">
-                <p className="font-black tracking-tight text-white text-lg">
-                  GYM<span className="text-emerald-500">MASTER</span>
-                </p>
-                <p className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">
-                  Pro Fitness Center
-                </p>
-              </div>
-            </div>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              Hệ thống phòng gym chuyên nghiệp với trang thiết bị hiện đại, đội ngũ huấn luyện viên giàu kinh
-              nghiệm. Đồng hành cùng bạn trên mọi hành trình fitness.
+            <Link href="/" className="inline-flex items-center gap-2.5">
+              <span className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-neon/40 bg-surface text-neon">
+                <Dumbbell className="h-[18px] w-[18px]" />
+              </span>
+              <span className="font-display text-xl font-bold uppercase leading-none tracking-wide text-chalk">
+                GYM<span className="text-neon">MASTER</span>
+              </span>
+            </Link>
+            <p className="max-w-xs text-sm leading-relaxed text-muted">
+              Hệ thống phòng gym chuyên nghiệp với thiết bị hiện đại và đội ngũ huấn luyện
+              viên giàu kinh nghiệm. Đồng hành cùng bạn sau mỗi buổi tập.
             </p>
-            <div className="flex items-center gap-3 pt-1">
-              <a
-                href="https://facebook.com"
-                target="_blank"
-                rel="noreferrer"
-                className="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-emerald-400 transition-colors"
-                aria-label="Facebook"
-              >
-                <Facebook className="w-4 h-4" />
-              </a>
-              <a
-                href="https://instagram.com"
-                target="_blank"
-                rel="noreferrer"
-                className="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-emerald-400 transition-colors"
-                aria-label="Instagram"
-              >
-                <Instagram className="w-4 h-4" />
-              </a>
-              <a
-                href="https://youtube.com"
-                target="_blank"
-                rel="noreferrer"
-                className="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-emerald-400 transition-colors"
-                aria-label="Youtube"
-              >
-                <Youtube className="w-4 h-4" />
-              </a>
+            <div className="flex items-center gap-2.5 pt-1">
+              {[
+                { Icon: Facebook, label: 'Facebook', href: 'https://facebook.com' },
+                { Icon: Instagram, label: 'Instagram', href: 'https://instagram.com' },
+                { Icon: Youtube, label: 'Youtube', href: 'https://youtube.com' },
+              ].map(({ Icon, label, href }) => (
+                <a
+                  key={label}
+                  href={href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-line bg-surface text-muted transition-colors hover:border-neon/50 hover:text-neon"
+                  aria-label={label}
+                >
+                  <Icon className="h-4 w-4" />
+                </a>
+              ))}
             </div>
           </div>
 
           {/* Quick Links */}
           <div>
-            <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-4">Liên kết nhanh</h4>
+            <h4 className="meta-label mb-4 !text-chalk">Liên kết nhanh</h4>
             <ul className="space-y-2.5">
               {QUICK_LINKS.map((l) => (
                 <li key={l.href}>
-                  <Link href={l.href} className="text-sm text-slate-400 hover:text-emerald-400 transition-colors">
+                  <Link
+                    href={l.href}
+                    className="text-sm text-muted transition-colors hover:text-neon"
+                  >
                     {l.name}
                   </Link>
                 </li>
@@ -103,27 +91,25 @@ export function PublicFooter() {
 
           {/* Services */}
           <div>
-            <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-4">Dịch vụ</h4>
+            <h4 className="meta-label mb-4 !text-chalk">Dịch vụ</h4>
             <ul className="space-y-2.5">
               {SERVICE_LINKS.map((l) => (
                 <li key={l.href}>
-                  <Link href={l.href} className="text-sm text-slate-400 hover:text-emerald-400 transition-colors">
+                  <Link
+                    href={l.href}
+                    className="text-sm text-muted transition-colors hover:text-neon"
+                  >
                     {l.name}
                   </Link>
                 </li>
               ))}
               <li>
-                <Link href="/packages" className="text-sm text-slate-400 hover:text-emerald-400 transition-colors">
+                <Link href="/packages" className="text-sm text-muted transition-colors hover:text-neon">
                   Gói tập & giá
                 </Link>
               </li>
               <li>
-                <Link href="/trainers" className="text-sm text-slate-400 hover:text-emerald-400 transition-colors">
-                  Huấn luyện viên PT
-                </Link>
-              </li>
-              <li>
-                <Link href="/schedule" className="text-sm text-slate-400 hover:text-emerald-400 transition-colors">
+                <Link href="/schedule" className="text-sm text-muted transition-colors hover:text-neon">
                   Lịch lớp học
                 </Link>
               </li>
@@ -132,24 +118,24 @@ export function PublicFooter() {
 
           {/* Contact */}
           <div>
-            <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-4">Liên hệ</h4>
+            <h4 className="meta-label mb-4 !text-chalk">Liên hệ</h4>
             <ul className="space-y-3.5 text-sm">
               <li className="flex items-start gap-3">
-                <MapPin className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
-                <span className="text-slate-400">
-                  {address || branch?.name || 'Hệ thống GymMaster Pro'}
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-neon" />
+                <span className="text-muted">
+                  {address}
                   {branch?.name ? ` (${branch.name})` : ''}
                 </span>
               </li>
               <li className="flex items-center gap-3">
-                <Phone className="w-4 h-4 text-emerald-500 shrink-0" />
-                <a href={`tel:${phone}`} className="text-slate-400 hover:text-emerald-400 transition-colors">
+                <Phone className="h-4 w-4 shrink-0 text-neon" />
+                <a href={`tel:${phone}`} className="text-muted transition-colors hover:text-neon">
                   {phone}
                 </a>
               </li>
               <li className="flex items-center gap-3">
-                <Mail className="w-4 h-4 text-emerald-500 shrink-0" />
-                <a href={`mailto:${email}`} className="text-slate-400 hover:text-emerald-400 transition-colors">
+                <Mail className="h-4 w-4 shrink-0 text-neon" />
+                <a href={`mailto:${email}`} className="break-all text-muted transition-colors hover:text-neon">
                   {email}
                 </a>
               </li>
@@ -158,12 +144,12 @@ export function PublicFooter() {
         </div>
       </div>
 
-      <div className="border-t border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p className="text-xs text-slate-500">
+      <div className="border-t border-line">
+        <div className="container-x flex flex-col items-center justify-between gap-2 py-5 sm:flex-row">
+          <p className="text-xs text-muted">
             © {new Date().getFullYear()} GymMaster Pro Fitness Center. Bảo lưu mọi quyền.
           </p>
-          <p className="text-xs text-slate-600">Khỏe hơn mỗi ngày 💪</p>
+          <p className="text-xs text-muted/70">Train hard. Stay consistent.</p>
         </div>
       </div>
     </footer>

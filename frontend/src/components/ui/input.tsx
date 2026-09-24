@@ -7,25 +7,30 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 }
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type = 'text', label, error, ...props }, ref) => {
+  ({ className, type = 'text', label, error, id, ...props }, ref) => {
+    const inputId = id || props.name;
     return (
       <div className="w-full space-y-1.5">
         {label && (
-          <label className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+          <label
+            htmlFor={inputId}
+            className="text-xs font-semibold uppercase tracking-wider text-muted"
+          >
             {label}
           </label>
         )}
         <input
           type={type}
+          id={inputId}
           ref={ref}
           className={cn(
-            'flex h-10 w-full rounded-lg border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 py-2 text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50 transition-colors',
-            error && 'border-rose-500 focus:ring-rose-500',
+            'flex h-11 w-full rounded-[10px] border border-line bg-ink px-3.5 py-2 text-sm text-chalk placeholder:text-muted/70 transition-colors focus:outline-none focus:ring-2 focus:ring-neon/70 focus:border-neon/70 disabled:cursor-not-allowed disabled:opacity-50',
+            error && 'border-danger focus:ring-danger/70 focus:border-danger',
             className,
           )}
           {...props}
         />
-        {error && <p className="text-xs text-rose-500 font-medium">{error}</p>}
+        {error && <p className="text-xs text-danger font-medium">{error}</p>}
       </div>
     );
   },

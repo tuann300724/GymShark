@@ -31,26 +31,26 @@ export default function MemberCheckinsPage() {
   ];
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+        <h1 className="font-display text-2xl font-bold uppercase tracking-tight text-chalk sm:text-3xl">
           Lịch sử check-in
         </h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+        <p className="mt-1 text-sm text-muted">
           Các lượt vào/ra phòng tập của bạn.
         </p>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {statItems.map((s) => (
           <Card key={s.label}>
             <CardContent className="p-4 sm:p-5">
-              <div className="w-9 h-9 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                <s.icon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-neon/25 bg-neon/10">
+                <s.icon className="h-4 w-4 text-neon" />
               </div>
-              <p className="mt-2.5 text-xl sm:text-2xl font-black text-slate-900 dark:text-white">{s.value}</p>
-              <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5">{s.label}</p>
+              <p className="mt-2.5 font-display text-xl font-bold text-chalk sm:text-2xl">{s.value}</p>
+              <p className="mt-0.5 text-[11px] text-muted sm:text-xs">{s.label}</p>
             </CardContent>
           </Card>
         ))}
@@ -66,55 +66,55 @@ export default function MemberCheckinsPage() {
               <Skeleton className="h-10 w-full" />
             </div>
           ) : (data?.data || []).length === 0 ? (
-            <p className="py-14 text-center text-sm text-slate-400">
+            <p className="py-14 text-center text-sm text-muted">
               Chưa có lượt check-in nào. Ghé phòng tập để bắt đầu nhé!
             </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-800 text-left">
-                    <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  <tr className="border-b border-line text-left">
+                    <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted">
                       Ngày
                     </th>
-                    <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted">
                       Check-in
                     </th>
-                    <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted">
                       Check-out
                     </th>
-                    <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted">
                       Chi nhánh
                     </th>
-                    <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted">
                       Trạng thái
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                <tbody className="divide-y divide-line">
                   {data?.data.map((c) => (
-                    <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors">
-                      <td className="px-4 py-3.5 font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                    <tr key={c.id} className="transition-colors hover:bg-line/30">
+                      <td className="whitespace-nowrap px-4 py-3.5 font-semibold text-chalk">
                         {formatDate(c.checkInTime)}
                       </td>
-                      <td className="px-4 py-3.5 text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                      <td className="whitespace-nowrap px-4 py-3.5 text-muted">
                         <span className="inline-flex items-center gap-1.5">
-                          <LogIn className="w-3.5 h-3.5 text-emerald-500" />
+                          <LogIn className="h-3.5 w-3.5 text-neon" />
                           {new Date(c.checkInTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </td>
-                      <td className="px-4 py-3.5 text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                      <td className="whitespace-nowrap px-4 py-3.5 text-muted">
                         {c.checkOutTime ? (
                           <span className="inline-flex items-center gap-1.5">
-                            <LogOut className="w-3.5 h-3.5 text-slate-400" />
+                            <LogOut className="h-3.5 w-3.5 text-muted" />
                             {new Date(c.checkOutTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         ) : (
                           '--'
                         )}
                       </td>
-                      <td className="px-4 py-3.5 text-slate-600 dark:text-slate-300">{c.branch?.name || '--'}</td>
-                      <td className="px-4 py-3.5 whitespace-nowrap">
+                      <td className="px-4 py-3.5 text-muted">{c.branch?.name || '--'}</td>
+                      <td className="whitespace-nowrap px-4 py-3.5">
                         <Badge variant={c.status === 'CHECKED_OUT' ? 'success' : 'info'}>
                           {c.status === 'CHECKED_OUT' ? 'Hoàn tất' : 'Đang tập'}
                         </Badge>
@@ -128,8 +128,8 @@ export default function MemberCheckinsPage() {
 
           {/* Pagination */}
           {!isLoading && (data?.total || 0) > 0 && (
-            <div className="flex items-center justify-between px-4 py-4 border-t border-slate-100 dark:border-slate-800">
-              <p className="text-xs text-slate-500">
+            <div className="flex items-center justify-between border-t border-line px-4 py-4">
+              <p className="text-xs text-muted">
                 Trang {page}/{totalPages} • {data?.total} lượt
               </p>
               <div className="flex items-center gap-2">
@@ -139,7 +139,7 @@ export default function MemberCheckinsPage() {
                   disabled={page <= 1 || isFetching}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
-                  <ChevronLeft className="w-4 h-4" />
+                  <ChevronLeft className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="outline"
@@ -147,7 +147,7 @@ export default function MemberCheckinsPage() {
                   disabled={page >= totalPages || isFetching}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 >
-                  <ChevronRight className="w-4 h-4" />
+                  <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
             </div>

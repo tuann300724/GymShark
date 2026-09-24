@@ -10,41 +10,72 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        border: 'hsl(var(--border))',
-        input: 'hsl(var(--input))',
-        ring: 'hsl(var(--ring))',
-        background: 'hsl(var(--background))',
-        foreground: 'hsl(var(--foreground))',
+        // ===== Brand palette (Dark Cinematic + Neon Fitness) =====
+        ink: '#0B0D0F', // background
+        surface: '#15191D', // secondary background / card
+        neon: {
+          DEFAULT: '#B7FF00', // primary accent
+          hover: '#D0FF4D', // primary hover
+        },
+        chalk: '#F5F5F5', // main text
+        muted: '#9AA0A6', // secondary text
+        line: '#272C31', // border
+        danger: '#FF4545', // danger / warning
+
+        // ===== Semantic tokens (compat) =====
+        background: '#0B0D0F',
+        foreground: '#F5F5F5',
+        border: '#272C31',
+        input: '#272C31',
+        ring: '#B7FF00',
+        card: {
+          DEFAULT: '#15191D',
+          foreground: '#F5F5F5',
+        },
+        popover: {
+          DEFAULT: '#15191D',
+          foreground: '#F5F5F5',
+        },
         primary: {
-          DEFAULT: 'hsl(var(--primary))',
-          foreground: 'hsl(var(--primary-foreground))',
-          50: '#ecfdf5',
-          100: '#d1fae5',
-          500: '#10b981',
-          600: '#059669',
-          700: '#047857',
+          DEFAULT: '#B7FF00',
+          foreground: '#0B0D0F',
         },
         secondary: {
-          DEFAULT: 'hsl(var(--secondary))',
-          foreground: 'hsl(var(--secondary-foreground))',
-        },
-        muted: {
-          DEFAULT: 'hsl(var(--muted))',
-          foreground: 'hsl(var(--muted-foreground))',
+          DEFAULT: '#15191D',
+          foreground: '#F5F5F5',
         },
         accent: {
-          DEFAULT: 'hsl(var(--accent))',
-          foreground: 'hsl(var(--accent-foreground))',
+          DEFAULT: '#15191D',
+          foreground: '#F5F5F5',
         },
-        card: {
-          DEFAULT: 'hsl(var(--card))',
-          foreground: 'hsl(var(--card-foreground))',
+        destructive: {
+          DEFAULT: '#FF4545',
+          foreground: '#F5F5F5',
         },
+        'muted-foreground': '#9AA0A6',
+      },
+      fontFamily: {
+        sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
+        display: ['var(--font-display)', 'var(--font-sans)', 'sans-serif'],
       },
       borderRadius: {
-        lg: 'var(--radius)',
-        md: 'calc(var(--radius) - 2px)',
-        sm: 'calc(var(--radius) - 4px)',
+        lg: '14px',
+        md: '12px',
+        sm: '10px',
+      },
+      keyframes: {
+        'fade-in': {
+          from: { opacity: '0' },
+          to: { opacity: '1' },
+        },
+        'slide-up': {
+          from: { opacity: '0', transform: 'translateY(16px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+      },
+      animation: {
+        'fade-in': 'fade-in 0.25s ease-out',
+        'slide-up': 'slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
       },
     },
   },

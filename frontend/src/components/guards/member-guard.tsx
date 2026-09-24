@@ -38,7 +38,7 @@ export function MemberGuard({ children }: { children: React.ReactNode }) {
 
   if (state === 'loading') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-slate-50 dark:bg-slate-950">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-ink">
         <Skeleton className="h-8 w-56" />
         <Skeleton className="h-4 w-80" />
         <Skeleton className="h-4 w-72" />

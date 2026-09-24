@@ -23,11 +23,11 @@ import {
 import { cn, formatDateTime } from '@/lib/utils';
 
 const TYPE_META: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
-  SYSTEM: { label: 'Hệ thống', icon: <Bell className="w-4 h-4" />, color: 'bg-sky-100 text-sky-600 dark:bg-sky-900/40 dark:text-sky-400' },
-  MEMBERSHIP: { label: 'Hội viên', icon: <CreditCard className="w-4 h-4" />, color: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400' },
-  PAYMENT: { label: 'Thanh toán', icon: <Package className="w-4 h-4" />, color: 'bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400' },
-  SCHEDULE: { label: 'Lịch tập', icon: <CalendarDays className="w-4 h-4" />, color: 'bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-400' },
-  PROMOTION: { label: 'Khuyến mãi', icon: <Megaphone className="w-4 h-4" />, color: 'bg-rose-100 text-rose-600 dark:bg-rose-900/40 dark:text-rose-400' },
+  SYSTEM: { label: 'Hệ thống', icon: <Bell className="w-4 h-4" />, color: 'bg-sky-500/10 text-sky-400' },
+  MEMBERSHIP: { label: 'Hội viên', icon: <CreditCard className="w-4 h-4" />, color: 'bg-neon/10 text-neon' },
+  PAYMENT: { label: 'Thanh toán', icon: <Package className="w-4 h-4" />, color: 'bg-amber-500/10 text-amber-400' },
+  SCHEDULE: { label: 'Lịch tập', icon: <CalendarDays className="w-4 h-4" />, color: 'bg-purple-500/10 text-purple-400' },
+  PROMOTION: { label: 'Khuyến mãi', icon: <Megaphone className="w-4 h-4" />, color: 'bg-danger/10 text-danger' },
 };
 
 function typeMeta(type: string) {
@@ -68,13 +68,13 @@ export default function MemberNotificationsPage() {
   });
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+          <h1 className="font-display text-2xl font-bold uppercase tracking-tight text-chalk sm:text-3xl">
             Thông báo
           </h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-sm text-muted">
             Cập nhật về hội viên, thanh toán và lịch tập của bạn.
           </p>
         </div>
@@ -88,7 +88,7 @@ export default function MemberNotificationsPage() {
             disabled={unreadCount === 0 || markAll.isPending}
             onClick={() => markAll.mutate()}
           >
-            <CheckCheck className="w-4 h-4" />
+            <CheckCheck className="h-4 w-4" />
             Đánh dấu tất cả
           </Button>
         </div>
@@ -103,61 +103,61 @@ export default function MemberNotificationsPage() {
               <Skeleton className="h-16 w-full" />
             </div>
           ) : notifications.length === 0 ? (
-            <div className="py-16 flex flex-col items-center gap-3 text-center">
-              <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                <BellOff className="w-6 h-6 text-slate-400" />
+            <div className="flex flex-col items-center gap-3 py-16 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-line bg-ink">
+                <BellOff className="h-6 w-6 text-muted" />
               </div>
-              <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
+              <p className="text-sm font-semibold text-muted">
                 Không có thông báo nào
               </p>
-              <p className="text-xs text-slate-400 max-w-xs">
+              <p className="max-w-xs text-xs text-muted">
                 Khi có cập nhật về gói tập, thanh toán hay lịch tập, thông báo sẽ hiện ở đây.
               </p>
             </div>
           ) : (
-            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+            <ul className="divide-y divide-line">
               {notifications.map((n) => {
                 const meta = typeMeta(n.type);
                 return (
                   <li
                     key={n.id}
                     className={cn(
-                      'flex gap-3 sm:gap-4 px-4 sm:px-5 py-4 transition-colors',
-                      !n.isRead && 'bg-emerald-50/50 dark:bg-emerald-900/10',
+                      'flex gap-3 px-4 py-4 transition-colors sm:gap-4 sm:px-5',
+                      !n.isRead && 'bg-neon/5',
                     )}
                   >
                     <div
                       className={cn(
-                        'w-10 h-10 rounded-xl flex items-center justify-center shrink-0',
+                        'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
                         meta.color,
                       )}
                     >
                       {meta.icon}
                     </div>
-                    <div className="flex-1 min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <p
                           className={cn(
-                            'text-sm font-semibold text-slate-900 dark:text-slate-100',
-                            !n.isRead && 'text-emerald-700 dark:text-emerald-300',
+                            'text-sm font-semibold text-chalk',
+                            !n.isRead && 'text-neon',
                           )}
                         >
                           {n.title}
                         </p>
                         {!n.isRead && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
-                            <Mail className="w-3 h-3" /> Mới
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-neon">
+                            <Mail className="h-3 w-3" /> Mới
                           </span>
                         )}
                       </div>
-                      <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400 break-words">
+                      <p className="mt-0.5 break-words text-sm text-muted">
                         {n.content}
                       </p>
                       <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <Badge variant="outline" className="text-[10px] px-2 py-0.5">
+                        <Badge variant="outline" className="px-2 py-0.5 text-[10px]">
                           {meta.label}
                         </Badge>
-                        <span className="text-[11px] text-slate-400">
+                        <span className="text-[11px] text-muted">
                           {formatDateTime(n.createdAt)}
                         </span>
                       </div>
@@ -166,10 +166,10 @@ export default function MemberNotificationsPage() {
                       <button
                         onClick={() => markRead.mutate(n.id)}
                         disabled={markRead.isPending}
-                        className="self-start shrink-0 inline-flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
+                        className="inline-flex shrink-0 items-center gap-1 self-start rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-semibold text-muted transition-colors hover:bg-line/40 disabled:opacity-50"
                         title="Đánh dấu đã đọc"
                       >
-                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <CheckCircle2 className="h-3.5 w-3.5" />
                         Đã đọc
                       </button>
                     )}
@@ -181,8 +181,8 @@ export default function MemberNotificationsPage() {
         </CardContent>
       </Card>
 
-      <p className="text-[11px] text-slate-400 flex items-center gap-1.5">
-        <Flame className="w-3.5 h-3.5" />
+      <p className="flex items-center gap-1.5 text-[11px] text-muted">
+        <Flame className="h-3.5 w-3.5 text-neon" />
         GymMaster luôn cập nhật trạng thái gói tập và lịch hẹn PT cho bạn.
       </p>
     </div>

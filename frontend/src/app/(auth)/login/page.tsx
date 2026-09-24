@@ -6,11 +6,12 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Link from 'next/link';
+import Image from 'next/image';
 import { authApi, saveSession } from '@/services/auth.service';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Flame, AlertCircle, Sparkles, KeyRound } from 'lucide-react';
+import { Dumbbell, AlertCircle, Sparkles, KeyRound } from 'lucide-react';
 
 const loginSchema = z.object({
   email: z.string().email('Email không đúng định dạng'),
@@ -80,37 +81,49 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-950 relative overflow-hidden">
-      {/* Background Glow Accents */}
-      <div className="absolute top-1/4 -left-20 w-96 h-96 bg-emerald-600/20 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-teal-600/10 rounded-full blur-3xl pointer-events-none" />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-ink p-4 py-10">
+      {/* Background photo + heavy overlay */}
+      <div className="absolute inset-0" aria-hidden>
+        <Image
+          src="/images/bw-training.jpg"
+          alt=""
+          fill
+          sizes="100vw"
+          className="object-cover"
+          priority
+        />
+        <div className="absolute inset-0 bg-ink/90" />
+        <div className="absolute inset-x-0 top-0 h-px bg-line" />
+      </div>
 
-      <div className="w-full max-w-md relative z-10">
-        {/* Brand Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-400 text-white shadow-lg shadow-emerald-500/25 mb-3">
-            <Flame className="w-8 h-8 animate-pulse" />
+      <div className="relative z-10 w-full max-w-md animate-fade-in">
+        {/* Brand */}
+        <div className="mb-8 text-center">
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-neon/40 bg-surface text-neon">
+            <Dumbbell className="h-7 w-7" />
           </div>
-          <h1 className="text-2xl font-black tracking-tight text-white">
-            GYM<span className="text-emerald-500">MASTER</span> PRO
+          <h1 className="font-display text-3xl font-extrabold uppercase leading-none tracking-tight text-chalk">
+            GYM<span className="text-neon">MASTER</span> PRO
           </h1>
-          <p className="text-xs text-slate-400 mt-1 uppercase tracking-widest font-semibold">
+          <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-muted">
             Hệ thống Quản lý Vận hành Phòng Gym
           </p>
         </div>
 
-        {/* Login Card */}
-        <Card className="border-slate-800 bg-slate-900/90 shadow-2xl backdrop-blur-xl">
+        {/* Login card */}
+        <Card className="border-line bg-surface/95 shadow-2xl backdrop-blur-xl">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-xl text-white">Đăng nhập</CardTitle>
-            <CardDescription className="text-slate-400">
+            <CardTitle className="font-display text-2xl font-bold uppercase tracking-tight text-chalk">
+              Đăng nhập
+            </CardTitle>
+            <CardDescription>
               Truy cập khu vực hội viên hoặc trang quản trị theo vai trò của bạn
             </CardDescription>
           </CardHeader>
           <CardContent>
             {errorMessage && (
-              <div className="mb-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              <div className="mb-4 flex items-start gap-2 rounded-[10px] border border-danger/30 bg-danger/10 p-3 text-xs text-danger">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>{errorMessage}</span>
               </div>
             )}
@@ -138,12 +151,12 @@ export default function LoginPage() {
 
               {/* Remember me + Forgot password */}
               <div className="flex items-center justify-between text-xs">
-                <label className="flex items-center gap-2 text-slate-300 cursor-pointer select-none">
+                <label className="flex cursor-pointer select-none items-center gap-2 text-chalk">
                   <input
                     type="checkbox"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
-                    className="w-4 h-4 rounded border-slate-600 accent-emerald-600"
+                    className="h-4 w-4 rounded border-line bg-ink accent-neon"
                   />
                   Ghi nhớ đăng nhập
                 </label>
@@ -153,76 +166,71 @@ export default function LoginPage() {
                     e.preventDefault();
                     setErrorMessage('Vui lòng liên hệ nhân viên lễ tân của phòng gym để được hỗ trợ đặt lại mật khẩu.');
                   }}
-                  className="inline-flex items-center gap-1 text-emerald-400 hover:underline font-medium"
+                  className="inline-flex items-center gap-1 font-medium text-neon hover:underline"
                 >
-                  <KeyRound className="w-3.5 h-3.5" />
+                  <KeyRound className="h-3.5 w-3.5" />
                   Quên mật khẩu?
                 </Link>
               </div>
 
-              <Button
-                type="submit"
-                variant="primary"
-                className="w-full h-11 text-sm font-bold shadow-lg shadow-emerald-600/30"
-                isLoading={isLoading}
-              >
+              <Button type="submit" variant="primary" className="h-11 w-full text-sm font-bold" isLoading={isLoading}>
                 Đăng nhập
               </Button>
             </form>
 
             {/* Register link */}
-            <p className="mt-4 text-center text-xs text-slate-400">
+            <p className="mt-4 text-center text-xs text-muted">
               Chưa có tài khoản?{' '}
-              <Link href="/register" className="text-emerald-400 font-semibold hover:underline">
+              <Link href="/register" className="font-semibold text-neon hover:underline">
                 Đăng ký ngay
               </Link>
             </p>
 
             {/* Quick Demo Accounts Helper */}
-            <div className="mt-6 pt-5 border-t border-slate-800">
-              <div className="flex items-center gap-1.5 text-xs text-slate-400 font-semibold mb-2.5">
-                <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+            <div className="mt-6 border-t border-line pt-5">
+              <div className="mb-2.5 flex items-center gap-1.5 text-xs font-semibold text-muted">
+                <Sparkles className="h-3.5 w-3.5 text-neon" />
                 <span>Chọn nhanh tài khoản mẫu:</span>
               </div>
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <button
                   type="button"
                   onClick={() => fillQuickAccount('admin@gym.com', 'Admin@123456')}
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-800/60 hover:bg-slate-800 text-slate-200 text-left font-medium transition-colors"
+                  className="rounded-[10px] border border-line bg-ink px-2.5 py-1.5 text-left font-medium text-chalk transition-colors hover:border-neon/40 hover:bg-line/40"
                 >
-                  <span className="font-bold text-emerald-400 block text-[11px]">ADMIN</span>
+                  <span className="block font-bold text-neon text-[11px]">ADMIN</span>
                   admin@gym.com
                 </button>
                 <button
                   type="button"
                   onClick={() => fillQuickAccount('manager@gym.com', 'Manager@123456')}
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-800/60 hover:bg-slate-800 text-slate-200 text-left font-medium transition-colors"
+                  className="rounded-[10px] border border-line bg-ink px-2.5 py-1.5 text-left font-medium text-chalk transition-colors hover:border-neon/40 hover:bg-line/40"
                 >
-                  <span className="font-bold text-sky-400 block text-[11px]">MANAGER</span>
+                  <span className="block font-bold text-neon text-[11px]">MANAGER</span>
                   manager@gym.com
                 </button>
                 <button
                   type="button"
                   onClick={() => fillQuickAccount('staff@gym.com', 'Staff@123456')}
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-800/60 hover:bg-slate-800 text-slate-200 text-left font-medium transition-colors"
+                  className="rounded-[10px] border border-line bg-ink px-2.5 py-1.5 text-left font-medium text-chalk transition-colors hover:border-neon/40 hover:bg-line/40"
                 >
-                  <span className="font-bold text-amber-400 block text-[11px]">STAFF</span>
+                  <span className="block font-bold text-neon text-[11px]">STAFF</span>
                   staff@gym.com
                 </button>
                 <button
                   type="button"
                   onClick={() => fillQuickAccount('trainer@gym.com', 'Trainer@123456')}
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-800/60 hover:bg-slate-800 text-slate-200 text-left font-medium transition-colors"
+                  className="rounded-[10px] border border-line bg-ink px-2.5 py-1.5 text-left font-medium text-chalk transition-colors hover:border-neon/40 hover:bg-line/40"
                 >
-                  <span className="font-bold text-purple-400 block text-[11px]">TRAINER</span>
+                  <span className="block font-bold text-neon text-[11px]">TRAINER</span>
                   trainer@gym.com
                 </button>
                 <button
                   type="button"
                   onClick={() => fillQuickAccount('member@gym.com', 'Member@123456')}
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-800/60 hover:bg-slate-800 text-slate-200 text-left font-medium transition-colors"
+                  className="rounded-[10px] border border-line bg-ink px-2.5 py-1.5 text-left font-medium text-chalk transition-colors hover:border-neon/40 hover:bg-line/40"
                 >
-                  <span className="font-bold text-teal-400 block text-[11px]">MEMBER</span>
+                  <span className="block font-bold text-neon text-[11px]">MEMBER</span>
                   member@gym.com
                 </button>
               </div>

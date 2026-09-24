@@ -10,10 +10,10 @@ interface ProgressProps {
 export function Progress({ value, className, barClassName }: ProgressProps) {
   const clamped = Math.min(100, Math.max(0, value));
   return (
-    <div className={cn('h-2.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800', className)}>
+    <div className={cn('h-2.5 w-full overflow-hidden rounded-full bg-line', className)}>
       <div
         className={cn(
-          'h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-500',
+          'h-full rounded-full bg-neon transition-all duration-700 ease-out',
           barClassName,
         )}
         style={{ width: `${clamped}%` }}

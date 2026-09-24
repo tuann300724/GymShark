@@ -9,20 +9,21 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', isLoading = false, children, disabled, ...props }, ref) => {
-    const baseStyles = 'inline-flex items-center justify-center font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-50 disabled:pointer-events-none rounded-lg select-none';
+    const baseStyles =
+      'inline-flex items-center justify-center font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neon focus-visible:ring-offset-2 focus-visible:ring-offset-ink disabled:opacity-50 disabled:pointer-events-none rounded-[10px] select-none active:translate-y-px';
 
     const variants = {
-      primary: 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shadow-emerald-900/20 active:scale-[0.98]',
-      secondary: 'bg-slate-800 text-slate-100 hover:bg-slate-700 border border-slate-700 active:scale-[0.98]',
-      outline: 'border border-slate-300 dark:border-slate-700 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-900 dark:text-slate-100',
-      danger: 'bg-rose-600 text-white hover:bg-rose-700 active:scale-[0.98]',
-      ghost: 'bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300',
+      primary: 'bg-neon text-ink font-bold hover:bg-neon-hover shadow-[0_0_24px_-8px_rgba(183,255,0,0.5)]',
+      secondary: 'bg-surface text-chalk border border-line hover:border-neon/60 hover:text-neon',
+      outline: 'bg-transparent border border-line text-chalk hover:border-neon/60 hover:text-neon',
+      danger: 'bg-danger text-white font-bold hover:brightness-110',
+      ghost: 'bg-transparent text-muted hover:text-chalk hover:bg-surface',
     };
 
     const sizes = {
       sm: 'h-8 px-3 text-xs gap-1.5',
       md: 'h-10 px-4 text-sm gap-2',
-      lg: 'h-12 px-6 text-base gap-2.5',
+      lg: 'h-12 px-6 text-[15px] gap-2.5',
       icon: 'h-9 w-9 p-0',
     };
 

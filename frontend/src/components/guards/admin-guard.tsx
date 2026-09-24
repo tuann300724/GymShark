@@ -37,7 +37,7 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
 
   if (state === 'loading') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+      <div className="min-h-screen bg-ink flex flex-col items-center justify-center gap-4">
         <Skeleton className="h-8 w-56" />
         <Skeleton className="h-4 w-80" />
       </div>

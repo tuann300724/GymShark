@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
+import { Reveal } from '@/components/home/reveal';
 import { MapPin, Phone, Mail, Clock, Send } from 'lucide-react';
 
 const contactSchema = z.object({
@@ -61,101 +62,121 @@ export default function PublicContactPage() {
         { icon: Mail, label: 'Email', value: branch.email || 'lienhe@gymmaster.vn', href: `mailto:${branch.email || 'lienhe@gymmaster.vn'}` },
         { icon: Clock, label: 'Giờ mở cửa', value: branch.openingHours || '05:00 - 22:00 hàng ngày' },
       ]
-    : [];
+    : [
+        // Fallback đồng bộ với footer khi API chi nhánh chưa khả dụng
+        { icon: MapPin, label: 'Địa chỉ', value: 'Khu Công nghệ Phần mềm, Đồng Nai' },
+        { icon: Phone, label: 'Điện thoại', value: '1900 1009', href: 'tel:19001009' },
+        { icon: Mail, label: 'Email', value: 'lienhe@gymmaster.vn', href: 'mailto:lienhe@gymmaster.vn' },
+        { icon: Clock, label: 'Giờ mở cửa', value: '05:00 - 22:00 hàng ngày' },
+      ];
 
   return (
-    <div className="bg-slate-50 dark:bg-slate-950">
-      <section className="bg-slate-950 py-16 relative overflow-hidden">
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-emerald-600/15 rounded-full blur-3xl" />
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="text-emerald-400 font-bold text-sm uppercase tracking-widest mb-2">Contact Us</p>
-          <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">Liên hệ với chúng tôi</h1>
-          <p className="mt-3 text-slate-400 max-w-2xl">
-            Có bất kỳ câu hỏi nào về gói tập, lớp học hay dịch vụ? Đừng ngần ngại liên hệ với chúng tôi.
-          </p>
+    <div className="overflow-x-hidden">
+      {/* ===== Page hero ===== */}
+      <section className="border-b border-line">
+        <div className="container-x py-14 lg:py-16">
+          <Reveal>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-neon">
+              Contact Us
+            </p>
+            <h1 className="section-title mt-4">Liên hệ với chúng tôi</h1>
+            <p className="mt-4 max-w-xl text-base leading-relaxed text-muted">
+              Có bất kỳ câu hỏi nào về gói tập, lớp học hay dịch vụ? Đừng ngần ngại liên hệ với
+              chúng tôi.
+            </p>
+          </Reveal>
         </div>
       </section>
 
-      <section className="py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-          {/* Info */}
-          <div>
-            {isLoading ? (
-              <div className="space-y-4">
-                {[1, 2, 3, 4].map((i) => (
-                  <Skeleton key={i} className="h-16 rounded-xl" />
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {infoItems.map((item) => (
-                  <div
-                    key={item.label}
-                    className="flex items-start gap-4 p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
-                  >
-                    <div className="w-11 h-11 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
-                      <item.icon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{item.label}</p>
-                      {item.href ? (
-                        <a
-                          href={item.href}
-                          className="text-sm font-semibold text-slate-800 dark:text-slate-200 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors break-words"
-                        >
-                          {item.value}
-                        </a>
-                      ) : (
-                        <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 break-words">
-                          {item.value}
-                        </p>
-                      )}
-                    </div>
+      {/* ===== Info + form ===== */}
+      <section className="py-14 lg:py-16">
+        <div className="container-x">
+          <div className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-12">
+            {/* Info cards + map */}
+            <Reveal>
+              <div>
+                {isLoading ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3, 4].map((i) => (
+                      <Skeleton key={i} className="h-20 rounded-2xl" />
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
+                ) : (
+                  <div className="space-y-4">
+                    {infoItems.map((item) => (
+                      <div
+                        key={item.label}
+                        className="flex items-start gap-4 rounded-2xl border border-line bg-surface p-4 transition-colors duration-300 hover:border-neon/40"
+                      >
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] border border-neon/25 bg-neon/10 text-neon">
+                          <item.icon className="h-5 w-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
+                            {item.label}
+                          </p>
+                          {item.href ? (
+                            <a
+                              href={item.href}
+                              className="mt-1 block break-words text-sm font-semibold text-chalk transition-colors hover:text-neon"
+                            >
+                              {item.value}
+                            </a>
+                          ) : (
+                            <p className="mt-1 break-words text-sm font-semibold text-chalk">
+                              {item.value}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
-            {/* Maps embed */}
-            <div className="mt-6 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
-              <iframe
-                title="Bản đồ GymMaster"
-                src={`https://www.google.com/maps?q=${encodeURIComponent(branch?.address || 'Bien Hoa, Dong Nai')}&output=embed`}
-                className="w-full h-64 border-0"
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                allowFullScreen
-              />
-            </div>
-          </div>
-
-          {/* Contact form */}
-          <div>
-            <div className="p-7 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white">Gửi tin nhắn cho chúng tôi</h2>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                Chúng tôi sẽ phản hồi trong vòng 24 giờ làm việc.
-              </p>
-
-              <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
-                <Input label="Họ và tên (*)" placeholder="Nguyễn Văn A" error={errors.name?.message} {...register('name')} />
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Input label="Email (*)" type="email" placeholder="you@email.com" error={errors.email?.message} {...register('email')} />
-                  <Input label="Số điện thoại (*)" placeholder="0912345678" error={errors.phone?.message} {...register('phone')} />
+                {/* Maps embed */}
+                <div className="mt-6 overflow-hidden rounded-2xl border border-line">
+                  <iframe
+                    title="Bản đồ GymMaster"
+                    src={`https://www.google.com/maps?q=${encodeURIComponent(branch?.address || 'Bien Hoa, Dong Nai')}&output=embed`}
+                    className="h-64 w-full border-0 [filter:invert(0.9)_hue-rotate(180deg)_saturate(0.7)_brightness(0.92)_contrast(1.05)]"
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    allowFullScreen
+                  />
                 </div>
-                <Textarea
-                  label="Nội dung (*)"
-                  placeholder="Tôi muốn tư vấn về gói tập..."
-                  rows={5}
-                  error={errors.message?.message}
-                  {...register('message')}
-                />
-                <Button type="submit" className="w-full h-11 font-bold" isLoading={isSubmitting}>
-                  <Send className="w-4 h-4" />
-                  Gửi liên hệ
-                </Button>
-              </form>
-            </div>
+              </div>
+            </Reveal>
+
+            {/* Contact form */}
+            <Reveal delay={120}>
+              <div className="rounded-2xl border border-line bg-surface p-7 shadow-[0_1px_2px_rgba(0,0,0,0.35)]">
+                <h2 className="font-display text-2xl font-bold uppercase tracking-tight text-chalk">
+                  Gửi tin nhắn cho chúng tôi
+                </h2>
+                <p className="mt-1.5 text-sm text-muted">
+                  Chúng tôi sẽ phản hồi trong vòng 24 giờ làm việc.
+                </p>
+
+                <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
+                  <Input label="Họ và tên (*)" placeholder="Nguyễn Văn A" error={errors.name?.message} {...register('name')} />
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <Input label="Email (*)" type="email" placeholder="you@email.com" error={errors.email?.message} {...register('email')} />
+                    <Input label="Số điện thoại (*)" placeholder="0912345678" error={errors.phone?.message} {...register('phone')} />
+                  </div>
+                  <Textarea
+                    label="Nội dung (*)"
+                    placeholder="Tôi muốn tư vấn về gói tập..."
+                    rows={5}
+                    error={errors.message?.message}
+                    {...register('message')}
+                  />
+                  <Button type="submit" className="h-11 w-full font-bold" isLoading={isSubmitting}>
+                    <Send className="h-4 w-4" />
+                    Gửi liên hệ
+                  </Button>
+                </form>
+              </div>
+            </Reveal>
           </div>
         </div>
       </section>

@@ -13,7 +13,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
     return (
       <div className="w-full">
         {label && (
-          <label htmlFor={inputId} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+          <label htmlFor={inputId} className="block text-sm font-semibold text-muted mb-1.5">
             {label}
           </label>
         )}
@@ -21,11 +21,9 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           ref={ref}
           id={inputId}
           className={cn(
-            'w-full rounded-lg border bg-white dark:bg-slate-900 px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100',
-            'focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow',
-            error
-              ? 'border-rose-400 dark:border-rose-500'
-              : 'border-slate-300 dark:border-slate-700',
+            'w-full rounded-[10px] border bg-ink px-3.5 py-2.5 text-sm text-chalk [&>option]:bg-surface [&>option]:text-chalk',
+            'focus:outline-none focus:ring-2 focus:ring-neon/70 focus:border-neon/70 transition-shadow',
+            error ? 'border-danger' : 'border-line',
             className,
           )}
           {...props}
@@ -36,7 +34,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             </option>
           ))}
         </select>
-        {error && <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">{error}</p>}
+        {error && <p className="mt-1 text-xs text-danger">{error}</p>}
       </div>
     );
   },

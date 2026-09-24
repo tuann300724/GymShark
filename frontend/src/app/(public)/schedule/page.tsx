@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { publicApi } from '@/services/package.service';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Reveal } from '@/components/home/reveal';
 import { CalendarDays, Clock, MapPin, User } from 'lucide-react';
 
 function formatDay(dateStr: string): string {
@@ -37,81 +38,111 @@ export default function PublicSchedulePage() {
   });
 
   return (
-    <div className="bg-slate-50 dark:bg-slate-950">
-      <section className="bg-slate-950 py-16 relative overflow-hidden">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-emerald-600/15 rounded-full blur-3xl" />
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="text-emerald-400 font-bold text-sm uppercase tracking-widest mb-2">Class Schedule</p>
-          <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">Lịch tập & lớp học</h1>
-          <p className="mt-3 text-slate-400 max-w-2xl">
-            Tham gia các lớp học nhóm miễn phí cho hội viên: Yoga, HIIT, CrossFit, Pilates và nhiều hơn nữa.
-          </p>
+    <div className="overflow-x-hidden">
+      {/* ===== Page hero ===== */}
+      <section className="border-b border-line">
+        <div className="container-x py-14 lg:py-16">
+          <Reveal>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-neon">
+              Class Schedule
+            </p>
+            <h1 className="section-title mt-4">Lịch tập &amp; lớp học</h1>
+            <p className="mt-4 max-w-xl text-base leading-relaxed text-muted">
+              Tham gia các lớp học nhóm miễn phí cho hội viên: Yoga, HIIT, CrossFit, Pilates và
+              nhiều hơn nữa.
+            </p>
+          </Reveal>
         </div>
       </section>
 
-      <section className="py-12 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {isLoading ? (
-          <div className="space-y-6">
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-24 rounded-xl" />
-            ))}
-          </div>
-        ) : grouped.length === 0 ? (
-          <div className="text-center py-16 text-slate-500">
-            <CalendarDays className="w-10 h-10 mx-auto mb-3 opacity-40" />
-            <p className="font-semibold">Chưa có lớp học nào được lên lịch ở thời điểm hiện tại.</p>
-          </div>
-        ) : (
-          <div className="space-y-8">
-            {grouped.map((group) => (
-              <div key={group.day}>
-                <h2 className="text-sm font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-3">
-                  {formatDay(group.day)}
-                </h2>
-                <div className="space-y-3">
-                  {group.sessions.map((s) => (
-                    <div
-                      key={s.id}
-                      className="flex flex-col sm:flex-row sm:items-center gap-4 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-emerald-500/40 transition-all"
-                    >
-                      <div className="flex items-center gap-3 sm:w-36 shrink-0">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                          <Clock className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-slate-900 dark:text-white text-sm">{formatTime(s.startTime)}</p>
-                          <p className="text-[11px] text-slate-400">{formatTime(s.endTime)} · kết thúc</p>
-                        </div>
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-slate-900 dark:text-white">{s.title}</p>
-                        <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
-                          {s.trainer?.user && (
-                            <span className="inline-flex items-center gap-1">
-                              <User className="w-3.5 h-3.5 text-emerald-500" />
-                              {s.trainer.user.fullName}
-                            </span>
-                          )}
-                          {s.room && (
-                            <span className="inline-flex items-center gap-1">
-                              <MapPin className="w-3.5 h-3.5 text-emerald-500" />
-                              {s.room.name}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <Badge variant="success" className="shrink-0 self-start sm:self-center">
-                        Còn chỗ
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
+      {/* ===== Day-grouped class list ===== */}
+      <section className="py-14 lg:py-16">
+        <div className="container-x">
+          <div className="mx-auto max-w-4xl">
+            {isLoading ? (
+              <div className="space-y-6">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-24 rounded-2xl" />
+                ))}
               </div>
-            ))}
+            ) : grouped.length === 0 ? (
+              <div className="rounded-2xl border border-line bg-surface py-16 text-center">
+                <CalendarDays className="mx-auto mb-3 h-10 w-10 text-muted opacity-50" />
+                <p className="font-semibold text-chalk">
+                  Chưa có lớp học nào được lên lịch ở thời điểm hiện tại.
+                </p>
+                <p className="mt-1.5 text-sm text-muted">
+                  Vui lòng quay lại sau hoặc liên hệ lễ tân để biết thêm.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-10">
+                {grouped.map((group, gi) => (
+                  <Reveal key={group.day} delay={Math.min(gi, 3) * 80}>
+                    <div>
+                      {/* Day header */}
+                      <div className="mb-4 flex items-center gap-3">
+                        <span className="h-2 w-2 shrink-0 bg-neon" aria-hidden />
+                        <h2 className="font-display text-lg font-bold uppercase tracking-wide text-chalk">
+                          {formatDay(group.day)}
+                        </h2>
+                        <span className="h-px flex-1 bg-line" aria-hidden />
+                        <span className="shrink-0 text-xs text-muted">
+                          {group.sessions.length} buổi
+                        </span>
+                      </div>
+
+                      <div className="space-y-3">
+                        {group.sessions.map((s) => (
+                          <div
+                            key={s.id}
+                            className="flex flex-col gap-4 rounded-2xl border border-line bg-surface p-5 transition-colors duration-300 hover:border-neon/40 sm:flex-row sm:items-center"
+                          >
+                            <div className="flex shrink-0 items-center gap-3 sm:w-36">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-[10px] border border-neon/25 bg-neon/10 text-neon">
+                                <Clock className="h-5 w-5" />
+                              </div>
+                              <div>
+                                <p className="font-display text-base font-bold leading-none text-chalk">
+                                  {formatTime(s.startTime)}
+                                </p>
+                                <p className="mt-1 text-[11px] text-muted">
+                                  {formatTime(s.endTime)} · kết thúc
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                              <p className="font-semibold text-chalk">{s.title}</p>
+                              <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
+                                {s.trainer?.user && (
+                                  <span className="inline-flex items-center gap-1">
+                                    <User className="h-3.5 w-3.5 text-neon" />
+                                    {s.trainer.user.fullName}
+                                  </span>
+                                )}
+                                {s.room && (
+                                  <span className="inline-flex items-center gap-1">
+                                    <MapPin className="h-3.5 w-3.5 text-neon" />
+                                    {s.room.name}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <Badge variant="success" className="shrink-0 self-start sm:self-center">
+                              Còn chỗ
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </Reveal>
+                ))}
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </section>
     </div>
   );

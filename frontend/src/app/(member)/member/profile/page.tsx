@@ -120,10 +120,12 @@ export default function MemberProfilePage() {
   ];
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">Hồ sơ của tôi</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+        <h1 className="font-display text-2xl font-bold uppercase tracking-tight text-chalk sm:text-3xl">
+          Hồ sơ của tôi
+        </h1>
+        <p className="mt-1 text-sm text-muted">
           Quản lý thông tin cá nhân và bảo mật tài khoản.
         </p>
       </div>
@@ -138,14 +140,14 @@ export default function MemberProfilePage() {
           {/* Profile summary card */}
           <Card>
             <CardContent className="p-6 sm:p-8">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-6">
-                <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white text-3xl font-black shadow-xl shadow-emerald-500/25 shrink-0">
+              <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+                <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full border border-neon/40 bg-neon/10 text-3xl font-black text-neon">
                   {(me?.fullName || 'H').charAt(0)}
                 </div>
                 <div className="flex-1">
-                  <h2 className="text-xl font-bold text-slate-900 dark:text-white">{me?.fullName}</h2>
+                  <h2 className="text-xl font-bold text-chalk">{me?.fullName}</h2>
                   {member?.code && (
-                    <p className="text-sm text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5">
+                    <p className="mt-0.5 text-sm font-semibold text-neon">
                       Mã hội viên: {member.code}
                     </p>
                   )}
@@ -158,11 +160,11 @@ export default function MemberProfilePage() {
                 </div>
                 <div className="flex flex-col gap-2 sm:items-end">
                   <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-                    <Pencil className="w-3.5 h-3.5" />
+                    <Pencil className="h-3.5 w-3.5" />
                     Chỉnh sửa hồ sơ
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => setPwOpen(true)}>
-                    <KeyRound className="w-3.5 h-3.5" />
+                    <KeyRound className="h-3.5 w-3.5" />
                     Đổi mật khẩu
                   </Button>
                 </div>
@@ -177,15 +179,15 @@ export default function MemberProfilePage() {
               <CardDescription>Thông tin liên hệ và hồ sơ hội viên của bạn</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+              <div className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
                 {infoRows.map((row, i) => (
                   <div key={i} className="flex items-start gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
-                      <row.icon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-neon/25 bg-neon/10">
+                      <row.icon className="h-4 w-4 text-neon" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">{row.label}</p>
-                      <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 break-words">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">{row.label}</p>
+                      <p className="break-words text-sm font-semibold text-chalk">
                         {row.value || '--'}
                       </p>
                     </div>
@@ -202,7 +204,7 @@ export default function MemberProfilePage() {
         <form onSubmit={profileForm.handleSubmit((v) => updateMutation.mutate(v))} className="space-y-4">
           <Input label="Họ và tên (*)" error={profileForm.formState.errors.fullName?.message} {...profileForm.register('fullName')} />
           <Input label="Số điện thoại (*)" error={profileForm.formState.errors.phone?.message} {...profileForm.register('phone')} />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Select
               label="Giới tính"
               options={[
@@ -222,7 +224,7 @@ export default function MemberProfilePage() {
             error={profileForm.formState.errors.emergencyContact?.message}
             {...profileForm.register('emergencyContact')}
           />
-          <div className="flex gap-2 justify-end pt-2">
+          <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="ghost" onClick={() => setEditOpen(false)}>
               Hủy
             </Button>
@@ -254,12 +256,12 @@ export default function MemberProfilePage() {
             error={pwForm.formState.errors.confirmPassword?.message}
             {...pwForm.register('confirmPassword')}
           />
-          <div className="flex gap-2 justify-end pt-2">
+          <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="ghost" onClick={() => setPwOpen(false)}>
               Hủy
             </Button>
             <Button type="submit" isLoading={pwMutation.isPending}>
-              <KeyRound className="w-4 h-4" />
+              <KeyRound className="h-4 w-4" />
               Đổi mật khẩu
             </Button>
           </div>

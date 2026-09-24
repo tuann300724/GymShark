@@ -3,17 +3,14 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useTheme } from '@/providers/theme-provider';
 import { useQuery } from '@tanstack/react-query';
 import { memberApi } from '@/services/member.service';
 import { notificationApi } from '@/services/notification.service';
 import { authApi } from '@/services/auth.service';
 import {
-  Flame,
+  Dumbbell,
   Menu,
   X,
-  Sun,
-  Moon,
   Bell,
   LayoutDashboard,
   CalendarDays,
@@ -35,8 +32,19 @@ const NAV_ITEMS = [
   { name: 'Hồ sơ', href: '/member/profile', icon: User },
 ];
 
+const NAV_LINK_CLASSES =
+  'relative flex items-center gap-1.5 px-3 py-2 text-[13px] font-medium transition-colors after:absolute after:inset-x-3 after:-bottom-0.5 after:h-[2px] after:origin-center after:rounded-full after:bg-neon after:transition-transform after:duration-300';
+
+function navLinkClass(active: boolean) {
+  return cn(
+    NAV_LINK_CLASSES,
+    active
+      ? 'text-neon after:scale-x-100'
+      : 'text-muted hover:text-chalk after:scale-x-0 hover:after:scale-x-100',
+  );
+}
+
 export function MemberHeader() {
-  const { theme, toggleTheme } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -68,73 +76,51 @@ export function MemberHeader() {
   const roleLabel = me?.isTrainer ? 'HUẤN LUYỆN VIÊN' : 'HỘI VIÊN';
 
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-200 dark:border-slate-800 bg-white/85 dark:bg-slate-950/85 backdrop-blur-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          <Link href="/member" className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white shadow-lg shadow-emerald-500/25">
-              <Flame className="w-4 h-4" />
-            </div>
-            <div className="leading-tight">
-              <p className="font-black tracking-tight text-slate-900 dark:text-white text-base">
-                GYM<span className="text-emerald-600 dark:text-emerald-400">MASTER</span>
-                <span className="ml-1.5 text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 align-middle">
-                  Member
-                </span>
-              </p>
-            </div>
+    <header className="sticky top-0 z-50 border-b border-line bg-ink/85 backdrop-blur-md">
+      <div className="container-x">
+        <div className="flex h-16 items-center justify-between gap-4">
+          {/* Logo */}
+          <Link href="/member" className="group flex shrink-0 items-center gap-2.5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-neon/40 bg-surface text-neon transition-colors group-hover:border-neon/70">
+              <Dumbbell className="h-4 w-4" />
+            </span>
+            <span className="font-display text-lg font-bold uppercase leading-none tracking-wide text-chalk xl:text-xl">
+              GYM<span className="text-neon">MASTER</span>
+              <span className="ml-2 hidden rounded border border-neon/25 bg-neon/10 px-1.5 py-0.5 align-middle font-sans text-[10px] font-bold uppercase tracking-normal text-neon sm:inline-block">
+                Member
+              </span>
+            </span>
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden lg:flex items-center gap-0.5">
+          <nav className="hidden items-center gap-0.5 lg:flex">
             {NAV_ITEMS.slice(0, 5).map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className={cn(
-                  'flex items-center gap-1.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors',
-                  pathname === item.href
-                    ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40'
-                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800',
-                )}
+                className={navLinkClass(pathname === item.href)}
               >
-                <item.icon className="w-4 h-4" />
+                <item.icon className="h-4 w-4" />
                 {item.name}
               </Link>
             ))}
-            <Link
-              href="/member/profile"
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors',
-                pathname === '/member/profile'
-                  ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800',
-              )}
-            >
-              <User className="w-4 h-4" />
+            <Link href="/member/profile" className={navLinkClass(pathname === '/member/profile')}>
+              <User className="h-4 w-4" />
               Hồ sơ
             </Link>
           </nav>
 
           {/* Right */}
           <div className="flex items-center gap-1.5">
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              aria-label="Toggle Dark Mode"
-            >
-              {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
-            </button>
-
             {/* Notification bell */}
             <Link
               href="/member/notifications"
-              className="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 relative transition-colors"
+              className="relative flex h-9 w-9 items-center justify-center rounded-[10px] border border-line bg-surface text-muted transition-colors hover:border-neon/50 hover:text-neon"
               aria-label="Thông báo"
             >
-              <Bell className="w-4 h-4" />
+              <Bell className="h-4 w-4" />
               {(notifData?.unreadCount || 0) > 0 && (
-                <span className="absolute top-1 right-1 min-w-[16px] h-4 px-0.5 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">
+                <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-danger px-0.5 text-[9px] font-bold text-white">
                   {notifData!.unreadCount}
                 </span>
               )}
@@ -144,45 +130,45 @@ export function MemberHeader() {
             <div className="relative">
               <button
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="flex items-center gap-2 rounded-[10px] p-1.5 transition-colors hover:bg-ink"
               >
-                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white font-bold text-xs uppercase shadow-sm">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full border border-neon/40 bg-neon/10 text-xs font-bold uppercase text-neon">
                   {fullName.charAt(0)}
-                </div>
-                <div className="hidden md:block text-left">
-                  <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 leading-tight max-w-[140px] truncate">
+                </span>
+                <span className="hidden text-left md:block">
+                  <span className="block max-w-[140px] truncate text-xs font-semibold leading-tight text-chalk">
                     {fullName}
-                  </p>
-                  <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">{roleLabel}</span>
-                </div>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden md:block" />
+                  </span>
+                  <span className="block text-[10px] font-bold text-neon">{roleLabel}</span>
+                </span>
+                <ChevronDown className="hidden h-3.5 w-3.5 text-muted md:block" />
               </button>
 
               {userMenuOpen && (
                 <div
-                  className="absolute right-0 mt-2 w-52 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl py-1.5 z-50 text-xs"
+                  className="absolute right-0 z-50 mt-2 w-52 animate-fade-in rounded-xl border border-line bg-surface py-1.5 text-xs shadow-xl"
                   onClick={() => setUserMenuOpen(false)}
                 >
                   <Link
                     href="/member/profile"
-                    className="w-full flex items-center gap-2 px-3 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                    className="flex w-full items-center gap-2 px-3 py-2 text-chalk transition-colors hover:bg-ink"
                   >
-                    <User className="w-3.5 h-3.5" />
+                    <User className="h-3.5 w-3.5" />
                     Hồ sơ của tôi
                   </Link>
                   <Link
                     href="/member/notifications"
-                    className="w-full flex items-center gap-2 px-3 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                    className="flex w-full items-center gap-2 px-3 py-2 text-chalk transition-colors hover:bg-ink"
                   >
-                    <Bell className="w-3.5 h-3.5" />
+                    <Bell className="h-3.5 w-3.5" />
                     Thông báo
                   </Link>
-                  <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
+                  <div className="my-1 border-t border-line" />
                   <button
                     onClick={handleLogout}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                    className="flex w-full items-center gap-2 px-3 py-2 text-danger transition-colors hover:bg-ink"
                   >
-                    <LogOut className="w-3.5 h-3.5" />
+                    <LogOut className="h-3.5 w-3.5" />
                     Đăng xuất
                   </button>
                 </div>
@@ -191,11 +177,12 @@ export function MemberHeader() {
 
             {/* Mobile hamburger */}
             <button
-              className="lg:hidden p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+              className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-line bg-surface text-chalk transition-colors hover:border-neon/50 lg:hidden"
               onClick={() => setMenuOpen(!menuOpen)}
               aria-label="Menu"
+              aria-expanded={menuOpen}
             >
-              {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
           </div>
         </div>
@@ -203,36 +190,36 @@ export function MemberHeader() {
 
       {/* Mobile drawer */}
       {menuOpen && (
-        <div className="lg:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 animate-fade-in">
-          <nav className="px-4 py-3 space-y-1">
+        <div className="animate-fade-in border-t border-line bg-ink lg:hidden">
+          <nav className="container-x flex flex-col gap-1 py-3">
             {NAV_ITEMS.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                  'flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-sm font-medium transition-colors',
                   pathname === item.href
-                    ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40'
-                    : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800',
+                    ? 'bg-neon/10 text-neon'
+                    : 'text-muted hover:bg-surface hover:text-chalk',
                 )}
               >
-                <item.icon className="w-4 h-4" />
+                <item.icon className="h-4 w-4" />
                 {item.name}
               </Link>
             ))}
             <Link
               href="/member/notifications"
               className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                'flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-sm font-medium transition-colors',
                 pathname === '/member/notifications'
-                  ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40'
-                  : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800',
+                  ? 'bg-neon/10 text-neon'
+                  : 'text-muted hover:bg-surface hover:text-chalk',
               )}
             >
-              <Bell className="w-4 h-4" />
+              <Bell className="h-4 w-4" />
               Thông báo
               {(notifData?.unreadCount || 0) > 0 && (
-                <span className="ml-auto min-w-[18px] text-center px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold">
+                <span className="ml-auto min-w-[18px] rounded-full bg-danger px-1 text-center text-[10px] font-bold text-white">
                   {notifData!.unreadCount}
                 </span>
               )}
