@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/toast';
-import { Dumbbell, AlertCircle, UserPlus } from 'lucide-react';
+import { Dumbbell, AlertCircle, UserPlus, ArrowLeft } from 'lucide-react';
 
 const registerSchema = z
   .object({
@@ -91,6 +91,15 @@ export default function RegisterPage() {
       </div>
 
       <div className="relative z-10 w-full max-w-lg animate-fade-in">
+        {/* Back to home */}
+        <Link
+          href="/"
+          className="mb-6 inline-flex items-center gap-1.5 rounded-sm border border-line bg-surface/70 px-3 py-2 text-xs font-semibold text-muted backdrop-blur transition-colors hover:border-neon/40 hover:text-chalk"
+        >
+          <ArrowLeft className="size-3.5" />
+          Quay lại trang chủ
+        </Link>
+
         {/* Brand */}
         <div className="mb-8 text-center">
           <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-2xl border border-neon/40 bg-surface text-neon">
