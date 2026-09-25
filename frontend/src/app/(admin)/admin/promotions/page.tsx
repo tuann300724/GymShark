@@ -10,7 +10,11 @@ import { formatDate } from '@/lib/utils';
 import { Tag, Plus, Calendar } from 'lucide-react';
 
 export default function PromotionsPage() {
-  const { data: promotions, isLoading, isError } = useQuery({
+  const {
+    data: promotions,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ['promotions-list'],
     queryFn: async () => {
       const res = await apiClient.get('/promotions');
@@ -23,7 +27,7 @@ export default function PromotionsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-chalk flex items-center gap-2">
-            <Tag className="w-6 h-6 text-neon" />
+            <Tag className="size-6 text-neon" />
             Khuyến Mãi & Voucher (Promotions)
           </h1>
           <p className="text-xs text-muted mt-1">
@@ -31,7 +35,7 @@ export default function PromotionsPage() {
           </p>
         </div>
         <Button variant="primary" size="md" className="font-semibold text-xs">
-          <Plus className="w-4 h-4 mr-1.5" />
+          <Plus className="size-4 mr-1.5" />
           Tạo Mã Khuyến Mãi
         </Button>
       </div>
@@ -55,13 +59,15 @@ export default function PromotionsPage() {
                   <h4 className="font-bold text-sm text-chalk">{p.name}</h4>
                   <p className="text-xs text-muted">{p.description}</p>
                   <p className="text-xs text-muted flex items-center gap-1 mt-2">
-                    <Calendar className="w-3.5 h-3.5 text-muted" />
+                    <Calendar className="size-3.5 text-muted" />
                     Hiệu lực: {formatDate(p.startDate)} - {formatDate(p.endDate)}
                   </p>
                 </div>
                 <div className="text-right shrink-0">
                   <span className="text-2xl font-black text-neon font-display">
-                    {p.discountType === 'PERCENTAGE' ? `-${p.discountValue}%` : `-${p.discountValue}đ`}
+                    {p.discountType === 'PERCENTAGE'
+                      ? `-${p.discountValue}%`
+                      : `-${p.discountValue}đ`}
                   </span>
                   <span className="block text-[10px] text-muted mt-1">
                     Đã dùng: {p.usedCount} {p.usageLimit ? `/ ${p.usageLimit}` : 'lượt'}

@@ -80,7 +80,11 @@ function RegisterMembershipContent() {
 
   const registerMutation = useMutation({
     mutationFn: () =>
-      membershipApi.register({ packageId: packageId || '', paymentMethod: method, notes: 'Đăng ký từ public website' }),
+      membershipApi.register({
+        packageId: packageId || '',
+        paymentMethod: method,
+        notes: 'Đăng ký từ public website',
+      }),
     onSuccess: (res: any) => {
       toast.success(
         'Đăng ký gói tập thành công!',
@@ -104,7 +108,7 @@ function RegisterMembershipContent() {
   if (!packageId) {
     return (
       <div className="mx-auto max-w-xl py-20 text-center">
-        <Package className="mx-auto h-12 w-12 text-muted" />
+        <Package className="mx-auto size-12 text-muted" />
         <h1 className="mt-4 text-xl font-bold text-chalk">Chưa chọn gói tập</h1>
         <p className="mt-2 text-sm text-muted">Hãy chọn một gói tập trước khi đăng ký.</p>
         <Button className="mt-6" onClick={() => router.push('/packages')}>
@@ -133,7 +137,7 @@ function RegisterMembershipContent() {
           <React.Fragment key={s}>
             <div className="flex items-center gap-2">
               <div
-                className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold transition-colors ${
+                className={`flex size-7 items-center justify-center rounded-full text-xs font-bold transition-colors ${
                   i < step
                     ? 'bg-neon text-ink'
                     : i === step
@@ -141,7 +145,7 @@ function RegisterMembershipContent() {
                       : 'bg-line text-muted'
                 }`}
               >
-                {i < step ? <Check className="h-3.5 w-3.5" /> : i + 1}
+                {i < step ? <Check className="size-3.5" /> : i + 1}
               </div>
               <span className={`text-xs font-semibold ${i <= step ? 'text-chalk' : 'text-muted'}`}>
                 {s}
@@ -165,7 +169,7 @@ function RegisterMembershipContent() {
             {step === 0 && (
               <>
                 <div className="flex items-center gap-2">
-                  <CreditCard className="h-5 w-5 text-neon" />
+                  <CreditCard className="size-5 text-neon" />
                   <h2 className="font-bold text-chalk">{selectedPackage.name}</h2>
                   <Badge variant="success">ACTIVE</Badge>
                 </div>
@@ -179,7 +183,7 @@ function RegisterMembershipContent() {
                 <ul className="space-y-2">
                   {(selectedPackage.features?.items || []).map((f) => (
                     <li key={f} className="flex items-start gap-2 text-sm text-muted">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-neon" />
+                      <Check className="mt-0.5 size-4 shrink-0 text-neon" />
                       {f}
                     </li>
                   ))}
@@ -187,12 +191,13 @@ function RegisterMembershipContent() {
 
                 <div className="rounded-xl border border-line bg-ink p-4">
                   <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted">
-                    <User className="h-3.5 w-3.5" />
+                    <User className="size-3.5" />
                     Thông tin hội viên
                   </p>
                   <div className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
                     <p className="text-muted">
-                      Họ tên: <b className="font-semibold text-chalk">{member?.fullName || me?.fullName}</b>
+                      Họ tên:{' '}
+                      <b className="font-semibold text-chalk">{member?.fullName || me?.fullName}</b>
                     </p>
                     <p className="text-muted">
                       Mã HV: <b className="font-semibold text-chalk">{member?.code || '--'}</b>
@@ -208,7 +213,7 @@ function RegisterMembershipContent() {
 
                 <Button className="h-11 w-full" onClick={() => setStep(1)}>
                   Tiếp tục
-                  <ArrowRight className="h-4 w-4" />
+                  <ArrowRight className="size-4" />
                 </Button>
               </>
             )}
@@ -217,7 +222,7 @@ function RegisterMembershipContent() {
             {step === 1 && (
               <>
                 <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-muted">
-                  <Wallet className="h-4 w-4 text-neon" />
+                  <Wallet className="size-4 text-neon" />
                   Chọn phương thức thanh toán
                 </p>
                 <div className="space-y-2.5">
@@ -233,7 +238,7 @@ function RegisterMembershipContent() {
                       }`}
                     >
                       <CheckCircle2
-                        className={`h-5 w-5 shrink-0 ${method === m.value ? 'text-neon' : 'text-muted'}`}
+                        className={`size-5 shrink-0 ${method === m.value ? 'text-neon' : 'text-muted'}`}
                       />
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold text-chalk">{m.label}</p>
@@ -243,17 +248,18 @@ function RegisterMembershipContent() {
                   ))}
                 </div>
                 <p className="rounded-lg border border-dashed border-line bg-ink p-3 text-[11px] text-muted">
-                  Đây là thanh toán <b className="font-semibold text-chalk">demo</b>. Hệ thống được thiết kế sẵn theo
-                  kiến trúc tách lớp để tích hợp cổng thanh toán thật (MoMo, VNPay, Bank Transfer, Cash) sau này.
+                  Đây là thanh toán <b className="font-semibold text-chalk">demo</b>. Hệ thống được
+                  thiết kế sẵn theo kiến trúc tách lớp để tích hợp cổng thanh toán thật (MoMo,
+                  VNPay, Bank Transfer, Cash) sau này.
                 </p>
                 <div className="flex gap-2">
                   <Button variant="outline" className="flex-1" onClick={() => setStep(0)}>
-                    <ArrowLeft className="h-4 w-4" />
+                    <ArrowLeft className="size-4" />
                     Quay lại
                   </Button>
                   <Button className="flex-1" onClick={() => setStep(2)}>
                     Tiếp tục
-                    <ArrowRight className="h-4 w-4" />
+                    <ArrowRight className="size-4" />
                   </Button>
                 </div>
               </>
@@ -270,7 +276,9 @@ function RegisterMembershipContent() {
                     </p>
                     <p>
                       Tổng thanh toán:{' '}
-                      <b className="font-semibold text-neon">{formatCurrency(selectedPackage.price)}</b>
+                      <b className="font-semibold text-neon">
+                        {formatCurrency(selectedPackage.price)}
+                      </b>
                     </p>
                     <p>
                       Phương thức:{' '}
@@ -279,13 +287,15 @@ function RegisterMembershipContent() {
                       </b>
                     </p>
                     <p>
-                      Hội viên: <b className="font-semibold text-chalk">{member?.fullName || me?.fullName}</b> ({member?.code})
+                      Hội viên:{' '}
+                      <b className="font-semibold text-chalk">{member?.fullName || me?.fullName}</b>{' '}
+                      ({member?.code})
                     </p>
                   </div>
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" className="flex-1" onClick={() => setStep(1)}>
-                    <ArrowLeft className="h-4 w-4" />
+                    <ArrowLeft className="size-4" />
                     Quay lại
                   </Button>
                   <Button
@@ -293,7 +303,7 @@ function RegisterMembershipContent() {
                     isLoading={registerMutation.isPending}
                     onClick={() => registerMutation.mutate()}
                   >
-                    <Check className="h-4 w-4" />
+                    <Check className="size-4" />
                     Xác nhận thanh toán
                   </Button>
                 </div>

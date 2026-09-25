@@ -9,7 +9,11 @@ import { Button } from '@/components/ui/button';
 import { Building2, Plus, Phone, MapPin, Clock } from 'lucide-react';
 
 export default function BranchesPage() {
-  const { data: branches, isLoading, isError } = useQuery({
+  const {
+    data: branches,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ['branches-list'],
     queryFn: async () => {
       const res = await apiClient.get('/branches');
@@ -22,7 +26,7 @@ export default function BranchesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-chalk flex items-center gap-2">
-            <Building2 className="w-6 h-6 text-neon" />
+            <Building2 className="size-6 text-neon" />
             Hệ Thống Chi Nhánh Phòng Tập (Branches)
           </h1>
           <p className="text-xs text-muted mt-1">
@@ -30,7 +34,7 @@ export default function BranchesPage() {
           </p>
         </div>
         <Button variant="primary" size="md" className="font-semibold text-xs">
-          <Plus className="w-4 h-4 mr-1.5" />
+          <Plus className="size-4 mr-1.5" />
           Mở Thêm Chi Nhánh
         </Button>
       </div>
@@ -45,22 +49,24 @@ export default function BranchesPage() {
             <Card key={b.id} className="hover:border-neon/40 transition-all">
               <CardHeader className="flex flex-row items-start justify-between pb-2">
                 <div>
-                  <Badge variant="outline" className="font-mono text-[10px] mb-2">{b.code}</Badge>
+                  <Badge variant="outline" className="font-mono text-[10px] mb-2">
+                    {b.code}
+                  </Badge>
                   <CardTitle className="text-lg text-chalk">{b.name}</CardTitle>
                 </div>
                 <Badge variant="success">{b.status}</Badge>
               </CardHeader>
               <CardContent className="space-y-3 pt-2 text-xs">
                 <p className="text-muted flex items-start gap-2">
-                  <MapPin className="w-4 h-4 text-neon shrink-0 mt-0.5" />
+                  <MapPin className="size-4 text-neon shrink-0 mt-0.5" />
                   <span>{b.address}</span>
                 </p>
                 <p className="text-muted flex items-center gap-2">
-                  <Phone className="w-4 h-4 text-neon shrink-0" />
+                  <Phone className="size-4 text-neon shrink-0" />
                   <span>{b.phone}</span>
                 </p>
                 <p className="text-muted flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-neon shrink-0" />
+                  <Clock className="size-4 text-neon shrink-0" />
                   <span>{b.openingHours || '05:30 - 21:30'}</span>
                 </p>
                 <div className="grid grid-cols-3 gap-2 pt-3 border-t border-line text-center">

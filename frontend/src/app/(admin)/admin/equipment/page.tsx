@@ -9,7 +9,11 @@ import { Button } from '@/components/ui/button';
 import { Dumbbell, Plus } from 'lucide-react';
 
 export default function EquipmentPage() {
-  const { data: equipment, isLoading, isError } = useQuery({
+  const {
+    data: equipment,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ['equipment-list'],
     queryFn: async () => {
       const res = await apiClient.get('/equipment');
@@ -22,7 +26,7 @@ export default function EquipmentPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-chalk flex items-center gap-2">
-            <Dumbbell className="w-6 h-6 text-neon" />
+            <Dumbbell className="size-6 text-neon" />
             Thiết Bị & Máy Móc Phòng Tập (Equipment)
           </h1>
           <p className="text-xs text-muted mt-1">
@@ -30,7 +34,7 @@ export default function EquipmentPage() {
           </p>
         </div>
         <Button variant="primary" size="md" className="font-semibold text-xs">
-          <Plus className="w-4 h-4 mr-1.5" />
+          <Plus className="size-4 mr-1.5" />
           Khai Báo Thiết Bị Mới
         </Button>
       </div>
@@ -38,7 +42,9 @@ export default function EquipmentPage() {
       <Card>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="py-16 text-center text-xs text-muted">Đang tải danh mục thiết bị...</div>
+            <div className="py-16 text-center text-xs text-muted">
+              Đang tải danh mục thiết bị...
+            </div>
           ) : isError ? (
             <div className="py-16 text-center text-xs text-danger">Lỗi kết nối API thiết bị.</div>
           ) : equipment && equipment.length > 0 ? (
@@ -57,12 +63,8 @@ export default function EquipmentPage() {
                 <tbody className="divide-y divide-line font-medium">
                   {equipment.map((item: any) => (
                     <tr key={item.id} className="hover:bg-line/20 transition-colors">
-                      <td className="py-3 px-4 font-mono font-bold text-chalk">
-                        {item.code}
-                      </td>
-                      <td className="py-3 px-4 font-semibold text-chalk">
-                        {item.name}
-                      </td>
+                      <td className="py-3 px-4 font-mono font-bold text-chalk">{item.code}</td>
+                      <td className="py-3 px-4 font-semibold text-chalk">{item.name}</td>
                       <td className="py-3 px-4">
                         <Badge variant="outline">{item.category}</Badge>
                       </td>
@@ -79,7 +81,9 @@ export default function EquipmentPage() {
               </table>
             </div>
           ) : (
-            <div className="py-16 text-center text-xs text-muted">Chưa có thiết bị nào trong hệ thống.</div>
+            <div className="py-16 text-center text-xs text-muted">
+              Chưa có thiết bị nào trong hệ thống.
+            </div>
           )}
         </CardContent>
       </Card>

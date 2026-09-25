@@ -31,7 +31,13 @@ export function Dialog({ open, onClose, title, description, children, className 
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-ink/80 backdrop-blur-sm" onClick={onClose} />
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-label="Đóng hộp thoại"
+        className="absolute inset-0 bg-ink/80 backdrop-blur-sm"
+        onClick={onClose}
+      />
       <div
         className={cn(
           'relative w-full max-w-lg rounded-2xl border border-line bg-surface shadow-2xl p-6',
@@ -46,12 +52,10 @@ export function Dialog({ open, onClose, title, description, children, className 
           className="absolute right-4 top-4 text-muted hover:text-chalk transition-colors"
           aria-label="Đóng"
         >
-          <X className="w-5 h-5" />
+          <X className="size-5" />
         </button>
         {title && <h2 className="text-lg font-bold text-chalk">{title}</h2>}
-        {description && (
-          <p className="mt-1 text-sm text-muted">{description}</p>
-        )}
+        {description && <p className="mt-1 text-sm text-muted">{description}</p>}
         <div className="mt-4">{children}</div>
       </div>
     </div>

@@ -10,7 +10,13 @@ const SCHEDULE = [
   { key: 'THU', full: 'Thứ Năm', focus: 'Legs + Abs', vi: 'Chân & Bụng', min: 70 },
   { key: 'FRI', full: 'Thứ Sáu', focus: 'Chest + Shoulders', vi: 'Ngực & Vai', min: 55 },
   { key: 'SAT', full: 'Thứ Bảy', focus: 'Back + Arms', vi: 'Lưng & Tay', min: 60 },
-  { key: 'SUN', full: 'Chủ Nhật', focus: 'Rest / Light Cardio', vi: 'Nghỉ ngơi hoặc cardio nhẹ', min: null },
+  {
+    key: 'SUN',
+    full: 'Chủ Nhật',
+    focus: 'Rest / Light Cardio',
+    vi: 'Nghỉ ngơi hoặc cardio nhẹ',
+    min: null,
+  },
 ];
 
 const DAY_KEYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
@@ -30,8 +36,8 @@ export function WeeklySchedule() {
           <div className="max-w-2xl">
             <h2 className="section-title">Weekly Schedule</h2>
             <p className="mt-4 text-base leading-relaxed text-muted">
-              Bảy ngày được sắp xếp để mỗi nhóm cơ có thời gian phục hồi đúng nhịp. Ngày tập
-              hôm nay được đánh dấu tự động.
+              Bảy ngày được sắp xếp để mỗi nhóm cơ có thời gian phục hồi đúng nhịp. Ngày tập hôm nay
+              được đánh dấu tự động.
             </p>
           </div>
         </Reveal>
@@ -64,10 +70,7 @@ export function WeeklySchedule() {
                     }`}
                   >
                     {isToday && (
-                      <span
-                        className="absolute inset-y-0 left-0 w-[3px] bg-neon"
-                        aria-hidden
-                      />
+                      <span className="absolute inset-y-0 left-0 w-[3px] bg-neon" aria-hidden />
                     )}
 
                     <span

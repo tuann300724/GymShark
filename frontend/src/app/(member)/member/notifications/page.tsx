@@ -23,11 +23,31 @@ import {
 import { cn, formatDateTime } from '@/lib/utils';
 
 const TYPE_META: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
-  SYSTEM: { label: 'Hệ thống', icon: <Bell className="w-4 h-4" />, color: 'bg-sky-500/10 text-sky-400' },
-  MEMBERSHIP: { label: 'Hội viên', icon: <CreditCard className="w-4 h-4" />, color: 'bg-neon/10 text-neon' },
-  PAYMENT: { label: 'Thanh toán', icon: <Package className="w-4 h-4" />, color: 'bg-amber-500/10 text-amber-400' },
-  SCHEDULE: { label: 'Lịch tập', icon: <CalendarDays className="w-4 h-4" />, color: 'bg-purple-500/10 text-purple-400' },
-  PROMOTION: { label: 'Khuyến mãi', icon: <Megaphone className="w-4 h-4" />, color: 'bg-danger/10 text-danger' },
+  SYSTEM: {
+    label: 'Hệ thống',
+    icon: <Bell className="size-4" />,
+    color: 'bg-sky-500/10 text-sky-400',
+  },
+  MEMBERSHIP: {
+    label: 'Hội viên',
+    icon: <CreditCard className="size-4" />,
+    color: 'bg-neon/10 text-neon',
+  },
+  PAYMENT: {
+    label: 'Thanh toán',
+    icon: <Package className="size-4" />,
+    color: 'bg-amber-500/10 text-amber-400',
+  },
+  SCHEDULE: {
+    label: 'Lịch tập',
+    icon: <CalendarDays className="size-4" />,
+    color: 'bg-purple-500/10 text-purple-400',
+  },
+  PROMOTION: {
+    label: 'Khuyến mãi',
+    icon: <Megaphone className="size-4" />,
+    color: 'bg-danger/10 text-danger',
+  },
 };
 
 function typeMeta(type: string) {
@@ -79,16 +99,14 @@ export default function MemberNotificationsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {unreadCount > 0 && (
-            <Badge variant="destructive">{unreadCount} chưa đọc</Badge>
-          )}
+          {unreadCount > 0 && <Badge variant="destructive">{unreadCount} chưa đọc</Badge>}
           <Button
             variant="outline"
             size="sm"
             disabled={unreadCount === 0 || markAll.isPending}
             onClick={() => markAll.mutate()}
           >
-            <CheckCheck className="h-4 w-4" />
+            <CheckCheck className="size-4" />
             Đánh dấu tất cả
           </Button>
         </div>
@@ -104,12 +122,10 @@ export default function MemberNotificationsPage() {
             </div>
           ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center gap-3 py-16 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-line bg-ink">
-                <BellOff className="h-6 w-6 text-muted" />
+              <div className="flex size-14 items-center justify-center rounded-2xl border border-line bg-ink">
+                <BellOff className="size-6 text-muted" />
               </div>
-              <p className="text-sm font-semibold text-muted">
-                Không có thông báo nào
-              </p>
+              <p className="text-sm font-semibold text-muted">Không có thông báo nào</p>
               <p className="max-w-xs text-xs text-muted">
                 Khi có cập nhật về gói tập, thanh toán hay lịch tập, thông báo sẽ hiện ở đây.
               </p>
@@ -146,13 +162,11 @@ export default function MemberNotificationsPage() {
                         </p>
                         {!n.isRead && (
                           <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-neon">
-                            <Mail className="h-3 w-3" /> Mới
+                            <Mail className="size-3" /> Mới
                           </span>
                         )}
                       </div>
-                      <p className="mt-0.5 break-words text-sm text-muted">
-                        {n.content}
-                      </p>
+                      <p className="mt-0.5 break-words text-sm text-muted">{n.content}</p>
                       <div className="mt-2 flex flex-wrap items-center gap-2">
                         <Badge variant="outline" className="px-2 py-0.5 text-[10px]">
                           {meta.label}
@@ -169,7 +183,7 @@ export default function MemberNotificationsPage() {
                         className="inline-flex shrink-0 items-center gap-1 self-start rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-semibold text-muted transition-colors hover:bg-line/40 disabled:opacity-50"
                         title="Đánh dấu đã đọc"
                       >
-                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        <CheckCircle2 className="size-3.5" />
                         Đã đọc
                       </button>
                     )}
@@ -182,7 +196,7 @@ export default function MemberNotificationsPage() {
       </Card>
 
       <p className="flex items-center gap-1.5 text-[11px] text-muted">
-        <Flame className="h-3.5 w-3.5 text-neon" />
+        <Flame className="size-3.5 text-neon" />
         GymMaster luôn cập nhật trạng thái gói tập và lịch hẹn PT cho bạn.
       </p>
     </div>

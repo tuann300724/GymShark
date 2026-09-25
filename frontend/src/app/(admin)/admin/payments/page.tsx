@@ -10,7 +10,11 @@ import { formatCurrency, formatDateTime } from '@/lib/utils';
 import { Receipt, Plus } from 'lucide-react';
 
 export default function PaymentsPage() {
-  const { data: payments, isLoading, isError } = useQuery({
+  const {
+    data: payments,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ['payments-list'],
     queryFn: async () => {
       const res = await apiClient.get('/payments');
@@ -23,7 +27,7 @@ export default function PaymentsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-chalk flex items-center gap-2">
-            <Receipt className="w-6 h-6 text-neon" />
+            <Receipt className="size-6 text-neon" />
             Hóa Đơn & Thu Phí (Payments)
           </h1>
           <p className="text-xs text-muted mt-1">
@@ -31,7 +35,7 @@ export default function PaymentsPage() {
           </p>
         </div>
         <Button variant="primary" size="md" className="font-semibold text-xs">
-          <Plus className="w-4 h-4 mr-1.5" />
+          <Plus className="size-4 mr-1.5" />
           Tạo Hoá Đơn Thu Mới
         </Button>
       </div>
@@ -66,13 +70,13 @@ export default function PaymentsPage() {
                       <td className="py-3 px-4 text-muted">
                         {p.membership?.package?.name || 'Dịch vụ phụ trợ'}
                       </td>
-                      <td className="py-3 px-4 font-bold text-neon">
-                        {formatCurrency(p.amount)}
-                      </td>
+                      <td className="py-3 px-4 font-bold text-neon">{formatCurrency(p.amount)}</td>
                       <td className="py-3 px-4">
                         <Badge variant="outline">{p.method}</Badge>
                       </td>
-                      <td className="py-3 px-4 font-mono text-muted">{formatDateTime(p.createdAt)}</td>
+                      <td className="py-3 px-4 font-mono text-muted">
+                        {formatDateTime(p.createdAt)}
+                      </td>
                       <td className="py-3 px-4 text-right">
                         <Badge variant="success">{p.status}</Badge>
                       </td>
@@ -82,7 +86,9 @@ export default function PaymentsPage() {
               </table>
             </div>
           ) : (
-            <div className="py-16 text-center text-xs text-muted">Chưa có giao dịch thanh toán nào.</div>
+            <div className="py-16 text-center text-xs text-muted">
+              Chưa có giao dịch thanh toán nào.
+            </div>
           )}
         </CardContent>
       </Card>

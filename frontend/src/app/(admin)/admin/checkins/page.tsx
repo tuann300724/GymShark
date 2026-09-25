@@ -12,9 +12,17 @@ import { QrCode, CheckCircle2, AlertCircle, RefreshCw, Sparkles, Building2 } fro
 export default function CheckinsPage() {
   const queryClient = useQueryClient();
   const [code, setCode] = useState('');
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string; details?: any } | null>(null);
+  const [feedback, setFeedback] = useState<{
+    type: 'success' | 'error';
+    text: string;
+    details?: any;
+  } | null>(null);
 
-  const { data: checkIns, isLoading, refetch } = useQuery({
+  const {
+    data: checkIns,
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ['checkins-all'],
     queryFn: async () => {
       const res = await apiClient.get('/checkins');
@@ -31,7 +39,9 @@ export default function CheckinsPage() {
       setFeedback({
         type: 'success',
         text: `Check-in hợp lệ: ${data.checkIn.member.fullName}`,
-        details: data.activeMembership ? `Gói tập: ${data.activeMembership.package?.name}` : 'Không có gói tập',
+        details: data.activeMembership
+          ? `Gói tập: ${data.activeMembership.package?.name}`
+          : 'Không có gói tập',
       });
       setCode('');
       queryClient.invalidateQueries({ queryKey: ['checkins-all'] });
@@ -56,7 +66,7 @@ export default function CheckinsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-chalk flex items-center gap-2">
-            <QrCode className="w-6 h-6 text-neon" />
+            <QrCode className="size-6 text-neon" />
             Cổng Quét Thẻ & Kiểm Soát Ra Vào (Check-ins)
           </h1>
           <p className="text-xs text-muted mt-1">
@@ -64,7 +74,7 @@ export default function CheckinsPage() {
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => refetch()} className="text-xs">
-          <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+          <RefreshCw className="size-3.5 mr-1.5" />
           Làm mới bảng
         </Button>
       </div>
@@ -74,7 +84,7 @@ export default function CheckinsPage() {
         <Card className="lg:col-span-1 border-neon/30">
           <CardHeader>
             <CardTitle className="text-base font-bold flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-neon" />
+              <Sparkles className="size-4 text-neon" />
               Bàn Quẹt Thẻ Lễ Tân
             </CardTitle>
             <CardDescription>Nhập hoặc quẹt barcode hội viên</CardDescription>
@@ -87,7 +97,7 @@ export default function CheckinsPage() {
                 placeholder="MEM-0001"
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
-                className="w-full h-14 text-center font-mono font-black text-2xl tracking-widest rounded-[10px] border border-line bg-ink text-chalk placeholder:text-muted/70 focus:outline-none focus:ring-2 focus:ring-neon/70 focus:border-neon/70 uppercase"
+                className="w-full h-14 text-center font-mono font-black text-2xl tracking-widest rounded-sm border border-line bg-ink text-chalk placeholder:text-muted/70 focus:outline-none focus:ring-2 focus:ring-neon/70 focus:border-neon/70 uppercase"
               />
               <Button
                 type="submit"
@@ -109,9 +119,9 @@ export default function CheckinsPage() {
               >
                 <div className="flex items-center gap-2 font-bold text-sm">
                   {feedback.type === 'success' ? (
-                    <CheckCircle2 className="w-5 h-5" />
+                    <CheckCircle2 className="size-5" />
                   ) : (
-                    <AlertCircle className="w-5 h-5" />
+                    <AlertCircle className="size-5" />
                   )}
                   <span>{feedback.text}</span>
                 </div>
@@ -153,11 +163,13 @@ export default function CheckinsPage() {
                         </td>
                         <td className="py-3 px-4 text-muted">
                           <span className="flex items-center gap-1.5">
-                            <Building2 className="w-3.5 h-3.5 text-muted" />
+                            <Building2 className="size-3.5 text-muted" />
                             {item.branch?.name}
                           </span>
                         </td>
-                        <td className="py-3 px-4 font-mono text-muted">{formatDateTime(item.checkInTime)}</td>
+                        <td className="py-3 px-4 font-mono text-muted">
+                          {formatDateTime(item.checkInTime)}
+                        </td>
                         <td className="py-3 px-4 text-right">
                           <Badge variant="success">CHECKED IN</Badge>
                         </td>
@@ -167,7 +179,9 @@ export default function CheckinsPage() {
                 </table>
               </div>
             ) : (
-              <div className="py-16 text-center text-xs text-muted">Chưa có lượt check-in nào được ghi nhận.</div>
+              <div className="py-16 text-center text-xs text-muted">
+                Chưa có lượt check-in nào được ghi nhận.
+              </div>
             )}
           </CardContent>
         </Card>

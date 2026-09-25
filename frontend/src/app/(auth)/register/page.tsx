@@ -19,9 +19,7 @@ const registerSchema = z
   .object({
     fullName: z.string().min(3, 'Họ và tên phải có tối thiểu 3 ký tự'),
     email: z.string().email('Email không đúng định dạng'),
-    phone: z
-      .string()
-      .regex(/^[0-9+\-\s]{9,15}$/, 'Số điện thoại không hợp lệ'),
+    phone: z.string().regex(/^[0-9+\-\s]{9,15}$/, 'Số điện thoại không hợp lệ'),
     password: z.string().min(6, 'Mật khẩu phải có tối thiểu 6 ký tự'),
     confirmPassword: z.string(),
     dateOfBirth: z.string().optional(),
@@ -95,8 +93,8 @@ export default function RegisterPage() {
       <div className="relative z-10 w-full max-w-lg animate-fade-in">
         {/* Brand */}
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-neon/40 bg-surface text-neon">
-            <Dumbbell className="h-7 w-7" />
+          <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-2xl border border-neon/40 bg-surface text-neon">
+            <Dumbbell className="size-7" />
           </div>
           <h1 className="font-display text-3xl font-extrabold uppercase leading-none tracking-tight text-chalk">
             GYM<span className="text-neon">MASTER</span> PRO
@@ -109,8 +107,8 @@ export default function RegisterPage() {
         <Card className="border-line bg-surface/95 shadow-2xl backdrop-blur-xl">
           <CardHeader className="space-y-1">
             <CardTitle className="flex items-center gap-2.5 font-display text-2xl font-bold uppercase tracking-tight text-chalk">
-              <span className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-neon/25 bg-neon/10 text-neon">
-                <UserPlus className="h-4 w-4" />
+              <span className="flex size-9 items-center justify-center rounded-sm border border-neon/25 bg-neon/10 text-neon">
+                <UserPlus className="size-4" />
               </span>
               Tạo tài khoản hội viên
             </CardTitle>
@@ -120,8 +118,8 @@ export default function RegisterPage() {
           </CardHeader>
           <CardContent>
             {errorMessage && (
-              <div className="mb-4 flex items-start gap-2 rounded-[10px] border border-danger/30 bg-danger/10 p-3 text-xs text-danger">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <div className="mb-4 flex items-start gap-2 rounded-sm border border-danger/30 bg-danger/10 p-3 text-xs text-danger">
+                <AlertCircle className="mt-0.5 size-4 shrink-0" />
                 <span>{errorMessage}</span>
               </div>
             )}
@@ -193,7 +191,12 @@ export default function RegisterPage() {
                 {...register('address')}
               />
 
-              <Button type="submit" variant="primary" className="h-11 w-full text-sm font-bold" isLoading={isLoading}>
+              <Button
+                type="submit"
+                variant="primary"
+                className="h-11 w-full text-sm font-bold"
+                isLoading={isLoading}
+              >
                 Đăng ký
               </Button>
             </form>

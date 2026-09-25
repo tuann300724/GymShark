@@ -1,6 +1,6 @@
 // Shared API types (khớp với response backend)
 
-export interface UserInfo {
+interface UserInfo {
   id: string;
   email: string;
   fullName: string;
@@ -76,7 +76,7 @@ export interface Branch {
   status: string;
 }
 
-export interface MemberProfile {
+interface MemberProfile {
   id: string;
   code: string;
   fullName: string;

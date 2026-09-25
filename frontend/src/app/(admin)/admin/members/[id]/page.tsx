@@ -9,22 +9,20 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils';
-import {
-  ArrowLeft,
-  Phone,
-  Mail,
-  MapPin,
-  CreditCard,
-  QrCode,
-  Receipt,
-} from 'lucide-react';
+import { ArrowLeft, Phone, Mail, MapPin, CreditCard, QrCode, Receipt } from 'lucide-react';
 
 export default function MemberDetailPage() {
   const params = useParams();
   const id = params?.id as string;
-  const [activeTab, setActiveTab] = useState<'memberships' | 'checkins' | 'payments' | 'schedules'>('memberships');
+  const [activeTab, setActiveTab] = useState<'memberships' | 'checkins' | 'payments' | 'schedules'>(
+    'memberships',
+  );
 
-  const { data: member, isLoading, isError } = useQuery({
+  const {
+    data: member,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ['member-detail', id],
     queryFn: async () => {
       const res = await apiClient.get(`/members/${id}`);
@@ -34,7 +32,11 @@ export default function MemberDetailPage() {
   });
 
   if (isLoading) {
-    return <div className="py-20 text-center text-xs text-muted">Đang tải thông tin chi tiết hội viên...</div>;
+    return (
+      <div className="py-20 text-center text-xs text-muted">
+        Đang tải thông tin chi tiết hội viên...
+      </div>
+    );
   }
 
   if (isError || !member) {
@@ -42,7 +44,7 @@ export default function MemberDetailPage() {
       <div className="space-y-4">
         <Link href="/admin/members">
           <Button variant="outline" size="sm">
-            <ArrowLeft className="w-4 h-4 mr-1.5" /> Quay lại danh sách
+            <ArrowLeft className="size-4 mr-1.5" /> Quay lại danh sách
           </Button>
         </Link>
         <Card>
@@ -55,9 +57,24 @@ export default function MemberDetailPage() {
   }
 
   const TABS = [
-    { key: 'memberships' as const, label: 'Gói tập & Thẻ hội viên', count: member.memberships?.length || 0, icon: CreditCard },
-    { key: 'checkins' as const, label: 'Lịch sử Check-in', count: member.checkIns?.length || 0, icon: QrCode },
-    { key: 'payments' as const, label: 'Lịch sử Hoá đơn', count: member.payments?.length || 0, icon: Receipt },
+    {
+      key: 'memberships' as const,
+      label: 'Gói tập & Thẻ hội viên',
+      count: member.memberships?.length || 0,
+      icon: CreditCard,
+    },
+    {
+      key: 'checkins' as const,
+      label: 'Lịch sử Check-in',
+      count: member.checkIns?.length || 0,
+      icon: QrCode,
+    },
+    {
+      key: 'payments' as const,
+      label: 'Lịch sử Hoá đơn',
+      count: member.payments?.length || 0,
+      icon: Receipt,
+    },
   ];
 
   return (
@@ -66,7 +83,7 @@ export default function MemberDetailPage() {
       <div className="flex items-center justify-between">
         <Link href="/admin/members">
           <Button variant="outline" size="sm" className="text-xs">
-            <ArrowLeft className="w-4 h-4 mr-1.5" />
+            <ArrowLeft className="size-4 mr-1.5" />
             Danh sách hội viên
           </Button>
         </Link>
@@ -80,7 +97,7 @@ export default function MemberDetailPage() {
         <CardContent className="p-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-ink border border-neon/40 text-neon flex items-center justify-center font-bold text-2xl uppercase">
+              <div className="size-16 rounded-2xl bg-ink border border-neon/40 text-neon flex items-center justify-center font-bold text-2xl uppercase">
                 {member.fullName.charAt(0)}
               </div>
               <div>
@@ -92,13 +109,13 @@ export default function MemberDetailPage() {
                 </div>
                 <div className="flex flex-wrap items-center gap-4 text-xs text-muted mt-2">
                   <span className="flex items-center gap-1">
-                    <Phone className="w-3.5 h-3.5 text-muted" /> {member.phone}
+                    <Phone className="size-3.5 text-muted" /> {member.phone}
                   </span>
                   <span className="flex items-center gap-1">
-                    <Mail className="w-3.5 h-3.5 text-muted" /> {member.email || 'Chưa cung cấp email'}
+                    <Mail className="size-3.5 text-muted" /> {member.email || 'Chưa cung cấp email'}
                   </span>
                   <span className="flex items-center gap-1">
-                    <MapPin className="w-3.5 h-3.5 text-muted" /> {member.branch?.name}
+                    <MapPin className="size-3.5 text-muted" /> {member.branch?.name}
                   </span>
                 </div>
               </div>
@@ -126,7 +143,7 @@ export default function MemberDetailPage() {
                   : 'border-transparent text-muted hover:text-chalk'
               }`}
             >
-              <Icon className="w-4 h-4" />
+              <Icon className="size-4" />
               {tab.label} ({tab.count})
             </button>
           );
@@ -143,7 +160,9 @@ export default function MemberDetailPage() {
                   <div>
                     <div className="flex items-center gap-2">
                       <h4 className="font-bold text-base text-chalk">{m.package?.name}</h4>
-                      <Badge variant={m.status === 'ACTIVE' ? 'success' : 'outline'}>{m.status}</Badge>
+                      <Badge variant={m.status === 'ACTIVE' ? 'success' : 'outline'}>
+                        {m.status}
+                      </Badge>
                     </div>
                     <p className="text-xs text-muted mt-1">
                       Hiệu lực: {formatDate(m.startDate)} đến {formatDate(m.endDate)}
@@ -151,9 +170,7 @@ export default function MemberDetailPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-muted">Giá trị hợp đồng</p>
-                    <p className="text-base font-bold text-neon">
-                      {formatCurrency(m.price)}
-                    </p>
+                    <p className="text-base font-bold text-neon">{formatCurrency(m.price)}</p>
                   </div>
                 </CardContent>
               </Card>
@@ -183,7 +200,9 @@ export default function MemberDetailPage() {
                   <tbody className="divide-y divide-line font-medium">
                     {member.checkIns.map((c: any) => (
                       <tr key={c.id} className="hover:bg-line/20 transition-colors">
-                        <td className="py-2.5 px-4 font-mono text-muted">{formatDateTime(c.checkInTime)}</td>
+                        <td className="py-2.5 px-4 font-mono text-muted">
+                          {formatDateTime(c.checkInTime)}
+                        </td>
                         <td className="py-2.5 px-4">
                           <Badge variant="success">CHECKED IN</Badge>
                         </td>
@@ -193,7 +212,9 @@ export default function MemberDetailPage() {
                 </table>
               </div>
             ) : (
-              <div className="py-12 text-center text-xs text-muted">Chưa có lượt quét thẻ check-in nào.</div>
+              <div className="py-12 text-center text-xs text-muted">
+                Chưa có lượt quét thẻ check-in nào.
+              </div>
             )}
           </CardContent>
         </Card>
@@ -232,7 +253,9 @@ export default function MemberDetailPage() {
                 </table>
               </div>
             ) : (
-              <div className="py-12 text-center text-xs text-muted">Chưa có hoá đơn thanh toán nào.</div>
+              <div className="py-12 text-center text-xs text-muted">
+                Chưa có hoá đơn thanh toán nào.
+              </div>
             )}
           </CardContent>
         </Card>

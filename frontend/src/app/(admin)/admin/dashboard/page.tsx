@@ -25,7 +25,9 @@ import Link from 'next/link';
 export default function DashboardPage() {
   const queryClient = useQueryClient();
   const [memberCodeInput, setMemberCodeInput] = useState('');
-  const [checkInMsg, setCheckInMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [checkInMsg, setCheckInMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(
+    null,
+  );
 
   // 1. Fetch summary stats
   const { data: summary, isLoading: isSummaryLoading } = useQuery({
@@ -79,20 +81,21 @@ export default function DashboardPage() {
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-neon/10 text-xs font-semibold mb-3 border border-neon/30 text-neon">
-              <Sparkles className="w-3.5 h-3.5" />
+              <Sparkles className="size-3.5" />
               <span>Hệ thống Quản lý Vận hành GymMaster v1.0</span>
             </div>
             <h1 className="font-display text-2xl md:text-3xl font-extrabold uppercase tracking-tight text-chalk">
               Chào mừng trở lại trung tâm quản trị!
             </h1>
             <p className="text-muted text-sm mt-1 max-w-xl leading-relaxed">
-              Theo dõi tình hình hội viên, lượt quét thẻ ra vào trong ngày và tình trạng vận hành thiết bị theo thời gian thực.
+              Theo dõi tình hình hội viên, lượt quét thẻ ra vào trong ngày và tình trạng vận hành
+              thiết bị theo thời gian thực.
             </p>
           </div>
           <div className="flex gap-2">
             <Link href="/admin/checkins">
               <Button variant="secondary" size="md" className="text-xs">
-                <QrCode className="w-4 h-4 mr-1.5" />
+                <QrCode className="size-4 mr-1.5" />
                 Mở Máy Quét Check-in
               </Button>
             </Link>
@@ -138,7 +141,7 @@ export default function DashboardPage() {
         <Card className="lg:col-span-1">
           <CardHeader>
             <div className="flex items-center gap-2 text-neon">
-              <QrCode className="w-5 h-5" />
+              <QrCode className="size-5" />
               <CardTitle className="text-base font-bold">Quét Thẻ Check-in Nhanh</CardTitle>
             </div>
             <CardDescription>
@@ -153,7 +156,7 @@ export default function DashboardPage() {
                   placeholder="Ví dụ: MEM-0001"
                   value={memberCodeInput}
                   onChange={(e) => setMemberCodeInput(e.target.value.toUpperCase())}
-                  className="w-full text-center tracking-widest text-lg font-mono font-bold h-12 rounded-[10px] border border-line bg-ink text-chalk placeholder:text-muted/70 focus:outline-none focus:ring-2 focus:ring-neon/70 focus:border-neon/70 uppercase transition-all"
+                  className="w-full text-center tracking-widest text-lg font-mono font-bold h-12 rounded-sm border border-line bg-ink text-chalk placeholder:text-muted/70 focus:outline-none focus:ring-2 focus:ring-neon/70 focus:border-neon/70 uppercase transition-all"
                 />
               </div>
               <Button
@@ -168,13 +171,13 @@ export default function DashboardPage() {
 
             {checkInMsg && (
               <div
-                className={`p-3 rounded-[10px] text-xs flex items-start gap-2 ${
+                className={`p-3 rounded-sm text-xs flex items-start gap-2 ${
                   checkInMsg.type === 'success'
                     ? 'bg-neon/10 border border-neon/40 text-neon'
                     : 'bg-danger/10 border border-danger/40 text-danger'
                 }`}
               >
-                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                <CheckCircle2 className="size-4 shrink-0 mt-0.5" />
                 <span>{checkInMsg.text}</span>
               </div>
             )}
@@ -197,18 +200,23 @@ export default function DashboardPage() {
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <div>
               <CardTitle className="text-base font-bold flex items-center gap-2">
-                <Clock className="w-4 h-4 text-neon" />
+                <Clock className="size-4 text-neon" />
                 Lượt Check-in Gần Đây
               </CardTitle>
               <CardDescription>Thời gian thực hội viên ra vào phòng tập</CardDescription>
             </div>
-            <Link href="/admin/checkins" className="text-xs text-neon font-semibold hover:underline flex items-center gap-1">
-              Xem tất cả <ArrowRight className="w-3.5 h-3.5" />
+            <Link
+              href="/admin/checkins"
+              className="text-xs text-neon font-semibold hover:underline flex items-center gap-1"
+            >
+              Xem tất cả <ArrowRight className="size-3.5" />
             </Link>
           </CardHeader>
           <CardContent>
             {isCheckInsLoading ? (
-              <div className="py-8 text-center text-xs text-muted">Đang tải lịch sử check-in...</div>
+              <div className="py-8 text-center text-xs text-muted">
+                Đang tải lịch sử check-in...
+              </div>
             ) : checkIns && checkIns.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full text-xs text-left">
@@ -249,23 +257,35 @@ export default function DashboardPage() {
 
       {/* Quick Action Navigation Shortcuts */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Link href="/admin/members" className="p-4 rounded-xl border border-line bg-surface hover:border-neon/40 transition-colors group">
-          <Users className="w-5 h-5 text-muted group-hover:text-neon mb-2 transition-colors" />
+        <Link
+          href="/admin/members"
+          className="p-4 rounded-xl border border-line bg-surface hover:border-neon/40 transition-colors group"
+        >
+          <Users className="size-5 text-muted group-hover:text-neon mb-2 transition-colors" />
           <h4 className="font-bold text-sm text-chalk">Quản lý Hội viên</h4>
           <p className="text-xs text-muted mt-0.5">Danh sách, tạo mới, gia hạn thẻ</p>
         </Link>
-        <Link href="/admin/membership-packages" className="p-4 rounded-xl border border-line bg-surface hover:border-neon/40 transition-colors group">
-          <Dumbbell className="w-5 h-5 text-muted group-hover:text-neon mb-2 transition-colors" />
+        <Link
+          href="/admin/membership-packages"
+          className="p-4 rounded-xl border border-line bg-surface hover:border-neon/40 transition-colors group"
+        >
+          <Dumbbell className="size-5 text-muted group-hover:text-neon mb-2 transition-colors" />
           <h4 className="font-bold text-sm text-chalk">Gói tập Gym</h4>
           <p className="text-xs text-muted mt-0.5">Cấu hình thời hạn & giá gói</p>
         </Link>
-        <Link href="/admin/payments" className="p-4 rounded-xl border border-line bg-surface hover:border-neon/40 transition-colors group">
-          <DollarSign className="w-5 h-5 text-muted group-hover:text-neon mb-2 transition-colors" />
+        <Link
+          href="/admin/payments"
+          className="p-4 rounded-xl border border-line bg-surface hover:border-neon/40 transition-colors group"
+        >
+          <DollarSign className="size-5 text-muted group-hover:text-neon mb-2 transition-colors" />
           <h4 className="font-bold text-sm text-chalk">Thu ngân & Hoá đơn</h4>
           <p className="text-xs text-muted mt-0.5">Theo dõi lịch sử thanh toán</p>
         </Link>
-        <Link href="/admin/reports" className="p-4 rounded-xl border border-line bg-surface hover:border-neon/40 transition-colors group">
-          <ShieldCheck className="w-5 h-5 text-muted group-hover:text-neon mb-2 transition-colors" />
+        <Link
+          href="/admin/reports"
+          className="p-4 rounded-xl border border-line bg-surface hover:border-neon/40 transition-colors group"
+        >
+          <ShieldCheck className="size-5 text-muted group-hover:text-neon mb-2 transition-colors" />
           <h4 className="font-bold text-sm text-chalk">Báo cáo & Phân tích</h4>
           <p className="text-xs text-muted mt-0.5">Biểu đồ doanh thu và vận hành</p>
         </Link>

@@ -29,7 +29,7 @@ export default function ReportsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-chalk flex items-center gap-2">
-          <BarChart3 className="w-6 h-6 text-neon" />
+          <BarChart3 className="size-6 text-neon" />
           Báo Cáo & Phân Tích Hoạt Động (Reports)
         </h1>
         <p className="text-xs text-muted mt-1">
@@ -48,7 +48,7 @@ export default function ReportsPage() {
         <StatCard
           title="Lượng Hội Viên Tích Cực"
           value={summary?.activeMembers || 1}
-          subtitle={`Chiếm ${(summary?.totalMembers ? Math.round((summary.activeMembers / summary.totalMembers) * 100) : 100)}% tổng số hội viên`}
+          subtitle={`Chiếm ${summary?.totalMembers ? Math.round((summary.activeMembers / summary.totalMembers) * 100) : 100}% tổng số hội viên`}
           icon={Users}
           colorScheme="blue"
         />
@@ -65,7 +65,7 @@ export default function ReportsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base font-bold flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-neon" />
+            <TrendingUp className="size-4 text-neon" />
             Nhật Ký Dòng Tiền & Doanh Số Gần Đây
           </CardTitle>
           <CardDescription>Danh sách các khoản thu được ghi nhận trên hệ thống</CardDescription>
@@ -86,13 +86,15 @@ export default function ReportsPage() {
                 <tbody className="divide-y divide-line font-medium">
                   {revenueData.data.map((item: any, idx: number) => (
                     <tr key={idx} className="hover:bg-line/20 transition-colors">
-                      <td className="py-3 px-4 font-mono text-muted">{formatDateTime(item.createdAt)}</td>
+                      <td className="py-3 px-4 font-mono text-muted">
+                        {formatDateTime(item.createdAt)}
+                      </td>
                       <td className="py-3 px-4 font-bold text-neon">
                         {formatCurrency(item.amount)}
                       </td>
                       <td className="py-3 px-4 text-right text-neon font-semibold">
                         <span className="inline-flex items-center gap-1.5">
-                          <Check className="w-3.5 h-3.5" />
+                          <Check className="size-3.5" />
                           Đã ghi nhận sổ quỹ
                         </span>
                       </td>
@@ -102,7 +104,9 @@ export default function ReportsPage() {
               </table>
             </div>
           ) : (
-            <div className="py-16 text-center text-xs text-muted">Chưa có phát sinh giao dịch nào.</div>
+            <div className="py-16 text-center text-xs text-muted">
+              Chưa có phát sinh giao dịch nào.
+            </div>
           )}
         </CardContent>
       </Card>

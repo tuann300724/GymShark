@@ -67,7 +67,7 @@ export default function PublicSchedulePage() {
               </div>
             ) : grouped.length === 0 ? (
               <div className="rounded-2xl border border-line bg-surface py-16 text-center">
-                <CalendarDays className="mx-auto mb-3 h-10 w-10 text-muted opacity-50" />
+                <CalendarDays className="mx-auto mb-3 size-10 text-muted opacity-50" />
                 <p className="font-semibold text-chalk">
                   Chưa có lớp học nào được lên lịch ở thời điểm hiện tại.
                 </p>
@@ -82,7 +82,7 @@ export default function PublicSchedulePage() {
                     <div>
                       {/* Day header */}
                       <div className="mb-4 flex items-center gap-3">
-                        <span className="h-2 w-2 shrink-0 bg-neon" aria-hidden />
+                        <span className="size-2 shrink-0 bg-neon" aria-hidden />
                         <h2 className="font-display text-lg font-bold uppercase tracking-wide text-chalk">
                           {formatDay(group.day)}
                         </h2>
@@ -99,8 +99,8 @@ export default function PublicSchedulePage() {
                             className="flex flex-col gap-4 rounded-2xl border border-line bg-surface p-5 transition-colors duration-300 hover:border-neon/40 sm:flex-row sm:items-center"
                           >
                             <div className="flex shrink-0 items-center gap-3 sm:w-36">
-                              <div className="flex h-10 w-10 items-center justify-center rounded-[10px] border border-neon/25 bg-neon/10 text-neon">
-                                <Clock className="h-5 w-5" />
+                              <div className="flex size-10 items-center justify-center rounded-sm border border-neon/25 bg-neon/10 text-neon">
+                                <Clock className="size-5" />
                               </div>
                               <div>
                                 <p className="font-display text-base font-bold leading-none text-chalk">
@@ -117,13 +117,13 @@ export default function PublicSchedulePage() {
                               <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
                                 {s.trainer?.user && (
                                   <span className="inline-flex items-center gap-1">
-                                    <User className="h-3.5 w-3.5 text-neon" />
+                                    <User className="size-3.5 text-neon" />
                                     {s.trainer.user.fullName}
                                   </span>
                                 )}
                                 {s.room && (
                                   <span className="inline-flex items-center gap-1">
-                                    <MapPin className="h-3.5 w-3.5 text-neon" />
+                                    <MapPin className="size-3.5 text-neon" />
                                     {s.room.name}
                                   </span>
                                 )}

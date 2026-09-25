@@ -37,7 +37,15 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const toast = useCallback(
-    ({ type = 'info', title, description }: { type?: ToastType; title: string; description?: string }) => {
+    ({
+      type = 'info',
+      title,
+      description,
+    }: {
+      type?: ToastType;
+      title: string;
+      description?: string;
+    }) => {
       const id = ++toastId;
       setItems((prev) => [...prev.slice(-3), { id, type, title, description }]);
       setTimeout(() => remove(id), 5000);
@@ -70,9 +78,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               t.type === 'info' && 'border-line',
             )}
           >
-            {t.type === 'success' && <CheckCircle2 className="w-5 h-5 text-neon shrink-0 mt-0.5" />}
-            {t.type === 'error' && <AlertCircle className="w-5 h-5 text-danger shrink-0 mt-0.5" />}
-            {t.type === 'info' && <Info className="w-5 h-5 text-sky-400 shrink-0 mt-0.5" />}
+            {t.type === 'success' && <CheckCircle2 className="size-5 text-neon shrink-0 mt-0.5" />}
+            {t.type === 'error' && <AlertCircle className="size-5 text-danger shrink-0 mt-0.5" />}
+            {t.type === 'info' && <Info className="size-5 text-sky-400 shrink-0 mt-0.5" />}
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-chalk">{t.title}</p>
               {t.description && (
@@ -84,7 +92,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               className="text-muted hover:text-chalk shrink-0"
               aria-label="Đóng thông báo"
             >
-              <X className="w-4 h-4" />
+              <X className="size-4" />
             </button>
           </div>
         ))}

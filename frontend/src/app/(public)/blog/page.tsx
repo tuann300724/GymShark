@@ -49,8 +49,8 @@ export default function BlogPage() {
             </p>
             <h1 className="section-title mt-4">Articles & Guides</h1>
             <p className="mt-4 max-w-xl text-base leading-relaxed text-muted">
-              Kiến thức tập luyện, dinh dưỡng và thói quen phục hồi — viết ngắn gọn, áp dụng
-              được ngay.
+              Kiến thức tập luyện, dinh dưỡng và thói quen phục hồi — viết ngắn gọn, áp dụng được
+              ngay.
             </p>
           </Reveal>
         </div>
@@ -84,13 +84,11 @@ export default function BlogPage() {
                     <h2 className="mt-2 font-display text-xl font-bold uppercase leading-tight tracking-tight text-chalk transition-colors group-hover:text-neon">
                       {a.title}
                     </h2>
-                    <p className="mt-2.5 flex-1 text-sm leading-relaxed text-muted">
-                      {a.excerpt}
-                    </p>
+                    <p className="mt-2.5 flex-1 text-sm leading-relaxed text-muted">{a.excerpt}</p>
 
                     <div className="mt-4 flex items-center justify-between border-t border-line pt-4 text-xs text-muted">
                       <span className="flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5" />
+                        <Clock className="size-3.5" />
                         {a.readTime}
                       </span>
                       <span className="font-semibold text-chalk transition-colors group-hover:text-neon">
@@ -105,9 +103,9 @@ export default function BlogPage() {
 
           <div className="mt-12 flex justify-center">
             <Link href="/register">
-              <button className="inline-flex h-11 items-center gap-2 rounded-[10px] border border-line px-5 text-sm font-semibold text-chalk transition-colors hover:border-neon/60 hover:text-neon">
+              <button className="inline-flex h-11 items-center gap-2 rounded-sm border border-line px-5 text-sm font-semibold text-chalk transition-colors hover:border-neon/60 hover:text-neon">
                 Đăng ký để theo dõi tiến độ
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRight className="size-4" />
               </button>
             </Link>
           </div>

@@ -58,7 +58,9 @@ export default function MemberSchedulePage() {
 
   const todayKey = toKey(new Date());
 
-  const filtered = selectedKey ? sessions.filter((s) => toKey(new Date(s.startTime)) === selectedKey) : sessions;
+  const filtered = selectedKey
+    ? sessions.filter((s) => toKey(new Date(s.startTime)) === selectedKey)
+    : sessions;
 
   const prevMonth = () => {
     setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
@@ -72,10 +74,10 @@ export default function MemberSchedulePage() {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
-        <h1 className="font-display text-2xl font-bold uppercase tracking-tight text-chalk sm:text-3xl">Lịch tập</h1>
-        <p className="mt-1 text-sm text-muted">
-          Lịch tập cá nhân và các buổi PT của bạn.
-        </p>
+        <h1 className="font-display text-2xl font-bold uppercase tracking-tight text-chalk sm:text-3xl">
+          Lịch tập
+        </h1>
+        <p className="mt-1 text-sm text-muted">Lịch tập cá nhân và các buổi PT của bạn.</p>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
@@ -83,7 +85,7 @@ export default function MemberSchedulePage() {
         <Card className="h-fit lg:col-span-2">
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
-              <CalendarDays className="h-4 w-4 text-neon" />
+              <CalendarDays className="size-4 text-neon" />
               {viewDate.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })}
             </CardTitle>
             <div className="flex gap-1">
@@ -92,14 +94,14 @@ export default function MemberSchedulePage() {
                 className="rounded-lg p-1.5 transition-colors hover:bg-line/40"
                 aria-label="Tháng trước"
               >
-                <ChevronLeft className="h-4 w-4 text-muted" />
+                <ChevronLeft className="size-4 text-muted" />
               </button>
               <button
                 onClick={nextMonth}
                 className="rounded-lg p-1.5 transition-colors hover:bg-line/40"
                 aria-label="Tháng sau"
               >
-                <ChevronRight className="h-4 w-4 text-muted" />
+                <ChevronRight className="size-4 text-muted" />
               </button>
             </div>
           </CardHeader>
@@ -159,9 +161,11 @@ export default function MemberSchedulePage() {
           ) : filtered.length === 0 ? (
             <Card>
               <CardContent className="p-10 text-center">
-                <CalendarDays className="mx-auto h-10 w-10 text-muted" />
+                <CalendarDays className="mx-auto size-10 text-muted" />
                 <p className="mt-3 text-sm text-muted">
-                  {selectedKey ? 'Không có buổi tập nào vào ngày này.' : 'Bạn chưa có buổi tập nào sắp tới.'}
+                  {selectedKey
+                    ? 'Không có buổi tập nào vào ngày này.'
+                    : 'Bạn chưa có buổi tập nào sắp tới.'}
                 </p>
               </CardContent>
             </Card>
@@ -180,23 +184,32 @@ export default function MemberSchedulePage() {
                         })}
                       </p>
                     </div>
-                    <Badge variant={s.status === 'SCHEDULED' ? 'info' : 'success'}>{s.status}</Badge>
+                    <Badge variant={s.status === 'SCHEDULED' ? 'info' : 'success'}>
+                      {s.status}
+                    </Badge>
                   </div>
                   <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-muted sm:grid-cols-3">
                     <span className="inline-flex items-center gap-1.5">
-                      <Clock className="h-3.5 w-3.5 text-neon" />
-                      {new Date(s.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} -{' '}
-                      {new Date(s.endTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                      <Clock className="size-3.5 text-neon" />
+                      {new Date(s.startTime).toLocaleTimeString('vi-VN', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}{' '}
+                      -{' '}
+                      {new Date(s.endTime).toLocaleTimeString('vi-VN', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
                     </span>
                     {s.trainer?.user && (
                       <span className="inline-flex items-center gap-1.5">
-                        <User className="h-3.5 w-3.5 text-neon" />
+                        <User className="size-3.5 text-neon" />
                         PT: {s.trainer.user.fullName}
                       </span>
                     )}
                     {s.room && (
                       <span className="inline-flex items-center gap-1.5">
-                        <MapPin className="h-3.5 w-3.5 text-neon" />
+                        <MapPin className="size-3.5 text-neon" />
                         {s.room.name}
                       </span>
                     )}

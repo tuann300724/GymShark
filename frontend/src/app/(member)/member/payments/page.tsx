@@ -49,9 +49,7 @@ export default function MemberPaymentsPage() {
         <h1 className="font-display text-2xl font-bold uppercase tracking-tight text-chalk sm:text-3xl">
           Lịch sử thanh toán
         </h1>
-        <p className="mt-1 text-sm text-muted">
-          Các hóa đơn và giao dịch của bạn tại GymMaster.
-        </p>
+        <p className="mt-1 text-sm text-muted">Các hóa đơn và giao dịch của bạn tại GymMaster.</p>
       </div>
 
       <Card>
@@ -114,7 +112,7 @@ export default function MemberPaymentsPage() {
                         </td>
                         <td className="px-4 py-3.5 text-right">
                           <Button variant="ghost" size="sm" onClick={() => setDetailId(p.id)}>
-                            <Eye className="h-3.5 w-3.5" />
+                            <Eye className="size-3.5" />
                             Hóa đơn
                           </Button>
                         </td>
@@ -144,8 +142,8 @@ export default function MemberPaymentsPage() {
         ) : (
           <div>
             <div className="flex items-center gap-3 rounded-xl border border-neon/30 bg-ink p-4 text-chalk">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-neon/25 bg-neon/10 text-neon">
-                <Flame className="h-5 w-5" />
+              <div className="flex size-11 items-center justify-center rounded-xl border border-neon/25 bg-neon/10 text-neon">
+                <Flame className="size-5" />
               </div>
               <div>
                 <p className="font-display text-lg font-bold uppercase leading-tight">
@@ -197,19 +195,13 @@ export default function MemberPaymentsPage() {
                 </span>
               </div>
               {detail.transactionRef && (
-                <p className="text-[11px] text-muted">
-                  Mã giao dịch: {detail.transactionRef}
-                </p>
+                <p className="text-[11px] text-muted">Mã giao dịch: {detail.transactionRef}</p>
               )}
             </div>
 
             <div className="mt-5 flex gap-2">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => window.print()}
-              >
-                <Printer className="h-4 w-4" />
+              <Button variant="outline" className="flex-1" onClick={() => window.print()}>
+                <Printer className="size-4" />
                 In hóa đơn
               </Button>
               <Button
@@ -219,7 +211,7 @@ export default function MemberPaymentsPage() {
                   window.print();
                 }}
               >
-                <CheckCircle2 className="h-4 w-4" />
+                <CheckCircle2 className="size-4" />
                 Đóng
               </Button>
             </div>
@@ -228,7 +220,7 @@ export default function MemberPaymentsPage() {
       </Dialog>
 
       <div className="hidden">
-        <Receipt className="h-4 w-4" />
+        <Receipt className="size-4" />
       </div>
     </div>
   );

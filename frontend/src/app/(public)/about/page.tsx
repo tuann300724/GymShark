@@ -37,7 +37,10 @@ export default function PublicAboutPage() {
 
   const stats = [
     { stat: homeStats?.totalMembers?.toLocaleString('vi-VN') || '1.200+', label: 'Hội viên' },
-    { stat: homeStats?.totalTrainers?.toLocaleString('vi-VN') || '25+', label: 'HLV chuyên nghiệp' },
+    {
+      stat: homeStats?.totalTrainers?.toLocaleString('vi-VN') || '25+',
+      label: 'HLV chuyên nghiệp',
+    },
     { stat: '35+', label: 'Lớp học mỗi tuần' },
     { stat: homeStats?.totalBranches?.toLocaleString('vi-VN') || '1', label: 'Chi nhánh' },
   ];
@@ -56,8 +59,8 @@ export default function PublicAboutPage() {
               thói quen
             </h1>
             <p className="mt-5 max-w-xl text-base leading-relaxed text-muted">
-              Từ năm 2016, GymMaster đã đồng hành cùng hàng nghìn hội viên trên hành trình rèn
-              luyện sức khỏe, thể hình và tinh thần.
+              Từ năm 2016, GymMaster đã đồng hành cùng hàng nghìn hội viên trên hành trình rèn luyện
+              sức khỏe, thể hình và tinh thần.
             </p>
           </Reveal>
         </div>
@@ -137,8 +140,8 @@ export default function PublicAboutPage() {
             {VALUES.map((v, i) => (
               <Reveal key={v.title} delay={i * 90}>
                 <div className="h-full rounded-2xl border border-line bg-surface p-7 transition-colors duration-300 hover:border-neon/40">
-                  <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-[10px] border border-neon/25 bg-neon/10 text-neon">
-                    <v.icon className="h-5 w-5" />
+                  <div className="mb-4 flex size-11 items-center justify-center rounded-sm border border-neon/25 bg-neon/10 text-neon">
+                    <v.icon className="size-5" />
                   </div>
                   <h3 className="font-display text-xl font-bold uppercase tracking-tight text-chalk">
                     {v.title}
@@ -167,8 +170,8 @@ export default function PublicAboutPage() {
               <div className="absolute inset-0 bg-ink/85" aria-hidden />
 
               <div className="relative p-8 text-center sm:p-12">
-                <span className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-[10px] border border-neon/40 bg-neon/10 text-neon">
-                  <Flame className="h-6 w-6" />
+                <span className="mx-auto mb-5 flex size-12 items-center justify-center rounded-sm border border-neon/40 bg-neon/10 text-neon">
+                  <Flame className="size-6" />
                 </span>
                 <h2 className="mx-auto max-w-xl font-display text-3xl font-extrabold uppercase leading-[1.05] tracking-tight text-chalk sm:text-4xl">
                   Hãy là phần tiếp theo của câu chuyện
@@ -180,7 +183,7 @@ export default function PublicAboutPage() {
                   <Link href="/register">
                     <Button size="lg">
                       Đăng ký ngay
-                      <ArrowRight className="h-4 w-4" />
+                      <ArrowRight className="size-4" />
                     </Button>
                   </Link>
                   <Link href="/packages">

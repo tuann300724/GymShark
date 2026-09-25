@@ -37,7 +37,11 @@ export function AdminHeader() {
   }, [showUserMenu]);
 
   // Health check query to backend
-  const { data: health, isSuccess, isError } = useQuery({
+  const {
+    data: health,
+    isSuccess,
+    isError,
+  } = useQuery({
     queryKey: ['backend-health'],
     queryFn: async () => {
       const res = await apiClient.get('/health');
@@ -53,11 +57,7 @@ export function AdminHeader() {
     router.push('/login');
   };
 
-  const statusDot = isSuccess
-    ? 'bg-neon'
-    : isError
-      ? 'bg-danger'
-      : 'bg-amber-400 animate-pulse';
+  const statusDot = isSuccess ? 'bg-neon' : isError ? 'bg-danger' : 'bg-amber-400 animate-pulse';
   const statusText = isSuccess ? 'API Connected' : isError ? 'API Disconnected' : 'Checking API...';
 
   return (
@@ -65,8 +65,8 @@ export function AdminHeader() {
       {/* Left: Mobile Toggle & Quick Search */}
       <div className="flex items-center gap-3">
         <MobileNav />
-        <div className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-[10px] bg-surface border border-line text-xs w-64 md:w-80">
-          <Search className="w-3.5 h-3.5 text-muted shrink-0" />
+        <div className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-sm bg-surface border border-line text-xs w-64 md:w-80">
+          <Search className="size-3.5 text-muted shrink-0" />
           <input
             type="text"
             placeholder="Tìm nhanh hội viên, số điện thoại, thẻ tập..."
@@ -79,30 +79,36 @@ export function AdminHeader() {
       <div className="flex items-center gap-2 sm:gap-3">
         {/* Backend Status indicator */}
         <div
-          title={isSuccess ? `Backend kết nối thành công: ${health?.service}` : isError ? 'Không kết nối được với Backend' : 'Đang kiểm tra kết nối Backend...'}
+          title={
+            isSuccess
+              ? `Backend kết nối thành công: ${health?.service}`
+              : isError
+                ? 'Không kết nối được với Backend'
+                : 'Đang kiểm tra kết nối Backend...'
+          }
           className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-colors bg-ink border-line"
         >
-          <span className={`w-2 h-2 rounded-full ${statusDot}`} />
+          <span className={`size-2 rounded-full ${statusDot}`} />
           <span className="text-muted">{statusText}</span>
         </div>
 
         {/* Notification Bell */}
         <button
           onClick={() => router.push('/admin/notifications')}
-          className="p-2 rounded-[10px] text-muted hover:bg-line/30 hover:text-chalk relative transition-colors"
+          className="p-2 rounded-sm text-muted hover:bg-line/30 hover:text-chalk relative transition-colors"
           aria-label="Notifications"
         >
-          <Bell className="w-4 h-4" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-neon" />
+          <Bell className="size-4" />
+          <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-neon" />
         </button>
 
         {/* User Profile Dropdown */}
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex items-center gap-2 p-1.5 rounded-[10px] hover:bg-line/30 transition-colors"
+            className="flex items-center gap-2 p-1.5 rounded-sm hover:bg-line/30 transition-colors"
           >
-            <div className="w-8 h-8 rounded-full bg-surface border border-neon/40 text-neon flex items-center justify-center font-bold text-xs uppercase">
+            <div className="size-8 rounded-full bg-surface border border-neon/40 text-neon flex items-center justify-center font-bold text-xs uppercase">
               {user?.fullName?.charAt(0) || 'A'}
             </div>
             <div className="hidden md:block text-left">
@@ -110,7 +116,7 @@ export function AdminHeader() {
                 {user?.fullName || 'Quản trị viên'}
               </p>
               <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-neon">
-                <ShieldCheck className="w-3 h-3" />
+                <ShieldCheck className="size-3" />
                 {user?.role || 'ADMIN'}
               </span>
             </div>
@@ -118,8 +124,12 @@ export function AdminHeader() {
 
           {showUserMenu && (
             <div
+              role="presentation"
               className="absolute right-0 mt-2 w-48 rounded-xl bg-surface border border-line shadow-xl py-1.5 z-50 text-xs animate-fade-in"
               onClick={() => setShowUserMenu(false)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setShowUserMenu(false);
+              }}
             >
               <div className="px-3 py-2 border-b border-line">
                 <p className="font-semibold text-chalk">{user?.fullName || 'Quản trị viên'}</p>
@@ -129,14 +139,14 @@ export function AdminHeader() {
                 onClick={() => router.push('/admin/settings')}
                 className="w-full flex items-center gap-2 px-3 py-2 text-muted hover:bg-ink hover:text-chalk transition-colors"
               >
-                <UserIcon className="w-3.5 h-3.5" />
+                <UserIcon className="size-3.5" />
                 Hồ sơ & Tài khoản
               </button>
               <button
                 onClick={handleLogout}
                 className="w-full flex items-center gap-2 px-3 py-2 text-danger hover:bg-danger/10 transition-colors"
               >
-                <LogOut className="w-3.5 h-3.5" />
+                <LogOut className="size-3.5" />
                 Đăng xuất
               </button>
             </div>

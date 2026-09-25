@@ -2,7 +2,11 @@ import apiClient from '@/lib/axios';
 import type { Membership } from './types';
 
 export const membershipApi = {
-  getMyMemberships: async (): Promise<{ current: Membership | null; history: Membership[]; memberId?: string }> => {
+  getMyMemberships: async (): Promise<{
+    current: Membership | null;
+    history: Membership[];
+    memberId?: string;
+  }> => {
     const res = await apiClient.get('/member/memberships');
     return res.data;
   },

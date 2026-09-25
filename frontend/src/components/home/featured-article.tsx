@@ -39,12 +39,12 @@ export function FeaturedArticle() {
                 Nạp năng lượng đúng lúc, phục hồi nhanh hơn
               </h2>
               <p className="mt-4 max-w-xl text-base leading-relaxed text-muted">
-                Thời điểm nạp carbohydrate và protein quyết định phần lớn hiệu quả phục hồi
-                sau buổi tập. Những nguyên tắc đơn giản bạn có thể áp dụng ngay tuần này.
+                Thời điểm nạp carbohydrate và protein quyết định phần lớn hiệu quả phục hồi sau buổi
+                tập. Những nguyên tắc đơn giản bạn có thể áp dụng ngay tuần này.
               </p>
               <div className="mt-5 flex items-center gap-3 text-xs text-muted">
                 <span>12/09/2026</span>
-                <span className="h-1 w-1 rounded-full bg-line" aria-hidden />
+                <span className="size-1 rounded-full bg-line" aria-hidden />
                 <span>5 phút đọc</span>
               </div>
               <Link
@@ -52,7 +52,7 @@ export function FeaturedArticle() {
                 className="group mt-7 inline-flex items-center gap-2 text-sm font-bold text-chalk transition-colors hover:text-neon"
               >
                 Đọc thêm
-                <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" />
               </Link>
             </div>
           </Reveal>

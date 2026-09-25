@@ -10,7 +10,11 @@ import { formatDateTime } from '@/lib/utils';
 import { CalendarDays, Plus } from 'lucide-react';
 
 export default function SchedulesPage() {
-  const { data: schedules, isLoading, isError } = useQuery({
+  const {
+    data: schedules,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ['schedules-list'],
     queryFn: async () => {
       const res = await apiClient.get('/schedules');
@@ -23,7 +27,7 @@ export default function SchedulesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-chalk flex items-center gap-2">
-            <CalendarDays className="w-6 h-6 text-neon" />
+            <CalendarDays className="size-6 text-neon" />
             Lịch Tập Luyện & Lớp Học PT (Schedules)
           </h1>
           <p className="text-xs text-muted mt-1">
@@ -31,7 +35,7 @@ export default function SchedulesPage() {
           </p>
         </div>
         <Button variant="primary" size="md" className="font-semibold text-xs">
-          <Plus className="w-4 h-4 mr-1.5" />
+          <Plus className="size-4 mr-1.5" />
           Đặt Lịch Tập Mới
         </Button>
       </div>

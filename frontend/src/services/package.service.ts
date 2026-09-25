@@ -27,7 +27,11 @@ export const publicApi = {
     return res.data;
   },
 
-  getHomeStats: async (): Promise<{ totalMembers: number; totalTrainers: number; totalBranches: number }> => {
+  getHomeStats: async (): Promise<{
+    totalMembers: number;
+    totalTrainers: number;
+    totalBranches: number;
+  }> => {
     const res = await apiClient.get('/public/home-stats');
     return res.data;
   },

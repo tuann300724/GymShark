@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { getStoredUser } from '@/services/auth.service';
 import { Button } from '@/components/ui/button';
 import { Menu, X, Dumbbell, Search, ArrowRight } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
@@ -76,8 +77,7 @@ export function PublicHeader() {
     const q = query.trim().toLowerCase();
     if (!q) return SEARCH_INDEX;
     return SEARCH_INDEX.filter(
-      (item) =>
-        item.title.toLowerCase().includes(q) || item.desc.toLowerCase().includes(q),
+      (item) => item.title.toLowerCase().includes(q) || item.desc.toLowerCase().includes(q),
     );
   }, [query]);
 
@@ -95,7 +95,7 @@ export function PublicHeader() {
         <div className="flex h-16 items-center justify-between gap-4 lg:h-[68px]">
           {/* Logo */}
           <Link href="/" className="group flex shrink-0 items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-neon/40 bg-surface text-neon transition-colors group-hover:border-neon/70">
+            <span className="flex size-9 items-center justify-center rounded-sm border border-neon/40 bg-surface text-neon transition-colors group-hover:border-neon/70">
               <Dumbbell size={18} />
             </span>
             <span className="font-display text-xl font-bold uppercase leading-none tracking-wide text-chalk">
@@ -128,16 +128,16 @@ export function PublicHeader() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setSearchOpen(true)}
-              className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-line bg-surface text-muted transition-colors hover:border-neon/50 hover:text-neon"
+              className="flex size-9 items-center justify-center rounded-sm border border-line bg-surface text-muted transition-colors hover:border-neon/50 hover:text-neon"
               aria-label="Tìm kiếm trang"
             >
-              <Search className="h-4 w-4" />
+              <Search className="size-4" />
             </button>
 
             <div className="hidden items-center gap-2 md:flex">
               {user ? (
                 <Button variant="outline" size="sm" onClick={() => router.push(portalHref)}>
-                  <Dumbbell className="h-3.5 w-3.5" />
+                  <Dumbbell className="size-3.5" />
                   Khu vực của tôi
                 </Button>
               ) : (
@@ -150,7 +150,7 @@ export function PublicHeader() {
                   <Link href="/register">
                     <Button size="sm">
                       Đăng ký
-                      <ArrowRight className="h-3.5 w-3.5" />
+                      <ArrowRight className="size-3.5" />
                     </Button>
                   </Link>
                 </>
@@ -159,12 +159,12 @@ export function PublicHeader() {
 
             {/* Mobile hamburger */}
             <button
-              className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-line bg-surface text-chalk lg:hidden"
+              className="flex size-9 items-center justify-center rounded-sm border border-line bg-surface text-chalk lg:hidden"
               onClick={() => setMenuOpen(!menuOpen)}
               aria-label="Menu"
               aria-expanded={menuOpen}
             >
-              {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
             </button>
           </div>
         </div>
@@ -211,54 +211,62 @@ export function PublicHeader() {
       )}
 
       {/* Search overlay */}
-      {searchOpen && (
-        <div className="fixed inset-0 z-[80] animate-fade-in">
-          <div className="absolute inset-0 bg-ink/80 backdrop-blur-sm" onClick={() => setSearchOpen(false)} />
-          <div className="relative mx-auto mt-24 w-[calc(100%-2rem)] max-w-lg rounded-2xl border border-line bg-surface p-3 shadow-2xl animate-slide-up">
-            <div className="flex items-center gap-2.5 rounded-[10px] border border-line bg-ink px-3">
-              <Search className="h-4 w-4 shrink-0 text-muted" />
-              <input
-                ref={inputRef}
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && results[0]) go(results[0].href);
-                }}
-                placeholder="Tìm trang, gói tập, bài viết..."
-                className="h-11 w-full bg-transparent text-sm text-chalk outline-none placeholder:text-muted/70"
-                aria-label="Tìm kiếm"
-              />
-              <kbd className="hidden shrink-0 rounded border border-line px-1.5 py-0.5 text-[10px] text-muted sm:block">
-                ESC
-              </kbd>
-            </div>
+      {searchOpen &&
+        createPortal(
+          <div className="fixed inset-0 z-[80] animate-fade-in">
+            <button
+              type="button"
+              tabIndex={-1}
+              aria-label="Đóng tìm kiếm"
+              className="absolute inset-0 bg-ink/80 backdrop-blur-sm"
+              onClick={() => setSearchOpen(false)}
+            />
+            <div className="relative mx-auto mt-24 w-[calc(100%-2rem)] max-w-lg rounded-2xl border border-line bg-surface p-3 shadow-2xl animate-slide-up">
+              <div className="flex items-center gap-2.5 rounded-sm border border-line bg-ink px-3">
+                <Search className="size-4 shrink-0 text-muted" />
+                <input
+                  ref={inputRef}
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && results[0]) go(results[0].href);
+                  }}
+                  placeholder="Tìm trang, gói tập, bài viết..."
+                  className="h-11 w-full bg-transparent text-sm text-chalk outline-none placeholder:text-muted/70"
+                  aria-label="Tìm kiếm"
+                />
+                <kbd className="hidden shrink-0 rounded border border-line px-1.5 py-0.5 text-[10px] text-muted sm:block">
+                  ESC
+                </kbd>
+              </div>
 
-            <div className="mt-2 max-h-72 overflow-y-auto">
-              {results.length === 0 ? (
-                <p className="px-3 py-6 text-center text-sm text-muted">
-                  Không tìm thấy trang phù hợp.
-                </p>
-              ) : (
-                results.map((item) => (
-                  <button
-                    key={item.href}
-                    onClick={() => go(item.href)}
-                    className="flex w-full items-center justify-between gap-3 rounded-[10px] px-3 py-2.5 text-left transition-colors hover:bg-ink"
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-semibold text-chalk">
-                        {item.title}
+              <div className="mt-2 max-h-72 overflow-y-auto">
+                {results.length === 0 ? (
+                  <p className="px-3 py-6 text-center text-sm text-muted">
+                    Không tìm thấy trang phù hợp.
+                  </p>
+                ) : (
+                  results.map((item) => (
+                    <button
+                      key={item.href}
+                      onClick={() => go(item.href)}
+                      className="flex w-full items-center justify-between gap-3 rounded-sm px-3 py-2.5 text-left transition-colors hover:bg-ink"
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-semibold text-chalk">
+                          {item.title}
+                        </span>
+                        <span className="block truncate text-xs text-muted">{item.desc}</span>
                       </span>
-                      <span className="block truncate text-xs text-muted">{item.desc}</span>
-                    </span>
-                    <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted" />
-                  </button>
-                ))
-              )}
+                      <ArrowRight className="size-3.5 shrink-0 text-muted" />
+                    </button>
+                  ))
+                )}
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </header>
   );
 }

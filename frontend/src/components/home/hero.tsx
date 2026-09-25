@@ -60,21 +60,21 @@ export function Hero() {
 
           <Reveal delay={160}>
             <p className="mt-6 max-w-xl text-base leading-relaxed text-muted sm:text-lg">
-              Chương trình tập khoa học, huấn luyện viên chuyên nghiệp và công nghệ theo dõi
-              tiến độ để bạn mạnh hơn sau mỗi buổi tập.
+              Chương trình tập khoa học, huấn luyện viên chuyên nghiệp và công nghệ theo dõi tiến độ
+              để bạn mạnh hơn sau mỗi buổi tập.
             </p>
           </Reveal>
 
           <Reveal delay={240}>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href="/register">
-                <button className="inline-flex h-12 items-center justify-center gap-2.5 rounded-[10px] bg-neon px-6 text-[15px] font-bold text-ink shadow-[0_0_28px_-10px_rgba(183,255,0,0.55)] transition-colors hover:bg-neon-hover active:translate-y-px">
+                <button className="inline-flex h-12 items-center justify-center gap-2.5 rounded-sm bg-neon px-6 text-[15px] font-bold text-ink shadow-[0_0_28px_-10px_rgba(183,255,0,0.55)] transition-colors hover:bg-neon-hover active:translate-y-px">
                   Bắt đầu ngay
-                  <ArrowRight className="h-4 w-4" />
+                  <ArrowRight className="size-4" />
                 </button>
               </Link>
               <Link href="/schedule">
-                <button className="inline-flex h-12 items-center justify-center gap-2.5 rounded-[10px] border border-line bg-transparent px-6 text-[15px] font-semibold text-chalk transition-colors hover:border-neon/60 hover:text-neon active:translate-y-px">
+                <button className="inline-flex h-12 items-center justify-center gap-2.5 rounded-sm border border-line bg-transparent px-6 text-[15px] font-semibold text-chalk transition-colors hover:border-neon/60 hover:text-neon active:translate-y-px">
                   Xem chương trình
                 </button>
               </Link>
@@ -94,7 +94,10 @@ export function Hero() {
               className="object-cover object-center"
             />
             {/* Dark cinematic overlays */}
-            <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/10 to-ink/30" aria-hidden />
+            <div
+              className="absolute inset-0 bg-gradient-to-t from-ink via-ink/10 to-ink/30"
+              aria-hidden
+            />
             <div
               className="absolute inset-y-0 left-0 hidden w-28 bg-gradient-to-r from-ink/70 to-transparent lg:block"
               aria-hidden
@@ -103,7 +106,7 @@ export function Hero() {
 
           {/* Floating stat card */}
           <div className="absolute bottom-5 left-4 flex items-center gap-3 rounded-xl border border-line bg-surface/95 px-4 py-3 shadow-2xl backdrop-blur-sm lg:-left-6">
-            <span className="flex h-10 w-10 items-center justify-center rounded-[10px] border border-neon/25 bg-neon/10 text-neon">
+            <span className="flex size-10 items-center justify-center rounded-sm border border-neon/25 bg-neon/10 text-neon">
               <Users size={18} />
             </span>
             <span>
@@ -124,7 +127,7 @@ export function Hero() {
           {FEATURES.map((f, i) => (
             <Reveal key={f.title} delay={i * 90}>
               <div className="flex gap-3.5">
-                <f.icon className="mt-0.5 h-5 w-5 shrink-0 text-neon" />
+                <f.icon className="mt-0.5 size-5 shrink-0 text-neon" />
                 <div>
                   <h3 className="text-sm font-bold text-chalk">{f.title}</h3>
                   <p className="mt-1 text-sm leading-relaxed text-muted">{f.desc}</p>

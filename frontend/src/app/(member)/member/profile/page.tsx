@@ -36,14 +36,16 @@ const profileSchema = z.object({
   emergencyContact: z.string().optional(),
 });
 
-const passwordSchema = z.object({
-  currentPassword: z.string().min(1, 'Vui lòng nhập mật khẩu hiện tại'),
-  newPassword: z.string().min(6, 'Mật khẩu mới tối thiểu 6 ký tự'),
-  confirmPassword: z.string(),
-}).refine((d) => d.newPassword === d.confirmPassword, {
-  message: 'Mật khẩu xác nhận không khớp',
-  path: ['confirmPassword'],
-});
+const passwordSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'Vui lòng nhập mật khẩu hiện tại'),
+    newPassword: z.string().min(6, 'Mật khẩu mới tối thiểu 6 ký tự'),
+    confirmPassword: z.string(),
+  })
+  .refine((d) => d.newPassword === d.confirmPassword, {
+    message: 'Mật khẩu xác nhận không khớp',
+    path: ['confirmPassword'],
+  });
 
 const GENDER_LABEL: Record<string, string> = { MALE: 'Nam', FEMALE: 'Nữ', OTHER: 'Khác' };
 
@@ -113,7 +115,11 @@ export default function MemberProfilePage() {
     { icon: User, label: 'Họ và tên', value: member?.fullName || me?.fullName },
     { icon: Mail, label: 'Email', value: me?.email },
     { icon: Phone, label: 'Số điện thoại', value: member?.phone || me?.phone },
-    { icon: Cake, label: 'Ngày sinh', value: member?.dateOfBirth ? formatDate(member.dateOfBirth) : '--' },
+    {
+      icon: Cake,
+      label: 'Ngày sinh',
+      value: member?.dateOfBirth ? formatDate(member.dateOfBirth) : '--',
+    },
     { icon: ShieldCheck, label: 'Giới tính', value: GENDER_LABEL[member?.gender || ''] || '--' },
     { icon: MapPin, label: 'Địa chỉ', value: member?.address || '--' },
     { icon: HeartPulse, label: 'Liên hệ khẩn cấp', value: member?.emergencyContact || '--' },
@@ -125,9 +131,7 @@ export default function MemberProfilePage() {
         <h1 className="font-display text-2xl font-bold uppercase tracking-tight text-chalk sm:text-3xl">
           Hồ sơ của tôi
         </h1>
-        <p className="mt-1 text-sm text-muted">
-          Quản lý thông tin cá nhân và bảo mật tài khoản.
-        </p>
+        <p className="mt-1 text-sm text-muted">Quản lý thông tin cá nhân và bảo mật tài khoản.</p>
       </div>
 
       {isLoading ? (
@@ -141,7 +145,7 @@ export default function MemberProfilePage() {
           <Card>
             <CardContent className="p-6 sm:p-8">
               <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
-                <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full border border-neon/40 bg-neon/10 text-3xl font-black text-neon">
+                <div className="flex size-24 shrink-0 items-center justify-center rounded-full border border-neon/40 bg-neon/10 text-3xl font-black text-neon">
                   {(me?.fullName || 'H').charAt(0)}
                 </div>
                 <div className="flex-1">
@@ -154,17 +158,19 @@ export default function MemberProfilePage() {
                   <div className="mt-2 flex flex-wrap gap-2">
                     <Badge variant="info">{me?.isTrainer ? 'HUẤN LUYỆN VIÊN' : 'HỘI VIÊN'}</Badge>
                     {member?.status && (
-                      <Badge variant={member.status === 'ACTIVE' ? 'success' : 'outline'}>{member.status}</Badge>
+                      <Badge variant={member.status === 'ACTIVE' ? 'success' : 'outline'}>
+                        {member.status}
+                      </Badge>
                     )}
                   </div>
                 </div>
                 <div className="flex flex-col gap-2 sm:items-end">
                   <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-                    <Pencil className="h-3.5 w-3.5" />
+                    <Pencil className="size-3.5" />
                     Chỉnh sửa hồ sơ
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => setPwOpen(true)}>
-                    <KeyRound className="h-3.5 w-3.5" />
+                    <KeyRound className="size-3.5" />
                     Đổi mật khẩu
                   </Button>
                 </div>
@@ -182,11 +188,13 @@ export default function MemberProfilePage() {
               <div className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
                 {infoRows.map((row, i) => (
                   <div key={i} className="flex items-start gap-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-neon/25 bg-neon/10">
-                      <row.icon className="h-4 w-4 text-neon" />
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-neon/25 bg-neon/10">
+                      <row.icon className="size-4 text-neon" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">{row.label}</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">
+                        {row.label}
+                      </p>
                       <p className="break-words text-sm font-semibold text-chalk">
                         {row.value || '--'}
                       </p>
@@ -201,9 +209,20 @@ export default function MemberProfilePage() {
 
       {/* Edit profile dialog */}
       <Dialog open={editOpen} onClose={() => setEditOpen(false)} title="Chỉnh sửa hồ sơ">
-        <form onSubmit={profileForm.handleSubmit((v) => updateMutation.mutate(v))} className="space-y-4">
-          <Input label="Họ và tên (*)" error={profileForm.formState.errors.fullName?.message} {...profileForm.register('fullName')} />
-          <Input label="Số điện thoại (*)" error={profileForm.formState.errors.phone?.message} {...profileForm.register('phone')} />
+        <form
+          onSubmit={profileForm.handleSubmit((v) => updateMutation.mutate(v))}
+          className="space-y-4"
+        >
+          <Input
+            label="Họ và tên (*)"
+            error={profileForm.formState.errors.fullName?.message}
+            {...profileForm.register('fullName')}
+          />
+          <Input
+            label="Số điện thoại (*)"
+            error={profileForm.formState.errors.phone?.message}
+            {...profileForm.register('phone')}
+          />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Select
               label="Giới tính"
@@ -215,9 +234,18 @@ export default function MemberProfilePage() {
               error={profileForm.formState.errors.gender?.message}
               {...profileForm.register('gender')}
             />
-            <Input label="Ngày sinh" type="date" error={profileForm.formState.errors.dateOfBirth?.message} {...profileForm.register('dateOfBirth')} />
+            <Input
+              label="Ngày sinh"
+              type="date"
+              error={profileForm.formState.errors.dateOfBirth?.message}
+              {...profileForm.register('dateOfBirth')}
+            />
           </div>
-          <Input label="Địa chỉ" error={profileForm.formState.errors.address?.message} {...profileForm.register('address')} />
+          <Input
+            label="Địa chỉ"
+            error={profileForm.formState.errors.address?.message}
+            {...profileForm.register('address')}
+          />
           <Input
             label="Người liên hệ khẩn cấp"
             placeholder="VD: Nguyễn Văn B - 0911222333"
@@ -261,7 +289,7 @@ export default function MemberProfilePage() {
               Hủy
             </Button>
             <Button type="submit" isLoading={pwMutation.isPending}>
-              <KeyRound className="h-4 w-4" />
+              <KeyRound className="size-4" />
               Đổi mật khẩu
             </Button>
           </div>

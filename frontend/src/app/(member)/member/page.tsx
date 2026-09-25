@@ -61,10 +61,30 @@ export default function MemberDashboardPage() {
   const membership = stats?.currentMembership;
 
   const statItems = [
-    { label: 'Tổng check-in', value: stats?.totalCheckIns ?? 0, icon: QrCode, to: '/member/checkins' },
-    { label: 'Check-in tháng này', value: stats?.monthCheckIns ?? 0, icon: CalendarCheck, to: '/member/checkins' },
-    { label: 'Ngày còn lại', value: stats?.remainingDays ?? 0, icon: Hourglass, to: '/member/membership' },
-    { label: 'Số buổi PT sắp tới', value: stats?.ptSessions ?? 0, icon: Dumbbell, to: '/member/schedule' },
+    {
+      label: 'Tổng check-in',
+      value: stats?.totalCheckIns ?? 0,
+      icon: QrCode,
+      to: '/member/checkins',
+    },
+    {
+      label: 'Check-in tháng này',
+      value: stats?.monthCheckIns ?? 0,
+      icon: CalendarCheck,
+      to: '/member/checkins',
+    },
+    {
+      label: 'Ngày còn lại',
+      value: stats?.remainingDays ?? 0,
+      icon: Hourglass,
+      to: '/member/membership',
+    },
+    {
+      label: 'Số buổi PT sắp tới',
+      value: stats?.ptSessions ?? 0,
+      icon: Dumbbell,
+      to: '/member/schedule',
+    },
   ];
 
   const nextSessions = schedules?.data?.slice(0, 3) || [];
@@ -83,8 +103,8 @@ export default function MemberDashboardPage() {
             )}
           </h1>
           <p className="mt-1 text-sm text-muted">
-            {me?.member?.code ? `Mã hội viên: ${me.member.code}` : ''} — Hãy bắt đầu ngày mới với một buổi tập thật
-            chất lượng nhé!
+            {me?.member?.code ? `Mã hội viên: ${me.member.code}` : ''} — Hãy bắt đầu ngày mới với
+            một buổi tập thật chất lượng nhé!
           </p>
         </div>
         <Link
@@ -92,7 +112,7 @@ export default function MemberDashboardPage() {
           className="inline-flex items-center gap-1.5 text-sm font-semibold text-neon transition-colors hover:underline"
         >
           Xem lịch tập
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRight className="size-4" />
         </Link>
       </div>
 
@@ -102,7 +122,7 @@ export default function MemberDashboardPage() {
           <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
             <div className="flex-1">
               <div className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5 text-neon" />
+                <CreditCard className="size-5 text-neon" />
                 <p className="meta-label">Thẻ thành viên</p>
               </div>
               {statsLoading || !membership ? (
@@ -117,13 +137,16 @@ export default function MemberDashboardPage() {
                   </h2>
                   <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted">
                     <span>
-                      Bắt đầu: <b className="font-semibold text-chalk">{formatDate(membership.startDate)}</b>
+                      Bắt đầu:{' '}
+                      <b className="font-semibold text-chalk">{formatDate(membership.startDate)}</b>
                     </span>
                     <span>
-                      Hết hạn: <b className="font-semibold text-chalk">{formatDate(membership.endDate)}</b>
+                      Hết hạn:{' '}
+                      <b className="font-semibold text-chalk">{formatDate(membership.endDate)}</b>
                     </span>
                     <span>
-                      Giá: <b className="font-semibold text-chalk">{formatCurrency(membership.price)}</b>
+                      Giá:{' '}
+                      <b className="font-semibold text-chalk">{formatCurrency(membership.price)}</b>
                     </span>
                   </div>
                   <div className="mt-3 flex items-center gap-2">
@@ -155,8 +178,8 @@ export default function MemberDashboardPage() {
             <Card className="h-full transition-colors hover:border-neon/40">
               <CardContent className="p-5">
                 <div className="flex items-center justify-between">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-neon/25 bg-neon/10">
-                    <s.icon className="h-5 w-5 text-neon" />
+                  <div className="flex size-10 items-center justify-center rounded-xl border border-neon/25 bg-neon/10">
+                    <s.icon className="size-5 text-neon" />
                   </div>
                 </div>
                 <p className="mt-3 font-display text-2xl font-bold text-chalk">{s.value}</p>
@@ -173,7 +196,7 @@ export default function MemberDashboardPage() {
           <Card>
             <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="flex items-center gap-2 text-base">
-                <QrCode className="h-4 w-4 text-neon" />
+                <QrCode className="size-4 text-neon" />
                 Check-in gần nhất
               </CardTitle>
               <Link
@@ -206,7 +229,10 @@ export default function MemberDashboardPage() {
                           })}
                         </p>
                         <p className="text-xs text-muted">
-                          {new Date(c.checkInTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                          {new Date(c.checkInTime).toLocaleTimeString('vi-VN', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
                           {c.branch ? ` • ${c.branch.name}` : ''}
                         </p>
                       </div>
@@ -224,7 +250,7 @@ export default function MemberDashboardPage() {
           <Card>
             <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="flex items-center gap-2 text-base">
-                <CalendarDays className="h-4 w-4 text-neon" />
+                <CalendarDays className="size-4 text-neon" />
                 Buổi tập sắp tới
               </CardTitle>
               <Link
@@ -251,20 +277,28 @@ export default function MemberDashboardPage() {
                       key={s.id}
                       className="flex items-center gap-4 rounded-xl border border-line p-3.5"
                     >
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-neon/25 bg-neon/10">
-                        <Clock className="h-5 w-5 text-neon" />
+                      <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-neon/25 bg-neon/10">
+                        <Clock className="size-5 text-neon" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-chalk">{s.title}</p>
                         <p className="mt-0.5 text-xs text-muted">
-                          {new Date(s.startTime).toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit' })}{' '}
-                          • {new Date(s.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                          {new Date(s.startTime).toLocaleDateString('vi-VN', {
+                            weekday: 'long',
+                            day: '2-digit',
+                            month: '2-digit',
+                          })}{' '}
+                          •{' '}
+                          {new Date(s.startTime).toLocaleTimeString('vi-VN', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
                           {s.trainer?.user ? ` • ${s.trainer.user.fullName}` : ''}
                         </p>
                       </div>
                       {s.room && (
                         <span className="hidden shrink-0 items-center gap-1 text-xs text-muted sm:flex">
-                          <MapPin className="h-3.5 w-3.5" />
+                          <MapPin className="size-3.5" />
                           {s.room.name}
                         </span>
                       )}
@@ -280,7 +314,7 @@ export default function MemberDashboardPage() {
         <Card>
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
-              <BellRing className="h-4 w-4 text-neon" />
+              <BellRing className="size-4 text-neon" />
               Thông báo
             </CardTitle>
             <Link
@@ -311,7 +345,9 @@ export default function MemberDashboardPage() {
                     }`}
                   >
                     <div className="flex items-start gap-2">
-                      {!n.isRead && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-neon" />}
+                      {!n.isRead && (
+                        <span className="mt-1.5 size-2 shrink-0 rounded-full bg-neon" />
+                      )}
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-chalk line-clamp-1">{n.title}</p>
                         <p className="mt-0.5 text-xs text-muted line-clamp-2">{n.content}</p>

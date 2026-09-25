@@ -11,7 +11,11 @@ import { CreditCard, Plus, Eye } from 'lucide-react';
 import Link from 'next/link';
 
 export default function MembershipsPage() {
-  const { data: memberships, isLoading, isError } = useQuery({
+  const {
+    data: memberships,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ['memberships-list'],
     queryFn: async () => {
       const res = await apiClient.get('/memberships');
@@ -24,7 +28,7 @@ export default function MembershipsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-chalk flex items-center gap-2">
-            <CreditCard className="w-6 h-6 text-neon" />
+            <CreditCard className="size-6 text-neon" />
             Hợp Đồng & Thẻ Hội Viên
           </h1>
           <p className="text-xs text-muted mt-1">
@@ -32,7 +36,7 @@ export default function MembershipsPage() {
           </p>
         </div>
         <Button variant="primary" size="md" className="font-semibold text-xs">
-          <Plus className="w-4 h-4 mr-1.5" />
+          <Plus className="size-4 mr-1.5" />
           Ký Hợp Đồng Mới
         </Button>
       </div>
@@ -40,9 +44,13 @@ export default function MembershipsPage() {
       <Card>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="py-16 text-center text-xs text-muted">Đang tải danh sách thẻ hội viên...</div>
+            <div className="py-16 text-center text-xs text-muted">
+              Đang tải danh sách thẻ hội viên...
+            </div>
           ) : isError ? (
-            <div className="py-16 text-center text-xs text-danger">Lỗi tải dữ liệu thẻ hội viên từ Backend.</div>
+            <div className="py-16 text-center text-xs text-danger">
+              Lỗi tải dữ liệu thẻ hội viên từ Backend.
+            </div>
           ) : memberships && memberships.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-xs text-left">
@@ -70,12 +78,14 @@ export default function MembershipsPage() {
                       <td className="py-3 px-4 text-muted">{formatDate(item.startDate)}</td>
                       <td className="py-3 px-4 text-muted">{formatDate(item.endDate)}</td>
                       <td className="py-3 px-4">
-                        <Badge variant={item.status === 'ACTIVE' ? 'success' : 'outline'}>{item.status}</Badge>
+                        <Badge variant={item.status === 'ACTIVE' ? 'success' : 'outline'}>
+                          {item.status}
+                        </Badge>
                       </td>
                       <td className="py-3 px-4 text-right">
                         <Link href={`/members/${item.member?.id}`}>
                           <Button variant="outline" size="sm">
-                            <Eye className="w-3.5 h-3.5" />
+                            <Eye className="size-3.5" />
                           </Button>
                         </Link>
                       </td>
@@ -85,7 +95,9 @@ export default function MembershipsPage() {
               </table>
             </div>
           ) : (
-            <div className="py-16 text-center text-xs text-muted">Chưa có hợp đồng nào được tạo.</div>
+            <div className="py-16 text-center text-xs text-muted">
+              Chưa có hợp đồng nào được tạo.
+            </div>
           )}
         </CardContent>
       </Card>

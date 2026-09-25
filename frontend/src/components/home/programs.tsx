@@ -68,8 +68,8 @@ export function Programs() {
           <div className="max-w-2xl">
             <h2 className="section-title">Training Programs</h2>
             <p className="mt-4 text-base leading-relaxed text-muted">
-              Sáu buổi tập xoay vòng trong tuần, cân bằng nhóm cơ lớn và nhóm cơ nhỏ để bạn
-              tiến bộ mà vẫn phục hồi đúng nhịp.
+              Sáu buổi tập xoay vòng trong tuần, cân bằng nhóm cơ lớn và nhóm cơ nhỏ để bạn tiến bộ
+              mà vẫn phục hồi đúng nhịp.
             </p>
           </div>
         </Reveal>
@@ -103,16 +103,16 @@ export function Programs() {
                     <h3 className="font-display text-2xl font-bold uppercase leading-tight tracking-tight text-chalk transition-colors group-hover:text-neon">
                       {p.name}
                     </h3>
-                    <ArrowUpRight className="mt-1 h-5 w-5 shrink-0 text-muted transition-all duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-neon" />
+                    <ArrowUpRight className="mt-1 size-5 shrink-0 text-muted transition-all duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-neon" />
                   </div>
 
                   <div className="mt-4 flex items-center gap-4 border-t border-line pt-4 text-xs text-muted">
                     <span className="flex items-center gap-1.5">
-                      <Dumbbell className="h-3.5 w-3.5" />
+                      <Dumbbell className="size-3.5" />
                       {p.exercises} bài tập
                     </span>
                     <span className="flex items-center gap-1.5">
-                      <Clock className="h-3.5 w-3.5" />
+                      <Clock className="size-3.5" />
                       {p.duration} phút
                     </span>
                   </div>

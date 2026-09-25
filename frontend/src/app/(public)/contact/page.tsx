@@ -57,16 +57,34 @@ export default function PublicContactPage() {
 
   const infoItems = branch
     ? [
-        { icon: MapPin, label: 'Địa chỉ', value: `${branch.address}${branch.name ? ` (${branch.name})` : ''}` },
+        {
+          icon: MapPin,
+          label: 'Địa chỉ',
+          value: `${branch.address}${branch.name ? ` (${branch.name})` : ''}`,
+        },
         { icon: Phone, label: 'Điện thoại', value: branch.phone, href: `tel:${branch.phone}` },
-        { icon: Mail, label: 'Email', value: branch.email || 'lienhe@gymmaster.vn', href: `mailto:${branch.email || 'lienhe@gymmaster.vn'}` },
-        { icon: Clock, label: 'Giờ mở cửa', value: branch.openingHours || '05:00 - 22:00 hàng ngày' },
+        {
+          icon: Mail,
+          label: 'Email',
+          value: branch.email || 'lienhe@gymmaster.vn',
+          href: `mailto:${branch.email || 'lienhe@gymmaster.vn'}`,
+        },
+        {
+          icon: Clock,
+          label: 'Giờ mở cửa',
+          value: branch.openingHours || '05:00 - 22:00 hàng ngày',
+        },
       ]
     : [
         // Fallback đồng bộ với footer khi API chi nhánh chưa khả dụng
         { icon: MapPin, label: 'Địa chỉ', value: 'Khu Công nghệ Phần mềm, Đồng Nai' },
         { icon: Phone, label: 'Điện thoại', value: '1900 1009', href: 'tel:19001009' },
-        { icon: Mail, label: 'Email', value: 'lienhe@gymmaster.vn', href: 'mailto:lienhe@gymmaster.vn' },
+        {
+          icon: Mail,
+          label: 'Email',
+          value: 'lienhe@gymmaster.vn',
+          href: 'mailto:lienhe@gymmaster.vn',
+        },
         { icon: Clock, label: 'Giờ mở cửa', value: '05:00 - 22:00 hàng ngày' },
       ];
 
@@ -108,8 +126,8 @@ export default function PublicContactPage() {
                         key={item.label}
                         className="flex items-start gap-4 rounded-2xl border border-line bg-surface p-4 transition-colors duration-300 hover:border-neon/40"
                       >
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] border border-neon/25 bg-neon/10 text-neon">
-                          <item.icon className="h-5 w-5" />
+                        <div className="flex size-11 shrink-0 items-center justify-center rounded-sm border border-neon/25 bg-neon/10 text-neon">
+                          <item.icon className="size-5" />
                         </div>
                         <div className="min-w-0">
                           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
@@ -158,10 +176,26 @@ export default function PublicContactPage() {
                 </p>
 
                 <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
-                  <Input label="Họ và tên (*)" placeholder="Nguyễn Văn A" error={errors.name?.message} {...register('name')} />
+                  <Input
+                    label="Họ và tên (*)"
+                    placeholder="Nguyễn Văn A"
+                    error={errors.name?.message}
+                    {...register('name')}
+                  />
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <Input label="Email (*)" type="email" placeholder="you@email.com" error={errors.email?.message} {...register('email')} />
-                    <Input label="Số điện thoại (*)" placeholder="0912345678" error={errors.phone?.message} {...register('phone')} />
+                    <Input
+                      label="Email (*)"
+                      type="email"
+                      placeholder="you@email.com"
+                      error={errors.email?.message}
+                      {...register('email')}
+                    />
+                    <Input
+                      label="Số điện thoại (*)"
+                      placeholder="0912345678"
+                      error={errors.phone?.message}
+                      {...register('phone')}
+                    />
                   </div>
                   <Textarea
                     label="Nội dung (*)"
@@ -171,7 +205,7 @@ export default function PublicContactPage() {
                     {...register('message')}
                   />
                   <Button type="submit" className="h-11 w-full font-bold" isLoading={isSubmitting}>
-                    <Send className="h-4 w-4" />
+                    <Send className="size-4" />
                     Gửi liên hệ
                   </Button>
                 </form>

@@ -25,9 +25,7 @@ import {
 export const navigationSections = [
   {
     title: 'Tổng quan',
-    items: [
-      { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
-    ],
+    items: [{ name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard }],
   },
   {
     title: 'Hội viên & Vận hành',
@@ -71,8 +69,8 @@ export function AdminSidebar() {
     <aside className="w-64 border-r border-line bg-surface/95 backdrop-blur-md flex flex-col h-screen sticky top-0 z-30 transition-all select-none">
       {/* Brand Logo Header */}
       <div className="h-16 px-5 flex items-center gap-3 border-b border-line">
-        <div className="w-10 h-10 rounded-[10px] border border-neon/40 bg-ink flex items-center justify-center text-neon">
-          <Dumbbell className="w-5 h-5" />
+        <div className="size-10 rounded-sm border border-neon/40 bg-ink flex items-center justify-center text-neon">
+          <Dumbbell className="size-5" />
         </div>
         <div>
           <span className="font-display text-base font-extrabold uppercase tracking-tight text-chalk flex items-center gap-1">
@@ -85,7 +83,7 @@ export function AdminSidebar() {
       </div>
 
       {/* Navigation Links */}
-      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6 scrollbar-thin">
+      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
         {navigationSections.map((section) => (
           <div key={section.title} className="space-y-1">
             <h5 className="px-3 text-[11px] font-bold uppercase tracking-wider text-muted">
@@ -93,7 +91,9 @@ export function AdminSidebar() {
             </h5>
             <div className="space-y-0.5 pt-1">
               {section.items.map((item) => {
-                const isActive = pathname === item.href || (item.href !== '/admin/dashboard' && pathname.startsWith(item.href));
+                const isActive =
+                  pathname === item.href ||
+                  (item.href !== '/admin/dashboard' && pathname.startsWith(item.href));
                 const Icon = item.icon;
                 return (
                   <Link
@@ -107,7 +107,12 @@ export function AdminSidebar() {
                     )}
                   >
                     <div className="flex items-center gap-2.5">
-                      <Icon className={cn('w-4 h-4 transition-colors', isActive ? 'text-neon' : 'text-muted group-hover:text-chalk')} />
+                      <Icon
+                        className={cn(
+                          'w-4 h-4 transition-colors',
+                          isActive ? 'text-neon' : 'text-muted group-hover:text-chalk',
+                        )}
+                      />
                       <span>{item.name}</span>
                     </div>
                     {item.badge && (
@@ -125,13 +130,13 @@ export function AdminSidebar() {
 
       {/* Branch & User Footer */}
       <div className="p-3 border-t border-line bg-ink/50">
-        <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-[10px] bg-ink border border-line text-xs">
-          <div className="w-2 h-2 rounded-full bg-neon shrink-0" />
+        <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-sm bg-ink border border-line text-xs">
+          <div className="size-2 rounded-full bg-neon shrink-0" />
           <div className="truncate flex-1">
             <p className="font-semibold text-chalk truncate">CN Biên Hòa - Đồng Nai</p>
             <p className="text-[10px] text-muted">Chi nhánh hoạt động</p>
           </div>
-          <ChevronRight className="w-3.5 h-3.5 text-muted" />
+          <ChevronRight className="size-3.5 text-muted" />
         </div>
       </div>
     </aside>

@@ -39,8 +39,3 @@ export function getStoredUser(): LoginResponse['user'] | null {
     return null;
   }
 }
-
-export function isLoggedIn(): boolean {
-  if (typeof window === 'undefined') return false;
-  return Boolean(localStorage.getItem('gym_access_token'));
-}

@@ -14,7 +14,11 @@ export default function MembersPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
 
-  const { data: members, isLoading, isError } = useQuery({
+  const {
+    data: members,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ['members-list'],
     queryFn: async () => {
       const res = await apiClient.get('/members');
@@ -37,7 +41,7 @@ export default function MembersPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-chalk flex items-center gap-2">
-            <Users className="w-6 h-6 text-neon" />
+            <Users className="size-6 text-neon" />
             Quản Lý Hội Viên
           </h1>
           <p className="text-xs text-muted mt-1">
@@ -46,7 +50,7 @@ export default function MembersPage() {
         </div>
         <div className="flex items-center gap-2">
           <Button variant="primary" size="md" className="font-semibold text-xs">
-            <Plus className="w-4 h-4 mr-1.5" />
+            <Plus className="size-4 mr-1.5" />
             Đăng ký Hội viên mới
           </Button>
         </div>
@@ -57,21 +61,21 @@ export default function MembersPage() {
         <CardContent className="p-4">
           <div className="flex flex-col sm:flex-row items-center gap-3">
             <div className="relative flex-1 w-full">
-              <Search className="w-4 h-4 text-muted absolute left-3 top-3" />
+              <Search className="size-4 text-muted absolute left-3 top-3" />
               <input
                 type="text"
                 placeholder="Tìm kiếm theo tên, mã thẻ, số điện thoại..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-xs rounded-[10px] border border-line bg-ink text-chalk placeholder:text-muted/70 focus:outline-none focus:ring-2 focus:ring-neon/70 focus:border-neon/70"
+                className="w-full pl-9 pr-4 py-2 text-xs rounded-sm border border-line bg-ink text-chalk placeholder:text-muted/70 focus:outline-none focus:ring-2 focus:ring-neon/70 focus:border-neon/70"
               />
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
-              <Filter className="w-4 h-4 text-muted shrink-0" />
+              <Filter className="size-4 text-muted shrink-0" />
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="text-xs rounded-[10px] border border-line bg-ink text-chalk px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neon/70 focus:border-neon/70 w-full sm:w-auto font-medium [&>option]:bg-surface [&>option]:text-chalk"
+                className="text-xs rounded-sm border border-line bg-ink text-chalk px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neon/70 focus:border-neon/70 w-full sm:w-auto font-medium [&>option]:bg-surface [&>option]:text-chalk"
               >
                 <option value="ALL">Tất cả trạng thái</option>
                 <option value="ACTIVE">Đang hoạt động (ACTIVE)</option>
@@ -87,7 +91,9 @@ export default function MembersPage() {
       <Card>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="py-16 text-center text-xs text-muted">Đang tải danh sách hội viên...</div>
+            <div className="py-16 text-center text-xs text-muted">
+              Đang tải danh sách hội viên...
+            </div>
           ) : isError ? (
             <div className="py-16 text-center text-xs text-danger">
               Không thể tải dữ liệu hội viên từ Backend REST API. Vui lòng kiểm tra kết nối API.
@@ -111,9 +117,7 @@ export default function MembersPage() {
                     const activePkg = m.memberships?.[0]?.package?.name || 'Chưa đăng ký gói';
                     return (
                       <tr key={m.id} className="hover:bg-line/20 transition-colors">
-                        <td className="py-3 px-4 font-mono font-bold text-neon">
-                          {m.code}
-                        </td>
+                        <td className="py-3 px-4 font-mono font-bold text-neon">{m.code}</td>
                         <td className="py-3 px-4">
                           <p className="font-semibold text-chalk">{m.fullName}</p>
                           <p className="text-[11px] text-muted">{m.email || 'Không có email'}</p>
@@ -131,7 +135,7 @@ export default function MembersPage() {
                         <td className="py-3 px-4 text-right">
                           <Link href={`/members/${m.id}`}>
                             <Button variant="outline" size="sm" className="font-medium text-xs">
-                              <Eye className="w-3.5 h-3.5 mr-1 text-muted" />
+                              <Eye className="size-3.5 mr-1 text-muted" />
                               Chi tiết
                             </Button>
                           </Link>

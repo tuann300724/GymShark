@@ -7,7 +7,15 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { QrCode, CalendarCheck, CalendarDays, ChevronLeft, ChevronRight, LogIn, LogOut } from 'lucide-react';
+import {
+  QrCode,
+  CalendarCheck,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  LogIn,
+  LogOut,
+} from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 
 const PAGE_SIZE = 8;
@@ -36,9 +44,7 @@ export default function MemberCheckinsPage() {
         <h1 className="font-display text-2xl font-bold uppercase tracking-tight text-chalk sm:text-3xl">
           Lịch sử check-in
         </h1>
-        <p className="mt-1 text-sm text-muted">
-          Các lượt vào/ra phòng tập của bạn.
-        </p>
+        <p className="mt-1 text-sm text-muted">Các lượt vào/ra phòng tập của bạn.</p>
       </div>
 
       {/* Stats */}
@@ -46,10 +52,12 @@ export default function MemberCheckinsPage() {
         {statItems.map((s) => (
           <Card key={s.label}>
             <CardContent className="p-4 sm:p-5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-neon/25 bg-neon/10">
-                <s.icon className="h-4 w-4 text-neon" />
+              <div className="flex size-9 items-center justify-center rounded-lg border border-neon/25 bg-neon/10">
+                <s.icon className="size-4 text-neon" />
               </div>
-              <p className="mt-2.5 font-display text-xl font-bold text-chalk sm:text-2xl">{s.value}</p>
+              <p className="mt-2.5 font-display text-xl font-bold text-chalk sm:text-2xl">
+                {s.value}
+              </p>
               <p className="mt-0.5 text-[11px] text-muted sm:text-xs">{s.label}</p>
             </CardContent>
           </Card>
@@ -99,15 +107,21 @@ export default function MemberCheckinsPage() {
                       </td>
                       <td className="whitespace-nowrap px-4 py-3.5 text-muted">
                         <span className="inline-flex items-center gap-1.5">
-                          <LogIn className="h-3.5 w-3.5 text-neon" />
-                          {new Date(c.checkInTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                          <LogIn className="size-3.5 text-neon" />
+                          {new Date(c.checkInTime).toLocaleTimeString('vi-VN', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
                         </span>
                       </td>
                       <td className="whitespace-nowrap px-4 py-3.5 text-muted">
                         {c.checkOutTime ? (
                           <span className="inline-flex items-center gap-1.5">
-                            <LogOut className="h-3.5 w-3.5 text-muted" />
-                            {new Date(c.checkOutTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                            <LogOut className="size-3.5 text-muted" />
+                            {new Date(c.checkOutTime).toLocaleTimeString('vi-VN', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
                           </span>
                         ) : (
                           '--'
@@ -128,7 +142,7 @@ export default function MemberCheckinsPage() {
 
           {/* Pagination */}
           {!isLoading && (data?.total || 0) > 0 && (
-            <div className="flex items-center justify-between border-t border-line px-4 py-4">
+            <div className="flex items-center justify-between border-t border-line p-4">
               <p className="text-xs text-muted">
                 Trang {page}/{totalPages} • {data?.total} lượt
               </p>
@@ -139,7 +153,7 @@ export default function MemberCheckinsPage() {
                   disabled={page <= 1 || isFetching}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <ChevronLeft className="size-4" />
                 </Button>
                 <Button
                   variant="outline"
@@ -147,7 +161,7 @@ export default function MemberCheckinsPage() {
                   disabled={page >= totalPages || isFetching}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 >
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="size-4" />
                 </Button>
               </div>
             </div>

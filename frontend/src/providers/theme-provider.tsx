@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useEffect, useState } from 'react';
 
 /**
  * Design system Dark Cinematic + Neon Fitness là dark-only.
@@ -38,10 +38,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <ThemeContext.Provider value={{ theme: 'dark', toggleTheme }}>
-      {children}
-    </ThemeContext.Provider>
+    <ThemeContext.Provider value={{ theme: 'dark', toggleTheme }}>{children}</ThemeContext.Provider>
   );
 }
-
-export const useTheme = () => useContext(ThemeContext);

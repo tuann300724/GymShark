@@ -63,8 +63,8 @@ export function ProgressDashboard() {
           <div className="max-w-2xl">
             <h2 className="section-title">Personal Progress</h2>
             <p className="mt-4 text-base leading-relaxed text-muted">
-              Toàn bộ tiến độ tập luyện trong một cái nhìn: buổi tập, chuỗi ngày và tiến bộ
-              sức mạnh theo thời gian.
+              Toàn bộ tiến độ tập luyện trong một cái nhìn: buổi tập, chuỗi ngày và tiến bộ sức mạnh
+              theo thời gian.
             </p>
           </div>
         </Reveal>
@@ -74,8 +74,8 @@ export function ProgressDashboard() {
             <div className="grid items-center gap-8 lg:grid-cols-[280px_1fr] lg:gap-12">
               {/* Circular progress */}
               <div className="flex flex-col items-center">
-                <div className="relative h-[200px] w-[200px]">
-                  <svg viewBox="0 0 200 200" className="h-full w-full -rotate-90">
+                <div className="relative size-[200px]">
+                  <svg viewBox="0 0 200 200" className="size-full -rotate-90">
                     <circle
                       cx="100"
                       cy="100"
@@ -119,13 +119,13 @@ export function ProgressDashboard() {
                     className="flex items-center gap-4 rounded-xl border border-line bg-ink p-4 transition-colors hover:border-neon/30"
                   >
                     <span
-                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] border ${
+                      className={`flex size-11 shrink-0 items-center justify-center rounded-sm border ${
                         s.accent
                           ? 'border-neon/25 bg-neon/10 text-neon'
                           : 'border-line bg-surface text-muted'
                       }`}
                     >
-                      <s.icon className="h-5 w-5" />
+                      <s.icon className="size-5" />
                     </span>
                     <span className="min-w-0">
                       <span

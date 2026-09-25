@@ -10,7 +10,11 @@ import { formatDateTime } from '@/lib/utils';
 import { Bell, CheckCheck, Info } from 'lucide-react';
 
 export default function NotificationsPage() {
-  const { data: notifications, isLoading, isError } = useQuery({
+  const {
+    data: notifications,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ['notifications-list'],
     queryFn: async () => {
       const res = await apiClient.get('/notifications');
@@ -23,7 +27,7 @@ export default function NotificationsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-chalk flex items-center gap-2">
-            <Bell className="w-6 h-6 text-neon" />
+            <Bell className="size-6 text-neon" />
             Thông Báo Hệ Thống (Notifications)
           </h1>
           <p className="text-xs text-muted mt-1">
@@ -31,7 +35,7 @@ export default function NotificationsPage() {
           </p>
         </div>
         <Button variant="outline" size="sm" className="text-xs">
-          <CheckCheck className="w-4 h-4 mr-1.5" />
+          <CheckCheck className="size-4 mr-1.5" />
           Đánh dấu tất cả đã đọc
         </Button>
       </div>
@@ -47,7 +51,7 @@ export default function NotificationsPage() {
               <CardContent className="p-4 flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
                   <div className="p-2 rounded-lg bg-neon/10 text-neon shrink-0 border border-neon/25">
-                    <Info className="w-4 h-4" />
+                    <Info className="size-4" />
                   </div>
                   <div>
                     <h4 className="font-bold text-sm text-chalk">{n.title}</h4>
@@ -57,9 +61,7 @@ export default function NotificationsPage() {
                     </span>
                   </div>
                 </div>
-                {!n.isRead && (
-                  <Badge variant="success">Mới</Badge>
-                )}
+                {!n.isRead && <Badge variant="success">Mới</Badge>}
               </CardContent>
             </Card>
           ))

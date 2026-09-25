@@ -19,7 +19,10 @@ export default function PublicTrainersPage() {
     retry: 1,
   });
 
-  const specializations = ['ALL', ...Array.from(new Set((trainers || []).map((t) => t.specialization)))];
+  const specializations = [
+    'ALL',
+    ...Array.from(new Set((trainers || []).map((t) => t.specialization))),
+  ];
   const filtered = (trainers || []).filter(
     (t) => specialization === 'ALL' || t.specialization === specialization,
   );
@@ -52,7 +55,7 @@ export default function PublicTrainersPage() {
                   key={s}
                   onClick={() => setSpecialization(s)}
                   title={s}
-                  className={`max-w-[260px] truncate rounded-[10px] border px-4 py-2 text-sm transition-colors ${
+                  className={`max-w-[260px] truncate rounded-sm border px-4 py-2 text-sm transition-colors ${
                     specialization === s
                       ? 'border-neon bg-neon font-bold text-ink'
                       : 'border-line text-muted hover:border-neon/40 hover:text-chalk'
@@ -77,7 +80,7 @@ export default function PublicTrainersPage() {
                   <div className="h-full rounded-2xl border border-line bg-surface p-7 transition-colors duration-300 hover:border-neon/40">
                     {/* Avatar tile */}
                     <div className="flex items-center gap-4">
-                      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-neon/30 bg-ink">
+                      <div className="flex size-16 shrink-0 items-center justify-center rounded-xl border border-neon/30 bg-ink">
                         <span className="font-display text-2xl font-bold text-neon">
                           {tr.user?.fullName?.charAt(0) || 'H'}
                         </span>
@@ -87,7 +90,7 @@ export default function PublicTrainersPage() {
                           {tr.user?.fullName}
                         </h2>
                         <div className="mt-1 flex items-center gap-1.5">
-                          <Star className="h-4 w-4 fill-neon text-neon" />
+                          <Star className="size-4 fill-neon text-neon" />
                           <span className="text-sm font-semibold text-chalk">{tr.rating}</span>
                           <span className="text-xs text-muted">/ 5.0</span>
                         </div>
@@ -100,12 +103,12 @@ export default function PublicTrainersPage() {
 
                     <div className="mt-4 space-y-2.5 text-sm">
                       <p className="flex items-center gap-2 text-muted">
-                        <Briefcase className="h-4 w-4 shrink-0 text-neon" />
+                        <Briefcase className="size-4 shrink-0 text-neon" />
                         {tr.experienceYears} năm kinh nghiệm
                       </p>
                       {tr.certification && (
                         <p className="flex items-start gap-2 text-muted">
-                          <Award className="mt-0.5 h-4 w-4 shrink-0 text-neon" />
+                          <Award className="mt-0.5 size-4 shrink-0 text-neon" />
                           <span>{tr.certification}</span>
                         </p>
                       )}
@@ -113,7 +116,7 @@ export default function PublicTrainersPage() {
 
                     {tr.bio && (
                       <p className="mt-4 flex gap-2 border-t border-line pt-4 text-sm leading-relaxed text-muted">
-                        <Quote className="mt-0.5 h-4 w-4 shrink-0 text-neon" />
+                        <Quote className="mt-0.5 size-4 shrink-0 text-neon" />
                         <span>{tr.bio}</span>
                       </p>
                     )}
@@ -135,7 +138,7 @@ export default function PublicTrainersPage() {
 
           {!isLoading && filtered.length === 0 && (
             <div className="mt-8 rounded-2xl border border-line bg-surface py-16 text-center">
-              <Users className="mx-auto mb-3 h-10 w-10 text-muted opacity-50" />
+              <Users className="mx-auto mb-3 size-10 text-muted opacity-50" />
               <p className="font-semibold text-chalk">Chưa có huấn luyện viên phù hợp.</p>
               <p className="mt-1.5 text-sm text-muted">Thử chọn một chuyên môn khác.</p>
             </div>

@@ -21,7 +21,7 @@ export default function SettingsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-chalk flex items-center gap-2">
-          <Settings className="w-6 h-6 text-neon" />
+          <Settings className="size-6 text-neon" />
           Cài Đặt Hệ Thống & Hồ Sơ (Settings)
         </h1>
         <p className="text-xs text-muted mt-1">
@@ -34,14 +34,14 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base font-bold flex items-center gap-2">
-              <User className="w-4 h-4 text-neon" />
+              <User className="size-4 text-neon" />
               Tài Khoản Đang Đăng Nhập
             </CardTitle>
             <CardDescription>Chi tiết danh tính và vai trò phân quyền</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 text-xs">
             <div className="flex items-center gap-3 p-3 rounded-xl bg-ink border border-line">
-              <div className="w-12 h-12 rounded-xl bg-surface border border-neon/40 text-neon flex items-center justify-center font-bold uppercase text-lg">
+              <div className="size-12 rounded-xl bg-surface border border-neon/40 text-neon flex items-center justify-center font-bold uppercase text-lg">
                 {profile?.fullName?.charAt(0) || 'U'}
               </div>
               <div className="min-w-0">
@@ -75,7 +75,7 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base font-bold flex items-center gap-2">
-              <Globe className="w-4 h-4 text-neon" />
+              <Globe className="size-4 text-neon" />
               Cấu Hình Máy Chủ & Tích Hợp
             </CardTitle>
             <CardDescription>Thông số kết nối hạ tầng Backend REST API</CardDescription>
@@ -109,7 +109,7 @@ export default function SettingsPage() {
                 Cơ sở dữ liệu
               </span>
               <p className="font-medium text-chalk flex items-center gap-1.5">
-                <Database className="w-3.5 h-3.5 text-muted" /> PostgreSQL 16 + Prisma ORM
+                <Database className="size-3.5 text-muted" /> PostgreSQL 16 + Prisma ORM
               </p>
             </div>
           </CardContent>

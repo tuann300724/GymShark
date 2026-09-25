@@ -99,8 +99,8 @@ export default function LoginPage() {
       <div className="relative z-10 w-full max-w-md animate-fade-in">
         {/* Brand */}
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-neon/40 bg-surface text-neon">
-            <Dumbbell className="h-7 w-7" />
+          <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-2xl border border-neon/40 bg-surface text-neon">
+            <Dumbbell className="size-7" />
           </div>
           <h1 className="font-display text-3xl font-extrabold uppercase leading-none tracking-tight text-chalk">
             GYM<span className="text-neon">MASTER</span> PRO
@@ -122,8 +122,8 @@ export default function LoginPage() {
           </CardHeader>
           <CardContent>
             {errorMessage && (
-              <div className="mb-4 flex items-start gap-2 rounded-[10px] border border-danger/30 bg-danger/10 p-3 text-xs text-danger">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <div className="mb-4 flex items-start gap-2 rounded-sm border border-danger/30 bg-danger/10 p-3 text-xs text-danger">
+                <AlertCircle className="mt-0.5 size-4 shrink-0" />
                 <span>{errorMessage}</span>
               </div>
             )}
@@ -156,7 +156,7 @@ export default function LoginPage() {
                     type="checkbox"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
-                    className="h-4 w-4 rounded border-line bg-ink accent-neon"
+                    className="size-4 rounded border-line bg-ink accent-neon"
                   />
                   Ghi nhớ đăng nhập
                 </label>
@@ -164,16 +164,23 @@ export default function LoginPage() {
                   href="/login"
                   onClick={(e) => {
                     e.preventDefault();
-                    setErrorMessage('Vui lòng liên hệ nhân viên lễ tân của phòng gym để được hỗ trợ đặt lại mật khẩu.');
+                    setErrorMessage(
+                      'Vui lòng liên hệ nhân viên lễ tân của phòng gym để được hỗ trợ đặt lại mật khẩu.',
+                    );
                   }}
                   className="inline-flex items-center gap-1 font-medium text-neon hover:underline"
                 >
-                  <KeyRound className="h-3.5 w-3.5" />
+                  <KeyRound className="size-3.5" />
                   Quên mật khẩu?
                 </Link>
               </div>
 
-              <Button type="submit" variant="primary" className="h-11 w-full text-sm font-bold" isLoading={isLoading}>
+              <Button
+                type="submit"
+                variant="primary"
+                className="h-11 w-full text-sm font-bold"
+                isLoading={isLoading}
+              >
                 Đăng nhập
               </Button>
             </form>
@@ -189,14 +196,14 @@ export default function LoginPage() {
             {/* Quick Demo Accounts Helper */}
             <div className="mt-6 border-t border-line pt-5">
               <div className="mb-2.5 flex items-center gap-1.5 text-xs font-semibold text-muted">
-                <Sparkles className="h-3.5 w-3.5 text-neon" />
+                <Sparkles className="size-3.5 text-neon" />
                 <span>Chọn nhanh tài khoản mẫu:</span>
               </div>
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <button
                   type="button"
                   onClick={() => fillQuickAccount('admin@gym.com', 'Admin@123456')}
-                  className="rounded-[10px] border border-line bg-ink px-2.5 py-1.5 text-left font-medium text-chalk transition-colors hover:border-neon/40 hover:bg-line/40"
+                  className="rounded-sm border border-line bg-ink px-2.5 py-1.5 text-left font-medium text-chalk transition-colors hover:border-neon/40 hover:bg-line/40"
                 >
                   <span className="block font-bold text-neon text-[11px]">ADMIN</span>
                   admin@gym.com
@@ -204,7 +211,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => fillQuickAccount('manager@gym.com', 'Manager@123456')}
-                  className="rounded-[10px] border border-line bg-ink px-2.5 py-1.5 text-left font-medium text-chalk transition-colors hover:border-neon/40 hover:bg-line/40"
+                  className="rounded-sm border border-line bg-ink px-2.5 py-1.5 text-left font-medium text-chalk transition-colors hover:border-neon/40 hover:bg-line/40"
                 >
                   <span className="block font-bold text-neon text-[11px]">MANAGER</span>
                   manager@gym.com
@@ -212,7 +219,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => fillQuickAccount('staff@gym.com', 'Staff@123456')}
-                  className="rounded-[10px] border border-line bg-ink px-2.5 py-1.5 text-left font-medium text-chalk transition-colors hover:border-neon/40 hover:bg-line/40"
+                  className="rounded-sm border border-line bg-ink px-2.5 py-1.5 text-left font-medium text-chalk transition-colors hover:border-neon/40 hover:bg-line/40"
                 >
                   <span className="block font-bold text-neon text-[11px]">STAFF</span>
                   staff@gym.com
@@ -220,7 +227,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => fillQuickAccount('trainer@gym.com', 'Trainer@123456')}
-                  className="rounded-[10px] border border-line bg-ink px-2.5 py-1.5 text-left font-medium text-chalk transition-colors hover:border-neon/40 hover:bg-line/40"
+                  className="rounded-sm border border-line bg-ink px-2.5 py-1.5 text-left font-medium text-chalk transition-colors hover:border-neon/40 hover:bg-line/40"
                 >
                   <span className="block font-bold text-neon text-[11px]">TRAINER</span>
                   trainer@gym.com
@@ -228,7 +235,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => fillQuickAccount('member@gym.com', 'Member@123456')}
-                  className="rounded-[10px] border border-line bg-ink px-2.5 py-1.5 text-left font-medium text-chalk transition-colors hover:border-neon/40 hover:bg-line/40"
+                  className="rounded-sm border border-line bg-ink px-2.5 py-1.5 text-left font-medium text-chalk transition-colors hover:border-neon/40 hover:bg-line/40"
                 >
                   <span className="block font-bold text-neon text-[11px]">MEMBER</span>
                   member@gym.com

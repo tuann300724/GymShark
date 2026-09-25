@@ -17,11 +17,25 @@ export function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDiv
   return <div className={cn('flex flex-col space-y-1.5 p-6', className)} {...props} />;
 }
 
-export function CardTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
-  return <h3 className={cn('font-bold text-lg leading-tight tracking-tight text-chalk', className)} {...props} />;
+export function CardTitle({
+  className,
+  children,
+  ...props
+}: React.HTMLAttributes<HTMLHeadingElement>) {
+  return (
+    <h3
+      className={cn('font-bold text-lg leading-tight tracking-tight text-chalk', className)}
+      {...props}
+    >
+      {children}
+    </h3>
+  );
 }
 
-export function CardDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
+export function CardDescription({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLParagraphElement>) {
   return <p className={cn('text-sm text-muted', className)} {...props} />;
 }
 

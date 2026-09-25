@@ -89,13 +89,17 @@ export default function PublicPackagesPage() {
                   <button
                     key={t}
                     onClick={() => setTypeFilter(t)}
-                    className={`rounded-[10px] border px-4 py-2 text-sm transition-colors ${
+                    className={`rounded-sm border px-4 py-2 text-sm transition-colors ${
                       typeFilter === t
                         ? 'border-neon bg-neon font-bold text-ink'
                         : 'border-line text-muted hover:border-neon/40 hover:text-chalk'
                     }`}
                   >
-                    {t === 'ALL' ? 'Tất cả' : t === 'FIXED_TERM' ? 'Theo thời hạn' : 'Theo buổi tập'}
+                    {t === 'ALL'
+                      ? 'Tất cả'
+                      : t === 'FIXED_TERM'
+                        ? 'Theo thời hạn'
+                        : 'Theo buổi tập'}
                   </button>
                 ))}
               </div>
@@ -108,7 +112,7 @@ export default function PublicPackagesPage() {
                   id="pkg-sort"
                   value={sort}
                   onChange={(e) => setSort(e.target.value as SortKey)}
-                  className="h-10 rounded-[10px] border border-line bg-ink px-3.5 text-sm text-chalk transition-colors focus:border-neon/70 focus:outline-none focus:ring-2 focus:ring-neon/70 [&>option]:bg-surface [&>option]:text-chalk"
+                  className="h-10 rounded-sm border border-line bg-ink px-3.5 text-sm text-chalk transition-colors focus:border-neon/70 focus:outline-none focus:ring-2 focus:ring-neon/70 [&>option]:bg-surface [&>option]:text-chalk"
                 >
                   {SORT_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>
@@ -154,14 +158,17 @@ export default function PublicPackagesPage() {
                           {formatCurrency(pkg.price)}
                         </span>
                         <span className="text-xs text-muted">
-                          / {pkg.type === 'SESSION_BASED' ? `${pkg.sessions} buổi` : `${pkg.durationDays} ngày`}
+                          /{' '}
+                          {pkg.type === 'SESSION_BASED'
+                            ? `${pkg.sessions} buổi`
+                            : `${pkg.durationDays} ngày`}
                         </span>
                       </div>
 
                       <p className="mt-4 text-sm leading-relaxed text-muted">{pkg.description}</p>
 
                       <div className="mt-4 flex items-center gap-2 text-xs text-muted">
-                        <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+                        <CalendarDays className="size-3.5 shrink-0" />
                         <span>Thời hạn: {pkg.durationDays} ngày</span>
                         {pkg.sessions ? (
                           <>
@@ -174,7 +181,7 @@ export default function PublicPackagesPage() {
                       <ul className="mt-5 flex-1 space-y-2.5 border-t border-line pt-5">
                         {(pkg.features?.items || []).map((item) => (
                           <li key={item} className="flex items-start gap-2 text-sm text-muted">
-                            <Check className="mt-0.5 h-4 w-4 shrink-0 text-neon" />
+                            <Check className="mt-0.5 size-4 shrink-0 text-neon" />
                             {item}
                           </li>
                         ))}
@@ -184,9 +191,9 @@ export default function PublicPackagesPage() {
                         className="mt-7 h-11 w-full font-bold"
                         onClick={() => handleRegister(pkg.id)}
                       >
-                        <CreditCard className="h-4 w-4" />
+                        <CreditCard className="size-4" />
                         Đăng ký gói này
-                        <ArrowRight className="h-4 w-4" />
+                        <ArrowRight className="size-4" />
                       </Button>
                     </div>
                   </Reveal>
@@ -197,7 +204,7 @@ export default function PublicPackagesPage() {
 
           {!isLoading && filtered.length === 0 && (
             <div className="mt-8 rounded-2xl border border-line bg-surface py-16 text-center">
-              <PackageOpen className="mx-auto mb-3 h-10 w-10 text-muted opacity-50" />
+              <PackageOpen className="mx-auto mb-3 size-10 text-muted opacity-50" />
               <p className="font-semibold text-chalk">Không tìm thấy gói tập phù hợp với bộ lọc.</p>
               <p className="mt-1.5 text-sm text-muted">Thử đổi bộ lọc hoặc thứ tự sắp xếp.</p>
             </div>
