@@ -9,7 +9,7 @@ Dự án full-stack quản lý phòng tập gym (đồ án tốt nghiệp), toà
 
 - **frontend/** — Next.js 14 (App Router) + TypeScript + Tailwind CSS v3, chạy `http://localhost:3000`
 - **backend/** — NestJS + Prisma + PostgreSQL, chạy `http://localhost:3001/api` (Swagger: `http://localhost:3001/api/docs`)
-- **docker-compose.yml** — chỉ chứa PostgreSQL 16 (port 5432, user/pass `postgres`/`postgrespassword`, database `gym_db`)
+- **docker-compose.yml** — chỉ chứa PostgreSQL 16 (port 5432, user/pass `postgres`/`postgrespassword`, database `gym_db`) — *máy dev hiện chạy PostgreSQL 17 cài native thay Docker, xem mục 8*
 - Frontend gọi REST qua Axios (`src/lib/axios.ts`), baseURL = `NEXT_PUBLIC_API_URL` (mặc định `http://localhost:3001/api`), tự gắn JWT.
 
 ## 2. Lệnh nhanh
@@ -33,10 +33,10 @@ Thư mục `backend/`:
 npm run start:dev    # dev server :3001 (watch)
 npm run build        # nest build
 npm run prisma:seed  # seed dữ liệu mẫu (tài khoản xem prisma/seed.ts)
-npx prisma migrate dev   # tạo/chạy migration
+npx prisma db push   # sync schema vào DB — dự án KHÔNG có thư mục migrations, đừng chạy `prisma migrate dev`
 ```
 
-Ở thư mục gốc: `docker compose up -d` để khởi động PostgreSQL.
+Khởi động DB: máy dev hiện dùng **PostgreSQL 17 native** (service `postgresql-x64-17`, xem mục 8) — không cần Docker; máy khác mới `docker compose up -d` ở thư mục gốc.
 
 ## 3. Cấu trúc frontend
 
@@ -93,8 +93,21 @@ Sửa nhiều/rộng → thêm `npm run build`. Sửa backend → `npm run build
 
 Chrome chuẩn: desktop 1440px, mobile 390px (không được tràn ngang). Backend chưa chạy thì các trang có dữ liệu hiển thị **empty state** sẵn có — không coi là lỗi.
 
+Nếu **browser tools disconnected** → dùng script Playwright ở `C:\Users\tuanv\AppData\Local\Temp\opencode\pw\` (chạy `node <script>.js` từ chính thư mục đó, browser `channel: 'chrome'`; ảnh ra `...\Temp\opencode\shots\`). **Bẫy:** trang dùng `Reveal` (IntersectionObserver) — trước khi chụp `fullPage` phải scroll hết trang, nếu không ra ảnh trống. Mẫu: `qa-programs-final.js`.
+
 ## 8. Lưu ý môi trường
 
 - Windows + PowerShell: tên biến **không phân biệt hoa thường** (`$h` và `$H` là cùng một biến — dùng tên biến khác nhau khi cần 2 biến).
 - Đường dẫn dự án chứa dấu tiếng Việt (`Đ`, `ữ`...) — luôn quote đường dẫn trong shell.
 - Port 3000 hay kẹt sau khi build production; kiểm tra process đang chiếm port trước khi `npm run dev` (dùng `Get-NetTCPConnection -LocalPort 3000`).
+- **PostgreSQL 17 cài native** trên máy dev (service `postgresql-x64-17`, KHÔNG phải Docker — `docker` không có trong PATH). User/pass `postgres`/`postgres`, port 5432, database `gym_db` (đã tạo + seed).
+- `backend/.env` đã tạo local (gitignore) — nếu mất: copy `.env.example` rồi đổi mật khẩu trong `DATABASE_URL` thành `postgres`. Kiểm tra backend: `GET http://localhost:3001/api/health` → trả `database: "connected"`.
+
+## 9. Trạng thái & việc dang dở
+
+Chi tiết lịch sử, quyết định, QA workflow: **WORKLOG.md** (gốc dự án) — cập nhật gần nhất: 2026-09-25.
+
+- **CHƯA COMMIT:** tính năng trang chi tiết chương trình tập `/programs/[slug]` (3 file mới + sửa `components/home/programs.tsx`) — đã QA PASS, chờ tôi đồng ý rồi mới `/commit`.
+- Bài tập đang là dữ liệu tĩnh `frontend/src/lib/programs.ts` — tôi chọn "tạm thời vậy"; muốn chuyển backend (model `Exercise` + admin CRUD) thì hỏi lại.
+- 6 PR Dependabot chờ duyệt; cân nhắc upgrade Next 14 → 15/16 (5 lỗ audit).
+- Nếu phiên chưa nạp `opencode.jsonc` + 4 lệnh slash → nhắc tôi restart OpenCode.
