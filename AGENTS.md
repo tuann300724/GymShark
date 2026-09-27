@@ -2,6 +2,7 @@
 
 > File này được OpenCode tự động nạp ở mỗi phiên làm việc. Giữ nó luôn khớp với hiện trạng.
 > Nguồn chuẩn giao diện: **DESIGN_SYSTEM.md** — đọc trước khi sửa bất kỳ UI nào.
+> **QUY TẮC HÀNH ĐỘNG:** chỉ làm việc khi tôi yêu cầu cụ thể — không tự động làm thêm, không tự commit/push, không tự sửa ngoài phạm vi được giao. Thấy gì bất thường hoặc cần làm thêm → hỏi trước.
 
 ## 1. Tổng quan
 
