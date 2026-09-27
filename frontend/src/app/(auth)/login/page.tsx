@@ -10,6 +10,7 @@ import Image from 'next/image';
 import { authApi, saveSession } from '@/services/auth.service';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dumbbell, AlertCircle, Sparkles, KeyRound, ArrowLeft } from 'lucide-react';
 
@@ -149,9 +150,8 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <Input
+                <PasswordInput
                   label="Mật khẩu"
-                  type="password"
                   placeholder="••••••••"
                   error={errors.password?.message}
                   {...register('password')}

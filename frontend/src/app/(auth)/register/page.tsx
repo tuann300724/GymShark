@@ -10,6 +10,7 @@ import * as z from 'zod';
 import { authApi } from '@/services/auth.service';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Select } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/toast';
@@ -158,16 +159,14 @@ export default function RegisterPage() {
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Input
+                <PasswordInput
                   label="Mật khẩu (*)"
-                  type="password"
                   placeholder="Tối thiểu 6 ký tự"
                   error={errors.password?.message}
                   {...register('password')}
                 />
-                <Input
+                <PasswordInput
                   label="Xác nhận mật khẩu (*)"
-                  type="password"
                   placeholder="Nhập lại mật khẩu"
                   error={errors.confirmPassword?.message}
                   {...register('confirmPassword')}
