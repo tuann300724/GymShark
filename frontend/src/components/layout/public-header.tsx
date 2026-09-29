@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Menu, X, Dumbbell, Search, ArrowRight } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
+import { isAdminRole } from '@/lib/auth';
 
 const NAV_ITEMS = [
   { name: 'Trang chủ', href: '/' },
@@ -29,8 +30,6 @@ const SEARCH_INDEX = [
   { title: 'Đăng nhập', href: '/login', desc: 'Đăng nhập tài khoản' },
   { title: 'Đăng ký hội viên', href: '/register', desc: 'Tạo tài khoản mới' },
 ];
-
-const ADMIN_ROLES = ['ADMIN', 'MANAGER', 'STAFF'];
 
 export function PublicHeader() {
   const pathname = usePathname();
@@ -81,7 +80,7 @@ export function PublicHeader() {
     );
   }, [query]);
 
-  const portalHref = user && ADMIN_ROLES.includes(user.role) ? '/admin' : '/member';
+  const portalHref = user && isAdminRole(user.role) ? '/admin' : '/member';
 
   const go = (href: string) => {
     setSearchOpen(false);

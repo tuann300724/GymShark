@@ -20,6 +20,8 @@ import {
   Bell,
   Settings,
   ChevronRight,
+  ClipboardCheck,
+  ScrollText,
 } from 'lucide-react';
 
 export const navigationSections = [
@@ -31,6 +33,7 @@ export const navigationSections = [
     title: 'Hội viên & Vận hành',
     items: [
       { name: 'Lượt Check-in', href: '/admin/checkins', icon: QrCode, badge: 'Live' },
+      { name: 'Báo cáo chuyên cần', href: '/admin/reports/attendance', icon: ClipboardCheck },
       { name: 'Hội viên', href: '/admin/members', icon: Users },
       { name: 'Thẻ hội viên', href: '/admin/memberships', icon: CreditCard },
       { name: 'Gói tập Gym', href: '/admin/membership-packages', icon: Package },
@@ -42,6 +45,7 @@ export const navigationSections = [
     title: 'Tài chính & Ưu đãi',
     items: [
       { name: 'Hóa đơn & Thu phí', href: '/admin/payments', icon: Receipt },
+      { name: 'Báo cáo doanh thu', href: '/admin/reports/revenue', icon: BarChart3 },
       { name: 'Khuyến mãi & Voucher', href: '/admin/promotions', icon: Tag },
     ],
   },
@@ -57,6 +61,7 @@ export const navigationSections = [
     items: [
       { name: 'Báo cáo thống kê', href: '/admin/reports', icon: BarChart3 },
       { name: 'Thông báo', href: '/admin/notifications', icon: Bell },
+      { name: 'Nhật ký hệ thống', href: '/admin/audit-logs', icon: ScrollText },
       { name: 'Cài đặt', href: '/admin/settings', icon: Settings },
     ],
   },

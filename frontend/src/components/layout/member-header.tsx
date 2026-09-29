@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { memberApi } from '@/services/member.service';
 import { notificationApi } from '@/services/notification.service';
 import { authApi } from '@/services/auth.service';
+import NotificationBell from '@/components/notifications/notification-bell';
 import {
   Dumbbell,
   Menu,
@@ -18,6 +19,7 @@ import {
   Receipt,
   User,
   CreditCard,
+  LogIn,
   LogOut,
   ChevronDown,
 } from 'lucide-react';
@@ -25,9 +27,10 @@ import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
   { name: 'Dashboard', href: '/member', icon: LayoutDashboard },
-  { name: 'Gói tập của tôi', href: '/member/membership', icon: CreditCard },
+  { name: 'Check-in', href: '/member/checkin', icon: QrCode },
   { name: 'Lịch tập', href: '/member/schedule', icon: CalendarDays },
-  { name: 'Lịch sử check-in', href: '/member/checkins', icon: QrCode },
+  { name: 'Gói tập của tôi', href: '/member/membership', icon: CreditCard },
+  { name: 'Lịch sử check-in', href: '/member/checkins', icon: LogIn },
   { name: 'Thanh toán', href: '/member/payments', icon: Receipt },
   { name: 'Hồ sơ', href: '/member/profile', icon: User },
 ];
@@ -58,7 +61,7 @@ export function MemberHeader() {
 
   const { data: notifData } = useQuery({
     queryKey: ['member-notif-badge'],
-    queryFn: notificationApi.getMyNotifications,
+    queryFn: notificationApi.getUnreadCount,
     refetchInterval: 60_000,
     retry: 0,
   });
@@ -113,18 +116,7 @@ export function MemberHeader() {
           {/* Right */}
           <div className="flex items-center gap-1.5">
             {/* Notification bell */}
-            <Link
-              href="/member/notifications"
-              className="relative flex size-9 items-center justify-center rounded-sm border border-line bg-surface text-muted transition-colors hover:border-neon/50 hover:text-neon"
-              aria-label="Thông báo"
-            >
-              <Bell className="size-4" />
-              {(notifData?.unreadCount || 0) > 0 && (
-                <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-danger px-0.5 text-[9px] font-bold text-white">
-                  {notifData!.unreadCount}
-                </span>
-              )}
-            </Link>
+            <NotificationBell notificationsHref="/member/notifications" queryKeyPrefix="member" />
 
             {/* User menu */}
             <div className="relative">
@@ -222,9 +214,9 @@ export function MemberHeader() {
             >
               <Bell className="size-4" />
               Thông báo
-              {(notifData?.unreadCount || 0) > 0 && (
+              {(notifData?.count || 0) > 0 && (
                 <span className="ml-auto min-w-[18px] rounded-full bg-danger px-1 text-center text-[10px] font-bold text-white">
-                  {notifData!.unreadCount}
+                  {notifData!.count}
                 </span>
               )}
             </Link>

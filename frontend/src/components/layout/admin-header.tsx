@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/lib/axios';
 import { MobileNav } from './mobile-nav';
-import { Bell, Search, ShieldCheck, LogOut, User as UserIcon } from 'lucide-react';
+import NotificationBell from '@/components/notifications/notification-bell';
+import { Search, ShieldCheck, LogOut, User as UserIcon } from 'lucide-react';
 
 export function AdminHeader() {
   const router = useRouter();
@@ -93,14 +94,7 @@ export function AdminHeader() {
         </div>
 
         {/* Notification Bell */}
-        <button
-          onClick={() => router.push('/admin/notifications')}
-          className="p-2 rounded-sm text-muted hover:bg-line/30 hover:text-chalk relative transition-colors"
-          aria-label="Notifications"
-        >
-          <Bell className="size-4" />
-          <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-neon" />
-        </button>
+        <NotificationBell notificationsHref="/admin/notifications" queryKeyPrefix="admin" />
 
         {/* User Profile Dropdown */}
         <div className="relative" ref={menuRef}>

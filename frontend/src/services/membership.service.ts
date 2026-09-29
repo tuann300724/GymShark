@@ -4,6 +4,7 @@ import type { Membership } from './types';
 export const membershipApi = {
   getMyMemberships: async (): Promise<{
     current: Membership | null;
+    pending: Membership | null;
     history: Membership[];
     memberId?: string;
   }> => {
@@ -16,12 +17,22 @@ export const membershipApi = {
     return res.data;
   },
 
-  register: async (payload: { packageId: string; paymentMethod?: string; notes?: string }) => {
+  register: async (payload: {
+    packageId: string;
+    paymentMethod?: string;
+    promotionCode?: string;
+    notes?: string;
+  }) => {
     const res = await apiClient.post('/member/memberships', payload);
     return res.data;
   },
 
-  renew: async (payload: { packageId: string; paymentMethod?: string; notes?: string }) => {
+  renew: async (payload: {
+    packageId: string;
+    paymentMethod?: string;
+    promotionCode?: string;
+    notes?: string;
+  }) => {
     const res = await apiClient.post('/member/memberships/renew', payload);
     return res.data;
   },

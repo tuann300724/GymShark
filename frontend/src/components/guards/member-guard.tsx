@@ -4,8 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getStoredUser } from '@/services/auth.service';
 import { Skeleton } from '@/components/ui/skeleton';
-
-const ADMIN_ROLES = ['ADMIN', 'MANAGER', 'STAFF'];
+import { isAdminRole } from '@/lib/auth';
 
 /**
  * Bảo vệ khu vực /member/*
@@ -24,7 +23,7 @@ export function MemberGuard({ children }: { children: React.ReactNode }) {
       setState('guest');
       return;
     }
-    if (ADMIN_ROLES.includes(user.role)) {
+    if (isAdminRole(user.role)) {
       setState('admin');
       return;
     }

@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dumbbell, AlertCircle, Sparkles, KeyRound, ArrowLeft } from 'lucide-react';
+import { isAdminRole } from '@/lib/auth';
 
 const loginSchema = z.object({
   email: z.string().email('Email không đúng định dạng'),
@@ -20,8 +21,6 @@ const loginSchema = z.object({
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
-
-const ADMIN_ROLES = ['ADMIN', 'MANAGER', 'STAFF'];
 
 export default function LoginPage() {
   const router = useRouter();
@@ -44,7 +43,8 @@ export default function LoginPage() {
 
   const getRedirectPath = (role: string, next?: string | null) => {
     if (next) return next;
-    return ADMIN_ROLES.includes(role) ? '/admin' : '/member';
+    if (role === 'TRAINER') return '/trainer';
+    return isAdminRole(role) ? '/admin' : '/member';
   };
 
   const onSubmit = async (values: LoginFormValues) => {

@@ -87,8 +87,8 @@ function RegisterMembershipContent() {
       }),
     onSuccess: (res: any) => {
       toast.success(
-        'Đăng ký gói tập thành công!',
-        `Gói ${res.membership?.package?.name || ''} đã kích hoạt. Thanh toán demo đã hoàn tất.`,
+        'Đã gửi yêu cầu đăng ký!',
+        `Gói ${res.membership?.package?.name || ''} đang chờ xác nhận thanh toán. Gói tập sẽ tự động kích hoạt sau khi lễ tân xác nhận.`,
       );
       queryClient.invalidateQueries({ queryKey: ['member-memberships'] });
       queryClient.invalidateQueries({ queryKey: ['member-stats'] });
@@ -127,7 +127,8 @@ function RegisterMembershipContent() {
           Đăng ký gói tập
         </h1>
         <p className="mt-1 text-sm text-muted">
-          Hoàn tất các bước bên dưới để kích hoạt gói tập của bạn (thanh toán demo).
+          Hoàn tất các bước bên dưới để gửi yêu cầu đăng ký gói tập. Gói sẽ kích hoạt sau khi lễ tân
+          xác nhận thanh toán.
         </p>
       </div>
 

@@ -34,3 +34,18 @@ export function formatDateTime(dateString: string | Date | null | undefined): st
     minute: '2-digit',
   });
 }
+
+export function formatTime(dateString: string | Date | null | undefined): string {
+  if (!dateString) return '--';
+  const d = new Date(dateString);
+  return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+}
+
+/** Định dạng thời lượng phút thành "1h45m" hoặc "45p" */
+export function formatDuration(minutes: number | null | undefined): string {
+  if (!minutes || minutes <= 0) return '--';
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h > 0) return `${h}h${m > 0 ? `${m}m` : ''}`;
+  return `${m}p`;
+}

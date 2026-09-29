@@ -19,7 +19,7 @@ export function Cta() {
               className="object-cover"
             />
             <div
-              className="absolute inset-0 bg-gradient-to-r from-ink via-ink/92 to-ink/55"
+              className="absolute inset-0 bg-gradient-to-r from-ink via-ink/90 to-ink/55"
               aria-hidden
             />
 

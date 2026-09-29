@@ -22,6 +22,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { MEMBERSHIP_STATUS_META } from '@/lib/status';
 
 const PAYMENT_METHODS = [
   { value: 'CASH', label: 'Tiền mặt', desc: 'Thanh toán tại quầy lễ tân' },
@@ -54,6 +55,7 @@ export default function MemberMembershipPage() {
   });
 
   const current = membershipData?.current;
+  const pending = membershipData?.pending;
   const history = membershipData?.history || [];
 
   const remainingDays = current
@@ -86,8 +88,10 @@ export default function MemberMembershipPage() {
       }),
     onSuccess: (res: any) => {
       toast.success(
-        'Gia hạn thành công!',
-        `Gói tập đã được gia hạn thêm ${res.membership?.package?.durationDays || ''} ngày.`,
+        'Yêu cầu gia hạn đã được gửi!',
+        `Gói ${res.membership?.package?.name || ''} sẽ kích hoạt sau khi thanh toán được lễ tân xác nhận${
+          res.membership?.startDate ? ` (từ ${formatDate(res.membership.startDate)})` : ''
+        }.`,
       );
       setRenewOpen(false);
       queryClient.invalidateQueries({ queryKey: ['member-memberships'] });
@@ -121,6 +125,40 @@ export default function MemberMembershipPage() {
           <Skeleton className="h-56 rounded-2xl" />
           <Skeleton className="h-40 rounded-2xl" />
         </div>
+      ) : !current && pending ? (
+        <Card className="overflow-hidden border-neon/40 bg-neon/5">
+          <CardContent className="p-8">
+            <div className="flex flex-col items-center gap-5 text-center">
+              <div className="flex size-16 items-center justify-center rounded-2xl border border-neon/25 bg-neon/10">
+                <Wallet className="size-8 text-neon" />
+              </div>
+              <div>
+                <h2 className="font-display text-lg font-bold uppercase tracking-tight text-chalk">
+                  Gói {pending.package?.name || 'tập'} đang chờ xác nhận
+                </h2>
+                <p className="mx-auto mt-2 max-w-md text-sm text-muted">
+                  Yêu cầu đăng ký của bạn đã được tiếp nhận
+                  {pending.startDate && pending.endDate
+                    ? ` (${formatDate(pending.startDate)} → ${formatDate(pending.endDate)})`
+                    : ''}
+                  . Vui lòng đến quầy lễ tân để hoàn tất thanh toán{' '}
+                  {pending.finalAmount ? `${formatCurrency(pending.finalAmount)}` : ''} — gói tập sẽ
+                  tự động kích hoạt sau khi được xác nhận.
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Badge variant="warning">
+                  <Wallet className="mr-1 size-3.5" /> Đang chờ thanh toán
+                </Badge>
+                <Link href="/packages">
+                  <Button variant="outline" size="sm">
+                    Xem gói khác
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       ) : !current ? (
         <Card>
           <CardContent className="p-10 text-center">
@@ -238,18 +276,10 @@ export default function MemberMembershipPage() {
                       </div>
                       <p className="text-sm font-bold text-neon">{formatCurrency(m.price)}</p>
                       <Badge
-                        variant={
-                          m.status === 'ACTIVE'
-                            ? 'success'
-                            : m.status === 'EXPIRED'
-                              ? 'warning'
-                              : m.status === 'CANCELLED'
-                                ? 'destructive'
-                                : 'outline'
-                        }
+                        variant={MEMBERSHIP_STATUS_META[m.status]?.variant || 'outline'}
                         className="w-fit shrink-0"
                       >
-                        {m.status}
+                        {MEMBERSHIP_STATUS_META[m.status]?.label || m.status}
                       </Badge>
                     </div>
                   ))}

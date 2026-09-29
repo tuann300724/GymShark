@@ -4,13 +4,22 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { publicApi } from '@/services/package.service';
+import { promotionApi } from '@/services/promotion.service';
 import { getStoredUser } from '@/services/auth.service';
+import type { PublicPromotion } from '@/services/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Reveal } from '@/components/home/reveal';
-import { Check, ArrowRight, CreditCard, CalendarDays, PackageOpen } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import {
+  Check,
+  ArrowRight,
+  CreditCard,
+  CalendarDays,
+  PackageOpen,
+  BadgePercent,
+} from 'lucide-react';
+import { formatCurrency, formatDate } from '@/lib/utils';
 
 type SortKey = 'price_asc' | 'price_desc' | 'duration_asc' | 'duration_desc';
 
@@ -22,6 +31,14 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
 ];
 
 const TYPE_FILTERS = ['ALL', 'FIXED_TERM', 'SESSION_BASED'] as const;
+
+function promoDiscount(p: PublicPromotion): string {
+  if (p.discountType === 'PERCENTAGE') {
+    const base = `-${parseFloat(String(p.discountValue))}%`;
+    return p.maxDiscount != null ? `${base} · tối đa ${formatCurrency(p.maxDiscount)}` : base;
+  }
+  return `-${formatCurrency(p.discountValue)}`;
+}
 
 export default function PublicPackagesPage() {
   const router = useRouter();
@@ -35,9 +52,16 @@ export default function PublicPackagesPage() {
     retry: 1,
   });
 
+  const { data: promotions } = useQuery({
+    queryKey: ['public-promotions'],
+    queryFn: promotionApi.getPublic,
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+
   const handleRegister = (packageId: string) => {
     const user = getStoredUser();
-    const registerUrl = `/member/memberships/register?packageId=${packageId}`;
+    const registerUrl = `/member/register-membership/${packageId}`;
     if (!user) {
       router.push(`/login?next=${encodeURIComponent(registerUrl)}`);
     } else {
@@ -123,6 +147,37 @@ export default function PublicPackagesPage() {
               </div>
             </div>
           </Reveal>
+
+          {/* Ưu đãi đang chạy */}
+          {(promotions || []).length > 0 && (
+            <Reveal>
+              <div className="mt-6 flex flex-col gap-3 rounded-2xl border border-neon/25 bg-neon/5 p-4 lg:flex-row lg:items-center">
+                <div className="flex shrink-0 items-center gap-2 text-neon">
+                  <BadgePercent className="size-5" />
+                  <span className="font-display text-sm font-bold uppercase tracking-wide">
+                    Ưu đãi đang chạy
+                  </span>
+                </div>
+                <div className="flex flex-1 flex-wrap gap-2.5">
+                  {(promotions || []).map((p) => (
+                    <div
+                      key={p.id}
+                      className="flex items-center gap-2 rounded-lg border border-neon/30 bg-ink px-3 py-1.5"
+                      title={p.description || p.name}
+                    >
+                      <span className="font-mono text-xs font-black tracking-wider text-neon">
+                        {p.code}
+                      </span>
+                      <span className="text-xs font-semibold text-chalk">{promoDiscount(p)}</span>
+                      <span className="hidden text-[10px] text-muted sm:inline">
+                        đến {formatDate(p.endAt)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Reveal>
+          )}
 
           {/* Grid */}
           {isLoading ? (

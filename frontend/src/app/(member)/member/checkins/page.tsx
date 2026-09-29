@@ -15,17 +15,33 @@ import {
   ChevronRight,
   LogIn,
   LogOut,
+  Timer,
+  ScanLine,
+  UserCheck,
+  HandMetal,
 } from 'lucide-react';
-import { formatDate } from '@/lib/utils';
+import { formatDate, formatDuration } from '@/lib/utils';
 
 const PAGE_SIZE = 8;
 
+const METHOD_META: Record<string, { label: string; icon: typeof HandMetal }> = {
+  MANUAL: { label: 'Tự check-in', icon: HandMetal },
+  QR_CODE: { label: 'Quét QR', icon: ScanLine },
+  STAFF: { label: 'Lễ tân', icon: UserCheck },
+};
+
+function currentMonthKey(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
 export default function MemberCheckinsPage() {
   const [page, setPage] = useState(1);
+  const [month, setMonth] = useState<string>('');
 
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['member-checkins', page],
-    queryFn: () => checkinApi.getMyCheckins(page, PAGE_SIZE),
+    queryKey: ['member-checkins', page, month],
+    queryFn: () => checkinApi.getMyCheckins(page, PAGE_SIZE, month ? { month } : {}),
     retry: 0,
   });
 
@@ -36,19 +52,51 @@ export default function MemberCheckinsPage() {
     { label: 'Tổng lượt check-in', value: stats?.total ?? 0, icon: QrCode },
     { label: 'Tháng này', value: stats?.month ?? 0, icon: CalendarCheck },
     { label: 'Tuần này', value: stats?.week ?? 0, icon: CalendarDays },
+    {
+      label: 'Thời gian TB / lượt',
+      value: (stats?.avgDuration ?? 0) > 0 ? formatDuration(stats?.avgDuration ?? 0) : '--',
+      icon: Timer,
+    },
   ];
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold uppercase tracking-tight text-chalk sm:text-3xl">
-          Lịch sử check-in
-        </h1>
-        <p className="mt-1 text-sm text-muted">Các lượt vào/ra phòng tập của bạn.</p>
+    <div className="mx-auto max-w-5xl space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="font-display text-2xl font-bold uppercase tracking-tight text-chalk sm:text-3xl">
+            Lịch sử check-in
+          </h1>
+          <p className="mt-1 text-sm text-muted">Các lượt vào/ra phòng tập của bạn.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <CalendarDays className="size-4 text-muted" />
+          <input
+            type="month"
+            value={month}
+            max={currentMonthKey()}
+            onChange={(e) => {
+              setMonth(e.target.value);
+              setPage(1);
+            }}
+            className="h-9 rounded-sm border border-line bg-ink px-3 text-xs font-medium text-chalk focus:outline-none focus:ring-2 focus:ring-neon/60"
+          />
+          {month && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setMonth('');
+                setPage(1);
+              }}
+            >
+              Xóa lọc
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {statItems.map((s) => (
           <Card key={s.label}>
             <CardContent className="p-4 sm:p-5">
@@ -75,7 +123,9 @@ export default function MemberCheckinsPage() {
             </div>
           ) : (data?.data || []).length === 0 ? (
             <p className="py-14 text-center text-sm text-muted">
-              Chưa có lượt check-in nào. Ghé phòng tập để bắt đầu nhé!
+              {month
+                ? 'Không có lượt check-in nào trong tháng này.'
+                : 'Chưa có lượt check-in nào. Ghé phòng tập để bắt đầu nhé!'}
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -92,6 +142,12 @@ export default function MemberCheckinsPage() {
                       Check-out
                     </th>
                     <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted">
+                      Thời lượng
+                    </th>
+                    <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted">
+                      Hình thức
+                    </th>
+                    <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted">
                       Chi nhánh
                     </th>
                     <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted">
@@ -100,41 +156,53 @@ export default function MemberCheckinsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
-                  {data?.data.map((c) => (
-                    <tr key={c.id} className="transition-colors hover:bg-line/30">
-                      <td className="whitespace-nowrap px-4 py-3.5 font-semibold text-chalk">
-                        {formatDate(c.checkInTime)}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3.5 text-muted">
-                        <span className="inline-flex items-center gap-1.5">
-                          <LogIn className="size-3.5 text-neon" />
-                          {new Date(c.checkInTime).toLocaleTimeString('vi-VN', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3.5 text-muted">
-                        {c.checkOutTime ? (
+                  {data?.data.map((c) => {
+                    const methodMeta = METHOD_META[c.method || 'MANUAL'] || METHOD_META.MANUAL;
+                    return (
+                      <tr key={c.id} className="transition-colors hover:bg-line/30">
+                        <td className="whitespace-nowrap px-4 py-3.5 font-semibold text-chalk">
+                          {formatDate(c.checkInTime)}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3.5 text-muted">
                           <span className="inline-flex items-center gap-1.5">
-                            <LogOut className="size-3.5 text-muted" />
-                            {new Date(c.checkOutTime).toLocaleTimeString('vi-VN', {
+                            <LogIn className="size-3.5 text-neon" />
+                            {new Date(c.checkInTime).toLocaleTimeString('vi-VN', {
                               hour: '2-digit',
                               minute: '2-digit',
                             })}
                           </span>
-                        ) : (
-                          '--'
-                        )}
-                      </td>
-                      <td className="px-4 py-3.5 text-muted">{c.branch?.name || '--'}</td>
-                      <td className="whitespace-nowrap px-4 py-3.5">
-                        <Badge variant={c.status === 'CHECKED_OUT' ? 'success' : 'info'}>
-                          {c.status === 'CHECKED_OUT' ? 'Hoàn tất' : 'Đang tập'}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3.5 text-muted">
+                          {c.checkOutTime ? (
+                            <span className="inline-flex items-center gap-1.5">
+                              <LogOut className="size-3.5 text-muted" />
+                              {new Date(c.checkOutTime).toLocaleTimeString('vi-VN', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          ) : (
+                            '--'
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3.5 font-medium text-chalk">
+                          {formatDuration(c.durationMinutes)}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3.5">
+                          <span className="inline-flex items-center gap-1.5 text-muted">
+                            <methodMeta.icon className="size-3.5" />
+                            {methodMeta.label}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5 text-muted">{c.branch?.name || '--'}</td>
+                        <td className="whitespace-nowrap px-4 py-3.5">
+                          <Badge variant={c.status === 'CHECKED_OUT' ? 'success' : 'info'}>
+                            {c.status === 'CHECKED_OUT' ? 'Hoàn tất' : 'Đang tập'}
+                          </Badge>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
