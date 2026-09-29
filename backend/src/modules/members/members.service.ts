@@ -1,8 +1,18 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { MemberStatus, Prisma, UserStatus } from '@prisma/client';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import * as bcrypt from 'bcryptjs';
+import { MemberStatus, PaymentMethod, Prisma, UserRole, UserStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit-logs/audit-logs.service';
+import { MemberService } from '../member/member.service';
+import { PaymentsService } from '../payments/payments.service';
 import { UpdateMemberDto } from './dto/update-member.dto';
+import { CreateMemberDto } from './dto/create-member.dto';
+import { RegisterCardDto } from './dto/register-card.dto';
 
 export interface MemberListQuery {
   search?: string;
@@ -15,11 +25,23 @@ export interface MemberListQuery {
   sort?: string;
 }
 
+/** Người thực hiện (lễ tân / quản trị) — lấy từ request.user do JwtStrategy.validate() gắn vào */
+export interface StaffActor {
+  id: string;
+  role: string;
+  branchId?: string | null;
+}
+
+/** Phương thức lễ tân có thể xác nhận thủ công tại quầy */
+const MANUAL_PAYMENT_METHODS: PaymentMethod[] = [PaymentMethod.CASH, PaymentMethod.BANK_TRANSFER];
+
 @Injectable()
 export class MembersService {
   constructor(
     private prisma: PrismaService,
     private auditService: AuditService,
+    private memberService: MemberService,
+    private paymentsService: PaymentsService,
   ) {}
 
   /**
@@ -271,5 +293,206 @@ export class MembersService {
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Đăng ký hội viên mới tại quầy (lễ tân / quản trị)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Tạo hội viên mới tại quầy: tạo tài khoản (User) để hội viên đăng nhập + hồ sơ (Member).
+   * Không truyền mật khẩu → hệ thống sinh mật khẩu tạm, trả về 1 lần cho lễ tân đưa hội viên.
+   */
+  async create(dto: CreateMemberDto, actor: StaffActor) {
+    const email = dto.email.trim().toLowerCase();
+    const fullName = dto.fullName.trim();
+    const phone = dto.phone.trim();
+
+    const existing = await this.prisma.user.findUnique({ where: { email }, select: { id: true } });
+    if (existing) {
+      throw new ConflictException('Email này đã được sử dụng');
+    }
+
+    const branchId = await this.resolveBranchId(dto.branchId, actor.branchId);
+
+    const typedPassword = dto.password?.trim() || '';
+    const isTempPassword = !typedPassword;
+    const rawPassword = isTempPassword ? this.genTempPassword() : typedPassword;
+    const passwordHash = await bcrypt.hash(rawPassword, 10);
+
+    const memberCode = await this.genMemberCode();
+
+    const { user, member } = await this.prisma.$transaction(async (tx) => {
+      const createdUser = await tx.user.create({
+        data: {
+          email,
+          passwordHash,
+          fullName,
+          phone,
+          role: UserRole.MEMBER,
+          branchId,
+        },
+        select: { id: true, email: true, fullName: true, status: true },
+      });
+
+      const createdMember = await tx.member.create({
+        data: {
+          userId: createdUser.id,
+          code: memberCode,
+          fullName,
+          email,
+          phone,
+          gender: dto.gender,
+          dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : null,
+          address: dto.address?.trim() || null,
+          emergencyContact: dto.emergencyContact?.trim() || null,
+          branchId,
+        },
+        select: {
+          id: true,
+          code: true,
+          fullName: true,
+          email: true,
+          phone: true,
+          status: true,
+          branchId: true,
+        },
+      });
+
+      return { user: createdUser, member: createdMember };
+    });
+
+    await this.prisma.notification.create({
+      data: {
+        memberId: member.id,
+        title: 'Chào mừng đến với GymShark 🎉',
+        content:
+          'Tài khoản hội viên của bạn đã được tạo tại quầy. Hãy đăng nhập để xem thẻ tập, lịch tập và đăng ký khuôn mặt nhận diện nhanh tại quầy.',
+        type: 'SYSTEM',
+        link: '/member',
+      },
+    });
+
+    await this.auditService.log({
+      userId: actor.id,
+      action: 'MEMBER_CREATE',
+      entity: 'Member',
+      entityId: member.id,
+      metadata: {
+        memberCode: member.code,
+        fullName,
+        email,
+        phone,
+        branchId,
+        via: 'staff',
+        tempPassword: isTempPassword,
+      },
+    });
+
+    return {
+      message: 'Đã tạo hội viên mới',
+      member,
+      user,
+      // Chỉ trả về 1 lần duy nhất — lễ tân cần đưa cho hội viên đăng nhập lần đầu
+      ...(isTempPassword ? { tempPassword: rawPassword } : {}),
+    };
+  }
+
+  /**
+   * Lễ tân tạo thẻ tập cho hội viên tại quầy.
+   * - payNow = false → Membership PENDING + Payment PENDING + hoá đơn ISSUED (xác nhận sau ở /admin/payments)
+   * - payNow = true  → thu tiền ngay: xác nhận thanh toán + kích hoạt thẻ (ACTIVE / PAID) qua
+   *                    đúng luồng confirm chuẩn (hoá đơn PAID, notification, promotion usage, audit)
+   */
+  async registerCard(memberId: string, dto: RegisterCardDto, actor: StaffActor) {
+    const member = await this.prisma.member.findUnique({
+      where: { id: memberId },
+      select: { id: true, code: true, fullName: true },
+    });
+    if (!member) throw new NotFoundException('Không tìm thấy hội viên');
+
+    const method = dto.paymentMethod ?? PaymentMethod.CASH;
+
+    // Nhân viên chỉ thu tiền tại quầy được với tiền mặt / chuyển khoản (khớp luồng PaymentConfirm)
+    if (dto.payNow && !MANUAL_PAYMENT_METHODS.includes(method)) {
+      throw new BadRequestException(
+        'Thu tiền tại quầy chỉ áp dụng cho Tiền mặt hoặc Chuyển khoản. Với ví điện tử, hãy chọn "Chờ xác nhận thanh toán".',
+      );
+    }
+
+    const created = await this.memberService.registerMembershipForMember(
+      memberId,
+      {
+        packageId: dto.packageId,
+        paymentMethod: method,
+        promotionCode: dto.promotionCode,
+        notes: dto.notes,
+      },
+      actor.id,
+    );
+
+    if (!dto.payNow) {
+      return {
+        message: 'Đã tạo thẻ — chờ xác nhận thanh toán',
+        activated: false,
+        member,
+        membership: created.membership,
+        payment: created.payment,
+      };
+    }
+
+    const confirmed = await this.paymentsService.confirm(
+      created.payment.id,
+      { id: actor.id, role: actor.role },
+      { transactionRef: dto.transactionRef },
+    );
+
+    return {
+      message: 'Đã thu tiền và kích hoạt thẻ',
+      activated: true,
+      member,
+      membership: confirmed.membership ?? created.membership,
+      payment: confirmed.payment,
+    };
+  }
+
+  /** Sinh mã hội viên dạng MEM-0001, bỏ qua mã đã tồn tại */
+  private async genMemberCode(): Promise<string> {
+    const count = await this.prisma.member.count();
+    for (let i = 1; i <= 500; i++) {
+      const code = `MEM-${String(count + i).padStart(4, '0')}`;
+      const exists = await this.prisma.member.findUnique({ where: { code }, select: { id: true } });
+      if (!exists) return code;
+    }
+    return `MEM-${Date.now().toString().slice(-8)}`;
+  }
+
+  /** Mật khẩu tạm 8 ký tự dễ đọc cho hội viên tự đổi sau lần đăng nhập đầu */
+  private genTempPassword(): string {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+    let out = '';
+    for (let i = 0; i < 8; i++) out += chars[Math.floor(Math.random() * chars.length)];
+    return out;
+  }
+
+  /** Ưu tiên: chi nhánh lễ tân chọn → chi nhánh của nhân viên đang đăng nhập → chi nhánh ACTIVE đầu tiên */
+  private async resolveBranchId(requested?: string, actorBranchId?: string | null): Promise<string> {
+    const candidate = requested || actorBranchId || null;
+    if (candidate) {
+      const branch = await this.prisma.branch.findUnique({
+        where: { id: candidate },
+        select: { id: true, status: true },
+      });
+      if (!branch) throw new BadRequestException('Chi nhánh không tồn tại');
+      if (branch.status !== 'ACTIVE') throw new BadRequestException('Chi nhánh đã ngừng hoạt động');
+      return branch.id;
+    }
+    const fallback = await this.prisma.branch.findFirst({
+      where: { status: 'ACTIVE' },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    });
+    if (!fallback) throw new BadRequestException('Hệ thống chưa có chi nhánh hoạt động');
+    return fallback.id;
   }
 }

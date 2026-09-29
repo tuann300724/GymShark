@@ -4,12 +4,21 @@ import {
   Get,
   Param,
   Patch,
+  Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
-import { MembersService } from './members.service';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiQuery,
+  ApiResponse,
+} from '@nestjs/swagger';
+import { MembersService, StaffActor } from './members.service';
 import { UpdateMemberDto } from './dto/update-member.dto';
+import { CreateMemberDto } from './dto/create-member.dto';
+import { RegisterCardDto } from './dto/register-card.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -79,5 +88,31 @@ export class MembersController {
     @CurrentUser('id') actorId: string,
   ) {
     return this.membersService.update(id, dto, actorId);
+  }
+
+  @Post()
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @ApiOperation({
+    summary: 'Tạo hội viên mới tại quầy (tạo tài khoản + hồ sơ hội viên)',
+    description:
+      'Không truyền mật khẩu → hệ thống sinh mật khẩu tạm và trả về 1 lần (tempPassword) cho lễ tân đưa hội viên.',
+  })
+  @ApiResponse({ status: 201, description: 'Đã tạo hội viên' })
+  @ApiResponse({ status: 409, description: 'Email đã được sử dụng' })
+  create(@Body() dto: CreateMemberDto, @CurrentUser() actor: StaffActor) {
+    return this.membersService.create(dto, actor);
+  }
+
+  @Post(':id/memberships')
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @ApiOperation({
+    summary: 'Lễ tân tạo thẻ tập cho hội viên tại quầy',
+    description:
+      'payNow=false → thẻ PENDING + hoá đơn chờ xác nhận. payNow=true → thu tiền ngay và kích hoạt thẻ (chỉ Tiền mặt / Chuyển khoản).',
+  })
+  @ApiResponse({ status: 201, description: 'Đã tạo thẻ' })
+  @ApiResponse({ status: 409, description: 'Hội viên đang có gói hoạt động hoặc gói chờ xác nhận' })
+  registerCard(@Param('id') id: string, @Body() dto: RegisterCardDto, @CurrentUser() actor: StaffActor) {
+    return this.membersService.registerCard(id, dto, actor);
   }
 }

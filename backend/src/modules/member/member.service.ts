@@ -320,6 +320,33 @@ export class MemberService {
     const member = await this.resolveMember(userId);
     if (!member) throw new ForbiddenException('Chỉ hội viên mới có thể đăng ký gói tập');
 
+    return this.createPendingMembership(member, dto, { actorUserId: userId, via: 'self' });
+  }
+
+  /**
+   * Lễ tân/quản trị tạo thẻ tập cho hội viên tại quầy (POST /members/:id/memberships).
+   * Dùng chung logic với hội viên tự đăng ký — chỉ khác người thực hiện trong audit log.
+   */
+  async registerMembershipForMember(
+    memberId: string,
+    dto: RegisterMembershipDto,
+    actorUserId: string,
+  ) {
+    const member = await this.prisma.member.findUnique({
+      where: { id: memberId },
+      include: { branch: { select: { id: true, name: true, code: true } } },
+    });
+    if (!member) throw new NotFoundException('Không tìm thấy hội viên.');
+
+    return this.createPendingMembership(member, dto, { actorUserId, via: 'staff' });
+  }
+
+  /** Thân hành chung: tạo Membership PENDING + Payment PENDING + Invoice ISSUED + notification */
+  private async createPendingMembership(
+    member: { id: string; code: string; fullName: string },
+    dto: RegisterMembershipDto,
+    ctx: { actorUserId: string; via: 'self' | 'staff' },
+  ) {
     const pkg = await this.prisma.membershipPackage.findUnique({ where: { id: dto.packageId } });
     if (!pkg || pkg.status !== 'ACTIVE') {
       throw new NotFoundException('Gói tập không tồn tại hoặc đã ngừng bán');
@@ -329,11 +356,19 @@ export class MemberService {
 
     const active = await this.getActiveMembership(member.id);
     if (active) {
-      throw new ConflictException('Bạn đang có một gói tập đang hoạt động. Hãy dùng chức năng "Gia hạn" thay thế.');
+      throw new ConflictException(
+        ctx.via === 'staff'
+          ? 'Hội viên đang có một gói tập hoạt động. Hãy dùng chức năng "Gia hạn" thay thế.'
+          : 'Bạn đang có một gói tập đang hoạt động. Hãy dùng chức năng "Gia hạn" thay thế.',
+      );
     }
     const pending = await this.getPendingMembership(member.id);
     if (pending) {
-      throw new ConflictException('Bạn đang có một yêu cầu đăng ký đang chờ xác nhận thanh toán.');
+      throw new ConflictException(
+        ctx.via === 'staff'
+          ? 'Hội viên đang có một yêu cầu đăng ký chờ xác nhận thanh toán. Hãy xử lý ở /admin/payments trước.'
+          : 'Bạn đang có một yêu cầu đăng ký đang chờ xác nhận thanh toán.',
+      );
     }
 
     const startDate = new Date();
@@ -405,7 +440,7 @@ export class MemberService {
     });
 
     await this.auditService.log({
-      userId,
+      userId: ctx.actorUserId,
       action: 'MEMBERSHIP_REGISTER',
       entity: 'Membership',
       entityId: result.membership.id,
@@ -414,6 +449,8 @@ export class MemberService {
         amount: final,
         paymentCode,
         promotionCode: dto.promotionCode ?? null,
+        memberCode: member.code,
+        via: ctx.via,
       },
     });
 
