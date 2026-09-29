@@ -5,9 +5,63 @@
 
 ---
 
+## 2026-09-29 — Kỳ 11: Check-in nhận diện khuôn mặt (FACE_ID) — sinh trắc học 3 đợt
+
+> Trạng thái: **ĐÃ COMMIT (2026-09-29)** — gộp chung với Kỳ 4–10 + toàn bộ code faces — đã push lên `origin/main`.
+
+### 🎯 Mục tiêu (hoàn thành 3/3 đợt)
+
+- **Đợt 1** — hội viên tự quét 1:1: đăng ký khuôn mặt (consent NĐ13) + check-in bằng khuôn mặt.
+- **Đợt 2** — lễ tân quét 1:N tại quầy: dialog quét → nhận diện → check-in cho hội viên.
+- **Đợt 3** — anti-spoof + ngưỡng env + KPI báo cáo theo hình thức check-in.
+
+### ✅ Backend (smoke API **36/36 PASS**, `nest build` PASS)
+
+- Model `FaceEmbedding` (vector Float[192], `consentAt`, FK member cascade) + enum `CheckInMethod` thêm `FACE_ID`; đã `prisma db push` + regenerate client.
+- Module `faces` (@Global): `POST /faces/enroll` (bắt buộc `consent: true`, thay toàn bộ mẫu cũ), `GET /faces/me`, `DELETE /faces/me` (tự rút lui), `GET/DELETE /faces/member/:memberId` (admin/manager).
+- Check-in: `POST /checkins/face` (1:1 — `FACE_MATCH_THRESHOLD=0.6`, lệch → **400** tránh interceptor logout), `POST /checkins/face-scan` (1:N — `FACE_MATCH_THRESHOLD_1N=0.7`, không khớp → **404**), cosine tính server-side.
+- Audit `FACE_ENROLL`/`FACE_DELETE` (action String, không sửa schema audit); **chỉ lưu vector, không lưu ảnh/video** (NĐ13/2023).
+- Reports: `getAttendanceReport` thêm `byMethod` (checkIn.groupBy method) cho KPI.
+- Smoke test API **36/36 PASS** (script `C:\Users\tuanv\AppData\Local\Temp\opencode\face-api-test.ps1`) — mọi validate 400/403/404/409 đều đúng; **đã dọn dữ liệu test** (xem dưới).
+
+### ✅ Frontend (typecheck · lint 0 warning · format:check · knip · build **52 routes** — PASS)
+
+- Cài `@vladmandic/human@3.3.6` (1 package đã đồng ý) — model tải từ CDN + cache IndexedDB, chạy 100% phía trình duyệt, chỉ gửi vector lên server.
+- `lib/face.ts` (singleton + config: face detector/description bật, mesh/iris/emotion/body/hand tắt, `antispoof.enabled`, `ANTI_SPOOF_MIN=0.3` chặn bắt mẫu), `components/ui/face-scanner.tsx` (mode enroll/verify, ổn định 600ms, cooldown 900ms, 5 mẫu, gợi ý pose, chống-spoof), `services/face.service.ts` (5 API).
+- `/member/face-registration` (mới): consent NĐ13 → quét 5 mẫu → đăng ký / đăng ký lại / xoá (dialog xác nhận).
+- `/member/checkin`: tab **Thủ công | Khuôn mặt** (chưa đăng ký → CTA sang trang đăng ký; đã đăng ký → quét 1:1 + `faceCheckIn`, retry = remount `key=attempt`).
+- `/admin/checkins`: nút **Quét khuôn mặt** + dialog 1:N (hiện tên/MÃ/độ khớp %, invalidate list), quét lại sau lỗi.
+- `/admin/members/[id]` tab Lịch sử Check-in: card trạng thái khuôn mặt (số mẫu, consentAt, badge) + nút **Xoá đăng ký** (admin/manager, dialog xác nhận).
+- `METHOD_META` FACE_ID ở 3 trang; `AUDIT_ACTION_META` thêm `FACE_ENROLL`/`FACE_DELETE`.
+- KPI: card **Check-in theo hình thức** ở `/admin/reports/attendance` (số lượt + % + thanh tiến độ, FACE_ID tô neon) và card **Theo hình thức check-in** ở tab Chuyên cần `/admin/reports` (MethodBars, grid 3 cột).
+
+### 🐞 Lỗi/bẫy mới (đã xử lý)
+
+- **Build fail `@tensorflow/tfjs-node`**: gói `exports` của `@vladmandic/human` **không có subpath `./dist/*`** (các key `dist/*` là *condition*), condition `node` đứng đầu map → bản server resolve `human.node.js` (require tfjs-node chưa cài). Fix: alias trong `next.config.mjs` trỏ `@vladmandic/human/dist/human.esm.js` → `path.join(dirname(require.resolve('@vladmandic/human')), 'human.esm.js')` + `src/types/human-esm.d.ts` (shim type cho subpath) + guard `typeof window` trong `loadHuman`.
+- **`human.webcam.start()` KHÔNG ném exception**: nội bộ catch rồi **trả chuỗi** — lỗi `"webcam error: ..."`, thành công `"webcam: <tên>"`. Không check return value → status kẹt "searching" với video chết khi bị từ chối camera. Fix: check prefix `webcam error` → throw → `cameraErrorMessage` match cả `err.message` (chứa `NotAllowedError`) → thanh trạng thái đỏ + toast. **Đã verify bằng trình duyệt**: chặn camera → hiển thị đúng "Bạn đã chặn quyền truy cập camera...".
+- `<li className="flex gap-2.5">` với text thuần → text nodes thành flex items rời → vỡ cách chữ trong điều khoản NĐ13. Fix: bọc nội dung trong `<span>` (inline flow).
+- **EOL CRLF hàng loạt**: 8:46 sáng có thao tác mass-checkout đổi ~77 file sang CRLF (autocrlf=true) trong khi `.prettierrc` đòi `endOfLine: "lf"` → `format:check` fail 77 file dù content không đổi. Fix: `npm run format` (chỉ đổi EOL + format file mới).
+- **EADDRINUSE 3001 sau khi OpenCode restart**: shell `npm run start:dev` bị cancel nhưng node child sống mồ côi giữ port (PID cũ 9776, sau này 30380). Fix: kill PID listening 3001 rồi start lại; watch nest vẫn recompile (verify `byMethod` qua API thật).
+- **Ảnh screenshot browser tool lag 1 navigation** (nội dung DOM qua innerText/snapshot vẫn đúng) — xác minh bằng snapshot/snapshot text; `fullPage` chụp fresh hơn. Bẫy hydration: sau navigate cần chờ ~2–4s (evaluate `setTimeout`) trước khi `check`/`click`, nếu không React handler chưa gắn (nút không đổi state).
+- PowerShell 5.1: `>` redirect phá tiếng Việt (mojibake) — debug EOL/format phải đọc ghi qua Node/UTF-8, không qua shell.
+
+### 🧹 Dọn dữ liệu test (psql `-f`, không `-c`)
+
+- DELETE 2 check-in `method='FACE_ID'` + 4 notification `type='CHECKIN'` (tạo lúc smoke test 03:28 UTC); kiểm tra không đụng check-in thường (0 rows bị ảnh hưởng).
+- `FaceEmbedding` về 0 (vector test không khớp mặt thật — để hội viên đăng ký lại bằng mặt thật; audit `FACE_ENROLL`=2 / `FACE_DELETE`=2 **giữ nguyên**).
+
+### 📌 Nghiệm thu cuối (2026-09-29)
+
+- FE: `typecheck` · `lint` (0 warning, kể cả warning cũ đã hết) · `format:check` · `knip` · `build` (52 routes) — **PASS cả 5**. Grep palette cũ = 0 (chỉ false-positive `translate-*`).
+- BE: `nest build` PASS; smoke API 36/36; `GET /reports/attendance` trả `byMethod`.
+- QA browser OpenCode **6 màn PASS, 0 console error**: face-registration (consent gate → scanner mount → camera-denied hiển thị lỗi đúng), member/checkin 2 tab + CTA, admin dialog quét 1:N, member detail card khuôn mặt (Chưa đăng ký), reports tab Chuyên cần (byMethod), reports/attendance KPI. Human 3.3.6 load thật (log `version: 3.3.6`, WebGPU adapter) trong QA.
+- Lưu ý thực tế: máy/ browser QA không có camera (permission denied) → **check-in khuôn mặt thật cần user test bằng webcam thật**: đăng ký 5 mẫu ở `/member/face-registration` rồi quét ở tab Khuôn mặt.
+
+---
+
 ## 2026-09-28 — Kỳ 10b: Dọn dữ liệu demo, fix overflow & dọn code chết
 
-> Trạng thái: **CHƯA COMMIT** — gộp chung với Kỳ 4–10 (~205 files) — chờ user đồng ý rồi `/commit`.
+> Trạng thái: **ĐÃ COMMIT (2026-09-29)** — gộp chung với Kỳ 4–10 (~205 files) — đã push lên `origin/main`.
 
 ### 🎯 Mục tiêu
 
@@ -124,7 +178,7 @@ vá lỗi tràn ngang ở viewport 768px, và xoá 404 favicon ở mọi trang.
 
 ## 2026-09-27 — Kỳ 10: Hoàn thiện & Chốt (STEP 9 — FINALIZATION)
 
-> Trạng thái: **CHƯA COMMIT** — gộp chung với Kỳ 4–9 (~200 files tổng) — chờ user đồng ý rồi `/commit`.
+> Trạng thái: **ĐÃ COMMIT (2026-09-29)** — gộp chung với Kỳ 4–9 (~200 files tổng) — đã push lên `origin/main`.
 
 ### 🎯 Mục tiêu
 
@@ -212,13 +266,13 @@ Rà soát & hoàn thiện toàn hệ thống: **bảo mật**, **audit log**, **
 
 - `npm run typecheck` · `npm run lint` · `npm run format:check` · `npm run build` (FE) · `npm run build` (BE) — **PASS**
 - Smoke STEP 9 **76/76 PASS** · QA responsive **38 route × 6 viewport, 0 console error, 0 overflow**
-- CHƯA COMMIT: Kỳ 4–10 (~200 files) — chờ user đồng ý rồi `/commit`.
+- ĐÃ COMMIT (2026-09-29): Kỳ 4–10 (~200 files) — đã push lên `origin/main`.
 
 ---
 
 ## 2026-09-27 — Kỳ 9: Promotion + Notification + Reporting (STEP 8)
 
-> Trạng thái: **CHƯA COMMIT** — gộp chung với Kỳ 4–8 (~180 files tổng) — chờ user đồng ý rồi `/commit`.
+> Trạng thái: **ĐÃ COMMIT (2026-09-29)** — gộp chung với Kỳ 4–8 (~180 files tổng) — đã push lên `origin/main`.
 
 ### 🎯 Mục tiêu
 
@@ -257,13 +311,13 @@ Rà soát & hoàn thiện toàn hệ thống: **bảo mật**, **audit log**, **
 
 - `reportApi.revenue(...)` cần thiết cho tab Doanh thu (bổ sung sau khi viết hub); `EquipmentStatsReport`/`BranchOverviewReport` type sửa lại đúng shape backend (byStatus/byCondition Record + openingHours).
 - byPackage trong `/reports/revenue` trả theo membership (nhiều hàng cùng tên gói) → hub gộp theo tên trước khi vẽ; MethodBars/BarChart dùng key `label-index` để tuyệt đối không trùng key.
-- CHƯA COMMIT: Kỳ 4–9 (~180 files) — chỉ commit khi user đồng ý.
+- ĐÃ COMMIT (2026-09-29): Kỳ 4–9 (~180 files) — đã push lên `origin/main`.
 
 ---
 
 ## 2026-09-27 — Kỳ 8: Branch + Room + Equipment Management (STEP 7)
 
-> Trạng thái: **CHƯA COMMIT** — gộp chung với Kỳ 4–7 (~170 files tổng) — chờ user đồng ý rồi `/commit`.
+> Trạng thái: **ĐÃ COMMIT (2026-09-29)** — gộp chung với Kỳ 4–7 (~170 files tổng) — đã push lên `origin/main`.
 
 ### 🎯 Mục tiêu
 
@@ -306,13 +360,13 @@ Rà soát & hoàn thiện toàn hệ thống: **bảo mật**, **audit log**, **
 - `GET /branches` không cho MEMBER → member checkin dùng `GET /public/branches`.
 - Equipment delete = soft **RETIRED** (giữ lịch sử, không xóa thật) — dữ liệu test dọn bằng Prisma script khi cần.
 - PowerShell 5.1: `@(Invoke-RestMethod ...)` có thể bọc JSON array thành 1 object → dùng plain assignment cho list APIs.
-- CHƯA COMMIT: Kỳ 4–8 (~170 files) — chỉ commit khi user đồng ý.
+- ĐÃ COMMIT (2026-09-29): Kỳ 4–8 (~170 files) — đã push lên `origin/main`.
 
 ---
 
 ## 2026-09-26 — Kỳ 7: Payment + Invoice (STEP 6) — PaymentGateway abstraction, flow thanh toán thật, invoice, quản lý & xác nhận thanh toán, revenue report
 
-> Trạng thái: **CHƯA COMMIT** — gộp chung với Kỳ 4 + 5 + 6 (~150 files tổng) — chờ user đồng ý rồi `/commit`.
+> Trạng thái: **ĐÃ COMMIT (2026-09-29)** — gộp chung với Kỳ 4 + 5 + 6 (~150 files tổng) — đã push lên `origin/main`.
 
 ### 🎯 Mục tiêu
 
@@ -352,13 +406,13 @@ Rà soát & hoàn thiện toàn hệ thống: **bảo mật**, **audit log**, **
 - POST confirm/reject/refund trả **201** (NestJS default) — frontend axios xử lý 2xx/3xx bình thường, không sao.
 - Revenue fields serialized thành string (Prisma Decimal) — `formatCurrency` nhận string|number cùng lúc.
 - Smoke test tạo ~5 payment/membership test cho member@gym.com (PENDING/PAID/CANCELLED/REFUNDED) — data dev, không ảnh hưởng production.
-- CHƯA COMMIT: Kỳ 4 + 5 + 6 + 7 (~150 files) — chỉ commit khi user đồng ý.
+- ĐÃ COMMIT (2026-09-29): Kỳ 4 + 5 + 6 + 7 (~150 files) — đã push lên `origin/main`.
 
 ---
 
 ## 2026-09-26 — Kỳ 6: Trainer/PT + Lịch tập (STEP 5) — quản lý HLV, phân công HLV–Hội viên, training sessions, member/trainer portal
 
-> Trạng thái: **CHƯA COMMIT** — gộp chung với Kỳ 4 + Kỳ 5 (~125 files tổng) — chờ user đồng ý rồi `/commit`.
+> Trạng thái: **ĐÃ COMMIT (2026-09-29)** — gộp chung với Kỳ 4 + Kỳ 5 (~125 files tổng) — đã push lên `origin/main`.
 
 ### 🎯 Mục tiêu
 
@@ -420,7 +474,7 @@ Backend **tự validate mọi rule**, không tin frontend; DTO không nhận `ro
 
 ### 📌 Lưu ý
 
-- CHƯA COMMIT: Kỳ 4 + Kỳ 5 + Kỳ 6 (~125 files) — chỉ commit khi user đồng ý.
+- ĐÃ COMMIT (2026-09-29): Kỳ 4 + Kỳ 5 + Kỳ 6 (~125 files) — đã push lên `origin/main`.
 - TrainersService.create sinh `tempPassword = Trainer@123456` trả 1 lần; admin sau đó có thể để trainer tự đổi ở `/trainer/profile`.
 - Program (bài tập) vẫn tĩnh `frontend/src/lib/programs.ts` — quyết định cũ của user vẫn giữ nguyên.
 
@@ -428,7 +482,7 @@ Backend **tự validate mọi rule**, không tin frontend; DTO không nhận `ro
 
 ## 2026-09-26 — Kỳ 5: Check-in / Check-out / Attendance (member tự check-in, staff check-in, admin theo dõi, báo cáo chuyên cần)
 
-> Trạng thái: **CHƯA COMMIT** (gộp chung với Kỳ 4 ~34 files) — chờ user đồng ý rồi `/commit`.
+> Trạng thái: **ĐÃ COMMIT (2026-09-29)** (gộp chung với Kỳ 4 ~34 files) — đã push lên `origin/main`.
 
 ### 🎯 Mục tiêu
 
@@ -507,7 +561,7 @@ member chỉ thao tác dữ liệu của mình qua JWT (`@CurrentUser('id')`), D
 
 ## 2026-09-26 — Kỳ 4: Member Management + Membership + Payment flow THẬT (PENDING → approve)
 
-> Trạng thái: **CHƯA COMMIT** (32 files: 15 backend + 17 frontend) — chờ user đồng ý rồi `/commit`.
+> Trạng thái: **ĐÃ COMMIT (2026-09-29)** (32 files: 15 backend + 17 frontend) — đã push lên `origin/main`.
 
 ### 🎯 Mục tiêu
 
@@ -590,9 +644,9 @@ không tin frontend; DTO không nhận `memberId/price/amount/role` từ client.
 - Tài khoản seed (mật khẩu pattern `Tên@123456`): `admin@` `manager@` `staff@` `trainer@` `member@gym.com`
   → chi tiết xem `backend/prisma/seed.ts`.
 
-### ✅ Tính năng: Trang chi tiết chương trình tập — **CHƯA COMMIT**
+### ✅ Tính năng: Trang chi tiết chương trình tập — **ĐÃ COMMIT (2026-09-29)**
 
-> 3 file thay đổi đang nằm trong working tree, chờ user đồng ý rồi `/commit`:
+> 3 file đã commit trong `4bbbbcc` (feat(frontend): thêm trang chi tiết chương trình tập `/programs/[slug]`):
 
 - `frontend/src/lib/programs.ts` **(mới)** — dữ liệu 6 chương trình (slug `push-day`, `pull-day`,
   `shoulder-blast`, `leg-day`, `upper-power`, `back-arms`), mỗi buổi 4-5 bài tập: tên VN + tiếng Anh,
@@ -622,8 +676,7 @@ buổi kế, quay lại `/#programs`, slug sai → 404 + UI, mobile 390px không
 
 ### ⏳ Việc cần làm tiếp (khi dậy)
 
-1. **Commit + push** tính năng `/programs/[slug]` (3 file) — hỏi user trước.
+1. User test quét khuôn mặt thật bằng webcam: đăng ký 5 mẫu ở `/member/face-registration` rồi quét ở tab Khuôn mặt `/member/checkin` (máy QA bị deny quyền camera nên chưa test được end-to-end).
 2. Duyệt 6 PR Dependabot đã mở.
 3. Restart phiên OpenCode để `opencode.jsonc` + 4 lệnh slash có hiệu lực; `/mcps` đăng nhập GitHub MCP.
 4. Cân nhắc upgrade Next 14 → 15/16 (5 lỗ audit chỉ fix bằng Next 16).
-5. (Tùy chọn) P2: viết lại README theo cấu trúc mới.
