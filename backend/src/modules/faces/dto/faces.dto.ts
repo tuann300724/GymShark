@@ -1,8 +1,26 @@
-import { ArrayMaxSize, ArrayNotEmpty, Equals, IsArray, IsBoolean } from 'class-validator';
+import {
+  ArrayMaxSize,
+  ArrayNotEmpty,
+  Equals,
+  IsArray,
+  IsBoolean,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+} from 'class-validator';
+
+/** Ảnh chụp lúc đăng ký — chỉ nhận data URL JPEG/PNG/WebP base64 */
+const IMAGE_DATA_URL = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/;
+/** ~600.000 ký tự base64 ≈ 450KB ảnh gốc — quá lớn thì client đã resize sai */
+const IMAGE_MAX_LENGTH = 600_000;
 
 /**
- * POST /faces/enroll — hội viên đăng ký dữ liệu khuôn mặt.
- * Chỉ nhận VECTOR (mảng số), KHÔNG nhận ảnh gốc — tuân thủ Nghị định 13/2023.
+ * POST /faces/enroll (hội viên tự đăng ký) và
+ * POST /faces/member/:memberId/enroll (lễ tân đăng ký thay hội viên).
+ *
+ * Gửi vector embedding + (tùy chọn) ẢNH THAM CHIẾU chụp tại chỗ để lễ tân đối chiếu.
+ * Ảnh là dữ liệu cá nhân nhạy cảm (NĐ13/2023) nên chỉ lưu khi có đồng ý tường minh.
  */
 export class EnrollFaceDto {
   /** Các mẫu vector khuôn mặt (mỗi góc mặt 1 vector, tối đa 5 mẫu) */
@@ -17,4 +35,13 @@ export class EnrollFaceDto {
     message: 'Bạn phải đồng ý cho phép xử lý dữ liệu sinh trắc học để tiếp tục.',
   })
   consentGiven: boolean;
+
+  /** Ảnh khuôn mặt tham chiếu (data URL base64, không bắt buộc) */
+  @IsOptional()
+  @IsString()
+  @Matches(IMAGE_DATA_URL, {
+    message: 'Ảnh khuôn mặt không hợp lệ (chỉ nhận data URL JPEG/PNG/WebP).',
+  })
+  @MaxLength(IMAGE_MAX_LENGTH, { message: 'Ảnh khuôn mặt quá lớn (tối đa ~450KB).' })
+  imageData?: string;
 }

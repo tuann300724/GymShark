@@ -336,7 +336,7 @@ export class CheckinsService {
     );
     return {
       ...result,
-      face: { similarity: Number(match.similarity.toFixed(4)) },
+      face: { similarity: Number(match.similarity.toFixed(4)), imageData: match.imageData },
     };
   }
 

@@ -426,14 +426,18 @@ model CheckIn {
   @@index([checkInTime])
 }
 
-/// DỮ LIỆU SINH TRẮC HỌC — chỉ lưu vector embedding (không lưu ảnh gốc),
-/// tuân thủ Nghị định 13/2023/NĐ-CP về dữ liệu cá nhân nhạy cảm.
-/// Một hội viên có nhiều mẫu (mỗi góc mặt 1 dòng); xoá toàn bộ = rút lui đồng ý.
+/// DỮ LIỆU SINH TRẮC HỌC — vector embedding + ảnh tham chiếu chụp lúc đăng ký.
+/// Là dữ liệu cá nhân nhạy cảm theo Nghị định 13/2023/NĐ-CP: chỉ lưu khi hội viên
+/// đồng ý tường minh (consentAt), và xoá toàn bộ dòng = rút lui đồng ý.
+/// Một hội viên có nhiều mẫu (mỗi góc mặt 1 dòng). Ảnh chỉ gắn ở MẪU ĐẦU TIÊN
+/// (imageData != null) để không nhân bản cùng một ảnh ra 5 dòng.
 model FaceEmbedding {
   id        String   @id @default(uuid())
   memberId  String
   member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
   embedding Float[]
+  /// Ảnh khuôn mặt tham chiếu (data URL JPEG base64) — chỉ có ở mẫu đầu tiên
+  imageData String?
   consentAt DateTime
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

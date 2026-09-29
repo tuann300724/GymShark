@@ -13,14 +13,17 @@ export interface FaceMatchResult {
   memberId: string;
   memberCode: string;
   similarity: number;
+  /** Ảnh tham chiếu của hội viên (data URL) để lễ tân đối chiếu — null nếu chưa lưu ảnh */
+  imageData: string | null;
 }
 
 /**
  * Dịch vụ sinh trắc học — đăng ký / rút lui / so khớp khuôn mặt.
  *
  * Nguyên tắc thiết kế:
- * - CHỈ lưu vector embedding (Float[]), KHÔNG lưu ảnh gốc → đúng Nghị định 13/2023
- *   (dữ liệu sinh trắc học = dữ liệu cá nhân nhạy cảm, không thể tái tạo ảnh gốc từ vector).
+ * - Lưu vector embedding (Float[]) + ẢNH THAM CHIẾU chụp lúc đăng ký (data URL, chỉ ở
+ *   mẫu đầu tiên). Cả hai là dữ liệu cá nhân nhạy cảm theo Nghị định 13/2023 nên chỉ
+ *   lưu khi có đồng ý tường minh (consentAt); xoá đăng ký = xoá sạch cả vector lẫn ảnh.
  * - So khớp bằng cosine similarity, ngưỡng lấy từ env (FACE_MATCH_THRESHOLD /
  *   FACE_MATCH_THRESHOLD_1N) để dễ hiệu chỉnh khi test với khuôn mặt thật.
  * - Service KHÔNG tự tạo check-in — trả về kết quả match, CheckinsService lo phần
@@ -85,6 +88,12 @@ export class FacesService {
     return this.assertValidEmbedding(embedding, 'mẫu khuôn mặt');
   }
 
+  /** Ảnh đã được DTO validate; kiểm tra lại ở service rồi mới ghi DB */
+  private sanitizeImage(imageData?: string | null): string | null {
+    if (!imageData) return null;
+    return /^data:image\/(jpeg|png|webp);base64,/.test(imageData) ? imageData : null;
+  }
+
   /** Cosine similarity giữa 2 vector (khác độ dài hoặc vector rỗng = 0) */
   private cosine(a: number[], b: number[]): number {
     if (!Array.isArray(a) || !Array.isArray(b) || a.length === 0 || a.length !== b.length) return 0;
@@ -109,25 +118,58 @@ export class FacesService {
   /** GET /faces/me — trạng thái đăng ký của hội viên đang đăng nhập */
   async getMyStatus(userId: string) {
     const member = await this.resolveMemberByUserId(userId);
-    const [sampleCount, latest] = await Promise.all([
-      this.prisma.faceEmbedding.count({ where: { memberId: member.id } }),
+    return this.buildStatus(member.id);
+  }
+
+  /** Trạng thái đăng ký + ảnh tham chiếu (nếu có) của một hội viên */
+  private async buildStatus(memberId: string) {
+    const [sampleCount, latest, photo] = await Promise.all([
+      this.prisma.faceEmbedding.count({ where: { memberId } }),
       this.prisma.faceEmbedding.findFirst({
-        where: { memberId: member.id },
+        where: { memberId },
         orderBy: { consentAt: 'desc' },
         select: { consentAt: true },
+      }),
+      // Ảnh chỉ nằm ở mẫu đầu tiên → lọc theo imageData != null thay vì lấy bừa
+      this.prisma.faceEmbedding.findFirst({
+        where: { memberId, imageData: { not: null } },
+        select: { imageData: true },
       }),
     ]);
     return {
       enrolled: sampleCount > 0,
       sampleCount,
       consentAt: latest?.consentAt ?? null,
+      imageData: photo?.imageData ?? null,
     };
   }
 
-  /** POST /faces/enroll — đăng ký (ghi đè toàn bộ mẫu cũ), yêu cầu đồng ý tường minh */
+  /** POST /faces/enroll — hội viên tự đăng ký (ghi đè toàn bộ mẫu cũ) */
   async enroll(userId: string, dto: EnrollFaceDto) {
     const member = await this.resolveMemberByUserId(userId);
+    return this.saveEnrollment(member, dto, { actorId: userId, via: 'self' });
+  }
 
+  /**
+   * POST /faces/member/:memberId/enroll — nhân viên đăng ký THAY hội viên.
+   * Dùng ở quầy lễ tân khi làm thẻ: nhân viên xác nhận hội viên đã đồng ý xử lý
+   * dữ liệu sinh trắc học (consentGiven) và ảnh chụp được lưu để đối chiếu sau.
+   */
+  async enrollForMember(memberId: string, dto: EnrollFaceDto, actorId?: string) {
+    const member = await this.prisma.member.findUnique({
+      where: { id: memberId },
+      select: { id: true, code: true, fullName: true, status: true },
+    });
+    if (!member) throw new NotFoundException('Không tìm thấy hội viên.');
+    return this.saveEnrollment(member, dto, { actorId, via: 'staff' });
+  }
+
+  /** Validate mẫu + ghi đè toàn bộ dữ liệu khuôn mặt của hội viên trong 1 transaction */
+  private async saveEnrollment(
+    member: { id: string; code: string },
+    dto: EnrollFaceDto,
+    opts: { actorId?: string; via: 'self' | 'staff' },
+  ) {
     // Validate + sanitize từng mẫu; tất cả mẫu phải cùng độ dài
     const samples = dto.embeddings.map((e) => this.sanitizeSample(e));
     const dim = samples[0].length;
@@ -135,26 +177,39 @@ export class FacesService {
       throw new BadRequestException('Tất cả mẫu khuôn mặt phải cùng độ dài vector.');
     }
 
+    const imageData = this.sanitizeImage(dto.imageData);
     const consentAt = new Date();
     await this.prisma.$transaction([
       this.prisma.faceEmbedding.deleteMany({ where: { memberId: member.id } }),
       this.prisma.faceEmbedding.createMany({
-        data: samples.map((embedding) => ({ memberId: member.id, embedding, consentAt })),
+        data: samples.map((embedding, index) => ({
+          memberId: member.id,
+          embedding,
+          // Ảnh chỉ gắn ở mẫu ĐẦU TIÊN → không nhân bản cùng một ảnh ra mọi dòng
+          imageData: index === 0 ? imageData : null,
+          consentAt,
+        })),
       }),
     ]);
 
     await this.auditService.log({
-      userId,
+      userId: opts.actorId,
       action: 'FACE_ENROLL',
       entity: 'Face',
       entityId: member.id,
-      metadata: { memberCode: member.code, sampleCount: samples.length, dimensions: dim },
+      metadata: {
+        memberCode: member.code,
+        sampleCount: samples.length,
+        dimensions: dim,
+        hasImage: Boolean(imageData),
+        via: opts.via,
+      },
     });
 
     return {
       success: true,
       message: 'Đăng ký khuôn mặt thành công',
-      data: { enrolled: true, sampleCount: samples.length, consentAt },
+      data: { enrolled: true, sampleCount: samples.length, consentAt, hasImage: Boolean(imageData) },
     };
   }
 
@@ -183,28 +238,14 @@ export class FacesService {
     };
   }
 
-  /** GET /faces/member/:memberId — admin/manager xem trạng thái đăng ký của 1 hội viên */
+  /** GET /faces/member/:memberId — nhân viên xem trạng thái + ảnh đăng ký của 1 hội viên */
   async getMemberFace(memberId: string) {
     const member = await this.prisma.member.findUnique({
       where: { id: memberId },
       select: { id: true, code: true, fullName: true, status: true },
     });
     if (!member) throw new NotFoundException('Không tìm thấy hội viên.');
-
-    const [sampleCount, latest] = await Promise.all([
-      this.prisma.faceEmbedding.count({ where: { memberId } }),
-      this.prisma.faceEmbedding.findFirst({
-        where: { memberId },
-        orderBy: { consentAt: 'desc' },
-        select: { consentAt: true },
-      }),
-    ]);
-    return {
-      member,
-      enrolled: sampleCount > 0,
-      sampleCount,
-      consentAt: latest?.consentAt ?? null,
-    };
+    return { member, ...(await this.buildStatus(memberId)) };
   }
 
   /** DELETE /faces/member/:memberId — admin/manager xoá đăng ký thay hội viên */
@@ -257,7 +298,7 @@ export class FacesService {
     });
     if (samples.length === 0) {
       throw new BadRequestException(
-        'Bạn chưa đăng ký khuôn mặt. Hãy đăng ký khuôn mặt trước khi quét check-in.',
+        'Chưa tìm thấy khuôn mặt của hội viên trong danh sách đăng ký. Vui lòng đăng ký khuôn mặt (tự đăng ký tại trang Đăng ký khuôn mặt hoặc nhờ lễ tân tại quầy) trước khi quét check-in.',
       );
     }
 
@@ -282,13 +323,20 @@ export class FacesService {
     });
     if (rows.length === 0) return null;
 
-    let best: FaceMatchResult | null = null;
+    let best: { memberId: string; memberCode: string; similarity: number } | null = null;
     for (const row of rows) {
       const sim = this.cosine(probe, row.embedding);
       if (sim >= this.thresholdGlobal && (!best || sim > best.similarity)) {
         best = { memberId: row.memberId, memberCode: row.member.code, similarity: sim };
       }
     }
-    return best;
+    if (!best) return null;
+
+    // Ảnh tham chiếu của người khớp nhất (nếu lúc đăng ký có chụp) — cho lễ tân đối chiếu
+    const photo = await this.prisma.faceEmbedding.findFirst({
+      where: { memberId: best.memberId, imageData: { not: null } },
+      select: { imageData: true },
+    });
+    return { ...best, imageData: photo?.imageData ?? null };
   }
 }

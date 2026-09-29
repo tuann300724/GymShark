@@ -30,7 +30,7 @@ export class FacesController {
   @Roles(Role.MEMBER, Role.TRAINER)
   @ApiOperation({
     summary:
-      'Đăng ký khuôn mặt (gửi vector embedding + đồng ý tường minh theo Nghị định 13/2023, không gửi ảnh)',
+      'Đăng ký khuôn mặt (vector embedding + ảnh tham chiếu, đồng ý tường minh theo Nghị định 13/2023)',
   })
   enroll(@CurrentUser('id') userId: string, @Body() dto: EnrollFaceDto) {
     return this.facesService.enroll(userId, dto);
@@ -44,14 +44,28 @@ export class FacesController {
   }
 
   // ---------------------------------------------------------------------------
-  // Admin / Manager — quản lý đăng ký của hội viên (hỗ trợ khi hội viên cần xoá)
+  // Admin / Manager / Staff — đăng ký thay & quản lý đăng ký khuôn mặt của hội viên
   // ---------------------------------------------------------------------------
 
   @Get('member/:memberId')
-  @Roles(Role.ADMIN, Role.MANAGER)
-  @ApiOperation({ summary: 'Xem trạng thái đăng ký khuôn mặt của một hội viên' })
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @ApiOperation({ summary: 'Xem trạng thái + ảnh đăng ký khuôn mặt của một hội viên' })
   getMemberFace(@Param('memberId') memberId: string) {
     return this.facesService.getMemberFace(memberId);
+  }
+
+  @Post('member/:memberId/enroll')
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @ApiOperation({
+    summary:
+      'Nhân viên đăng ký khuôn mặt THAY hội viên tại quầy (kèm ảnh chụp để đối chiếu, cần xác nhận đồng ý)',
+  })
+  adminEnroll(
+    @Param('memberId') memberId: string,
+    @Body() dto: EnrollFaceDto,
+    @CurrentUser('id') actorId: string,
+  ) {
+    return this.facesService.enrollForMember(memberId, dto, actorId);
   }
 
   @Delete('member/:memberId')
