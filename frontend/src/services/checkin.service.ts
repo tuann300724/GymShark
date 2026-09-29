@@ -60,6 +60,18 @@ export const checkinApi = {
     return res.data;
   },
 
+  /** Hội viên tự quét khuôn mặt để check-in (1:1 — vector tính ngay trên máy) */
+  faceCheckIn: async (embedding: number[], branchId?: string): Promise<CheckInResult> => {
+    const res = await apiClient.post('/checkins/face', { embedding, branchId });
+    return res.data;
+  },
+
+  /** Lễ tân quét khuôn mặt 1:N tại quầy — server tự nhận diện hội viên */
+  faceScan: async (embedding: number[]): Promise<CheckInResult> => {
+    const res = await apiClient.post('/checkins/face-scan', { embedding });
+    return res.data;
+  },
+
   /** Lịch sử toàn hệ thống (admin) */
   getAdminCheckins: async (
     params: {

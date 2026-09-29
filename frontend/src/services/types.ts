@@ -322,6 +322,8 @@ export interface CheckInResult {
   success: boolean;
   message: string;
   data: CheckInResultData;
+  /** Chỉ có ở check-in bằng khuôn mặt: độ khớp cosine similarity đã chấm */
+  face?: { similarity: number };
 }
 
 export interface AdminCheckInRecord {
@@ -773,6 +775,8 @@ export interface AttendanceReport {
   byHour: { hour: number; count: number }[];
   byWeekday: { day: number; label: string; count: number }[];
   byBranch: { branchId: string; branchName: string; count: number }[];
+  /** Số lượt theo hình thức check-in (MANUAL / STAFF / QR_CODE / FACE_ID) */
+  byMethod: { method: string; count: number }[];
 }
 
 export interface EquipmentStatsReport {

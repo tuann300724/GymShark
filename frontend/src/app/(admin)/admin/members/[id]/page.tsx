@@ -12,6 +12,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
+import { faceApi } from '@/services/face.service';
 import {
   formatCurrency,
   formatDate,
@@ -40,6 +41,8 @@ import {
   ShieldCheck,
   CheckCircle2,
   Dumbbell,
+  ScanFace,
+  Trash2,
 } from 'lucide-react';
 
 export default function MemberDetailPage() {
@@ -83,6 +86,29 @@ export default function MemberDetailPage() {
   });
 
   const activeTrainer = (trainerAssignments || []).find((a: any) => a.status === 'ACTIVE')?.trainer;
+
+  // ------------------ Đăng ký khuôn mặt (sinh trắc học) ------------------
+  const [confirmFaceDelete, setConfirmFaceDelete] = useState(false);
+
+  const { data: faceStatus } = useQuery({
+    queryKey: ['member-face', id],
+    queryFn: () => faceApi.getMemberFace(id),
+    enabled: !!id && activeTab === 'checkins',
+    retry: 0,
+  });
+
+  const faceDeleteMutation = useMutation({
+    mutationFn: () => faceApi.adminWithdraw(id),
+    onSuccess: (res) => {
+      toast.success('Đã xoá dữ liệu khuôn mặt', res.message || 'Dữ liệu đã được xoá vĩnh viễn.');
+      setConfirmFaceDelete(false);
+      queryClient.invalidateQueries({ queryKey: ['member-face', id] });
+    },
+    onError: (err: any) => {
+      const msg = err.response?.data?.message || 'Không xoá được dữ liệu.';
+      toast.error('Thất bại', Array.isArray(msg) ? msg.join(', ') : msg);
+    },
+  });
 
   const statusMutation = useMutation({
     mutationFn: async (status: string) => {
@@ -470,6 +496,45 @@ export default function MemberDetailPage() {
             </Card>
           </div>
 
+          {/* Sinh trắc học — trạng thái đăng ký khuôn mặt */}
+          <Card className="border-line">
+            <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <span
+                  className={`flex size-10 shrink-0 items-center justify-center rounded-full ${
+                    faceStatus?.enrolled
+                      ? 'border border-neon/40 bg-neon/10 text-neon'
+                      : 'border border-line bg-ink text-muted'
+                  }`}
+                >
+                  <ScanFace className="size-5" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-chalk">Đăng ký khuôn mặt</p>
+                  <p className="text-xs text-muted">
+                    {faceStatus?.enrolled ? (
+                      <>
+                        Đã lưu{' '}
+                        <strong className="font-mono text-neon">{faceStatus.sampleCount}</strong>{' '}
+                        mẫu • đồng ý từ{' '}
+                        {faceStatus.consentAt ? formatDateTime(faceStatus.consentAt) : '--'}
+                      </>
+                    ) : (
+                      'Chưa đăng ký — hội viên tự đăng ký ở trang Check-in, tab Khuôn mặt.'
+                    )}
+                  </p>
+                </div>
+              </div>
+              {faceStatus?.enrolled ? (
+                <Button variant="danger" size="sm" onClick={() => setConfirmFaceDelete(true)}>
+                  <Trash2 className="size-3.5 mr-1" /> Xoá đăng ký
+                </Button>
+              ) : (
+                <Badge variant="outline">Chưa đăng ký</Badge>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardContent className="p-0">
               {member.checkIns && member.checkIns.length > 0 ? (
@@ -509,11 +574,13 @@ export default function MemberDetailPage() {
                             )}
                           </td>
                           <td className="py-2.5 px-4 text-muted">
-                            {c.method === 'QR_CODE'
-                              ? 'Quét QR'
-                              : c.method === 'STAFF'
-                                ? 'Lễ tân'
-                                : 'Tự check-in'}
+                            {c.method === 'FACE_ID'
+                              ? 'Khuôn mặt'
+                              : c.method === 'QR_CODE'
+                                ? 'Quét QR'
+                                : c.method === 'STAFF'
+                                  ? 'Lễ tân'
+                                  : 'Tự check-in'}
                           </td>
                           <td className="py-2.5 px-4">
                             <Badge variant={c.status === 'CHECKED_OUT' ? 'success' : 'info'}>
@@ -534,6 +601,27 @@ export default function MemberDetailPage() {
           </Card>
         </div>
       )}
+
+      {/* Xác nhận xoá đăng ký khuôn mặt */}
+      <Dialog
+        open={confirmFaceDelete}
+        onClose={() => setConfirmFaceDelete(false)}
+        title="Xoá đăng ký khuôn mặt?"
+        description="Toàn bộ vector khuôn mặt của hội viên sẽ bị xoá vĩnh viễn. Hội viên cần đăng ký lại nếu muốn dùng check-in khuôn mặt."
+      >
+        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <Button variant="outline" onClick={() => setConfirmFaceDelete(false)}>
+            Giữ lại
+          </Button>
+          <Button
+            variant="danger"
+            isLoading={faceDeleteMutation.isPending}
+            onClick={() => faceDeleteMutation.mutate()}
+          >
+            <Trash2 className="size-4 mr-1.5" /> Xoá vĩnh viễn
+          </Button>
+        </div>
+      </Dialog>
 
       {activeTab === 'payments' && (
         <Card>

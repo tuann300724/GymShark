@@ -56,6 +56,14 @@ const CSV_TYPES: Record<string, 'revenue' | 'members' | 'attendance' | 'membersh
   memberships: 'memberships',
 };
 
+/** Nhãn hình thức check-in (báo cáo / thống kê) */
+const CHECKIN_METHOD_LABEL: Record<string, string> = {
+  MANUAL: 'Tự check-in',
+  STAFF: 'Lễ tân',
+  QR_CODE: 'Quét QR',
+  FACE_ID: 'Khuôn mặt',
+};
+
 function LoadingState({ rows = 3 }: { rows?: number }) {
   return (
     <div className="space-y-3">
@@ -493,7 +501,7 @@ function AttendanceTab({ branchId }: { branchId: string }) {
       </div>
 
       {!isLoading && data && data.byWeekday.length > 0 && (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <Card>
             <CardHeader>
               <CardTitle className="text-sm">Theo thứ trong tuần</CardTitle>
@@ -519,6 +527,24 @@ function AttendanceTab({ branchId }: { branchId: string }) {
               ) : (
                 <MethodBars
                   data={data.byBranch.map((b) => ({ label: b.branchName, value: b.count }))}
+                  unit=" lượt"
+                />
+              )}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Theo hình thức check-in</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {!data.byMethod || data.byMethod.length === 0 ? (
+                <p className="py-8 text-center text-xs text-muted">Chưa có dữ liệu.</p>
+              ) : (
+                <MethodBars
+                  data={data.byMethod.map((m) => ({
+                    label: CHECKIN_METHOD_LABEL[m.method] || m.method,
+                    value: m.count,
+                  }))}
                   unit=" lượt"
                 />
               )}

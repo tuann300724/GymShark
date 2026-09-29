@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog } from '@/components/ui/dialog';
+import { FaceScanner } from '@/components/ui/face-scanner';
 import { StatCard } from '@/components/ui/stat-card';
 import { useToast } from '@/components/ui/toast';
 import { formatDate, formatTime, formatDuration, formatDateTime } from '@/lib/utils';
@@ -24,6 +25,7 @@ import {
   ScanLine,
   HandMetal,
   UserCheck,
+  ScanFace,
   ChevronLeft,
   ChevronRight,
   ArrowRight,
@@ -36,6 +38,7 @@ const METHOD_META: Record<string, { label: string; icon: typeof HandMetal }> = {
   MANUAL: { label: 'Tự check-in', icon: HandMetal },
   QR_CODE: { label: 'Quét QR', icon: ScanLine },
   STAFF: { label: 'Lễ tân', icon: UserCheck },
+  FACE_ID: { label: 'Khuôn mặt', icon: ScanFace },
 };
 
 function todayKey(): string {
@@ -195,6 +198,42 @@ export default function AdminCheckinsPage() {
     },
   });
 
+  // ------------------ Face scan (1:N) dialog ------------------
+  const [faceScanOpen, setFaceScanOpen] = useState(false);
+  const [faceScanKey, setFaceScanKey] = useState(0);
+  const [faceScanResult, setFaceScanResult] = useState<{
+    name: string;
+    code?: string;
+    similarity: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!faceScanOpen) {
+      setFaceScanResult(null);
+      setFaceScanKey((k) => k + 1); // lần mở sau quét lại từ đầu
+    }
+  }, [faceScanOpen]);
+
+  const faceScanMutation = useMutation({
+    mutationFn: (embedding: number[]) => checkinApi.faceScan(embedding),
+    onSuccess: (res) => {
+      const member = res.data?.member;
+      setFaceScanResult({
+        name: member?.fullName || 'Hội viên',
+        code: member?.code,
+        similarity: res.face?.similarity ?? 0,
+      });
+      invalidateAll();
+      refetchInside();
+    },
+    onError: (err: any) => {
+      const msg = err.response?.data?.message || 'Không nhận diện được hội viên nào.';
+      toast.error('Quét khuôn mặt thất bại', Array.isArray(msg) ? msg.join(', ') : msg);
+      // Quét lại từ đầu
+      setFaceScanKey((k) => k + 1);
+    },
+  });
+
   // ------------------ Peak hour display ------------------
   const peakHour = hourly?.peakHour ?? null;
   const peakCount = hourly?.peakCount ?? 0;
@@ -241,9 +280,14 @@ export default function AdminCheckinsPage() {
             Theo dõi hội viên đang tập, lịch sử ra vào và điểm danh hàng ngày.
           </p>
         </div>
-        <Button variant="primary" size="sm" onClick={() => setDialogOpen(true)}>
-          <UserPlus className="size-4 mr-1.5" /> Check-in cho hội viên
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Button variant="outline" size="sm" onClick={() => setFaceScanOpen(true)}>
+            <ScanFace className="size-4 mr-1.5" /> Quét khuôn mặt
+          </Button>
+          <Button variant="primary" size="sm" onClick={() => setDialogOpen(true)}>
+            <UserPlus className="size-4 mr-1.5" /> Check-in cho hội viên
+          </Button>
+        </div>
       </div>
 
       {/* KPI Stats */}
@@ -614,6 +658,54 @@ export default function AdminCheckinsPage() {
             <p className="py-4 text-center text-xs text-muted">Không tìm thấy hội viên phù hợp.</p>
           )}
         </div>
+      </Dialog>
+
+      {/* Face scan dialog (1:N) */}
+      <Dialog
+        open={faceScanOpen}
+        onClose={() => setFaceScanOpen(false)}
+        title="Quét khuôn mặt 1:N"
+        description="Hệ thống tự nhận diện hội viên trong dữ liệu đã đăng ký rồi check-in ngay tại quầy."
+      >
+        {faceScanResult ? (
+          <div className="text-center">
+            <div className="mx-auto flex size-16 items-center justify-center rounded-full border-2 border-neon bg-neon/10">
+              <UserCheck className="size-8 text-neon" />
+            </div>
+            <h3 className="mt-4 font-display text-xl font-bold uppercase tracking-tight text-chalk">
+              {faceScanResult.name}
+            </h3>
+            {faceScanResult.code && (
+              <p className="mt-1 font-mono text-xs text-neon">{faceScanResult.code}</p>
+            )}
+            <p className="mt-3 text-sm text-muted">
+              Độ khớp:{' '}
+              <strong className="font-mono text-chalk">
+                {(faceScanResult.similarity * 100).toFixed(1)}%
+              </strong>{' '}
+              • Đã ghi nhận check-in.
+            </p>
+            <Button
+              variant="primary"
+              className="mt-5 w-full"
+              onClick={() => setFaceScanOpen(false)}
+            >
+              Hoàn tất
+            </Button>
+          </div>
+        ) : (
+          <>
+            <FaceScanner
+              key={faceScanKey}
+              mode="verify"
+              onCapture={(embedding) => faceScanMutation.mutate(embedding)}
+              onError={(msg) => toast.error('Không mở được camera', msg)}
+            />
+            <p className="mt-3 text-center text-[11px] text-muted">
+              Chỉ hội viên đã đăng ký khuôn mặt mới nhận diện được • đối sánh phía máy chủ.
+            </p>
+          </>
+        )}
       </Dialog>
     </div>
   );

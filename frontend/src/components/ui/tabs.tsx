@@ -14,10 +14,12 @@ interface TabsProps {
   value: string;
   onChange: (value: string) => void;
   className?: string;
+  /** Kéo các tab chia đều chiều ngang khung (segmented control) — mặc định tắt */
+  fill?: boolean;
 }
 
 /** Tabs dạng pill dark — dùng cho các trang báo cáo / quản lý */
-export function Tabs({ tabs, value, onChange, className }: TabsProps) {
+export function Tabs({ tabs, value, onChange, className, fill }: TabsProps) {
   return (
     <div
       role="tablist"
@@ -37,6 +39,7 @@ export function Tabs({ tabs, value, onChange, className }: TabsProps) {
             onClick={() => onChange(t.value)}
             className={cn(
               'flex shrink-0 items-center gap-1.5 rounded-md px-3.5 py-1.5 text-xs font-semibold transition-colors',
+              fill && 'min-w-0 flex-1 justify-center whitespace-nowrap',
               active ? 'bg-neon text-ink' : 'text-muted hover:bg-line/40 hover:text-chalk',
             )}
           >

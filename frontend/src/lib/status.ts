@@ -179,6 +179,10 @@ export const AUDIT_ACTION_META: Record<string, { label: string; variant: BadgeVa
   CHECK_IN: { label: 'Check-in', variant: 'success' },
   CHECK_OUT: { label: 'Check-out', variant: 'default' },
 
+  // Sinh trắc học (khuôn mặt)
+  FACE_ENROLL: { label: 'Đăng ký khuôn mặt', variant: 'success' },
+  FACE_DELETE: { label: 'Xoá dữ liệu khuôn mặt', variant: 'destructive' },
+
   // Huấn luyện viên
   TRAINER_CREATE: { label: 'Tạo huấn luyện viên', variant: 'success' },
   TRAINER_UPDATE: { label: 'Cập nhật huấn luyện viên', variant: 'default' },
@@ -220,6 +224,7 @@ export const AUDIT_ENTITY_LABEL: Record<string, string> = {
   Equipment: 'Thiết bị',
   EquipmentMaintenance: 'Bảo trì',
   Promotion: 'Khuyến mãi',
+  Face: 'Sinh trắc học',
 };
 
 /** Nhãn vai trò người thực hiện (hiển thị trong nhật ký) */

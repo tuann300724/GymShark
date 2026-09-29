@@ -1,19 +1,32 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { checkinApi } from '@/services/checkin.service';
 import { memberApi } from '@/services/member.service';
+import { faceApi } from '@/services/face.service';
 import apiClient from '@/lib/axios';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Select } from '@/components/ui/select';
+import { Tabs } from '@/components/ui/tabs';
+import { FaceScanner } from '@/components/ui/face-scanner';
 import { useToast } from '@/components/ui/toast';
 import { formatTime } from '@/lib/utils';
 import { BRANCH_STATUS_META } from '@/lib/status';
-import { LogIn, LogOut, Clock, Timer, CheckCircle2, Activity, MapPin } from 'lucide-react';
+import {
+  LogIn,
+  LogOut,
+  Clock,
+  Timer,
+  CheckCircle2,
+  Activity,
+  MapPin,
+  ScanFace,
+} from 'lucide-react';
 
 function formatElapsed(ms: number): string {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
@@ -53,6 +66,17 @@ export default function MemberCheckInPage() {
     retry: 0,
   });
   const [selectedBranchId, setSelectedBranchId] = useState('');
+
+  // ------------------ Check-in bằng khuôn mặt ------------------
+  const [checkinTab, setCheckinTab] = useState<'manual' | 'face'>('manual');
+  // Tăng số để remount FaceScanner (quét lại sau lỗi đối sánh)
+  const [scanKey, setScanKey] = useState(0);
+
+  const { data: faceStatus, isLoading: faceLoading } = useQuery({
+    queryKey: ['face-status'],
+    queryFn: faceApi.getMyStatus,
+    retry: 0,
+  });
 
   // Timer đếm thời gian tập (chỉ chạy khi đang check-in)
   useEffect(() => {
@@ -108,7 +132,32 @@ export default function MemberCheckInPage() {
     },
   });
 
-  const busy = checkInMutation.isPending || checkOutMutation.isPending;
+  const faceCheckInMutation = useMutation({
+    mutationFn: (embedding: number[]) =>
+      checkinApi.faceCheckIn(embedding, selectedBranchId || undefined),
+    onSuccess: (res) => {
+      const name = res.data.member?.fullName || me?.fullName || '';
+      toast.success(
+        'CHECK-IN BẰNG KHUÔN MẶT THÀNH CÔNG',
+        `${name ? `Xin chào ${name}. ` : ''}Chúc bạn có buổi tập hiệu quả!`,
+      );
+      setSelectedBranchId('');
+      setNow(Date.now());
+      queryClient.invalidateQueries({ queryKey: ['checkin-current'] });
+      queryClient.invalidateQueries({ queryKey: ['member-checkins'] });
+      queryClient.invalidateQueries({ queryKey: ['member-stats'] });
+      refetchCurrent();
+    },
+    onError: (err: any) => {
+      const msg = err.response?.data?.message || 'Không thể check-in lúc này.';
+      toast.error('Check-in thất bại', Array.isArray(msg) ? msg.join(', ') : msg);
+      // Quét lại từ đầu sau khi đối sánh thất bại
+      setScanKey((k) => k + 1);
+    },
+  });
+
+  const busy =
+    checkInMutation.isPending || checkOutMutation.isPending || faceCheckInMutation.isPending;
 
   if (currentLoading) {
     return (
@@ -171,20 +220,79 @@ export default function MemberCheckInPage() {
                 </div>
               )}
 
-              <Button
-                variant="primary"
-                size="lg"
-                className="mt-8 h-16 w-full max-w-xs gap-3 rounded-xl text-lg font-bold uppercase tracking-widest"
-                isLoading={checkInMutation.isPending}
-                disabled={busy}
-                onClick={() => checkInMutation.mutate()}
-              >
-                <LogIn className="size-6" />
-                Check-in
-              </Button>
-              <p className="mt-3 text-xs text-muted">
-                Lấy 1 lượt mỗi lần vào phòng. Quét QR sẽ sớm được hỗ trợ.
-              </p>
+              {/* Chọn hình thức: thủ công hoặc quét khuôn mặt */}
+              <div className="mt-5 w-full max-w-sm">
+                <Tabs
+                  fill
+                  value={checkinTab}
+                  onChange={(v) => setCheckinTab(v as 'manual' | 'face')}
+                  tabs={[
+                    { value: 'manual', label: 'Thủ công' },
+                    { value: 'face', label: 'Khuôn mặt' },
+                  ]}
+                />
+              </div>
+
+              {checkinTab === 'manual' ? (
+                <>
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    className="mt-8 h-16 w-full max-w-xs gap-3 rounded-xl text-lg font-bold uppercase tracking-widest"
+                    isLoading={checkInMutation.isPending}
+                    disabled={busy}
+                    onClick={() => checkInMutation.mutate()}
+                  >
+                    <LogIn className="size-6" />
+                    Check-in
+                  </Button>
+                  <p className="mt-3 text-xs text-muted">
+                    Lấy 1 lượt mỗi lần vào phòng. Chuyển sang tab{' '}
+                    <strong className="text-chalk">Khuôn mặt</strong> để check-in không cần chạm gì.
+                  </p>
+                </>
+              ) : (
+                <div className="mt-5 w-full max-w-sm">
+                  {faceLoading ? (
+                    <Skeleton className="h-72 w-full rounded-xl" />
+                  ) : !faceStatus?.enrolled ? (
+                    /* Chưa đăng ký khuôn mặt → CTA */
+                    <div className="rounded-xl border border-line bg-ink p-5 text-center">
+                      <ScanFace className="mx-auto size-8 text-muted" />
+                      <p className="mt-3 text-sm text-muted">
+                        Bạn chưa đăng ký khuôn mặt. Đăng ký một lần để check-in bằng khuôn mặt ở
+                        những lần sau.
+                      </p>
+                      <Link href="/member/face-registration">
+                        <Button variant="primary" className="mt-4 w-full">
+                          Đăng ký khuôn mặt
+                        </Button>
+                      </Link>
+                    </div>
+                  ) : (
+                    /* Đã đăng ký → quét 1:1 và check-in */
+                    <>
+                      <FaceScanner
+                        key={scanKey}
+                        mode="verify"
+                        onCapture={(embedding) => faceCheckInMutation.mutate(embedding)}
+                        onError={(msg) => toast.error('Không mở được camera', msg)}
+                      />
+                      <p className="mt-3 text-center text-[11px] text-muted">
+                        Hệ thống tự đối sánh với mẫu đã đăng ký — chỉ gửi vector, không lưu ảnh.
+                      </p>
+                      <p className="mt-1 text-center text-[11px] text-muted">
+                        <Link
+                          href="/member/face-registration"
+                          className="text-neon hover:underline"
+                        >
+                          Quản lý đăng ký khuôn mặt
+                        </Link>
+                      </p>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             /* ------------------------------------------------ ĐANG CHECK-IN */

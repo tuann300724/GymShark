@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { checkinApi } from '@/services/checkin.service';
+import { reportApi } from '@/services/report.service';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,7 +20,16 @@ import {
   Search,
   BarChart3,
   ArrowRight,
+  ScanFace,
 } from 'lucide-react';
+
+/** Nhãn hình thức check-in (thống kê KPI) */
+const CHECKIN_METHOD_LABEL: Record<string, string> = {
+  MANUAL: 'Tự check-in',
+  STAFF: 'Lễ tân',
+  QR_CODE: 'Quét QR',
+  FACE_ID: 'Khuôn mặt',
+};
 
 function daysAgoKey(n: number): string {
   const d = new Date(Date.now() - n * 24 * 60 * 60 * 1000);
@@ -53,6 +63,15 @@ export default function AttendanceReportPage() {
       }),
     retry: 0,
   });
+
+  // KPI theo hình thức check-in (tự quét, lễ tân, QR, khuôn mặt)
+  const { data: attReport, isLoading: attLoading } = useQuery({
+    queryKey: ['att-report-methods', from, to],
+    queryFn: () => reportApi.attendance({ from: from || undefined, to: to || undefined }),
+    retry: 0,
+  });
+
+  const methodTotal = attReport?.byMethod?.reduce((sum, m) => sum + m.count, 0) ?? 0;
 
   return (
     <div className="space-y-6">
@@ -130,6 +149,57 @@ export default function AttendanceReportPage() {
           colorScheme="purple"
         />
       </div>
+
+      {/* KPI theo hình thức check-in */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <ScanFace className="size-4 text-neon" />
+            Check-in theo hình thức
+          </CardTitle>
+          <CardDescription>
+            Số lượt và tỷ lệ từng hình thức trong khoảng thời gian đã chọn
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {attLoading ? (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <Skeleton className="h-24 w-full rounded-xl" />
+              <Skeleton className="h-24 w-full rounded-xl" />
+              <Skeleton className="h-24 w-full rounded-xl" />
+              <Skeleton className="h-24 w-full rounded-xl" />
+            </div>
+          ) : !attReport?.byMethod?.length ? (
+            <p className="py-6 text-center text-xs text-muted">
+              Chưa có dữ liệu check-in trong khoảng này.
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              {attReport.byMethod.map((m) => {
+                const pct = methodTotal > 0 ? Math.round((m.count / methodTotal) * 100) : 0;
+                return (
+                  <div key={m.method} className="rounded-xl border border-line bg-ink p-4">
+                    <p className="text-xs text-muted">
+                      {CHECKIN_METHOD_LABEL[m.method] || m.method}
+                    </p>
+                    <p className="mt-1 font-display text-2xl font-bold text-chalk">
+                      {m.count.toLocaleString('vi-VN')}
+                      <span className="ml-1 text-xs font-medium text-muted">lượt</span>
+                    </p>
+                    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-line">
+                      <div
+                        className={`h-full rounded-full ${m.method === 'FACE_ID' ? 'bg-neon' : 'bg-muted/60'}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <p className="mt-1 font-mono text-[11px] text-neon">{pct}%</p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Daily table */}
       <Card className="overflow-hidden">

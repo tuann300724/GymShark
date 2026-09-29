@@ -17,6 +17,7 @@ import {
   LogOut,
   Timer,
   ScanLine,
+  ScanFace,
   UserCheck,
   HandMetal,
 } from 'lucide-react';
@@ -28,6 +29,7 @@ const METHOD_META: Record<string, { label: string; icon: typeof HandMetal }> = {
   MANUAL: { label: 'Tự check-in', icon: HandMetal },
   QR_CODE: { label: 'Quét QR', icon: ScanLine },
   STAFF: { label: 'Lễ tân', icon: UserCheck },
+  FACE_ID: { label: 'Khuôn mặt', icon: ScanFace },
 };
 
 function currentMonthKey(): string {
