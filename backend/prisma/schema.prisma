@@ -54,6 +54,7 @@ enum MembershipStatus {
   ACTIVE
   EXPIRED
   CANCELLED
+  SUSPENDED
 }
 
 enum PaymentMethod {
@@ -66,14 +67,28 @@ enum PaymentMethod {
 
 enum PaymentStatus {
   PENDING
-  COMPLETED
+  PAID
   FAILED
+  CANCELLED
   REFUNDED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  CANCELLED
 }
 
 enum CheckInStatus {
   CHECKED_IN
   CHECKED_OUT
+}
+
+enum CheckInMethod {
+  MANUAL
+  QR_CODE
+  STAFF
 }
 
 enum ScheduleStatus {
@@ -83,22 +98,61 @@ enum ScheduleStatus {
   NO_SHOW
 }
 
+enum SessionType {
+  PERSONAL_TRAINING
+  GROUP_CLASS
+  FREE_TRAINING
+}
+
+enum TrainerMemberStatus {
+  ACTIVE
+  INACTIVE
+}
+
 enum DiscountType {
   PERCENTAGE
   FIXED_AMOUNT
 }
 
 enum EquipmentStatus {
-  OPERATIONAL
-  UNDER_MAINTENANCE
+  OPERATIONAL // legacy — tương đương AVAILABLE
+  UNDER_MAINTENANCE // legacy — tương đương MAINTENANCE
+  AVAILABLE
+  IN_USE
+  MAINTENANCE
   BROKEN
   RETIRED
+}
+
+enum EquipmentCondition {
+  EXCELLENT
+  GOOD
+  FAIR
+  POOR
 }
 
 enum MaintenanceStatus {
   SCHEDULED
   IN_PROGRESS
   COMPLETED
+  CANCELLED
+}
+
+enum MaintenanceType {
+  ROUTINE
+  REPAIR
+  INSPECTION
+  REPLACEMENT
+}
+
+enum RoomType {
+  GYM_AREA
+  CARDIO
+  WEIGHT_AREA
+  GROUP_CLASS
+  PERSONAL_TRAINING
+  YOGA
+  OTHER
 }
 
 // -------------------------------------------------------------
@@ -112,7 +166,10 @@ model Branch {
   address      String
   phone        String
   email        String?
-  openingHours String?
+  description  String?
+  openingTime  String? // HH:mm
+  closingTime  String? // HH:mm
+  openingHours String? // legacy mô tả giờ mở cửa dạng chữ
   status       String      @default("ACTIVE")
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
@@ -122,25 +179,33 @@ model Branch {
   rooms        Room[]
   equipment    Equipment[]
   checkIns     CheckIn[]
+  schedules    TrainingSchedule[]
 
   @@index([code])
   @@index([status])
 }
 
 model Room {
-  id        String      @id @default(uuid())
-  name      String
-  capacity  Int         @default(20)
-  status    String      @default("AVAILABLE")
-  branchId  String
-  branch    Branch      @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  id          String   @id @default(uuid())
+  branchId    String
+  branch      Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  code        String?  // unique trong branch, VD: BR001-R01
+  name        String
+  type        String   @default("GYM_AREA")
+  capacity    Int      @default(20)
+  floor       String?
+  description String?
+  status      String   @default("AVAILABLE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   equipment Equipment[]
   schedules TrainingSchedule[]
 
+  @@unique([branchId, code])
   @@index([branchId])
+  @@index([branchId, status])
+  @@index([type])
 }
 
 model User {
@@ -160,6 +225,8 @@ model User {
   trainer       Trainer?
   member        Member?
   notifications Notification[]
+  confirmedPayments Payment[] @relation("PaymentConfirmedBy")
+  auditLogs     AuditLog[]
 
   @@index([email])
   @@index([role])
@@ -174,6 +241,8 @@ model Trainer {
   certification   String?
   experienceYears Int                @default(1)
   bio             String?
+  gender          Gender?
+  dateOfBirth     DateTime?
   rating          Float              @default(5.0)
   hourlyRate      Decimal?           @db.Decimal(10, 2)
   status          TrainerStatus      @default(ACTIVE)
@@ -181,9 +250,12 @@ model Trainer {
   updatedAt       DateTime           @updatedAt
 
   schedules       TrainingSchedule[]
+  trainerMembers  TrainerMember[]
+  progressNotes   TrainingProgress[]
 
   @@index([userId])
   @@index([status])
+  @@index([specialization])
 }
 
 model Member {
@@ -212,6 +284,9 @@ model Member {
   checkIns         CheckIn[]
   schedules        TrainingSchedule[]
   notifications    Notification[]
+  trainerMembers   TrainerMember[]
+  progressNotes    TrainingProgress[]
+  invoices         Invoice[]
 
   @@index([code])
   @@index([phone])
@@ -230,6 +305,8 @@ model MembershipPackage {
   sessions     Int?
   type         PackageType   @default(FIXED_TERM)
   status       String        @default("ACTIVE")
+  // Giới hạn branch: null/[] = GLOBAL (dùng mọi chi nhánh ACTIVE); khác rỗng = chỉ dùng các branch trong mảng id
+  allowedBranches Json?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
@@ -248,12 +325,15 @@ model Membership {
   startDate         DateTime
   endDate           DateTime
   price             Decimal          @db.Decimal(12, 2)
+  discountAmount    Decimal?         @db.Decimal(12, 2)
+  finalAmount       Decimal?         @db.Decimal(12, 2)
   remainingSessions Int?
   status            MembershipStatus @default(ACTIVE)
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 
   payments          Payment[]
+  invoices          Invoice[]
 
   @@index([memberId])
   @@index([packageId])
@@ -271,15 +351,55 @@ model Payment {
   promotionId    String?
   promotion      Promotion?    @relation(fields: [promotionId], references: [id], onDelete: SetNull)
   amount         Decimal       @db.Decimal(12, 2)
+  // STEP 8 — tiền giảm thực tế tại thời điểm thanh toán (tham chiếu Promotion, không tính lại)
+  discountAmount Decimal?      @db.Decimal(12, 2)
+  currency       String        @default("VND")
   method         PaymentMethod @default(CASH)
-  status         PaymentStatus @default(COMPLETED)
-  transactionRef String?
+  status         PaymentStatus @default(PENDING)
+  // Mã giao dịch ngoài (chuyển khoản / cổng thanh toán) — unique nếu có giá trị
+  transactionRef String?       @unique
   notes          String?
+  // Xác nhận / hoàn tiền: ai đã duyệt, vào lúc nào
+  confirmedById  String?
+  confirmedBy    User?         @relation("PaymentConfirmedBy", fields: [confirmedById], references: [id], onDelete: SetNull)
+  confirmedAt    DateTime?
+  paidAt         DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
+  invoice Invoice?
+
   @@index([code])
   @@index([memberId])
+  @@index([membershipId])
+  @@index([status])
+  @@index([promotionId])
+  @@index([createdAt])
+  @@index([paidAt])
+}
+
+// Hóa đơn (Invoice) — tài liệu thanh toán, 1-1 với Payment trong flow đăng ký gói
+model Invoice {
+  id             String        @id @default(uuid())
+  invoiceNumber  String        @unique
+  memberId       String
+  member         Member        @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  membershipId   String?
+  membership     Membership?   @relation(fields: [membershipId], references: [id], onDelete: SetNull)
+  paymentId      String?       @unique
+  payment        Payment?      @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  subtotal       Decimal       @db.Decimal(12, 2)
+  discount       Decimal       @default(0) @db.Decimal(12, 2)
+  total          Decimal       @db.Decimal(12, 2)
+  status         InvoiceStatus @default(ISSUED)
+  issuedAt       DateTime      @default(now())
+  dueDate        DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([invoiceNumber])
+  @@index([memberId])
+  @@index([membershipId])
   @@index([status])
   @@index([createdAt])
 }
@@ -293,34 +413,89 @@ model CheckIn {
   checkInTime  DateTime      @default(now())
   checkOutTime DateTime?
   status       CheckInStatus @default(CHECKED_IN)
+  method       CheckInMethod @default(MANUAL)
   notes        String?
   createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
   @@index([memberId])
   @@index([branchId])
+  @@index([status])
   @@index([checkInTime])
 }
 
 model TrainingSchedule {
-  id        String         @id @default(uuid())
-  title     String
-  trainerId String
-  trainer   Trainer        @relation(fields: [trainerId], references: [id], onDelete: Restrict)
-  memberId  String?
-  member    Member?        @relation(fields: [memberId], references: [id], onDelete: SetNull)
-  roomId    String?
-  room      Room?          @relation(fields: [roomId], references: [id], onDelete: SetNull)
-  startTime DateTime
-  endTime   DateTime
-  status    ScheduleStatus @default(SCHEDULED)
-  notes     String?
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+  id               String         @id @default(uuid())
+  title            String
+  trainerId        String
+  trainer          Trainer        @relation(fields: [trainerId], references: [id], onDelete: Restrict)
+  memberId         String?
+  member           Member?        @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  branchId         String?
+  branch           Branch?        @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  roomId           String?
+  room             Room?          @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  type             SessionType    @default(PERSONAL_TRAINING)
+  startTime        DateTime
+  endTime          DateTime
+  status           ScheduleStatus @default(SCHEDULED)
+  description      String?
+  notes            String?
+  cancellationNote String?
+  completedAt      DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  progressNotes    TrainingProgress[]
 
   @@index([trainerId])
   @@index([memberId])
+  @@index([branchId])
+  @@index([roomId])
   @@index([startTime])
+  @@index([endTime])
   @@index([status])
+  @@index([type])
+}
+
+// Phân công HLV ↔ Hội viên (giữ lịch sử: chỉ 1 phân công ACTIVE cho mỗi member)
+model TrainerMember {
+  id        String             @id @default(uuid())
+  trainerId String
+  trainer   Trainer            @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  memberId  String
+  member    Member             @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  startDate DateTime           @default(now())
+  endDate   DateTime?
+  status    TrainerMemberStatus @default(ACTIVE)
+  note      String?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  @@index([trainerId])
+  @@index([memberId])
+  @@index([status])
+  @@index([trainerId, memberId])
+}
+
+// Ghi chú tiến trình buổi tập do HLV đánh giá sau buổi
+model TrainingProgress {
+  id             String           @id @default(uuid())
+  sessionId      String
+  session        TrainingSchedule @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  memberId       String
+  member         Member           @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  trainerId      String
+  trainer        Trainer          @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  note           String
+  performance    String?
+  recommendation String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([sessionId])
+  @@index([memberId])
+  @@index([trainerId])
 }
 
 model Promotion {
@@ -335,6 +510,7 @@ model Promotion {
   startDate    DateTime
   endDate      DateTime
   usageLimit   Int?
+  perMemberLimit Int?      // STEP 8 — số lần tối đa mỗi hội viên được dùng mã này
   usedCount    Int          @default(0)
   status       String       @default("ACTIVE")
   createdAt    DateTime     @default(now())
@@ -344,35 +520,67 @@ model Promotion {
 
   @@index([code])
   @@index([status])
+  @@index([status, endDate])
+}
+
+// Nhật ký hoạt động (AuditLog) — ghi lại các hành động quan trọng trong hệ thống
+// Không bao giờ lưu password/token vào bảng này.
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String   // VD: AUTH_LOGIN, MEMBER_CREATE, PAYMENT_CONFIRM, CHECK_IN...
+  entity    String   // Tên entity: Member, Payment, Schedule...
+  entityId  String?
+  metadata  Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([entity])
+  @@index([entityId])
+  @@index([createdAt])
 }
 
 model Equipment {
-  id             String                 @id @default(uuid())
-  code           String                 @unique
-  name           String
-  category       String
-  branchId       String
-  branch         Branch                 @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  roomId         String?
-  room           Room?                  @relation(fields: [roomId], references: [id], onDelete: SetNull)
-  purchaseDate   DateTime?
-  purchasePrice  Decimal?               @db.Decimal(12, 2)
-  status         EquipmentStatus        @default(OPERATIONAL)
-  warrantyExpiry DateTime?
-  createdAt      DateTime               @default(now())
-  updatedAt      DateTime               @updatedAt
+  id                String             @id @default(uuid())
+  code              String             @unique
+  name              String
+  category          String
+  branchId          String
+  branch            Branch             @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  roomId            String?
+  room              Room?              @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  brand             String?
+  model             String?
+  serialNumber      String?            @unique
+  purchaseDate      DateTime?
+  purchasePrice     Decimal?           @db.Decimal(12, 2)
+  warrantyExpiry    DateTime?
+  status            EquipmentStatus    @default(AVAILABLE)
+  condition         EquipmentCondition @default(GOOD)
+  lastMaintenanceAt DateTime?
+  nextMaintenanceAt DateTime?
+  description       String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
   maintenances   EquipmentMaintenance[]
 
   @@index([code])
   @@index([branchId])
+  @@index([roomId])
   @@index([status])
+  @@index([category])
+  @@index([nextMaintenanceAt])
 }
 
 model EquipmentMaintenance {
   id              String            @id @default(uuid())
   equipmentId     String
   equipment       Equipment         @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  type            MaintenanceType   @default(ROUTINE)
   maintenanceDate DateTime          @default(now())
   cost            Decimal?          @db.Decimal(10, 2)
   description     String
@@ -384,6 +592,8 @@ model EquipmentMaintenance {
 
   @@index([equipmentId])
   @@index([maintenanceDate])
+  @@index([status])
+  @@index([equipmentId, status])
 }
 
 model Notification {
@@ -396,10 +606,20 @@ model Notification {
   content   String
   type      String   @default("SYSTEM")
   isRead    Boolean  @default(false)
+  readAt    DateTime? // STEP 8 — mốc thời gian đọc thực tế
   link      String?
+  // STEP 8 — chống trùng lặp / truy vết nguồn sự kiện sinh ra thông báo
+  referenceType String?
+  referenceId   String?
+  data      Json?    // STEP 8 — payload mở rộng (giá trị động, meta điều hướng)
   createdAt DateTime @default(now())
 
   @@index([userId])
   @@index([memberId])
   @@index([isRead])
+  @@index([referenceType, referenceId])
+  @@index([memberId, isRead])
+  @@index([userId, isRead])
+  @@index([memberId, createdAt])
+  @@index([userId, createdAt])
 }

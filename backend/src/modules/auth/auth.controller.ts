@@ -1,4 +1,6 @@
-import { Controller, Post, Body, Get, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, Get, UseGuards, HttpCode, HttpStatus, Req } from '@nestjs/common';
+import { Request } from 'express';
+import { Throttle } from '@nestjs/throttler';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -18,16 +20,18 @@ export class AuthController {
 
   @Public()
   @Post('login')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Đăng nhập hệ thống (Lấy JWT Access Token)' })
   @ApiResponse({ status: 200, description: 'Đăng nhập thành công, trả về token' })
   @ApiResponse({ status: 401, description: 'Email hoặc mật khẩu sai' })
-  async login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto);
+  async login(@Body() loginDto: LoginDto, @Req() req: Request) {
+    return this.authService.login(loginDto, req.ip);
   }
 
   @Public()
   @Post('register')
+  @Throttle({ default: { limit: 5, ttl: 300_000 } })
   @ApiOperation({ summary: 'Đăng ký tài khoản người dùng mới' })
   @ApiResponse({ status: 201, description: 'Tài khoản được tạo thành công' })
   @ApiResponse({ status: 409, description: 'Email đã tồn tại' })
@@ -37,11 +41,12 @@ export class AuthController {
 
   @Public()
   @Post('member-register')
+  @Throttle({ default: { limit: 5, ttl: 300_000 } })
   @ApiOperation({ summary: 'Đăng ký tài khoản hội viên (tạo User + Member Profile)' })
   @ApiResponse({ status: 201, description: 'Tài khoản hội viên được tạo thành công' })
   @ApiResponse({ status: 409, description: 'Email đã tồn tại' })
-  async memberRegister(@Body() dto: MemberRegisterDto) {
-    return this.authService.registerMember(dto);
+  async memberRegister(@Body() dto: MemberRegisterDto, @Req() req: Request) {
+    return this.authService.registerMember(dto, req.ip);
   }
 
   @Get('profile')

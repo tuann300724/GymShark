@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException, ConflictException, BadRequestExcepti
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AuditService } from '../audit-logs/audit-logs.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { MemberRegisterDto } from './dto/member-register.dto';
@@ -12,6 +13,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private auditService: AuditService,
   ) {}
 
   async validateUser(email: string, pass: string): Promise<any> {
@@ -32,7 +34,7 @@ export class AuthService {
     return result;
   }
 
-  async login(loginDto: LoginDto) {
+  async login(loginDto: LoginDto, ip?: string) {
     const user = await this.validateUser(loginDto.email, loginDto.password);
     if (!user) {
       throw new UnauthorizedException('Email hoặc mật khẩu không chính xác');
@@ -55,6 +57,16 @@ export class AuthService {
       if (member) memberId = member.id;
     }
 
+    // Nhật ký hoạt động: đăng nhập thành công
+    await this.auditService.log({
+      userId: user.id,
+      action: 'AUTH_LOGIN',
+      entity: 'Auth',
+      entityId: user.id,
+      metadata: { email: user.email, role: user.role },
+      ip,
+    });
+
     return {
       message: 'Đăng nhập thành công',
       accessToken,
@@ -74,7 +86,7 @@ export class AuthService {
    * Public self-registration for a gym MEMBER.
    * Creates a User (role MEMBER) + a linked Member profile + a welcome notification.
    */
-  async registerMember(dto: MemberRegisterDto) {
+  async registerMember(dto: MemberRegisterDto, ip?: string) {
     const normalizedEmail = dto.email.trim().toLowerCase();
     const existing = await this.prisma.user.findUnique({
       where: { email: normalizedEmail },
@@ -158,6 +170,15 @@ export class AuthService {
       return { user, member };
     });
 
+    await this.auditService.log({
+      userId: result.user.id,
+      action: 'MEMBER_REGISTER',
+      entity: 'Member',
+      entityId: result.member.id,
+      metadata: { email: result.user.email, memberCode: result.member.code },
+      ip,
+    });
+
     return {
       message: 'Tạo tài khoản hội viên thành công',
       user: result.user,
@@ -195,6 +216,14 @@ export class AuthService {
         branchId: true,
         createdAt: true,
       },
+    });
+
+    await this.auditService.log({
+      userId: user.id,
+      action: 'USER_CREATE',
+      entity: 'User',
+      entityId: user.id,
+      metadata: { email: user.email, role: user.role },
     });
 
     return {

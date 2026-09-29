@@ -41,6 +41,14 @@ export class PublicController {
   }
 
   @Public()
+  @Get('promotions')
+  @ApiOperation({ summary: 'Mã khuyến mãi đang hiệu lực (trang gói tập công khai)' })
+  @ApiResponse({ status: 200, description: 'Danh sách mã khuyến mãi ACTIVE và còn thời hạn' })
+  getPromotions() {
+    return this.publicService.getPromotions();
+  }
+
+  @Public()
   @Get('home-stats')
   @ApiOperation({ summary: 'Thống kê nhanh cho trang chủ' })
   @ApiResponse({ status: 200, description: 'Số liệu hội viên, HLV, chi nhánh' })

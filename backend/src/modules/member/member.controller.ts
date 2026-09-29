@@ -49,6 +49,12 @@ export class MemberController {
     return this.memberService.getStats(userId);
   }
 
+  @Get('trainer')
+  @ApiOperation({ summary: 'HLV hiện tại đang phụ trách hội viên đang đăng nhập' })
+  getTrainer(@CurrentUser('id') userId: string) {
+    return this.memberService.getTrainer(userId);
+  }
+
   // ---------------- Memberships ----------------
 
   @Get('memberships')
@@ -65,9 +71,9 @@ export class MemberController {
 
   @Post('memberships')
   @Roles(Role.MEMBER)
-  @ApiOperation({ summary: 'Đăng ký gói tập mới (tạo Membership + Payment, mock payment hoàn tất)' })
-  @ApiResponse({ status: 201, description: 'Đăng ký thành công' })
-  @ApiResponse({ status: 409, description: 'Đang có gói tập hoạt động' })
+  @ApiOperation({ summary: 'Đăng ký gói tập mới (tạo Membership + Payment PENDING, chờ xác nhận)' })
+  @ApiResponse({ status: 201, description: 'Đã gửi yêu cầu đăng ký' })
+  @ApiResponse({ status: 409, description: 'Đang có gói hoạt động hoặc đang chờ xác nhận' })
   registerMembership(@CurrentUser('id') userId: string, @Body() dto: RegisterMembershipDto) {
     return this.memberService.registerMembership(userId, dto);
   }
