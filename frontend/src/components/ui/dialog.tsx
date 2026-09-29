@@ -41,6 +41,10 @@ export function Dialog({ open, onClose, title, description, children, className 
       <div
         className={cn(
           'relative w-full max-w-lg rounded-2xl border border-line bg-surface shadow-2xl p-6',
+          // Nội dung dài (form nhiều ô, màn quét camera) ở mobile sẽ cao hơn viewport;
+          // body đã bị khoá scroll nên bản thân hộp thoại phải cuộn được, nếu không
+          // nút đóng và các nút cuối sẽ nằm ngoài màn hình, không bấm được.
+          'max-h-[calc(100dvh-2rem)] overflow-y-auto',
           'animate-zoom-in',
           className,
         )}
