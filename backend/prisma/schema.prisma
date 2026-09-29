@@ -89,6 +89,7 @@ enum CheckInMethod {
   MANUAL
   QR_CODE
   STAFF
+  FACE_ID
 }
 
 enum ScheduleStatus {
@@ -287,6 +288,7 @@ model Member {
   trainerMembers   TrainerMember[]
   progressNotes    TrainingProgress[]
   invoices         Invoice[]
+  faceEmbeddings   FaceEmbedding[]
 
   @@index([code])
   @@index([phone])
@@ -422,6 +424,21 @@ model CheckIn {
   @@index([branchId])
   @@index([status])
   @@index([checkInTime])
+}
+
+/// DỮ LIỆU SINH TRẮC HỌC — chỉ lưu vector embedding (không lưu ảnh gốc),
+/// tuân thủ Nghị định 13/2023/NĐ-CP về dữ liệu cá nhân nhạy cảm.
+/// Một hội viên có nhiều mẫu (mỗi góc mặt 1 dòng); xoá toàn bộ = rút lui đồng ý.
+model FaceEmbedding {
+  id        String   @id @default(uuid())
+  memberId  String
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  embedding Float[]
+  consentAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([memberId])
 }
 
 model TrainingSchedule {

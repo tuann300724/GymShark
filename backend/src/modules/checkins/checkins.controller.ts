@@ -11,6 +11,8 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CheckinsService } from './checkins.service';
 import {
   CheckInDto,
+  FaceCheckInDto,
+  FaceScanDto,
   GetCheckinsQueryDto,
   MyHistoryQueryDto,
   StaffCheckInDto,
@@ -61,6 +63,31 @@ export class CheckinsController {
     @CurrentUser('id') actorId?: string,
   ) {
     return this.checkinsService.staffCheckIn(dto, role, branchId, actorId);
+  }
+
+  @Post('face-scan')
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @ApiOperation({
+    summary:
+      'Lễ tân quét khuôn mặt 1:N tại quầy — server tự nhận diện hội viên (vector) rồi check-in',
+  })
+  faceScan(
+    @Body() dto: FaceScanDto,
+    @CurrentUser('role') role: string,
+    @CurrentUser('branchId') branchId?: string | null,
+    @CurrentUser('id') actorId?: string,
+  ) {
+    return this.checkinsService.faceScanForStaff(dto, role, branchId, actorId);
+  }
+
+  @Post('face')
+  @Roles(Role.MEMBER, Role.TRAINER)
+  @ApiOperation({
+    summary:
+      'Hội viên tự quét khuôn mặt để check-in (1:1 — so vector với mẫu đã đăng ký, không gửi ảnh)',
+  })
+  faceCheckIn(@CurrentUser('id') userId: string, @Body() dto: FaceCheckInDto) {
+    return this.checkinsService.faceCheckIn(userId, dto);
   }
 
   @Post(':id/checkout')

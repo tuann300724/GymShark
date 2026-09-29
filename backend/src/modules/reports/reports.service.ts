@@ -706,7 +706,7 @@ export class ReportsService {
     const fromDate = query.from ? this.startOfDay(new Date(query.from)) : this.daysAgo(30);
     const branchFilter = query.branchId ? { branchId: query.branchId } : {};
 
-    const [checkIns, checkOuts, byBranchRows] = await Promise.all([
+    const [checkIns, checkOuts, byBranchRows, byMethodRows] = await Promise.all([
       this.prisma.checkIn.findMany({
         where: { checkInTime: { gte: fromDate, lte: toDate }, ...branchFilter },
         select: { checkInTime: true },
@@ -717,6 +717,12 @@ export class ReportsService {
       }),
       this.prisma.checkIn.groupBy({
         by: ['branchId'],
+        where: { checkInTime: { gte: fromDate, lte: toDate }, ...branchFilter },
+        _count: true,
+      }),
+      // Số lượt theo hình thức check-in (MANUAL / STAFF / QR_CODE / FACE_ID)
+      this.prisma.checkIn.groupBy({
+        by: ['method'],
         where: { checkInTime: { gte: fromDate, lte: toDate }, ...branchFilter },
         _count: true,
       }),
@@ -788,6 +794,9 @@ export class ReportsService {
       byHour: hourBuckets,
       byWeekday,
       byBranch,
+      byMethod: byMethodRows
+        .map((r) => ({ method: r.method, count: r._count }))
+        .sort((a, b) => b.count - a.count),
     };
   }
 

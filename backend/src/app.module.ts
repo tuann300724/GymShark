@@ -12,6 +12,7 @@ import { BranchesModule } from './modules/branches/branches.module';
 import { PackagesModule } from './modules/packages/packages.module';
 import { MembershipsModule } from './modules/memberships/memberships.module';
 import { CheckinsModule } from './modules/checkins/checkins.module';
+import { FacesModule } from './modules/faces/faces.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
 import { SchedulesModule } from './modules/schedules/schedules.module';
@@ -48,6 +49,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     PackagesModule,
     MembershipsModule,
     CheckinsModule,
+    FacesModule,
     PaymentsModule,
     InvoicesModule,
     SchedulesModule,

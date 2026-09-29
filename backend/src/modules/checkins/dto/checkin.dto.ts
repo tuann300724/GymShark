@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { CheckInMethod, CheckInStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
+  IsArray,
   IsEnum,
   IsIn,
   IsISO8601,
@@ -176,4 +177,28 @@ export class MemberAttendanceQueryDto {
   @IsString()
   @MaxLength(100)
   search?: string;
+}
+
+export class FaceCheckInDto {
+  @ApiProperty({
+    description:
+      'Vector khuôn mặt đọc từ webcam tại thời điểm quét (client tính bằng model AI trong trình duyệt, không gửi ảnh)',
+  })
+  @IsArray()
+  embedding: number[];
+
+  @ApiPropertyOptional({
+    description: 'Chi nhánh check-in (mặc định chi nhánh của hội viên; gói giới hạn branch sẽ được kiểm tra)',
+  })
+  @IsOptional()
+  @IsString()
+  branchId?: string;
+}
+
+export class FaceScanDto {
+  @ApiProperty({
+    description: 'Vector khuôn mặt của người đứng trước camera lễ tân (nhận diện 1:N phía server)',
+  })
+  @IsArray()
+  embedding: number[];
 }

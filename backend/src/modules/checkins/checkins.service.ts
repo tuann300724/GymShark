@@ -7,6 +7,8 @@ import {
 import { CheckInMethod, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit-logs/audit-logs.service';
+import { FacesService } from '../faces/faces.service';
+import { FaceCheckInDto, FaceScanDto } from './dto/checkin.dto';
 
 interface CheckInMember {
   id: string;
@@ -20,6 +22,7 @@ export class CheckinsService {
   constructor(
     private prisma: PrismaService,
     private auditService: AuditService,
+    private facesService: FacesService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -272,6 +275,68 @@ export class CheckinsService {
         durationMinutes: this.computeDurationMinutes(updated.checkInTime, checkOutAt),
         branch: updated.branch,
       },
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Face check-in — quét nhận diện khuôn mặt (sinh trắc học)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * POST /checkins/face — hội viên tự quét khuôn mặt (1:1).
+   * Bước 1: FacesService so vector với mẫu đã đăng ký của CHÍNH hội viên (cosine).
+   * Bước 2: nếu khớp → gọi lại pipeline checkIn() chuẩn (validate thẻ/chi nhánh,
+   *          notification, audit) với method FACE_ID — không viết lại validate.
+   */
+  async faceCheckIn(userId: string, dto: FaceCheckInDto) {
+    const member = await this.resolveMemberByUserId(userId);
+    const match = await this.facesService.matchForMember(member.id, dto.embedding);
+    if (!match) {
+      throw new BadRequestException(
+        'Khuôn mặt không khớp với hồ sơ đăng ký. Vui lòng thử lại (đảm bảo đủ ánh sáng) hoặc đăng ký lại khuôn mặt.',
+      );
+    }
+
+    const result = await this.checkIn(userId, CheckInMethod.FACE_ID, dto.branchId);
+    return {
+      ...result,
+      face: { similarity: Number(match.similarity.toFixed(4)) },
+    };
+  }
+
+  /**
+   * POST /checkins/face-scan — lễ tân quét 1:N tại quầy.
+   * Server tự nhận diện (không tin memberId từ client) rồi chạy pipeline staffCheckIn.
+   * Chi nhánh ghi nhận = chi nhánh của người quét (máy quầy lễ tân); STAFF vẫn
+   * bị ràng buộc "chỉ check-in tại chi nhánh của mình" như lệnh staff thường.
+   */
+  async faceScanForStaff(
+    dto: FaceScanDto,
+    role: string,
+    userBranchId?: string | null,
+    actorId?: string,
+  ) {
+    const match = await this.facesService.matchGlobal(dto.embedding);
+    if (!match) {
+      throw new NotFoundException(
+        'Không nhận diện được hội viên nào. Vui lòng thử lại hoặc check-in thủ công.',
+      );
+    }
+
+    const result = await this.staffCheckIn(
+      {
+        memberId: match.memberId,
+        method: CheckInMethod.FACE_ID,
+        note: `Quét khuôn mặt — độ khớp ${(match.similarity * 100).toFixed(1)}%`,
+        branchId: userBranchId ?? undefined,
+      },
+      role,
+      userBranchId,
+      actorId,
+    );
+    return {
+      ...result,
+      face: { similarity: Number(match.similarity.toFixed(4)) },
     };
   }
 

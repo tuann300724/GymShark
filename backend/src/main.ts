@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -7,13 +8,17 @@ import helmet from 'helmet';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT') || 3001;
 
   // 0. Security headers (Helmet) — trước mọi middleware khác
   app.use(helmet());
+
+  // 0b. Body parser — payload vector khuôn mặt (tối đa 5 mẫu × 1024 số) có thể
+  // vượt giới hạn 100kb mặc định của Express
+  app.useBodyParser('json', { limit: '1mb' });
 
   // 1. Enable Global Prefix
   app.setGlobalPrefix('api');
@@ -69,6 +74,7 @@ async function bootstrap() {
     .addTag('Membership Packages', 'Quản lý các gói tập gym')
     .addTag('Memberships', 'Quản lý các hợp đồng thẻ hội viên')
     .addTag('Check-ins', 'Quản lý lượt ra vào & quét thẻ check-in')
+    .addTag('Face Recognition', 'Đăng ký & quét nhận diện khuôn mặt (sinh trắc học)')
     .addTag('Payments', 'Quản lý giao dịch thu tiền và hoá đơn')
     .addTag('Training Schedules', 'Quản lý lịch tập và lớp học PT')
     .addTag('Promotions', 'Quản lý phiếu giảm giá và mã khuyến mãi')
