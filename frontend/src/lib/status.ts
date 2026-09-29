@@ -160,6 +160,7 @@ export const AUDIT_ACTION_META: Record<string, { label: string; variant: BadgeVa
   USER_CREATE: { label: 'Tạo tài khoản', variant: 'default' },
 
   // Hội viên
+  MEMBER_CREATE: { label: 'Tạo hội viên tại quầy', variant: 'success' },
   MEMBER_REGISTER: { label: 'Đăng ký hội viên', variant: 'success' },
   MEMBER_UPDATE: { label: 'Cập nhật hội viên', variant: 'default' },
   MEMBER_PROFILE_UPDATE: { label: 'Cập nhật hồ sơ cá nhân', variant: 'default' },

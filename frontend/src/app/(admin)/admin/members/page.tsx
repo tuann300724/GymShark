@@ -11,6 +11,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
+import { MemberCreateDialog } from '@/components/admin/member-create-dialog';
 import { formatDate } from '@/lib/utils';
 import { MEMBER_STATUS_META, MEMBERSHIP_STATUS_META } from '@/lib/status';
 import {
@@ -44,6 +45,7 @@ export default function MembersPage() {
 
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState<any>({});
+  const [showCreate, setShowCreate] = useState(false);
 
   useEffect(() => {
     setPage(1);
@@ -147,12 +149,15 @@ export default function MembersPage() {
             Tìm kiếm, lọc, khóa/kích hoạt tài khoản hội viên ({data?.total ?? 0} hội viên)
           </p>
         </div>
-        <Link href="/admin/members">
-          <Button variant="primary" size="md" className="font-semibold text-xs">
-            <Plus className="size-4 mr-1.5" />
-            Đăng ký Hội viên mới
-          </Button>
-        </Link>
+        <Button
+          variant="primary"
+          size="md"
+          className="font-semibold text-xs"
+          onClick={() => setShowCreate(true)}
+        >
+          <Plus className="size-4 mr-1.5" />
+          Đăng ký Hội viên mới
+        </Button>
       </div>
 
       {/* Filter and Search Bar */}
@@ -460,6 +465,13 @@ export default function MembersPage() {
           </div>
         </div>
       </Dialog>
+
+      {/* Đăng ký hội viên mới tại quầy: hồ sơ → gói tập → quét khuôn mặt */}
+      <MemberCreateDialog
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        onCreated={() => queryClient.invalidateQueries({ queryKey: ['admin-members'] })}
+      />
     </div>
   );
 }
