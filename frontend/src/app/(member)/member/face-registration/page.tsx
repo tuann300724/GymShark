@@ -28,18 +28,21 @@ export default function FaceRegistrationPage() {
   const [phase, setPhase] = useState<'idle' | 'scanning'>('idle');
   const [consent, setConsent] = useState(false);
   const [samples, setSamples] = useState<number[][]>([]);
+  const [imageData, setImageData] = useState<string | null>(null);
   const [scanKey, setScanKey] = useState(0);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const errMsg = (err: any, fallback: string) => err?.response?.data?.message || fallback;
 
   const enrollMutation = useMutation({
-    mutationFn: (vecs: number[][]) => faceApi.enroll(vecs),
+    mutationFn: ({ vecs, image }: { vecs: number[][]; image: string | null }) =>
+      faceApi.enroll(vecs, image),
     onSuccess: () => {
       toast.success('ĐĂNG KÝ THÀNH CÔNG', 'Giờ bạn có thể check-in chỉ bằng khuôn mặt.');
       setPhase('idle');
       setConsent(false);
       setSamples([]);
+      setImageData(null);
       queryClient.invalidateQueries({ queryKey: ['face-status'] });
     },
     onError: (err: any) =>
@@ -54,6 +57,7 @@ export default function FaceRegistrationPage() {
       setPhase('idle');
       setConsent(false);
       setSamples([]);
+      setImageData(null);
       queryClient.invalidateQueries({ queryKey: ['face-status'] });
     },
     onError: (err: any) => toast.error('Không xoá được', errMsg(err, 'Vui lòng thử lại sau.')),
@@ -61,6 +65,7 @@ export default function FaceRegistrationPage() {
 
   const restartScan = () => {
     setSamples([]);
+    setImageData(null);
     setScanKey((k) => k + 1);
   };
 
@@ -108,7 +113,11 @@ export default function FaceRegistrationPage() {
               key={scanKey}
               mode="enroll"
               target={SAMPLE_TARGET}
-              onSamples={setSamples}
+              withImage
+              onSamples={(next, image) => {
+                setSamples(next);
+                setImageData(image);
+              }}
               onError={(msg) => toast.error('Không mở được camera', msg)}
             />
 
@@ -118,8 +127,8 @@ export default function FaceRegistrationPage() {
                 className="flex-1"
                 size="lg"
                 isLoading={enrollMutation.isPending}
-                disabled={samples.length < SAMPLE_TARGET || enrollMutation.isPending}
-                onClick={() => enrollMutation.mutate(samples)}
+                disabled={samples.length < SAMPLE_TARGET || !imageData || enrollMutation.isPending}
+                onClick={() => enrollMutation.mutate({ vecs: samples, image: imageData })}
               >
                 <ShieldCheck className="size-4 mr-1.5" />
                 Đăng ký ({samples.length}/{SAMPLE_TARGET} mẫu)
@@ -133,11 +142,17 @@ export default function FaceRegistrationPage() {
                 onClick={() => {
                   setPhase('idle');
                   setSamples([]);
+                  setImageData(null);
                 }}
               >
                 Hủy
               </Button>
             </div>
+            {!imageData && (
+              <p className="mt-3 text-center text-[11px] text-danger">
+                Chưa chụp được ảnh khuôn mặt — bấm &quot;Chụp lại&quot; rồi giữ mặt trong khung.
+              </p>
+            )}
             <p className="mt-3 text-center text-[11px] text-muted">
               Mẹo: thay đổi góc mặt giữa các mẫu để nhận diện chính xác hơn.
             </p>
@@ -153,6 +168,14 @@ export default function FaceRegistrationPage() {
             <h2 className="mt-4 font-display text-xl font-bold uppercase tracking-tight text-chalk">
               Đã đăng ký khuôn mặt
             </h2>
+            {status.imageData && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={status.imageData}
+                alt="Ảnh khuôn mặt đã đăng ký"
+                className="mx-auto mt-4 h-36 w-28 rounded-xl border border-line object-cover"
+              />
+            )}
             <div className="mx-auto mt-4 max-w-sm space-y-2">
               <div className="flex items-center justify-between rounded-xl border border-line bg-ink px-4 py-3 text-left">
                 <span className="text-sm text-muted">Số mẫu đã lưu</span>
@@ -168,7 +191,7 @@ export default function FaceRegistrationPage() {
               </div>
             </div>
             <p className="mt-4 text-xs text-muted">
-              Chỉ lưu vector số — không lưu ảnh. Bạn có thể xoá bất cứ lúc nào.
+              Đã lưu vector đặc trưng và ảnh chụp lúc đăng ký. Bạn có thể xoá bất cứ lúc nào.
             </p>
 
             <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
@@ -216,9 +239,9 @@ export default function FaceRegistrationPage() {
               <li className="flex gap-2.5">
                 <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-neon" />
                 <span>
-                  Hệ thống chỉ lưu <strong className="text-chalk">vector số</strong> (đặc trưng mã
-                  hoá) — <strong className="text-chalk">không lưu ảnh hay video</strong> khuôn mặt
-                  của bạn.
+                  Hệ thống lưu <strong className="text-chalk">vector đặc trưng</strong> (dạng mã
+                  hoá) và <strong className="text-chalk">01 ảnh chụp lúc đăng ký</strong> để đối
+                  chiếu khi check-in — không lưu video.
                 </span>
               </li>
               <li className="flex gap-2.5">
@@ -236,7 +259,7 @@ export default function FaceRegistrationPage() {
                 <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-neon" />
                 <span>
                   Bạn có thể <strong className="text-chalk">rút lui bất cứ lúc nào</strong>: xoá
-                  toàn bộ dữ liệu, không ảnh hưởng quyền lợi hội viên.
+                  toàn bộ vector và ảnh, không ảnh hưởng quyền lợi hội viên.
                 </span>
               </li>
             </ul>
@@ -281,7 +304,7 @@ export default function FaceRegistrationPage() {
         open={confirmDelete}
         onClose={() => setConfirmDelete(false)}
         title="Xoá dữ liệu khuôn mặt?"
-        description="Toàn bộ vector khuôn mặt của bạn sẽ bị xoá vĩnh viễn (không thể hoàn tác). Bạn cần đăng ký lại nếu muốn dùng check-in khuôn mặt."
+        description="Toàn bộ vector và ảnh khuôn mặt của bạn sẽ bị xoá vĩnh viễn (không thể hoàn tác). Bạn cần đăng ký lại nếu muốn dùng check-in khuôn mặt."
       >
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
           <Button variant="outline" onClick={() => setConfirmDelete(false)}>

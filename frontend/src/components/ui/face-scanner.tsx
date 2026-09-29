@@ -28,15 +28,36 @@ const STABLE_MS = 600; // giữ khuôn mặt ổn định trước khi bắt m�
 const CAPTURE_COOLDOWN_MS = 900; // nghỉ giữa 2 mẫu khi đăng ký
 const TICK_MS = 150; // nhịp quét
 const MIN_FACE_SCORE = 0.5; // điểm phát hiện tối thiểu
+const SNAPSHOT_WIDTH = 480; // bề rộng ảnh tham chiếu — đủ nét để đối chiếu, đủ nhẹ để lưu DB
+
+/** Chụp 1 khung hình từ video thành ảnh JPEG nhỏ (data URL) để lưu làm ảnh tham chiếu */
+function captureFrame(video: HTMLVideoElement | null): string | null {
+  if (!video || !video.videoWidth) return null;
+  const scale = Math.min(1, SNAPSHOT_WIDTH / video.videoWidth);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(video.videoWidth * scale);
+  canvas.height = Math.round(video.videoHeight * scale);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  try {
+    // quality 0.75 × 480px ≈ 30–50KB → vừa phải để lưu trong DB
+    return canvas.toDataURL('image/jpeg', 0.75);
+  } catch {
+    return null;
+  }
+}
 
 interface FaceScannerProps {
   mode: 'enroll' | 'verify';
   /** Số mẫu cần chụp (mode=enroll), mặc định 5 */
   target?: number;
-  /** mode=enroll: gọi mỗi khi thêm 1 mẫu mới */
-  onSamples?: (samples: number[][]) => void;
+  /** mode=enroll: gọi mỗi khi thêm 1 mẫu mới (kèm ảnh JPEG data URL nếu withImage) */
+  onSamples?: (samples: number[][], imageData: string | null) => void;
   /** mode=verify: gọi 1 lần khi bắt được khuôn mặt ổn định */
   onCapture?: (embedding: number[]) => void;
+  /** mode=enroll: chụp thêm 1 ảnh JPEG ở mẫu đầu để lưu làm ảnh tham chiếu */
+  withImage?: boolean;
   /** Lỗi chặn tiếp tục (chặn quyền camera...) — trang cha toast */
   onError?: (message: string) => void;
   className?: string;
@@ -70,6 +91,7 @@ export function FaceScanner({
   target = 5,
   onSamples,
   onCapture,
+  withImage = false,
   onError,
   className,
 }: FaceScannerProps) {
@@ -82,14 +104,15 @@ export function FaceScanner({
 
   // Refs để vòng quét đọc dữ liệu mới nhất mà không phải cài lại effect
   const samplesRef = useRef<number[][]>([]);
+  const imageRef = useRef<string | null>(null);
   const runningRef = useRef(false);
   const stableSinceRef = useRef<number | null>(null);
   const cooldownUntilRef = useRef(0);
   const targetRef = useRef(target);
-  const callbacksRef = useRef({ mode, onSamples, onCapture, onError });
+  const callbacksRef = useRef({ mode, onSamples, onCapture, onError, withImage });
 
   useEffect(() => {
-    callbacksRef.current = { mode, onSamples, onCapture, onError };
+    callbacksRef.current = { mode, onSamples, onCapture, onError, withImage };
   });
 
   useEffect(() => {
@@ -138,9 +161,13 @@ export function FaceScanner({
         callbacksRef.current.onCapture?.(embedding);
       } else {
         const next = [...samplesRef.current, embedding];
+        // Mẫu đầu tiên: chụp luôn 1 ảnh tham chiếu (nếu bật) để lưu vào hồ sơ
+        if (next.length === 1 && callbacksRef.current.withImage && !imageRef.current) {
+          imageRef.current = captureFrame(videoRef.current);
+        }
         samplesRef.current = next;
         setSamples(next);
-        callbacksRef.current.onSamples?.(next);
+        callbacksRef.current.onSamples?.(next, imageRef.current);
         stableSinceRef.current = null;
         cooldownUntilRef.current = now + CAPTURE_COOLDOWN_MS;
         if (next.length >= targetRef.current) {

@@ -322,8 +322,8 @@ export interface CheckInResult {
   success: boolean;
   message: string;
   data: CheckInResultData;
-  /** Chỉ có ở check-in bằng khuôn mặt: độ khớp cosine similarity đã chấm */
-  face?: { similarity: number };
+  /** Chỉ có ở check-in bằng khuôn mặt: độ khớp cosine + ảnh tham chiếu để lễ tân đối chiếu */
+  face?: { similarity: number; imageData?: string | null };
 }
 
 export interface AdminCheckInRecord {

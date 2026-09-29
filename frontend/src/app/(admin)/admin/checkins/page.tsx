@@ -205,6 +205,7 @@ export default function AdminCheckinsPage() {
     name: string;
     code?: string;
     similarity: number;
+    imageData?: string | null;
   } | null>(null);
 
   useEffect(() => {
@@ -222,6 +223,7 @@ export default function AdminCheckinsPage() {
         name: member?.fullName || 'Hội viên',
         code: member?.code,
         similarity: res.face?.similarity ?? 0,
+        imageData: res.face?.imageData ?? null,
       });
       invalidateAll();
       refetchInside();
@@ -677,6 +679,14 @@ export default function AdminCheckinsPage() {
             </h3>
             {faceScanResult.code && (
               <p className="mt-1 font-mono text-xs text-neon">{faceScanResult.code}</p>
+            )}
+            {faceScanResult.imageData && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={faceScanResult.imageData}
+                alt={`Ảnh đăng ký của ${faceScanResult.name}`}
+                className="mx-auto mt-4 h-40 w-32 rounded-xl border border-line object-cover"
+              />
             )}
             <p className="mt-3 text-sm text-muted">
               Độ khớp:{' '}

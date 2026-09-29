@@ -12,6 +12,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
+import { FaceScanner } from '@/components/ui/face-scanner';
 import { faceApi } from '@/services/face.service';
 import {
   formatCurrency,
@@ -44,6 +45,8 @@ import {
   ScanFace,
   Trash2,
 } from 'lucide-react';
+
+const SAMPLE_TARGET = 5;
 
 export default function MemberDetailPage() {
   const params = useParams();
@@ -89,12 +92,40 @@ export default function MemberDetailPage() {
 
   // ------------------ Đăng ký khuôn mặt (sinh trắc học) ------------------
   const [confirmFaceDelete, setConfirmFaceDelete] = useState(false);
+  const [faceEnrollOpen, setFaceEnrollOpen] = useState(false);
+  const [faceEnrollKey, setFaceEnrollKey] = useState(0);
+  const [faceEnrollSamples, setFaceEnrollSamples] = useState<number[][]>([]);
+  const [faceEnrollImage, setFaceEnrollImage] = useState<string | null>(null);
+  const [faceConsent, setFaceConsent] = useState(false);
 
   const { data: faceStatus } = useQuery({
     queryKey: ['member-face', id],
     queryFn: () => faceApi.getMemberFace(id),
     enabled: !!id && activeTab === 'checkins',
     retry: 0,
+  });
+
+  /** Mở dialog đăng ký khuôn mặt thay hội viên (làm thẻ tại quầy) */
+  const openFaceEnroll = () => {
+    setFaceEnrollSamples([]);
+    setFaceEnrollImage(null);
+    setFaceConsent(false);
+    setFaceEnrollKey((k) => k + 1);
+    setFaceEnrollOpen(true);
+  };
+
+  const faceEnrollMutation = useMutation({
+    mutationFn: ({ vecs, image }: { vecs: number[][]; image: string | null }) =>
+      faceApi.adminEnroll(id, vecs, image),
+    onSuccess: () => {
+      toast.success('Đã đăng ký khuôn mặt', 'Hội viên có thể check-in bằng khuôn mặt tại quầy.');
+      setFaceEnrollOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['member-face', id] });
+    },
+    onError: (err: any) => {
+      const msg = err.response?.data?.message || 'Không lưu được dữ liệu khuôn mặt.';
+      toast.error('Đăng ký thất bại', Array.isArray(msg) ? msg.join(', ') : msg);
+    },
   });
 
   const faceDeleteMutation = useMutation({
@@ -496,19 +527,28 @@ export default function MemberDetailPage() {
             </Card>
           </div>
 
-          {/* Sinh trắc học — trạng thái đăng ký khuôn mặt */}
+          {/* Sinh trắc học — trạng thái đăng ký khuôn mặt (lễ tân đăng ký hộ tại quầy) */}
           <Card className="border-line">
             <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
-                <span
-                  className={`flex size-10 shrink-0 items-center justify-center rounded-full ${
-                    faceStatus?.enrolled
-                      ? 'border border-neon/40 bg-neon/10 text-neon'
-                      : 'border border-line bg-ink text-muted'
-                  }`}
-                >
-                  <ScanFace className="size-5" />
-                </span>
+                {faceStatus?.imageData ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={faceStatus.imageData}
+                    alt={`Ảnh khuôn mặt của ${member?.fullName ?? ''}`}
+                    className="size-14 shrink-0 rounded-xl border border-neon/40 object-cover"
+                  />
+                ) : (
+                  <span
+                    className={`flex size-10 shrink-0 items-center justify-center rounded-full ${
+                      faceStatus?.enrolled
+                        ? 'border border-neon/40 bg-neon/10 text-neon'
+                        : 'border border-line bg-ink text-muted'
+                    }`}
+                  >
+                    <ScanFace className="size-5" />
+                  </span>
+                )}
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-chalk">Đăng ký khuôn mặt</p>
                   <p className="text-xs text-muted">
@@ -520,18 +560,22 @@ export default function MemberDetailPage() {
                         {faceStatus.consentAt ? formatDateTime(faceStatus.consentAt) : '--'}
                       </>
                     ) : (
-                      'Chưa đăng ký — hội viên tự đăng ký ở trang Check-in, tab Khuôn mặt.'
+                      'Chưa đăng ký — có thể quét khuôn mặt cho hội viên ngay tại quầy.'
                     )}
                   </p>
                 </div>
               </div>
-              {faceStatus?.enrolled ? (
-                <Button variant="danger" size="sm" onClick={() => setConfirmFaceDelete(true)}>
-                  <Trash2 className="size-3.5 mr-1" /> Xoá đăng ký
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
+                <Button variant="outline" size="sm" onClick={openFaceEnroll}>
+                  <ScanFace className="size-3.5 mr-1" />
+                  {faceStatus?.enrolled ? 'Đăng ký lại' : 'Đăng ký khuôn mặt'}
                 </Button>
-              ) : (
-                <Badge variant="outline">Chưa đăng ký</Badge>
-              )}
+                {faceStatus?.enrolled && (
+                  <Button variant="danger" size="sm" onClick={() => setConfirmFaceDelete(true)}>
+                    <Trash2 className="size-3.5 mr-1" /> Xoá đăng ký
+                  </Button>
+                )}
+              </div>
             </CardContent>
           </Card>
 
@@ -602,12 +646,69 @@ export default function MemberDetailPage() {
         </div>
       )}
 
+      {/* Đăng ký khuôn mặt THAY hội viên — lễ tân quét tại quầy khi làm thẻ */}
+      <Dialog
+        open={faceEnrollOpen}
+        onClose={() => setFaceEnrollOpen(false)}
+        title="Đăng ký khuôn mặt cho hội viên"
+        description="Quét khuôn mặt hội viên tại quầy để lưu ảnh + vector đối chiếu khi check-in."
+      >
+        <FaceScanner
+          key={faceEnrollKey}
+          mode="enroll"
+          target={SAMPLE_TARGET}
+          withImage
+          onSamples={(next, image) => {
+            setFaceEnrollSamples(next);
+            setFaceEnrollImage(image);
+          }}
+          onError={(msg) => toast.error('Không mở được camera', msg)}
+        />
+
+        <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-line bg-ink p-3.5 transition-colors hover:border-neon/40">
+          <input
+            type="checkbox"
+            checked={faceConsent}
+            onChange={(e) => setFaceConsent(e.target.checked)}
+            className="mt-0.5 size-4 shrink-0 accent-neon"
+          />
+          <span className="text-xs text-chalk">
+            Tôi xác nhận hội viên <strong className="text-neon">{member?.fullName ?? ''}</strong> đã
+            đồng ý cho GymShark xử lý dữ liệu sinh trắc học (khuôn mặt) theo Nghị định
+            13/2023/NĐ-CP.
+          </span>
+        </label>
+
+        {!faceEnrollImage && faceEnrollSamples.length >= SAMPLE_TARGET && (
+          <p className="mt-3 text-center text-[11px] text-danger">
+            Chưa chụp được ảnh khuôn mặt — bấm &quot;Hủy&quot; rồi mở lại để quét.
+          </p>
+        )}
+
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <Button variant="outline" onClick={() => setFaceEnrollOpen(false)}>
+            Hủy
+          </Button>
+          <Button
+            variant="primary"
+            isLoading={faceEnrollMutation.isPending}
+            disabled={faceEnrollSamples.length < SAMPLE_TARGET || !faceEnrollImage || !faceConsent}
+            onClick={() =>
+              faceEnrollMutation.mutate({ vecs: faceEnrollSamples, image: faceEnrollImage })
+            }
+          >
+            <ShieldCheck className="size-4 mr-1.5" /> Đăng ký ({faceEnrollSamples.length}/
+            {SAMPLE_TARGET})
+          </Button>
+        </div>
+      </Dialog>
+
       {/* Xác nhận xoá đăng ký khuôn mặt */}
       <Dialog
         open={confirmFaceDelete}
         onClose={() => setConfirmFaceDelete(false)}
         title="Xoá đăng ký khuôn mặt?"
-        description="Toàn bộ vector khuôn mặt của hội viên sẽ bị xoá vĩnh viễn. Hội viên cần đăng ký lại nếu muốn dùng check-in khuôn mặt."
+        description="Toàn bộ vector và ảnh khuôn mặt của hội viên sẽ bị xoá vĩnh viễn. Hội viên cần đăng ký lại nếu muốn dùng check-in khuôn mặt."
       >
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
           <Button variant="outline" onClick={() => setConfirmFaceDelete(false)}>
