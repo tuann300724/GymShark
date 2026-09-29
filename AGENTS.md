@@ -94,21 +94,55 @@ Sửa nhiều/rộng → thêm `npm run build`. Sửa backend → `npm run build
 
 Chrome chuẩn: desktop 1440px, mobile 390px (không được tràn ngang). Backend chưa chạy thì các trang có dữ liệu hiển thị **empty state** sẵn có — không coi là lỗi.
 
-Nếu **browser tools disconnected** → dùng script Playwright ở `C:\Users\tuanv\AppData\Local\Temp\opencode\pw\` (chạy `node <script>.js` từ chính thư mục đó, browser `channel: 'chrome'`; ảnh ra `...\Temp\opencode\shots\`). **Bẫy:** trang dùng `Reveal` (IntersectionObserver) — trước khi chụp `fullPage` phải scroll hết trang, nếu không ra ảnh trống. Mẫu: `qa-programs-final.js`.
+Nếu **browser tools disconnected** → dùng script Playwright ở `C:\Users\USER\AppData\Local\Temp\opencode\pw\` (đã cài `playwright-core`, chạy `node <script>.js` từ chính thư mục đó, browser `channel: 'chrome'`; ảnh ra `...\Temp\opencode\shots\`). **Bẫy:** trang dùng `Reveal` (IntersectionObserver) — trước khi chụp `fullPage` phải scroll hết trang, nếu không ra ảnh trống. Mẫu có sẵn: `qa-register-flow.js`, `qa-admin-approve.js`, `qa-mobile.js`, `qa-checkin-flow.js` (check-in/attendance), `qa-step9-sweep.js` (quét 38 route × 6 viewport), `smoke-step9.js` (76 check API), `cleanup-smoke-artifacts.js` (xoá dữ liệu test).
+
+**Script chẩn đoán dữ liệu/UI (khi cần, không phải test):**
+`db-stats2.js` (bảng số liệu + kiểm tra lệch tiền/thẻ nhiều payment + audit theo action) ·
+`db-check2.js` (schedule/payment/invoice/membership-thiếu-payment) · `db-audit.js` (user ↔ member ↔ audit ↔ notif) ·
+`find-overflow.js` (dò phần tử tràn ngang ở viewport chỉ định) · `find-failed-requests.js` (response ≥400) ·
+`scan-opacity.js` (quét class opacity không có trong scale Tailwind, vd `via-ink/92`) ·
+`cleanup-demo-data.js` + `cleanup-demo-data2.js` + `cleanup-maint.js` (dọn dữ liệu demo chọn lọc).
+
+**Bẫy endpoint khi viết script QA:** `GET /promotions` **không nhận** `?limit=` → `forbidNonWhitelisted` trả **400**; các API list khác trả `{data, total, page, limit}` chứ không phải array thuần (`/branches`, `/membership-packages` mới trả array). Luôn `await res.ok` + fallback bỏ query khi 400.
+
+**Bẫy đo trang (rất dễ báo FAIL giả):**
+- **Đừng dùng `waitForTimeout` cố định** để đo nội dung — Next stream sau `domcontentloaded` nên đo
+  lúc đó ra `textLen = 0`. Dùng `page.waitForFunction(() => innerText.trim().length >= 40)`.
+- Khi đếm lỗi mạng: **bỏ qua host ngoài** (Google Maps embed bị chặn offline) và bỏ qua
+  `net::ERR_ABORTED` (Next huỷ prefetch RSC khi điều hướng).
+- Route `/member/payments/[id]` phải dùng **ID của chính hội viên**; dùng ID lấy từ token admin sẽ 404
+  (đúng — ràng buộc dữ liệu cá nhân) và báo "trang rỗng" giả.
+- **Bẫy login:** phải `waitUntil: 'networkidle'` + chờ ~1.5s cho React hydration gắn `onSubmit` trước
+  khi fill/click, nếu không form submit native kèm query string.
+
+**Bẫy rate-limit khi QA nhiều lần:** `/auth/login` giới hạn 10 lần/60s theo IP. Script quét nhiều route × nhiều viewport phải **đăng nhập 1 lần/role rồi tái dùng `storageState`** cho các viewport sau (xem `qa-step9-sweep.js`), và phần test 429 phải để **cuối script** (store throttle in-memory → restart backend để reset). Với smoke script, dùng **email cố định** + fallback `renew` để chạy lại nhiều lần vẫn idempotent.
+
+**Bẫy encoding PowerShell 5.1:** `Get-Content`/`Set-Content`/`Out-File` làm hỏng tiếng Việt (thêm BOM + double-encoding cp1252 → thành `T¿o mA� khuy�n mA�i`). **Chỉ sửa file tiếng Việt bằng tool `write`/`edit`.** Nếu buộc phải dùng shell: `[System.IO.File]::ReadAllBytes` + `WriteAllBytes` với `Encoding.GetEncoding(1252)` để đảo ngược mojibake. Khi ghi log ra file, tránh `Tee-Object` (UTF-16 + console codepage) — dùng `> file.txt` hoặc `Out-File -Encoding utf8`.
 
 ## 8. Lưu ý môi trường
 
 - Windows + PowerShell: tên biến **không phân biệt hoa thường** (`$h` và `$H` là cùng một biến — dùng tên biến khác nhau khi cần 2 biến).
 - Đường dẫn dự án chứa dấu tiếng Việt (`Đ`, `ữ`...) — luôn quote đường dẫn trong shell.
 - Port 3000 hay kẹt sau khi build production; kiểm tra process đang chiếm port trước khi `npm run dev` (dùng `Get-NetTCPConnection -LocalPort 3000`).
-- **PostgreSQL 17 cài native** trên máy dev (service `postgresql-x64-17`, KHÔNG phải Docker — `docker` không có trong PATH). User/pass `postgres`/`postgres`, port 5432, database `gym_db` (đã tạo + seed).
-- `backend/.env` đã tạo local (gitignore) — nếu mất: copy `.env.example` rồi đổi mật khẩu trong `DATABASE_URL` thành `postgres`. Kiểm tra backend: `GET http://localhost:3001/api/health` → trả `database: "connected"`.
+- **Bẫy webpack cache:** không chạy `npm run build` trong lúc dev server đang dùng chung `.next` → cache corrupt (thiếu `vendor-chunks/*`, chunk 404, hydration fail giết form login). Xử lý: kill process port 3000, xóa `.next`, chạy lại `npm run dev`.
+- **PostgreSQL 17 cài native** trên máy dev (service `postgresql-x64-17`, KHÔNG phải Docker — `docker` không có trong PATH). User `postgres` / **pass `postgrespassword`** / port 5432, database `gym_db`. **LƯU Ý:** pass này KHÁC user-pass PostgreSQL mặc định (`postgres`) — `backend/.env` dùng `postgrespassword`.
+- `backend/.env` đã tạo local (gitignore) — nếu mất: copy `.env.example` rồi đổi pass trong `DATABASE_URL` thành `postgrespassword`. Kiểm tra backend: `GET http://localhost:3001/api/health` → trả `database: "connected"`.
 
 ## 9. Trạng thái & việc dang dở
 
-Chi tiết lịch sử, quyết định, QA workflow: **WORKLOG.md** (gốc dự án) — cập nhật gần nhất: 2026-09-25.
+Chi tiết lịch sử, quyết định, QA workflow: **WORKLOG.md** (gốc dự án) — cập nhật gần nhất: 2026-09-29 (Kỳ 10b — dọn dữ liệu demo, fix overflow 768px, dọn code chết, nghiệm thu 294/294 + smoke 77/77).
 
-- **CHƯA COMMIT:** tính năng trang chi tiết chương trình tập `/programs/[slug]` (3 file mới + sửa `components/home/programs.tsx`) — đã QA PASS, chờ tôi đồng ý rồi mới `/commit`.
+- **CHƯA COMMIT:** giai đoạn **STEP 9 — Hoàn thiện & Chốt (Kỳ 10 + 10b)** — model `AuditLog` + module `audit-logs` (@Global, `log()` không bao giờ throw) + **34 action / 12 entity** gắn vào auth/member/membership/payment/checkin/trainer/schedule/equipment/maintenance/promotion; `AllExceptionsFilter` chuẩn hoá lỗi + map Prisma error; `helmet` + `@nestjs/throttler` (global 300/60s, login 10/60s, register 5/300s) + CORS allowlist; trang `/admin/audit-logs` (gate ADMIN/MANAGER, lọc + phân trang + dialog metadata) + sidebar + `AUDIT_*` meta; `app/not-found.tsx` + `app/error.tsx`; `app/icon.svg` (favicon); seed block 16.8 (41 dòng audit log, phủ đủ 34/34 action); `README.md` viết lại hoàn toàn. **Kỳ 10b**: dọn dữ liệu demo chọn lọc (11 hội viên, 12 payment, 11 hoá đơn khớp tiền, 68 check-in, 14 buổi tập, 48 thông báo, 41 audit log), bỏ marker `" (STEP 9 demo)"` khỏi tiêu đề hiển thị (chuyển sang `notes='seed-step9'`), sửa lỗi seed trùng mã hoá đơn `INV-2026-0002…0011` → dải `INV-2026-1001…1010`, `Input` thêm `min-w-0` (fix tràn ngang 768px), `knip` 0 code chết.
+  **Nghiệm thu 2026-09-29:** typecheck · lint (0 warning) · format:check · build (49 routes) · knip **PASS**; BE `nest build` + `prisma validate` **PASS**; smoke API **77/77 PASS**; QA responsive **294/294 PASS** (6 viewport × 49 route: 0 overflow, 0 console error, 0 HTTP ≥400, 0 trang rỗng) + 3/3 kiểm tra riêng (404, gate STAFF, ràng buộc dữ liệu cá nhân). Gộp chung với Kỳ 4–10 (~205 files) — chờ đồng ý rồi mới `/commit`.
+
+- **CHƯA COMMIT:** tính năng **Promotion + Notification + Reporting (STEP 8)** — backend promotions (CRUD/validate tự tính subtotal-discount-total/usage đếm qua Payment/stats/auto-expire) + notifications (bell 3 phía, list 2 phía, /announce theo role/SPECIFIC_BRANCH, ticker 6h, trigger checkin/equipment-BROKEN/payment) + reports hub `/admin/reports` 8 tab + lọc branch + CSV export (BOM), bonus badge promo `/packages` + áp mã trong register-membership; FE thêm `components/ui/tabs.tsx` + `components/charts/bar-chart.tsx` (KHÔNG package chart mới). đã typecheck+lint+format:check+build PASS (49 routes), smoke STEP 8 **30/30** + E2E promo **6/6 PASS**, QA Playwright **26 màn PASS** (1440/390, 0 console error, 0 overflow). Gộp chung với Kỳ 4–8 (~180 files) — chờ đồng ý rồi mới `/commit`.
+
+- **CHƯA COMMIT:** tính năng **Payment + Invoice (STEP 6)** — PaymentGateway abstraction (CASH/BANK_TRANSFER thật, MOMO/VNPAY stub), Invoice (INV-2026-NNNNNN unique, DRAFT/ISSUED/PAID/CANCELLED), Payment + paidAt/confirmedById/confirmedAt/currency/transactionRef@unique, flow register/renew/confirm/refund (transaction, 409 trùng ref), admin `/admin/payments` (+`[id]`), member `/member/payments` (+`[id]` receipt + print), `/admin/reports/revenue` (chart custom không recharts), dashboard member "Thanh toán của bạn", register-membership bank info + transfer content `GYM <CODE> <PAYMENT>` + success dialog, roles (STAFF confirm chỉ CASH/BANK_TRANSFER). đã typecheck+lint+format:check+build PASS, smoke API **47/47 PASS**, QA Playwright 11 màn PASS (desktop 1440 + mobile 390, không overflow). Gộp chung với Kỳ 4–6 (~150 files) — chờ đồng ý rồi mới `/commit`.
+
+- **CHƯA COMMIT:** tính năng **Trainer/PT + Lịch tập (STEP 5)** — backend modules trainers/schedules + member portal stats/trainer, schema `TrainerMember`/`TrainingProgress`/`SessionType`, frontend `/admin/trainers` (+`[id]`), `/admin/schedules`, `/member/schedule`, dashboard member "PT của bạn", trainer portal `/trainer` (+`/schedule`, `/members`, `/profile`) — đã typecheck+lint+format:check+build PASS, QA Playwright 16 màn PASS, role test PASS. Gộp chung với Kỳ 4 + Kỳ 5 (~125 files) — chờ đồng ý rồi mới `/commit`.
+
+- **CHƯA COMMIT:** tính năng **Member Management + Membership + Payment flow thật** (PENDING → approve → ACTIVE/PAID) — 32 files (backend modules member/members/memberships/payments/packages/reports + schema/seed; frontend member pages + route `/member/register-membership/[packageId]` + 5 trang admin viết lại) — đã QA PASS (Playwright + API smoke test), chờ tôi đồng ý rồi mới `/commit`.
+- **CHƯA COMMIT:** tính năng **Check-in / Check-out / Attendance** — schema (`CheckIn` + `method`/`updatedAt`), backend modules checkins/reports (+3 endpoint), smoke test API 15/15 + QA Playwright PASS; frontend `/member/checkin`, `/member/checkins`, `/admin/checkins`, `/admin/reports/attendance`, dashboard KPI + HourlyBars, member detail tab Attendance, menu 2 phía. Gộp chung với feature membership ở trên (~34 files) — chờ đồng ý rồi mới `/commit`.
 - Bài tập đang là dữ liệu tĩnh `frontend/src/lib/programs.ts` — tôi chọn "tạm thời vậy"; muốn chuyển backend (model `Exercise` + admin CRUD) thì hỏi lại.
 - 6 PR Dependabot chờ duyệt; cân nhắc upgrade Next 14 → 15/16 (5 lỗ audit).
 - Nếu phiên chưa nạp `opencode.jsonc` + 4 lệnh slash → nhắc tôi restart OpenCode.
