@@ -63,6 +63,62 @@ interface FaceScannerProps {
   className?: string;
 }
 
+/** Liệt kê deviceId của các camera (videoinput) trên máy — dùng để thử từng camera khi camera mặc định chết */
+async function listVideoDeviceIds(): Promise<string[]> {
+  try {
+    const devices = await navigator.mediaDevices?.enumerateDevices?.();
+    if (!devices) return [];
+    const ids = devices
+      .filter((d) => d.kind === 'videoinput')
+      .map((d) => d.deviceId)
+      .filter((id, i, arr) => !!id && arr.indexOf(id) === i);
+    return ids;
+  } catch {
+    return [];
+  }
+}
+
+async function startCamera(video: HTMLVideoElement): Promise<MediaStream> {
+  const mediaDevices = navigator.mediaDevices;
+  if (!mediaDevices?.getUserMedia) {
+    throw new Error('Camera API is unavailable. Use localhost or HTTPS and allow camera access.');
+  }
+
+  const deviceIds = await listVideoDeviceIds();
+  const constraints: MediaTrackConstraints[] = [
+    ...deviceIds.map((deviceId) => ({
+      deviceId: { exact: deviceId },
+      width: { ideal: 640 },
+      height: { ideal: 480 },
+    })),
+    { width: { ideal: 640 }, height: { ideal: 480 } },
+  ];
+  let lastError: unknown;
+
+  for (const videoConstraints of constraints) {
+    let stream: MediaStream | null = null;
+    try {
+      stream = await mediaDevices.getUserMedia({ audio: false, video: videoConstraints });
+      video.srcObject = stream;
+      await video.play();
+      return stream;
+    } catch (err) {
+      stream?.getTracks().forEach((track) => track.stop());
+      lastError = err;
+      const name = (err as { name?: string })?.name;
+      if (
+        name === 'NotAllowedError' ||
+        name === 'PermissionDeniedError' ||
+        name === 'SecurityError'
+      ) {
+        throw err;
+      }
+    }
+  }
+
+  throw lastError ?? new Error('No video input devices found.');
+}
+
 function cameraErrorMessage(err: unknown): string {
   const name = (err as { name?: string })?.name;
   const msg = String((err as { message?: string })?.message ?? '');
@@ -73,6 +129,12 @@ function cameraErrorMessage(err: unknown): string {
     msg.includes('PermissionDeniedError');
   if (isPermission) {
     return 'Bạn đã chặn quyền truy cập camera. Hãy cho phép camera trong trình duyệt rồi thử lại.';
+  }
+  if (name === 'NotReadableError' || name === 'TrackStartError') {
+    return 'Camera đang được ứng dụng khác sử dụng. Hãy tắt Windows Camera, Zoom hoặc Teams rồi thử lại.';
+  }
+  if (name === 'SecurityError' || msg.includes('secure context') || msg.includes('HTTPS')) {
+    return 'Trình duyệt đang chặn camera. Hãy mở trang bằng localhost/HTTPS và cấp quyền camera.';
   }
   if (
     name === 'NotFoundError' ||
@@ -119,6 +181,7 @@ export function FaceScanner({
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let humanInstance: Awaited<ReturnType<typeof loadHuman>> | null = null;
+    const videoElement = videoRef.current;
 
     const handleFaces = (faces: FaceResult[]) => {
       const now = Date.now();
@@ -203,20 +266,9 @@ export function FaceScanner({
         if (cancelled) return;
         // Dọn trạng thái cũ (React StrictMode mount 2 lần ở dev)
         if (human.webcam.stream) human.webcam.stop();
-        const camStatus = await human.webcam.start({
-          element: videoRef.current!,
-          mode: 'front',
-          width: 640,
-          height: 480,
-        });
-        // human KHÔNG ném exception: lỗi trả về chuỗi "webcam error: ..."
-        // (thành công trả "webcam: <tên camera>") — nếu không bắt ở đây,
-        // status sẽ kẹt ở "searching" với video chết.
-        if (typeof camStatus === 'string' && camStatus.startsWith('webcam error')) {
-          throw new Error(camStatus);
-        }
+        const stream = await startCamera(videoElement!);
         if (cancelled) {
-          human.webcam.stop();
+          stream.getTracks().forEach((track) => track.stop());
           return;
         }
         runningRef.current = true;
@@ -224,6 +276,8 @@ export function FaceScanner({
         void loop();
       } catch (err) {
         if (cancelled) return;
+        // eslint-disable-next-line no-console
+        console.error('[FaceScanner] webcam start lỗi:', err);
         const msg = cameraErrorMessage(err);
         setErrorMsg(msg);
         setStatus('error');
@@ -235,11 +289,11 @@ export function FaceScanner({
       cancelled = true;
       runningRef.current = false;
       if (timer) clearTimeout(timer);
-      try {
-        humanInstance?.webcam.stop();
-      } catch {
-        // webcam đã dừng từ trước
+      if (videoElement?.srcObject instanceof MediaStream) {
+        videoElement.srcObject.getTracks().forEach((track) => track.stop());
       }
+      if (videoElement) videoElement.srcObject = null;
+      humanInstance?.webcam.stop();
     };
   }, []);
 
