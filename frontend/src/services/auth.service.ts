@@ -1,5 +1,11 @@
 import apiClient from '@/lib/axios';
-import type { LoginResponse, MemberRegisterPayload } from './types';
+import type {
+  LoginResponse,
+  MemberRegisterPayload,
+  MemberRegisterVerifyPayload,
+  MemberRegisterVerifyResponse,
+  RegisterCodeResponse,
+} from './types';
 
 export const authApi = {
   login: async (email: string, password: string): Promise<LoginResponse> => {
@@ -7,8 +13,34 @@ export const authApi = {
     return res.data;
   },
 
-  memberRegister: async (payload: MemberRegisterPayload) => {
-    const res = await apiClient.post('/auth/member-register', payload);
+  /**
+   * Bước 1 đăng ký hội viên — gửi mã xác minh 6 số về chính email hội viên khai báo.
+   * Chưa tạo tài khoản: phải gọi `memberRegisterVerify` với mã nhận được mới đăng ký xong.
+   */
+  memberRegisterSendCode: async (payload: MemberRegisterPayload): Promise<RegisterCodeResponse> => {
+    const res = await apiClient.post<RegisterCodeResponse>(
+      '/auth/member-register/send-code',
+      payload,
+    );
+    return res.data;
+  },
+
+  /** Bước 2 — xác minh mã, đúng + còn hạn thì backend tạo User + Member. */
+  memberRegisterVerify: async (
+    payload: MemberRegisterVerifyPayload,
+  ): Promise<MemberRegisterVerifyResponse> => {
+    const res = await apiClient.post<MemberRegisterVerifyResponse>(
+      '/auth/member-register/verify',
+      payload,
+    );
+    return res.data;
+  },
+
+  /** Gửi lại mã mới (mã cũ mất hiệu lực) — không cần nhập lại mật khẩu. */
+  memberRegisterResendCode: async (email: string): Promise<RegisterCodeResponse> => {
+    const res = await apiClient.post<RegisterCodeResponse>('/auth/member-register/resend-code', {
+      email,
+    });
     return res.data;
   },
 

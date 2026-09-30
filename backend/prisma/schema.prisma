@@ -296,6 +296,37 @@ model Member {
   @@index([status])
 }
 
+/// ĐĂNG KÝ HỘI VIÊN CHỜ XÁC MINH EMAIL — dữ liệu form đăng ký + mã 6 số đã gửi
+/// qua email. Tài khoản User/Member CHƯA được tạo cho tới khi hội viên nhập đúng mã,
+/// nên email vẫn có thể đăng ký lại khi mã hết hạn và không tạo rác trong bảng User.
+/// `codeHash` là bcrypt hash của mã (không lưu mã dạng rõ) và `passwordHash` là
+/// bcrypt hash của mật khẩu — dòng này bị lộ cũng không lộ bí mật gốc.
+model EmailVerification {
+  id               String   @id @default(uuid())
+  email            String
+  fullName         String
+  phone            String
+  passwordHash     String
+  codeHash         String
+  gender           Gender   @default(MALE)
+  dateOfBirth      DateTime?
+  address          String?
+  emergencyContact String?
+  branchId         String?
+  /// Số lần nhập sai — chạm ngưỡng thì xoá dòng, buộc người dùng xin mã mới
+  attempts         Int      @default(0)
+  /// Mốc hết hạn của mã (đếm ngược ở UI đăng ký)
+  expiresAt        DateTime
+  /// Lần gửi mã gần nhất — chặn spam bằng @Throttle + khoảng nghỉ tối thiểu
+  lastSentAt       DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([email])
+  @@index([expiresAt])
+  @@index([lastSentAt])
+}
+
 model MembershipPackage {
   id           String        @id @default(uuid())
   code         String        @unique

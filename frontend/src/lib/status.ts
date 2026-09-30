@@ -159,6 +159,11 @@ export const AUDIT_ACTION_META: Record<string, { label: string; variant: BadgeVa
   PASSWORD_CHANGE: { label: 'Đổi mật khẩu', variant: 'warning' },
   USER_CREATE: { label: 'Tạo tài khoản', variant: 'default' },
 
+  // Xác minh email khi đăng ký hội viên
+  MEMBER_REGISTER_CODE_SENT: { label: 'Gửi mã xác minh đăng ký', variant: 'info' },
+  MEMBER_REGISTER_CODE_RESENT: { label: 'Gửi lại mã xác minh', variant: 'info' },
+  MEMBER_REGISTER_CODE_INVALID: { label: 'Nhập sai mã xác minh', variant: 'destructive' },
+
   // Hội viên
   MEMBER_CREATE: { label: 'Tạo hội viên tại quầy', variant: 'success' },
   MEMBER_REGISTER: { label: 'Đăng ký hội viên', variant: 'success' },

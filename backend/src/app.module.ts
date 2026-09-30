@@ -23,6 +23,7 @@ import { ReportsModule } from './modules/reports/reports.module';
 import { PublicModule } from './modules/public/public.module';
 import { MemberModule } from './modules/member/member.module';
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
+import { MailModule } from './modules/mail/mail.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 @Module({
@@ -40,6 +41,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
       },
     ]),
     PrismaModule,
+    MailModule,
     HealthModule,
     AuthModule,
     UsersModule,

@@ -27,6 +27,46 @@ export interface MemberRegisterPayload {
   emergencyContact?: string;
 }
 
+/** Bước 1 đăng ký hội viên — gửi mã xác minh 6 số về email (payload giống form) */
+export type MemberRegisterSendCodePayload = MemberRegisterPayload;
+
+/** Bước 2 đăng ký hội viên — nhập mã xác minh để tạo tài khoản */
+export interface MemberRegisterVerifyPayload {
+  email: string;
+  code: string;
+}
+
+export interface RegisterCodeResponse {
+  message: string;
+  /** Email đã gửi mã */
+  email: string;
+  /** Thời hạn mã (giây) — UI dùng để đếm ngược */
+  expiresInSeconds: number;
+  /** Phải chờ bao lâu mới được gửi lại mã (giây) */
+  resendAfterSeconds: number;
+}
+
+export interface MemberRegisterVerifyResponse {
+  message: string;
+  user: {
+    id: string;
+    email: string;
+    fullName: string;
+    phone?: string | null;
+    role: string;
+    status: string;
+    branchId?: string | null;
+  };
+  member: {
+    id: string;
+    code: string;
+    fullName: string;
+    email?: string | null;
+    phone: string;
+    status: string;
+  };
+}
+
 export interface MembershipPackage {
   id: string;
   code: string;

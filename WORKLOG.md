@@ -5,6 +5,56 @@
 
 ---
 
+## 2026-09-30 — Kỳ 12: Xác minh email 2 bước khi đăng ký hội viên (nodemailer + Gmail SMTP)
+
+> Trạng thái: **CHƯA COMMIT** — code + QA xong, Gmail thật đã gửi được; chờ commit/push.
+
+### 🎯 Mục tiêu
+
+Hội viên tự đăng ký ở `/register` phải xác minh bằng mã 6 số gửi về **đúng email họ nhập** — chặn đăng ký nếu gửi mail thất bại.
+
+### ✅ Backend
+
+- Model `EmailVerification` (email index, `codeHash` bcrypt, `passwordHash`, `expiresAt`, `lastSentAt`, form data) — `prisma db push` OK.
+- Module `mail` (@Global): `MailService.send()` **cố ý ném lỗi** (khác `AuditService.log()` nuốt lỗi) → chặn đăng ký khi SMTP chết; `email-templates.ts` (HTML dark đúng design token, `escapeHtml()`).
+- `auth.service.ts`: `requestMemberRegistrationCode` / `resendMemberVerificationCode` / `confirmMemberRegistration`; mã 6 số `crypto.randomInt`, TTL 10 phút, cooldown 60s, sai 5 lần xoá hồ sơ; gửi lại → mã cũ chết.
+- 3 endpoint: `POST /auth/member-register/send-code` (5/300s), `resend-code` (5/300s), `verify` (10/300s). Xoá `POST /auth/member-register` cũ.
+- Sửa lỗi cũ: `MEM-${count+1}` dễ trùng → `nextMemberCode()` dò mã trống trong transaction.
+- Audit: `MEMBER_REGISTER_CODE_SENT` / `_RESENT` / `_INVALID`.
+
+### ✅ Frontend
+
+- `/register` viết lại 2 bước (stepper, mask email, input 6 số, countdown, gửi lại/sửa thông tin).
+- `services/auth.service.ts` + `types.ts`: 3 API mới. `lib/status.ts`: 3 audit label.
+
+### ✅ Gmail thật (đã chạy)
+
+- Cấu hình `SMTP_USER`/`SMTP_PASS` (App Password) trong `backend/.env`, kill + restart backend.
+- Gửi thật tới `tranthanhtuan652003@gmail.com` — **nhận được**. Xác nhận: người nhận = email người dùng nhập (không hardcode) → **bất kỳ ai** đăng ký đều nhận mã tại email của họ.
+
+### 🐞 Lỗi/bẫy mới
+
+- **Backend giữ env override cũ**: process `nest start --watch` không đọc lại `.env` sau khi sửa → vẫn gửi vào SMTP sink cục bộ. Phải kill PID listening 3001 rồi start lại.
+- **SMTP sink cục bộ (port 1025)**: dùng để QA khi chưa có App Password; `SMTP_REQUIRE_TLS=false` để bỏ qua TLS.
+- **409 "Email này đã được sử dụng"**: email đã từng đăng ký (kể cả tài khoản SUSPENDED) → cần email khác để test.
+
+### 🧹 Dọn dữ liệu test
+
+- Xoá 2 tài khoản test `MEM-0002` (`tuantran652003@gmail.com`) + `MEM-0003` (`tranthanhtuan652003@gmail.com`): 2 User + 2 Member + 5 audit log; cascade dọn sạch notification/check-in/face/membership. Member còn lại = 1 (MEM-0001).
+
+### 📌 Tài liệu đã sửa
+
+- `AGENTS.md`: `Float[192]` → **dim 1024**; *"chỉ lưu vector không lưu ảnh"* → **có lưu ảnh tham chiếu** (dùng để lễ tân đối chiếu).
+- `README.md`: 33 → **40** action (2 chỗ); dòng 187 ghi rõ 34/40 + 6 action chưa có trong seed.
+
+### 📌 Còn dang dở
+
+- **Chưa commit/push** — 15 file thay đổi + 3 đường dẫn mới.
+- **Ngưỡng khuôn mặt 1:N = 0.7**: mẫu yếu nhất cùng người cosine `0.6819` < 0.7 → nguy cơ từ chối nhầm. Cần thêm vài người đăng ký mặt để hiệu chỉnh (hoãn sang tối).
+- 2 process `nest --watch` thừa (chỉ 1 giữ port 3001).
+
+---
+
 ## 2026-09-29 — Kỳ 11: Check-in nhận diện khuôn mặt (FACE_ID) — sinh trắc học 3 đợt
 
 > Trạng thái: **ĐÃ COMMIT (2026-09-29)** — gộp chung với Kỳ 4–10 + toàn bộ code faces — đã push lên `origin/main`.

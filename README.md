@@ -39,7 +39,8 @@
 ### Cổng công khai (không cần đăng nhập)
 - Trang chủ (hero, chương trình tập, lịch tuần, tiến trình, bài viết nổi bật, CTA)
 - Giới thiệu · Gói tập · Huấn luyện viên · Lịch tập · Blog · Liên hệ
-- Đăng ký hội viên mới (`/register`) · Đăng nhập (`/login`)
+- Đăng ký hội viên mới (`/register`) — **2 bước**: điền thông tin → nhận mã xác minh 6 số
+  qua email (SMTP) → nhập mã mới tạo tài khoản · Đăng nhập (`/login`)
 - Trang `404` và `error` riêng, không để lộ thông tin kỹ thuật
 
 ### Khu vực hội viên `/member` — vai trò `MEMBER`
@@ -64,8 +65,9 @@
 - Lịch dạy, danh sách học viên phụ trách, ghi nhận tiến trình tập, hồ sơ cá nhân
 
 ### Nhật ký hệ thống (Audit Log) — *tính năng STEP 9*
-- Ghi lại **33 loại hành động** trên 12 entity: đăng nhập, đổi mật khẩu, tạo/cập nhật hội viên,
-  đổi trạng thái & gia hạn thẻ, xác nhận/từ chối/hoàn tiền, check-in/out, thao tác HLV,
+- Ghi lại **40 loại hành động** trên 12 entity: đăng nhập, đổi mật khẩu, tạo/cập nhật hội viên,
+  đăng ký hội viên kèm mã xác minh email (gửi / gửi lại / sai mã), đổi trạng thái & gia hạn thẻ,
+  xác nhận/từ chối/hoàn tiền, check-in/out, sinh trắc học khuôn mặt, thao tác HLV,
   tạo/sửa/hủy/hoàn thành lịch tập, thiết bị & bảo trì, khuyến mãi
 - **Không bao giờ** ghi mật khẩu, `passwordHash` hay token
 - Trang `/admin/audit-logs`: lọc theo người dùng / hành động / entity / từ ngày / đến ngày /
@@ -182,7 +184,9 @@ Mật khẩu được đặt trong `backend/prisma/seed.ts`. Trang `/login` có 
 11 hóa đơn (mỗi thẻ đúng 1 đơn, tổng hoá đơn khớp số tiền thanh toán) + 1 giao dịch `FAILED` ·
 **68 lượt check-in** lịch sử · 14 buổi tập (PT & lớp nhóm) & tiến trình tập ·
 5 thiết bị kèm 3 lịch bảo trì · 5 mã khuyến mãi (đang chạy & đã hết hạn) · thông báo mẫu ·
-**41 dòng nhật ký hệ thống** phủ **đủ 34 loại hành động** để demo trang `/admin/audit-logs`.
+**41 dòng nhật ký hệ thống** phủ **34/40 loại hành động** để demo trang `/admin/audit-logs`
+(chưa có trong seed: `FACE_ENROLL`/`FACE_DELETE`/`MEMBER_CREATE` và 3 action đăng ký qua
+mã xác minh email — chỉ sinh ra khi dùng chức năng tương ứng).
 
 > Tài khoản trên **chỉ dùng cho môi trường demo/đồ án**. Khi triển khai thật, hãy đổi
 > `JWT_SECRET`, xoá tài khoản demo và dùng HTTPS.
@@ -324,10 +328,10 @@ Index được đặt theo truy vấn thực tế (theo `status`, `branchId`, `m
 | Phân quyền | `RolesGuard` đọc `@Roles(...)` từ metadata; trả `403` rõ ràng khi thiếu quyền |
 | Input validation | `ValidationPipe` toàn cục: `whitelist`, `forbidNonWhitelisted`, `transform` → field lạ trong body bị từ chối `400` |
 | HTTP headers | `helmet` (HSTS, `X-Content-Type-Options`, ẩn `X-Powered-By`, CSP…) |
-| Rate limit | `@nestjs/throttler`: toàn cục **300 req/phút**; `POST /auth/login` **10/60s**; `register` & `member-register` **5/300s** |
+| Rate limit | `@nestjs/throttler`: toàn cục **300 req/phút**; `POST /auth/login` **10/60s**; `POST /auth/register` **5/300s**; đăng ký hội viên tự do: `member-register/send-code` & `resend-code` **5/300s**, `member-register/verify` **10/300s** |
 | CORS | Allowlist qua `CORS_ORIGIN` (danh sách phân tách dấu phẩy) |
 | Lỗi | `AllExceptionsFilter` chuẩn hoá `{ statusCode, message, error, path, timestamp }`, map lỗi Prisma, **luôn** log chi tiết ở server |
-| Nhật ký | `AuditService` (@Global) ghi 33 loại hành động; `log()` **không bao giờ throw** để không làm hỏng nghiệp vụ chính; không lưu mật khẩu/token |
+| Nhật ký | `AuditService` (@Global) ghi 40 loại hành động; `log()` **không bao giờ throw** để không làm hỏng nghiệp vụ chính; không lưu mật khẩu/token |
 | Rò rỉ thông tin | `.env` nằm trong `.gitignore`; chỉ commit `.env.example` |
 
 Biến môi trường bắt buộc (xem `backend/.env.example`):

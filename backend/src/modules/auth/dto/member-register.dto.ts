@@ -2,6 +2,14 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEmail, IsEnum, IsISO8601, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
 import { Gender } from '@prisma/client';
 
+/**
+ * Bước 1 — thông tin đăng ký hội viên tự phục vụ.
+ *
+ * Endpoint này KHÔNG tạo tài khoản: nó lưu tạm dữ liệu vào bảng `EmailVerification`
+ * rồi gửi mã 6 số về chính email này. Tài khoản chỉ được tạo ở bước 2
+ * (`POST /auth/member-register/verify`) khi hội viên nhập đúng mã — nhờ vậy hệ thống
+ * chứng minh được hội viên thực sự sở hữu email đã đăng ký.
+ */
 export class MemberRegisterDto {
   @ApiProperty({ example: 'Nguyễn Văn A', description: 'Họ và tên hội viên' })
   @IsNotEmpty({ message: 'Họ và tên không được để trống' })

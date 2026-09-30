@@ -67,6 +67,7 @@ async function bootstrap() {
     )
     .addTag('Health', 'Kiểm tra trạng thái máy chủ')
     .addTag('Authentication', 'Đăng nhập, đăng ký và xác thực JWT')
+    .addTag('Email Verification', 'Gửi & xác minh mã đăng ký hội viên qua email')
     .addTag('Users', 'Quản lý tài khoản người dùng và vai trò')
     .addTag('Members', 'Quản lý hồ sơ và thẻ hội viên phòng gym')
     .addTag('Trainers', 'Quản lý huấn luyện viên cá nhân (PT)')
