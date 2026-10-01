@@ -1,7 +1,8 @@
 import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FacesService } from './faces.service';
-import { EnrollFaceDto } from './dto/faces.dto';
+import { AzureFaceService } from './azure-face.service';
+import { CheckGlassesDto, EnrollFaceDto } from './dto/faces.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -13,7 +14,10 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('faces')
 export class FacesController {
-  constructor(private readonly facesService: FacesService) {}
+  constructor(
+    private readonly facesService: FacesService,
+    private readonly azureFaceService: AzureFaceService,
+  ) {}
 
   // ---------------------------------------------------------------------------
   // Hội viên — dữ liệu khuôn mặt của chính mình
@@ -41,6 +45,20 @@ export class FacesController {
   @ApiOperation({ summary: 'Rút lui đồng ý — xoá toàn bộ dữ liệu khuôn mặt của chính mình' })
   withdraw(@CurrentUser('id') userId: string) {
     return this.facesService.withdraw(userId);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Kiểm tra kính (dùng chung cho tự đăng ký và đăng ký tại quầy)
+  // ---------------------------------------------------------------------------
+
+  @Post('check-glasses')
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.MEMBER, Role.TRAINER)
+  @ApiOperation({
+    summary:
+      'Kiểm tra ảnh có đeo kính không (Azure AI Vision). Ảnh được chuyển tiếp lên dịch vụ bên thứ ba và không lưu lại. Trả available=false nếu dịch vụ chưa cấu hình/lỗi — client KHÔNG chặn người dùng khi đó.',
+  })
+  checkGlasses(@Body() dto: CheckGlassesDto) {
+    return this.azureFaceService.detect(dto.imageData);
   }
 
   // ---------------------------------------------------------------------------

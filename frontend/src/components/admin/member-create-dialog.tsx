@@ -533,7 +533,12 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
             <span className="text-[11px] leading-relaxed text-muted">
               Hội viên đã được thông báo và <span className="text-chalk">đồng ý</span> cho hệ thống
               lưu dữ liệu sinh trắc học khuôn mặt phục vụ nhận diện tại quầy (Nghị định 13/2023). Hệ
-              thống lưu vector đặc trưng và 1 ảnh tham chiếu, không lưu video.
+              thống lưu vector đặc trưng và 1 ảnh tham chiếu, không lưu video.{' '}
+              <span className="text-amber-400">
+                Lưu ý: một ảnh chụp sẽ được gửi tới dịch vụ phân tích khuôn mặt của Microsoft Azure
+                để kiểm tra hội viên có đeo kính không — ảnh này không lưu trong hệ thống, chỉ dùng
+                để trả kết quả.
+              </span>
             </span>
           </label>
 

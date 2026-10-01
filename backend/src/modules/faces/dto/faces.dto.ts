@@ -45,3 +45,19 @@ export class EnrollFaceDto {
   @MaxLength(IMAGE_MAX_LENGTH, { message: 'Ảnh khuôn mặt quá lớn (tối đa ~450KB).' })
   imageData?: string;
 }
+
+/**
+ * POST /faces/check-glasses — ảnh 1 khung hình camera để kiểm tra đeo kính.
+ *
+ * Ảnh này KHÔNG được lưu ở phía chúng ta: AzureFaceService chuyển tiếp nguyên byte
+ * lên Azure AI Vision (xem service để hiểu vì sao). Chỉ nhận ảnh của chính người
+ * đang đăng nhập / hội viên mà nhân viên đang làm thủ tục.
+ */
+export class CheckGlassesDto {
+  @IsString()
+  @Matches(IMAGE_DATA_URL, {
+    message: 'Ảnh khuôn mặt không hợp lệ (chỉ nhận data URL JPEG/PNG/WebP).',
+  })
+  @MaxLength(IMAGE_MAX_LENGTH, { message: 'Ảnh khuôn mặt quá lớn (tối đa ~450KB).' })
+  imageData: string;
+}

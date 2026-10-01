@@ -252,7 +252,18 @@ export default function FaceRegistrationPage() {
                 <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-neon" />
                 <span>
                   Khuôn mặt là dữ liệu cá nhân nhạy cảm theo Nghị định 13/2023/NĐ-CP — được bảo vệ ở
-                  mức cao nhất và không chia sẻ cho bên thứ ba.
+                  mức cao nhất. Vector khuôn mặt và ảnh tham chiếu chỉ lưu trong hệ thống của phòng
+                  tập, không chia sẻ cho bên thứ ba (trừ ngoại lệ nêu dưới đây).
+                </span>
+              </li>
+              <li className="flex gap-2.5">
+                <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-amber-400" />
+                <span>
+                  <strong className="text-chalk">Ngoại lệ:</strong> để hệ thống tự kiểm tra bạn có
+                  đeo kính không, <strong className="text-chalk">một ảnh chụp</strong> sẽ được gửi
+                  tới dịch vụ phân tích khuôn mặt của Microsoft Azure. Ảnh này không được lưu ở phía
+                  phòng tập và chỉ dùng để trả về kết quả đeo kính / không đeo kính. Vector khuôn
+                  mặt và ảnh tham chiếu vẫn nằm hoàn toàn trong hệ thống của phòng tập.
                 </span>
               </li>
               <li className="flex gap-2.5">
