@@ -126,6 +126,7 @@ export class AuthService {
   async requestMemberRegistrationCode(dto: MemberRegisterDto, ip?: string) {
     const email = this.normalizeEmail(dto.email);
     await this.assertEmailAvailable(email);
+    await this.assertPhoneAvailable(dto.phone?.trim() ?? '');
 
     // Dọn yêu cầu cũ đã hết hạn từ lâu (nếu không bảng sẽ phình vô hạn)
     await this.prisma.emailVerification.deleteMany({
@@ -318,6 +319,18 @@ export class AuthService {
       throw new ConflictException('Email này đã được sử dụng');
     }
 
+    // Tương tự, số điện thoại có thể bị người khác đăng ký trong lúc chờ mã
+    const phoneTaken = await this.prisma.user.findUnique({
+      where: { phone: pending.phone },
+      select: { id: true, fullName: true },
+    });
+    if (phoneTaken) {
+      await this.prisma.emailVerification.delete({ where: { id: pending.id } });
+      throw new ConflictException(
+        `Số điện thoại này đã được dùng cho tài khoản "${phoneTaken.fullName}". Mỗi số điện thoại chỉ được đăng ký 1 hội viên.`,
+      );
+    }
+
     const result = await this.prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
@@ -418,6 +431,24 @@ export class AuthService {
     const existing = await this.prisma.user.findUnique({ where: { email }, select: { id: true } });
     if (existing) {
       throw new ConflictException('Email này đã được sử dụng');
+    }
+  }
+
+  /**
+   * Chặn trùng số điện thoại — 1 số chỉ 1 tài khoản (khớp ràng buộc @unique
+   * trên User.phone). Số điện thoại là định danh liên hệ để gửi thông báo /
+   * khôi phục tài khoản, nên 2 hội viên dùng chung 1 số sẽ gây nhầm lẫn.
+   */
+  private async assertPhoneAvailable(phone: string): Promise<void> {
+    if (!phone) return;
+    const owner = await this.prisma.user.findUnique({
+      where: { phone },
+      select: { id: true, fullName: true },
+    });
+    if (owner) {
+      throw new ConflictException(
+        `Số điện thoại này đã được dùng cho tài khoản "${owner.fullName}". Mỗi số điện thoại chỉ được đăng ký 1 hội viên.`,
+      );
     }
   }
 

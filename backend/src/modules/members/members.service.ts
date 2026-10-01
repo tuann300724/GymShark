@@ -313,6 +313,18 @@ export class MembersService {
       throw new ConflictException('Email này đã được sử dụng');
     }
 
+    // Số điện thoại trùng: 1 số chỉ được gắn với 1 tài khoản. Kiểm tra sớm ở đây
+    // để lễ tân thấy thông báo rõ ràng, thay vì lỗi Prisma P2002 khi insert.
+    const phoneOwner = await this.prisma.user.findUnique({
+      where: { phone },
+      select: { id: true, fullName: true },
+    });
+    if (phoneOwner) {
+      throw new ConflictException(
+        `Số điện thoại này đã được dùng cho tài khoản "${phoneOwner.fullName}". Mỗi số điện thoại chỉ được đăng ký 1 hội viên.`,
+      );
+    }
+
     const branchId = await this.resolveBranchId(dto.branchId, actor.branchId);
 
     const typedPassword = dto.password?.trim() || '';

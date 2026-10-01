@@ -214,7 +214,9 @@ model User {
   email        String        @unique
   passwordHash String
   fullName     String
-  phone        String?
+  /// Số điện thoại là định danh liên hệ của hội viên — 1 số chỉ 1 tài khoản.
+  /// NULL vẫn cho phép nhiều tài khoản (nhân viên không bắt buộc khai số).
+  phone        String?       @unique
   role         UserRole      @default(STAFF)
   status       UserStatus    @default(ACTIVE)
   avatarUrl    String?
