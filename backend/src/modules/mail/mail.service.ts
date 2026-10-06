@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleInit, ServiceUnavailableException } from '@
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
-import { memberVerificationCodeEmail } from './email-templates';
+import { memberVerificationCodeEmail, passwordResetCodeEmail } from './email-templates';
 
 export interface SendMailOptions {
   to: string;
@@ -98,6 +98,17 @@ export class MailService implements OnModuleInit {
     expiresInMinutes: number;
   }): Promise<void> {
     const mail = memberVerificationCodeEmail(params);
+    await this.send({ to: params.email, ...mail });
+  }
+
+  /** Gửi mã đặt lại mật khẩu 6 số (luồng quên mật khẩu). */
+  async sendPasswordResetCode(params: {
+    email: string;
+    fullName: string;
+    code: string;
+    expiresInMinutes: number;
+  }): Promise<void> {
+    const mail = passwordResetCodeEmail(params);
     await this.send({ to: params.email, ...mail });
   }
 

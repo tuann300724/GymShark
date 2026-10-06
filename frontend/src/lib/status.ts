@@ -157,6 +157,8 @@ export const AUDIT_ACTION_META: Record<string, { label: string; variant: BadgeVa
   // Tài khoản & bảo mật
   AUTH_LOGIN: { label: 'Đăng nhập', variant: 'info' },
   PASSWORD_CHANGE: { label: 'Đổi mật khẩu', variant: 'warning' },
+  PASSWORD_RESET_REQUEST: { label: 'Yêu cầu đặt lại mật khẩu', variant: 'info' },
+  PASSWORD_RESET_SUCCESS: { label: 'Đặt lại mật khẩu thành công', variant: 'success' },
   USER_CREATE: { label: 'Tạo tài khoản', variant: 'default' },
 
   // Xác minh email khi đăng ký hội viên

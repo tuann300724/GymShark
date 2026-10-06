@@ -78,6 +78,53 @@ export interface VerificationCodeEmail {
 }
 
 /**
+ * Email gửi mã đặt lại mật khẩu 6 số (luồng quên mật khẩu).
+ * Không chứa link — người dùng nhập mã + mật khẩu mới ngay trên trang /forgot-password.
+ */
+export function passwordResetCodeEmail(params: {
+  fullName: string;
+  code: string;
+  expiresInMinutes: number;
+}): VerificationCodeEmail {
+  const fullName = escapeHtml(params.fullName.trim());
+  const code = escapeHtml(params.code);
+
+  return {
+    subject: `${params.code} là mã đặt lại mật khẩu GymMaster Pro`,
+    html: layout(`
+      <h1 style="margin:0 0 12px;font-size:20px;line-height:1.4;color:${BRAND.chalk};">
+        Xin chào ${fullName},
+      </h1>
+      <p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:${BRAND.muted};">
+        Bạn vừa yêu cầu đặt lại mật khẩu tài khoản <strong style="color:${BRAND.chalk};">GymMaster Pro</strong>.
+        Nhập mã dưới đây vào trang quên mật khẩu để tạo mật khẩu mới.
+      </p>
+      <div style="margin:24px 0;padding:22px 20px;background:${BRAND.ink};border:1px solid ${BRAND.neon};border-radius:14px;text-align:center;">
+        <div style="font-family:'Courier New',Courier,monospace;font-size:38px;font-weight:700;letter-spacing:14px;color:${BRAND.neon};text-indent:14px;">
+          ${code}
+        </div>
+      </div>
+      <p style="margin:0 0 8px;font-size:13px;line-height:1.7;color:${BRAND.chalk};">
+        ⏱ Mã có hiệu lực trong <strong style="color:${BRAND.neon};">${params.expiresInMinutes} phút</strong>.
+      </p>
+      <p style="margin:0;font-size:13px;line-height:1.7;color:${BRAND.muted};">
+        Nếu bạn không yêu cầu, hãy bỏ qua email này — mật khẩu của bạn không thay đổi.
+      </p>
+    `),
+    text: [
+      `Xin chào ${params.fullName.trim()},`,
+      '',
+      'Mã đặt lại mật khẩu GymMaster Pro của bạn là:',
+      '',
+      `    ${params.code}`,
+      '',
+      `Mã có hiệu lực trong ${params.expiresInMinutes} phút.`,
+      '',
+      'Nếu bạn không yêu cầu, hãy bỏ qua email này.',
+    ].join('\n'),
+  };
+}
+/**
  * Email gửi mã xác minh 6 số cho bước đăng ký hội viên.
  * Mã hiển thị dạng khối lớn để đọc không bị nhầm số 0 / O, 1 / l.
  */

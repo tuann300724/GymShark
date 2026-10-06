@@ -1,14 +1,17 @@
-import { Controller, Post, Body, Get, UseGuards, HttpCode, HttpStatus, Req } from '@nestjs/common';
-import { Request } from 'express';
+import { Controller, Post, Body, Get, UseGuards, HttpCode, HttpStatus, Req, Res } from '@nestjs/common';
+import { Request, Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { MemberRegisterDto } from './dto/member-register.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ResendMemberVerifyCodeDto } from './dto/resend-member-verify-code.dto';
 import { VerifyMemberRegisterDto } from './dto/verify-member-register.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { GoogleAuthGuard } from './google-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
@@ -81,6 +84,52 @@ export class AuthController {
   @ApiResponse({ status: 409, description: 'Email đã được dùng để đăng ký tài khoản khác' })
   async memberRegisterVerify(@Body() dto: VerifyMemberRegisterDto, @Req() req: Request) {
     return this.authService.confirmMemberRegistration(dto, req.ip);
+  }
+
+  @Public()
+  @Post('forgot-password')
+  @Throttle({ default: { limit: 5, ttl: 300_000 } })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Bước 1 quên mật khẩu — gửi mã 6 số về email đã đăng ký' })
+  @ApiResponse({ status: 200, description: 'Đã gửi mã nếu email tồn tại' })
+  @ApiResponse({ status: 503, description: 'Không gửi được email (SMTP lỗi / chưa cấu hình)' })
+  async forgotPassword(@Body() dto: ForgotPasswordDto, @Req() req: Request) {
+    return this.authService.requestPasswordReset(dto.email, req.ip);
+  }
+
+  @Public()
+  @Post('reset-password')
+  @Throttle({ default: { limit: 10, ttl: 300_000 } })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Bước 2 quên mật khẩu — nhập mã 6 số + mật khẩu mới' })
+  @ApiResponse({ status: 200, description: 'Đặt lại mật khẩu thành công' })
+  @ApiResponse({ status: 400, description: 'Mã sai / hết hạn / hết lượt thử' })
+  async resetPassword(@Body() dto: ResetPasswordDto, @Req() req: Request) {
+    return this.authService.resetPassword(dto.email, dto.code, dto.newPassword, req.ip);
+  }
+
+  @Public()
+  @Get('google')
+  @ApiOperation({ summary: 'Đăng nhập bằng Google — chuyển hướng sang Google' })
+  @ApiResponse({ status: 302, description: 'Chuyển hướng tới trang đồng ý của Google' })
+  @UseGuards(GoogleAuthGuard)
+  googleLogin() {
+    // Guard chuyển hướng sang Google — handler để trống có chủ đích.
+  }
+
+  @Public()
+  @Get('google/callback')
+  @ApiOperation({ summary: 'Callback Google OAuth — cấp JWT hệ thống rồi về frontend' })
+  @UseGuards(GoogleAuthGuard)
+  async googleCallback(@Req() req: Request & { user?: any }, @Res() res: Response) {
+    const result = await this.authService.googleLogin(req.user, req.ip);
+    const frontend =
+      process.env.FRONTEND_URL?.replace(/\/$/, '') || 'http://localhost:3000';
+    const payload = Buffer.from(
+      JSON.stringify({ accessToken: result.accessToken, user: result.user }),
+      'utf8',
+    ).toString('base64url');
+    return res.redirect(`${frontend}/auth/callback?g=${payload}`);
   }
 
   @Get('profile')

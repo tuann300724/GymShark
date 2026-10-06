@@ -19,6 +19,7 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { MemberRegisterDto } from './dto/member-register.dto';
 import { VerifyMemberRegisterDto } from './dto/verify-member-register.dto';
+import type { GoogleProfile } from './google.strategy';
 import { UserRole } from '@prisma/client';
 
 /** Thời hạn của mã xác minh email (phút) */
@@ -461,6 +462,279 @@ export class AuthService {
       if (!exists) return code;
     }
     return `MEM-${Date.now().toString().slice(-8)}`;
+  }
+
+  // ==============================================================
+  //  QUÊN MẬT KHẨU — 2 BƯỚC QUA EMAIL (tái dùng hạ tầng SMTP Kỳ 12)
+  // ==============================================================
+
+  /**
+   * Bước 1 — gửi mã 6 số về email đã đăng ký.
+   * Cố ý trả cùng thông điệp dù email tồn tại hay không để chống dò tài khoản,
+   * nhưng vẫn chỉ gửi mail khi user thật sự tồn tại.
+   */
+  async requestPasswordReset(emailInput: string, ip?: string) {
+    const email = this.normalizeEmail(emailInput);
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      select: { id: true, fullName: true },
+    });
+
+    if (user) {
+      const pending = await this.prisma.passwordReset.findFirst({ where: { email } });
+      if (pending) {
+        const waited = Math.floor((Date.now() - pending.lastSentAt.getTime()) / 1000);
+        if (waited < RESEND_COOLDOWN_SECONDS) {
+          throw new HttpException(
+            `Vui lòng chờ ${RESEND_COOLDOWN_SECONDS - waited} giây nữa rồi gửi lại mã.`,
+            HttpStatus.TOO_MANY_REQUESTS,
+          );
+        }
+      }
+
+      const code = this.generateCode();
+      const codeHash = await bcrypt.hash(code, 10);
+      const expiresAt = this.codeExpiry();
+
+      await this.prisma.passwordReset.deleteMany({ where: { email } });
+      await this.prisma.passwordReset.create({
+        data: { email, codeHash, expiresAt },
+      });
+
+      try {
+        await this.mailService.sendPasswordResetCode({
+          email,
+          fullName: user.fullName,
+          code,
+          expiresInMinutes: VERIFY_CODE_TTL_MINUTES,
+        });
+      } catch (e) {
+        await this.prisma.passwordReset.deleteMany({ where: { email } });
+        this.logger.warn(`Gửi mã đặt lại mật khẩu thất bại cho ${email}: ${e instanceof Error ? e.message : e}`);
+        throw e;
+      }
+
+      await this.auditService.log({
+        userId: user.id,
+        action: 'PASSWORD_RESET_REQUEST',
+        entity: 'Auth',
+        entityId: user.id,
+        metadata: { email },
+        ip,
+      });
+    }
+
+    return {
+      message: 'Nếu email này đã đăng ký tài khoản, mã đặt lại mật khẩu đã được gửi về hộp thư của bạn',
+      email,
+      expiresInSeconds: VERIFY_CODE_TTL_MINUTES * 60,
+      resendAfterSeconds: RESEND_COOLDOWN_SECONDS,
+    };
+  }
+
+  /**
+   * Bước 2 — nhập mã 6 số + mật khẩu mới. Sai quá 5 lần hoặc hết hạn thì
+   * xoá yêu cầu, buộc xin mã mới.
+   */
+  async resetPassword(emailInput: string, code: string, newPassword: string, ip?: string) {
+    const email = this.normalizeEmail(emailInput);
+    const pending = await this.prisma.passwordReset.findFirst({ where: { email } });
+
+    if (!pending) {
+      throw new BadRequestException('Không tìm thấy yêu cầu đặt lại mật khẩu. Vui lòng gửi mã mới.');
+    }
+
+    if (pending.expiresAt.getTime() < Date.now()) {
+      await this.prisma.passwordReset.delete({ where: { id: pending.id } });
+      throw new BadRequestException('Mã đặt lại mật khẩu đã hết hạn. Vui lòng gửi mã mới.');
+    }
+
+    if (pending.attempts >= MAX_CODE_ATTEMPTS) {
+      await this.prisma.passwordReset.delete({ where: { id: pending.id } });
+      throw new BadRequestException('Bạn đã nhập sai mã quá nhiều lần. Vui lòng gửi mã mới.');
+    }
+
+    const isMatch = await bcrypt.compare(code, pending.codeHash);
+    if (!isMatch) {
+      const attempts = pending.attempts + 1;
+      await this.prisma.passwordReset.update({ where: { id: pending.id }, data: { attempts } });
+      const remaining = MAX_CODE_ATTEMPTS - attempts;
+      throw new BadRequestException(
+        remaining > 0
+          ? `Mã đặt lại mật khẩu không đúng. Bạn còn ${remaining} lần thử.`
+          : 'Mã đặt lại mật khẩu không đúng. Bạn đã hết lượt thử, vui lòng gửi mã mới.',
+      );
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { email }, select: { id: true } });
+    if (!user) {
+      await this.prisma.passwordReset.delete({ where: { id: pending.id } });
+      throw new BadRequestException('Tài khoản không còn tồn tại.');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id: user.id }, data: { passwordHash } }),
+      this.prisma.passwordReset.delete({ where: { id: pending.id } }),
+    ]);
+
+    await this.auditService.log({
+      userId: user.id,
+      action: 'PASSWORD_RESET_SUCCESS',
+      entity: 'Auth',
+      entityId: user.id,
+      metadata: { email },
+      ip,
+    });
+
+    return { message: 'Đặt lại mật khẩu thành công. Bạn có thể đăng nhập bằng mật khẩu mới.' };
+  }
+
+  // ==============================================================
+  //  ĐĂNG NHẬP BẰNG GOOGLE (OAuth 2.0)
+  // ==============================================================
+
+  /**
+   * Đăng nhập / đăng ký bằng tài khoản Google.
+   *
+   * 3 trường hợp:
+   *   1. Đã từng đăng nhập Google (khớp providerId) → đăng nhập thẳng.
+   *   2. Email đã có tài khoản LOCAL (đăng ký mật khẩu trước đó) → liên kết
+   *      provider Google vào tài khoản đó (email đã được Google xác minh nên an toàn).
+   *   3. Email hoàn toàn mới → tạo User (role MEMBER) + hồ sơ Member + thông báo
+   *      chào mừng, tương tự luồng verify email thành công.
+   *
+   * Trả về cùng shape với login() thường để frontend dùng chung saveSession().
+   */
+  async googleLogin(profile: GoogleProfile, ip?: string) {
+    if (!profile.email) {
+      throw new BadRequestException('Tài khoản Google không có địa chỉ email');
+    }
+    const email = this.normalizeEmail(profile.email);
+
+    let user = await this.prisma.user.findUnique({ where: { email } });
+
+    if (user && user.providerId && user.providerId !== profile.providerId) {
+      throw new BadRequestException('Email này đã liên kết với một tài khoản Google khác');
+    }
+
+    if (!user) {
+      user = await this.createMemberFromGoogle(email, profile);
+    } else if (!user.providerId) {
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          provider: 'GOOGLE',
+          providerId: profile.providerId,
+          avatarUrl: user.avatarUrl || profile.avatarUrl || null,
+        },
+      });
+    }
+
+    if (user.status !== 'ACTIVE') {
+      throw new UnauthorizedException('Tài khoản của bạn đã bị vô hiệu hóa');
+    }
+
+    const payload = { sub: user.id, email: user.email, role: user.role };
+    const accessToken = this.jwtService.sign(payload);
+
+    let memberId: string | null = null;
+    if (user.role === 'MEMBER') {
+      const member = await this.prisma.member.findUnique({
+        where: { userId: user.id },
+        select: { id: true, code: true },
+      });
+      if (member) memberId = member.id;
+    }
+
+    await this.auditService.log({
+      userId: user.id,
+      action: 'AUTH_LOGIN',
+      entity: 'Auth',
+      entityId: user.id,
+      metadata: { email: user.email, role: user.role, provider: 'GOOGLE' },
+      ip,
+    });
+
+    return {
+      message: 'Đăng nhập bằng Google thành công',
+      accessToken,
+      memberId,
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+        branchId: user.branchId,
+        avatarUrl: user.avatarUrl,
+      },
+    };
+  }
+
+  /**
+   * Tạo tài khoản hội viên từ profile Google (lần đầu đăng nhập).
+   * Mật khẩu random bcrypt — tài khoản này đăng nhập bằng Google, không dùng mật khẩu.
+   */
+  private async createMemberFromGoogle(email: string, profile: GoogleProfile) {
+    const branch = await this.prisma.branch.findFirst({
+      where: { status: 'ACTIVE' },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    });
+
+    if (!branch) {
+      throw new BadRequestException('Hệ thống chưa có chi nhánh hoạt động');
+    }
+
+    const passwordHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
+
+    const user = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({
+        data: {
+          email,
+          passwordHash,
+          fullName: profile.fullName,
+          role: UserRole.MEMBER,
+          branchId: branch.id,
+          avatarUrl: profile.avatarUrl || null,
+          provider: 'GOOGLE',
+          providerId: profile.providerId,
+        },
+      });
+
+      const member = await tx.member.create({
+        data: {
+          userId: created.id,
+          code: await this.nextMemberCode(tx),
+          fullName: profile.fullName,
+          email,
+          phone: `G-${profile.providerId.slice(0, 15)}`,
+          branchId: branch.id,
+        },
+        select: { id: true, code: true },
+      });
+
+      await tx.notification.create({
+        data: {
+          memberId: member.id,
+          title: 'Chào mừng bạn đến với GymMaster Pro 💪',
+          content: `Xin chào ${profile.fullName}! Tài khoản hội viên của bạn đã được tạo qua đăng nhập Google. Hãy chọn một gói tập phù hợp để bắt đầu hành trình fitness của mình.`,
+          type: 'SYSTEM',
+          link: '/member/membership',
+        },
+      });
+
+      return created;
+    });
+
+    await this.auditService.log({
+      userId: user.id,
+      action: 'MEMBER_REGISTER',
+      entity: 'Member',
+      metadata: { email, provider: 'GOOGLE', emailVerified: true },
+    });
+
+    return user;
   }
 
   async register(registerDto: RegisterDto) {

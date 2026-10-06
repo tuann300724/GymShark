@@ -44,6 +44,26 @@ export const authApi = {
     return res.data;
   },
 
+  /** Quên mật khẩu bước 1 — gửi mã 6 số về email đã đăng ký. */
+  forgotPassword: async (email: string): Promise<RegisterCodeResponse> => {
+    const res = await apiClient.post<RegisterCodeResponse>('/auth/forgot-password', { email });
+    return res.data;
+  },
+
+  /** Quên mật khẩu bước 2 — nhập mã + mật khẩu mới. */
+  resetPassword: async (
+    email: string,
+    code: string,
+    newPassword: string,
+  ): Promise<{ message: string }> => {
+    const res = await apiClient.post<{ message: string }>('/auth/reset-password', {
+      email,
+      code,
+      newPassword,
+    });
+    return res.data;
+  },
+
   getProfile: async () => {
     const res = await apiClient.get('/auth/profile');
     return res.data;

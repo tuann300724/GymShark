@@ -220,6 +220,11 @@ model User {
   role         UserRole      @default(STAFF)
   status       UserStatus    @default(ACTIVE)
   avatarUrl    String?
+  /// Kênh đăng nhập: LOCAL (email + mật khẩu) hoặc GOOGLE (OAuth 2.0).
+  /// Tài khoản Google lần đầu được tạo với mật khẩu ngẫu nhiên (không dùng tới).
+  provider     String        @default("LOCAL")
+  /// Google `sub` — unique khi có giá trị (PostgreSQL cho phép nhiều NULL).
+  providerId   String?       @unique
   branchId     String?
   branch       Branch?       @relation(fields: [branchId], references: [id], onDelete: SetNull)
   createdAt    DateTime      @default(now())
@@ -676,4 +681,21 @@ model Notification {
   @@index([userId, isRead])
   @@index([memberId, createdAt])
   @@index([userId, createdAt])
+}
+
+/// MÃ ĐẶT LẠI MẬT KHẨU — yêu cầu quên mật khẩu qua email (luồng 2 bước).
+/// Chỉ lưu bcrypt hash của mã 6 số, không lưu mã dạng rõ. Hết hạn hoặc dùng
+/// xong thì xoá để bảng không phình. Không liên kết User để tránh lộ userId.
+model PasswordReset {
+  id         String   @id @default(uuid())
+  email      String
+  codeHash   String
+  attempts   Int      @default(0)
+  expiresAt  DateTime
+  lastSentAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([email])
+  @@index([expiresAt])
 }

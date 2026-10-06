@@ -8,6 +8,7 @@ import * as z from 'zod';
 import Link from 'next/link';
 import Image from 'next/image';
 import { authApi, saveSession } from '@/services/auth.service';
+import { GoogleLoginButton } from '@/components/auth/google-login-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
@@ -170,13 +171,7 @@ export default function LoginPage() {
                   Ghi nhớ đăng nhập
                 </label>
                 <Link
-                  href="/login"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setErrorMessage(
-                      'Vui lòng liên hệ nhân viên lễ tân của phòng gym để được hỗ trợ đặt lại mật khẩu.',
-                    );
-                  }}
+                  href="/forgot-password"
                   className="inline-flex items-center gap-1 font-medium text-neon hover:underline"
                 >
                   <KeyRound className="size-3.5" />
@@ -193,6 +188,13 @@ export default function LoginPage() {
                 Đăng nhập
               </Button>
             </form>
+
+            <div className="my-4 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
+              <span className="h-px flex-1 bg-line" />
+              Hoặc
+              <span className="h-px flex-1 bg-line" />
+            </div>
+            <GoogleLoginButton label="Tiếp tục với Google" />
 
             {/* Register link */}
             <p className="mt-4 text-center text-xs text-muted">
