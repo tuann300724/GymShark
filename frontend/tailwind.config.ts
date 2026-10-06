@@ -1,5 +1,12 @@
 import type { Config } from 'tailwindcss';
 
+/**
+ * Màu theo CSS variables để đổi theme sáng/tối không cần sửa component.
+ * `:root` = light, `.dark` = dark (định nghĩa trong globals.css).
+ * Cú pháp `rgb(var(--x) / <alpha-value>)` giữ nguyên opacity modifier (/10, /40...).
+ */
+const tv = (name: string) => `rgb(var(${name}) / <alpha-value>)`;
+
 const config: Config = {
   darkMode: 'class',
   content: [
@@ -10,49 +17,49 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // ===== Brand palette (Dark Cinematic + Neon Fitness) =====
-        ink: '#0B0D0F', // background
-        surface: '#15191D', // secondary background / card
+        // ===== Brand palette (chuyển sáng/tối qua CSS variables) =====
+        ink: tv('--ink'), // background
+        surface: tv('--surface'), // secondary background / card
         neon: {
-          DEFAULT: '#B7FF00', // primary accent
-          hover: '#D0FF4D', // primary hover
+          DEFAULT: tv('--neon'), // primary accent
+          hover: tv('--neon-hover'), // primary hover
         },
-        chalk: '#F5F5F5', // main text
-        muted: '#9AA0A6', // secondary text
-        line: '#272C31', // border
-        danger: '#FF4545', // danger / warning
+        chalk: tv('--chalk'), // main text
+        muted: tv('--muted'), // secondary text
+        line: tv('--line'), // border
+        danger: tv('--danger'), // danger / warning
 
         // ===== Semantic tokens (compat) =====
-        background: '#0B0D0F',
-        foreground: '#F5F5F5',
-        border: '#272C31',
-        input: '#272C31',
-        ring: '#B7FF00',
+        background: tv('--ink'),
+        foreground: tv('--chalk'),
+        border: tv('--line'),
+        input: tv('--line'),
+        ring: tv('--neon'),
         card: {
-          DEFAULT: '#15191D',
-          foreground: '#F5F5F5',
+          DEFAULT: tv('--surface'),
+          foreground: tv('--chalk'),
         },
         popover: {
-          DEFAULT: '#15191D',
-          foreground: '#F5F5F5',
+          DEFAULT: tv('--surface'),
+          foreground: tv('--chalk'),
         },
         primary: {
-          DEFAULT: '#B7FF00',
-          foreground: '#0B0D0F',
+          DEFAULT: tv('--neon'),
+          foreground: tv('--on-neon'),
         },
         secondary: {
-          DEFAULT: '#15191D',
-          foreground: '#F5F5F5',
+          DEFAULT: tv('--surface'),
+          foreground: tv('--chalk'),
         },
         accent: {
-          DEFAULT: '#15191D',
-          foreground: '#F5F5F5',
+          DEFAULT: tv('--surface'),
+          foreground: tv('--chalk'),
         },
         destructive: {
-          DEFAULT: '#FF4545',
-          foreground: '#F5F5F5',
+          DEFAULT: tv('--danger'),
+          foreground: tv('--chalk'),
         },
-        'muted-foreground': '#9AA0A6',
+        'muted-foreground': tv('--muted'),
       },
       fontFamily: {
         sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],

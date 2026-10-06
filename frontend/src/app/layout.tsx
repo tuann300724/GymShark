@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Barlow_Condensed, Be_Vietnam_Pro } from 'next/font/google';
+import Script from 'next/script';
 import './globals.css';
 import { QueryProvider } from '@/providers/query-provider';
 import { ThemeProvider } from '@/providers/theme-provider';
@@ -27,11 +28,15 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="vi"
-      className={`dark ${sans.variable} ${display.variable}`}
-      suppressHydrationWarning
-    >
+    <html lang="vi" className={`${sans.variable} ${display.variable}`} suppressHydrationWarning>
+      {/* Chống chớp theme: đọc gym_theme trước khi React hydrate (mặc định dark). */}
+      <Script
+        id="gym-theme-init"
+        strategy="beforeInteractive"
+        dangerouslySetInnerHTML={{
+          __html: `(function(){try{var t=localStorage.getItem('gym_theme');if(t!=='light'){document.documentElement.classList.add('dark')}}catch(e){document.documentElement.classList.add('dark')}})();`,
+        }}
+      />
       <body className="min-h-screen bg-ink font-sans antialiased text-chalk">
         <ThemeProvider>
           <QueryProvider>

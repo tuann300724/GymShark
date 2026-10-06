@@ -19,7 +19,10 @@ Toàn bộ website GymMaster dùng **một** design system. Tài liệu này là
 
 Neon CHỈ dùng cho: CTA button, nav active, progress, số liệu quan trọng, icon nhấn, label nhỏ, hover highlight. **Không bao giờ** làm background lớn, không gradient neon tràn lan, không glow loè loẹt.
 
-Site là **dark-only** (đã khóa). KHÔNG viết `dark:` variant nữa — dùng class trực tiếp. KHÔNG dùng `bg-white`, `bg-slate-*`, `text-slate-*`, `emerald`, `teal` — tất cả đã lỗi thời.
+Site có **2 theme** (sáng/tối) qua CSS variables — token Tailwind giữ nguyên tên
+(`bg-ink`, `text-chalk`, `text-neon`...) nên component KHÔNG cần sửa khi đổi theme.
+`:root` = sáng, `.dark` = tối (mặc định). KHÔNG dùng `bg-white`, `bg-slate-*`,
+`text-slate-*`, `emerald`, `teal` — màu cứng làm vỡ theme sáng.
 
 ## 2. Typography (max 2 font families)
 

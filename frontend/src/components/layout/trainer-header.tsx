@@ -8,6 +8,7 @@ import { memberApi } from '@/services/member.service';
 import { notificationApi } from '@/services/notification.service';
 import { authApi } from '@/services/auth.service';
 import NotificationBell from '@/components/notifications/notification-bell';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import {
   Dumbbell,
   Menu,
@@ -109,6 +110,7 @@ export function TrainerHeader() {
           {/* Right */}
           <div className="flex items-center gap-1.5">
             {/* Notification bell */}
+            <ThemeToggle />
             <NotificationBell notificationsHref="/trainer/notifications" queryKeyPrefix="trainer" />
 
             {/* User menu */}

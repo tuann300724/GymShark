@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/lib/axios';
 import { MobileNav } from './mobile-nav';
 import NotificationBell from '@/components/notifications/notification-bell';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { Search, ShieldCheck, LogOut, User as UserIcon } from 'lucide-react';
 
 export function AdminHeader() {
@@ -94,6 +95,7 @@ export function AdminHeader() {
         </div>
 
         {/* Notification Bell */}
+        <ThemeToggle />
         <NotificationBell notificationsHref="/admin/notifications" queryKeyPrefix="admin" />
 
         {/* User Profile Dropdown */}

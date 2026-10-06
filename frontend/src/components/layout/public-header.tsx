@@ -7,6 +7,7 @@ import { getStoredUser } from '@/services/auth.service';
 import { Button } from '@/components/ui/button';
 import { Menu, X, Dumbbell, Search, ArrowRight } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { cn } from '@/lib/utils';
 import { isAdminRole } from '@/lib/auth';
 
@@ -125,6 +126,7 @@ export function PublicHeader() {
 
           {/* Right actions */}
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <button
               onClick={() => setSearchOpen(true)}
               className="flex size-9 items-center justify-center rounded-sm border border-line bg-surface text-muted transition-colors hover:border-neon/50 hover:text-neon"

@@ -81,7 +81,7 @@ export function ProgressDashboard() {
                       cy="100"
                       r={RADIUS}
                       fill="none"
-                      stroke="#272C31"
+                      style={{ stroke: 'rgb(var(--line))' }}
                       strokeWidth="10"
                     />
                     <circle
@@ -89,12 +89,14 @@ export function ProgressDashboard() {
                       cy="100"
                       r={RADIUS}
                       fill="none"
-                      stroke="#B7FF00"
                       strokeWidth="10"
                       strokeLinecap="round"
                       strokeDasharray={CIRCUMFERENCE}
                       strokeDashoffset={offset}
-                      style={{ transition: 'stroke-dashoffset 1.1s cubic-bezier(0.16, 1, 0.3, 1)' }}
+                      style={{
+                        stroke: 'rgb(var(--neon))',
+                        transition: 'stroke-dashoffset 1.1s cubic-bezier(0.16, 1, 0.3, 1)',
+                      }}
                     />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">

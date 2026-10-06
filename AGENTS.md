@@ -58,8 +58,13 @@ src/
 
 ## 4. Quy ước design & code (bắt buộc)
 
-1. **Palette duy nhất** (chi tiết trong `DESIGN_SYSTEM.md`): nền `#0B0D0F`, surface `#15191D`, accent neon `#B7FF00` (hover `#D0FF4D`), chữ `#F5F5F5` / phụ `#9AA0A6`, viền `#272C31`, danger `#FF4545`. Neon **chỉ** làm accent (nút, số liệu, indicator active) — không bao giờ tô nền lớn, không gradient neon.
-2. **Dark-only**: không thêm toggle sáng/tối, không lớp `dark:`.
+1. **Palette duy nhất** (chi tiết trong `DESIGN_SYSTEM.md`): token Tailwind giữ nguyên tên
+   (`ink/surface/neon/chalk/muted/line/danger`) nhưng giá trị là CSS variables đổi theo theme
+   — dark (mặc định): nền `#0B0D0F`, neon `#B7FF00`; sáng: nền `#F2F4F0`, neon `lime-600`.
+   Neon **chỉ** làm accent (nút, số liệu, indicator active) — không bao giờ tô nền lớn, không gradient neon.
+2. **Sáng/tối**: toggle ở 4 header (`ThemeToggle`, icon mặt trời/mặt trăng xoay+mờ dần),
+   theme lưu `localStorage gym_theme` (mặc định dark), token màu là CSS variables
+   (`:root` sáng / `.dark` tối trong `globals.css`) — KHÔNG viết class `dark:` thủ công.
 3. **Sau khi sửa UI luôn grep kiểm tra** không lẫn palette cũ: `emerald|teal-|slate-|rose-|bg-white|dark:` → phải là 0 kết quả.
 4. Font chỉ 2 họ, khai báo tại `src/app/layout.tsx` (next/font/google): **Barlow Condensed** (tiêu đề) + **Be Vietnam Pro** (nội dung).
 5. Icon dùng `lucide-react`. Animation dùng component `Reveal` (IntersectionObserver, tôn trọng `prefers-reduced-motion`) — hiệu ứng tiết chế, không "game hóa".
