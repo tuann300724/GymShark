@@ -29,14 +29,18 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="vi" className={`${sans.variable} ${display.variable}`} suppressHydrationWarning>
-      {/* Chống chớp theme: đọc gym_theme trước khi React hydrate (mặc định dark). */}
-      <Script
-        id="gym-theme-init"
-        strategy="beforeInteractive"
-        dangerouslySetInnerHTML={{
-          __html: `(function(){try{var t=localStorage.getItem('gym_theme');if(t!=='light'){document.documentElement.classList.add('dark')}}catch(e){document.documentElement.classList.add('dark')}})();`,
-        }}
-      />
+      <head>
+        {/* Chống chớp theme: đọc gym_theme trước khi React hydrate (mặc định dark).
+            Phải nằm TRONG <head> — nếu để là con trực tiếp của <html> thì browser dời vào
+            <head> còn server render ngoài </head> → lệch hydration toàn trang. */}
+        <Script
+          id="gym-theme-init"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('gym_theme');if(t!=='light'){document.documentElement.classList.add('dark')}}catch(e){document.documentElement.classList.add('dark')}})();`,
+          }}
+        />
+      </head>
       <body className="min-h-screen bg-ink font-sans antialiased text-chalk">
         <ThemeProvider>
           <QueryProvider>
