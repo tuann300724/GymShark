@@ -15,6 +15,8 @@ import {
   FaceScanDto,
   GetCheckinsQueryDto,
   MyHistoryQueryDto,
+  QrCheckInDto,
+  QrLookupQueryDto,
   StaffCheckInDto,
 } from './dto/checkin.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -78,6 +80,29 @@ export class CheckinsController {
     @CurrentUser('id') actorId?: string,
   ) {
     return this.checkinsService.faceScanForStaff(dto, role, branchId, actorId);
+  }
+
+  @Get('qr/lookup')
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @ApiOperation({
+    summary: 'Lễ tân nhập/dán mã QR hội viên để đối chiếu hồ sơ trước khi check-in',
+  })
+  lookupByQr(@Query() query: QrLookupQueryDto) {
+    return this.checkinsService.lookupByQr(query.token);
+  }
+
+  @Post('qr')
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @ApiOperation({
+    summary: 'Check-in cho hội viên bằng mã QR (ghi method = QR_CODE, đi qua cùng kiểm tra thẻ tập)',
+  })
+  checkInByQr(
+    @Body() dto: QrCheckInDto,
+    @CurrentUser('role') role: string,
+    @CurrentUser('branchId') branchId?: string | null,
+    @CurrentUser('id') actorId?: string,
+  ) {
+    return this.checkinsService.checkInByQr(dto, role, branchId, actorId);
   }
 
   @Post('face')

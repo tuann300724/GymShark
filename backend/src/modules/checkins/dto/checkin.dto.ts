@@ -202,3 +202,33 @@ export class FaceScanDto {
   @IsArray()
   embedding: number[];
 }
+
+/** Mã QR hội viên do MemberQrService ký — lễ tân nhập/dán để tra cứu hoặc check-in */
+export class QrCheckInDto {
+  @ApiProperty({
+    description: 'Chuỗi mã QR hội viên (hội viên hiển thị ở trang "Thẻ QR" của mình)',
+  })
+  @IsString()
+  @IsNotEmpty()
+  token: string;
+
+  @ApiPropertyOptional({
+    description: 'Chi nhánh check-in (mặc định chi nhánh của hội viên; STAFF buộc phải ở chi nhánh mình)',
+  })
+  @IsOptional()
+  @IsString()
+  branchId?: string;
+
+  @ApiPropertyOptional({ description: 'Ghi chú ngắn (ví dụ: quét thẻ tại quầy)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  note?: string;
+}
+
+export class QrLookupQueryDto {
+  @ApiProperty({ description: 'Chuỗi mã QR hội viên cần tra cứu' })
+  @IsString()
+  @IsNotEmpty()
+  token: string;
+}

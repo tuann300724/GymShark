@@ -26,6 +26,14 @@ export class MemberController {
     return this.memberService.getMe(userId);
   }
 
+  @Get('qr')
+  @ApiOperation({
+    summary: 'Mã QR cá nhân của hội viên (thẻ ra vào — lễ tân quét để check-in)',
+  })
+  getQr(@CurrentUser('id') userId: string) {
+    return this.memberService.getQr(userId);
+  }
+
   @Patch('me')
   @ApiOperation({ summary: 'Cập nhật hồ sơ hội viên' })
   @ApiResponse({ status: 200, description: 'Cập nhật thành công' })

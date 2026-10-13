@@ -23,12 +23,14 @@ import {
   LogIn,
   LogOut,
   ChevronDown,
+  ScanLine,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
   { name: 'Dashboard', href: '/member', icon: LayoutDashboard },
   { name: 'Check-in', href: '/member/checkin', icon: QrCode },
+  { name: 'Thẻ QR', href: '/member/qr', icon: ScanLine },
   { name: 'Lịch tập', href: '/member/schedule', icon: CalendarDays },
   { name: 'Gói tập của tôi', href: '/member/membership', icon: CreditCard },
   { name: 'Lịch sử check-in', href: '/member/checkins', icon: LogIn },
