@@ -20,6 +20,8 @@ import {
   User,
   LogOut,
   ChevronDown,
+  MessageSquare,
+  Utensils,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -27,6 +29,8 @@ const NAV_ITEMS = [
   { name: 'Dashboard', href: '/trainer', icon: LayoutDashboard },
   { name: 'Lịch dạy', href: '/trainer/schedule', icon: CalendarDays },
   { name: 'Hội viên', href: '/trainer/members', icon: Users },
+  { name: 'Tin nhắn', href: '/trainer/messages', icon: MessageSquare },
+  { name: 'Thực đơn', href: '/trainer/meal-plans', icon: Utensils },
 ];
 
 const NAV_LINK_CLASSES =

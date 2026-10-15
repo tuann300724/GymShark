@@ -16,9 +16,9 @@ async function bootstrap() {
   // 0. Security headers (Helmet) — trước mọi middleware khác
   app.use(helmet());
 
-  // 0b. Body parser — payload vector khuôn mặt (tối đa 5 mẫu × 1024 số) có thể
-  // vượt giới hạn 100kb mặc định của Express
-  app.useBodyParser('json', { limit: '1mb' });
+  // 0b. Body parser — payload vector khuôn mặt (tối đa 5 mẫu × 1024 số) và ảnh
+  // chat/thực phẩm dạng data URL base64 đều có thể vượt giới hạn 100kb mặc định.
+  app.useBodyParser('json', { limit: '4mb' });
 
   // 1. Enable Global Prefix
   app.setGlobalPrefix('api');

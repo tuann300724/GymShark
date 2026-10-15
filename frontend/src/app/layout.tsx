@@ -3,6 +3,7 @@ import { Barlow_Condensed, Be_Vietnam_Pro } from 'next/font/google';
 import Script from 'next/script';
 import './globals.css';
 import { QueryProvider } from '@/providers/query-provider';
+import { ChatSocketProvider } from '@/providers/chat-socket-provider';
 import { ThemeProvider } from '@/providers/theme-provider';
 import { ToastProvider } from '@/components/ui/toast';
 
@@ -44,7 +45,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen bg-ink font-sans antialiased text-chalk">
         <ThemeProvider>
           <QueryProvider>
-            <ToastProvider>{children}</ToastProvider>
+            <ChatSocketProvider>
+              <ToastProvider>{children}</ToastProvider>
+            </ChatSocketProvider>
           </QueryProvider>
         </ThemeProvider>
       </body>

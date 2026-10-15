@@ -24,6 +24,9 @@ import { PublicModule } from './modules/public/public.module';
 import { MemberModule } from './modules/member/member.module';
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { MailModule } from './modules/mail/mail.module';
+import { FoodsModule } from './modules/foods/foods.module';
+import { MealPlansModule } from './modules/meal-plans/meal-plans.module';
+import { ChatModule } from './modules/chat/chat.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 @Module({
@@ -62,6 +65,9 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     PublicModule,
     MemberModule,
     AuditLogsModule,
+    FoodsModule,
+    ChatModule,
+    MealPlansModule,
   ],
   providers: [
     // Rate limiting: áp dụng cho mọi request

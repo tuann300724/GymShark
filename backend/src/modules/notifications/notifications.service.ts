@@ -24,6 +24,7 @@ export const NOTIFICATION_TYPES = [
   'PROMOTION',
   'EQUIPMENT',
   'SYSTEM',
+  'CHAT',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 

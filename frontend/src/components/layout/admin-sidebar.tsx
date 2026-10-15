@@ -22,6 +22,7 @@ import {
   ChevronRight,
   ClipboardCheck,
   ScrollText,
+  UtensilsCrossed,
 } from 'lucide-react';
 
 export const navigationSections = [
@@ -62,6 +63,7 @@ export const navigationSections = [
       { name: 'Báo cáo thống kê', href: '/admin/reports', icon: BarChart3 },
       { name: 'Thông báo', href: '/admin/notifications', icon: Bell },
       { name: 'Nhật ký hệ thống', href: '/admin/audit-logs', icon: ScrollText },
+      { name: 'Thư viện thực phẩm', href: '/admin/foods', icon: UtensilsCrossed },
       { name: 'Cài đặt', href: '/admin/settings', icon: Settings },
     ],
   },
