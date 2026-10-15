@@ -90,7 +90,9 @@ export function passwordResetCodeEmail(params: {
   const code = escapeHtml(params.code);
 
   return {
-    subject: `${params.code} là mã đặt lại mật khẩu GymMaster Pro`,
+    // Subject KHÔNG được chứa mã: MailService ghi subject ra log backend —
+    // nếu để mã trong subject thì bất kỳ ai đọc được log cũng lấy được OTP.
+    subject: 'Mã đặt lại mật khẩu GymMaster Pro',
     html: layout(`
       <h1 style="margin:0 0 12px;font-size:20px;line-height:1.4;color:${BRAND.chalk};">
         Xin chào ${fullName},
@@ -137,7 +139,9 @@ export function memberVerificationCodeEmail(params: {
   const code = escapeHtml(params.code);
 
   return {
-    subject: `${params.code} là mã xác minh đăng ký tài khoản GymMaster Pro`,
+    // Subject KHÔNG được chứa mã: MailService ghi subject ra log backend —
+    // nếu để mã trong subject thì bất kỳ ai đọc được log cũng lấy được OTP.
+    subject: 'Mã xác minh tài khoản GymMaster Pro',
     html: layout(`
       <h1 style="margin:0 0 12px;font-size:20px;line-height:1.4;color:${BRAND.chalk};">
         Xin chào ${fullName},

@@ -14,6 +14,7 @@ import { FaceScanner } from '@/components/ui/face-scanner';
 import { StatCard } from '@/components/ui/stat-card';
 import { useToast } from '@/components/ui/toast';
 import { formatDate, formatTime, formatDuration, formatDateTime } from '@/lib/utils';
+import { MEMBER_STATUS_META } from '@/lib/status';
 import {
   Users,
   QrCode,
@@ -236,6 +237,48 @@ export default function AdminCheckinsPage() {
     },
   });
 
+  // ------------------ QR check-in dialog ------------------
+  const [qrOpen, setQrOpen] = useState(false);
+  const [qrToken, setQrToken] = useState('');
+  const [qrResult, setQrResult] = useState<Awaited<ReturnType<typeof checkinApi.lookupQr>> | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (!qrOpen) {
+      setQrToken('');
+      setQrResult(null);
+    }
+  }, [qrOpen]);
+
+  const qrLookupMutation = useMutation({
+    mutationFn: (token: string) => checkinApi.lookupQr(token),
+    onSuccess: (res) => setQrResult(res),
+    onError: (err: any) => {
+      setQrResult(null);
+      const msg = err.response?.data?.message || 'Không tra cứu được hội viên.';
+      toast.error('Mã QR không hợp lệ', Array.isArray(msg) ? msg.join(', ') : msg);
+    },
+  });
+
+  const qrCheckInMutation = useMutation({
+    mutationFn: (token: string) => checkinApi.qrCheckIn(token),
+    onSuccess: (res) => {
+      const name = res.data?.member?.fullName || '';
+      toast.success(
+        'Check-in bằng mã QR thành công',
+        `${name} đang có mặt trong phòng gym (${res.data?.membership?.packageName || 'không có gói tập'}).`,
+      );
+      setQrOpen(false);
+      invalidateAll();
+      refetchInside();
+    },
+    onError: (err: any) => {
+      const msg = err.response?.data?.message || 'Không thể check-in bằng mã QR.';
+      toast.error('Check-in thất bại', Array.isArray(msg) ? msg.join(', ') : msg);
+    },
+  });
+
   // ------------------ Peak hour display ------------------
   const peakHour = hourly?.peakHour ?? null;
   const peakCount = hourly?.peakCount ?? 0;
@@ -283,6 +326,9 @@ export default function AdminCheckinsPage() {
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Button variant="outline" size="sm" onClick={() => setQrOpen(true)}>
+            <ScanLine className="size-4 mr-1.5" /> Quét mã QR
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setFaceScanOpen(true)}>
             <ScanFace className="size-4 mr-1.5" /> Quét khuôn mặt
           </Button>
@@ -364,14 +410,15 @@ export default function AdminCheckinsPage() {
                             {member?.code}
                           </span>
                         </p>
-                        <p className="truncate text-xs text-muted">
+                        {/* div chứ không phải p: <Badge> là <div>, để trong <p> sẽ vi phạm HTML (React cảnh báo hydration error) */}
+                        <div className="truncate text-xs text-muted">
                           {c.packageName ? (
                             <Badge variant="outline" className="mr-1.5">
                               {c.packageName}
                             </Badge>
                           ) : null}
                           Vào lúc {formatTime(c.checkInTime)} • {formatDuration(c.durationMinutes)}
-                        </p>
+                        </div>
                       </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
@@ -716,6 +763,134 @@ export default function AdminCheckinsPage() {
             </p>
           </>
         )}
+      </Dialog>
+
+      {/* QR check-in dialog */}
+      <Dialog
+        open={qrOpen}
+        onClose={() => setQrOpen(false)}
+        title="Check-in bằng mã QR"
+        description="Đưa camera điện thoại hội viên cho máy quét rồi dán chuỗi mã vào ô dưới, hoặc hội viên đọc mã cho bạn nhập tay."
+      >
+        <div className="space-y-4">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <ScanLine className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
+              <input
+                type="text"
+                value={qrToken}
+                onChange={(e) => setQrToken(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && qrToken.trim()) qrLookupMutation.mutate(qrToken.trim());
+                }}
+                placeholder="Dán chuỗi mã QR vào đây"
+                className="h-10 w-full rounded-sm border border-line bg-ink pl-9 pr-3 font-mono text-xs text-chalk placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-neon/70"
+              />
+            </div>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => qrLookupMutation.mutate(qrToken.trim())}
+              isLoading={qrLookupMutation.isPending}
+              disabled={!qrToken.trim()}
+            >
+              Tra cứu
+            </Button>
+          </div>
+
+          {qrResult ? (
+            <div className="space-y-4">
+              {/* Hồ sơ hội viên — để đối chiếu mặt trước khi bấm check-in */}
+              <div className="flex items-start gap-3 rounded-xl border border-line p-3">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-full border border-neon/40 bg-neon/10 text-sm font-bold uppercase text-neon">
+                  {qrResult.member.fullName?.charAt(0) || '?'}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-chalk">
+                    {qrResult.member.fullName}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted">
+                    <span className="font-mono text-neon">{qrResult.member.code}</span>
+                    {' • '}
+                    {qrResult.member.phone || 'chưa có SĐT'}
+                  </p>
+                  <p className="mt-1 flex items-center gap-1.5 text-[11px] text-muted">
+                    <Building2 className="size-3.5 shrink-0" />
+                    {qrResult.member.branch?.name || '—'}
+                  </p>
+                </div>
+                <Badge variant={MEMBER_STATUS_META[qrResult.member.status]?.variant ?? 'default'}>
+                  {MEMBER_STATUS_META[qrResult.member.status]?.label || qrResult.member.status}
+                </Badge>
+              </div>
+
+              {/* Trạng thái tập */}
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="rounded-sm border border-line bg-ink px-3 py-2">
+                  <p className="meta-label">Gói tập</p>
+                  <p className="mt-1 text-xs text-chalk">
+                    {qrResult.membership ? (
+                      <>
+                        {qrResult.membership.packageName || 'Gói tập'} · còn{' '}
+                        <span className="text-neon">{qrResult.membership.remainingDays}</span> ngày
+                      </>
+                    ) : (
+                      <span className="text-danger">Chưa có gói tập hiệu lực</span>
+                    )}
+                  </p>
+                </div>
+                <div className="rounded-sm border border-line bg-ink px-3 py-2">
+                  <p className="meta-label">Phiên tập hiện tại</p>
+                  <p className="mt-1 text-xs text-chalk">
+                    {qrResult.checkedIn && qrResult.currentCheckIn ? (
+                      <>
+                        Đang check-in lúc{' '}
+                        <span className="text-neon">
+                          {formatTime(new Date(qrResult.currentCheckIn.checkInAt))}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-muted">Chưa check-in</span>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {qrResult.checkedIn ? (
+                <Button
+                  variant="danger"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => {
+                    if (!qrResult.currentCheckIn) return;
+                    checkoutMutation.mutate(qrResult.currentCheckIn.id);
+                  }}
+                  isLoading={checkoutMutation.isPending}
+                >
+                  <LogOut className="size-4 mr-1.5" /> Check-out cho hội viên
+                </Button>
+              ) : (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => qrCheckInMutation.mutate(qrToken.trim())}
+                  isLoading={qrCheckInMutation.isPending}
+                >
+                  <UserCheck className="size-4 mr-1.5" /> Check-in bằng mã QR
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="rounded-sm border border-dashed border-line px-4 py-6 text-center">
+              <QrCode className="mx-auto size-6 text-muted" />
+              <p className="mt-2 text-xs text-muted">
+                Chưa tra cứu hội viên — dán chuỗi mã QR rồi bấm{' '}
+                <span className="text-chalk">Tra cứu</span>.
+              </p>
+            </div>
+          )}
+        </div>
       </Dialog>
     </div>
   );

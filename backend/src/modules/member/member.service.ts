@@ -13,12 +13,14 @@ import { BANK_INFO } from '../payments/bank-info';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { RegisterMembershipDto } from './dto/register-membership.dto';
+import { MemberQrService } from '../../common/services/member-qr.service';
 
 @Injectable()
 export class MemberService {
   constructor(
     private prisma: PrismaService,
     private auditService: AuditService,
+    private qrService: MemberQrService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -92,6 +94,28 @@ export class MemberService {
         emergencyContact: member.emergencyContact,
         status: member.status,
         joinedAt: member.joinedAt,
+        branch: member.branch,
+      },
+    };
+  }
+
+  /**
+   * Mã QR cá nhân — thẻ ra vào hội viên.
+   *
+   * Token cố định cho từng hội viên nên QR không đổi giữa các lần tải: hội viên
+   * chụp màn hình một lần là dùng mãi, lễ tân quét/nhập chuỗi này ở /admin/checkins.
+   */
+  async getQr(userId: string) {
+    const member = await this.resolveMember(userId);
+    if (!member) throw new ForbiddenException('Bạn chưa có hồ sơ hội viên');
+
+    return {
+      token: this.qrService.sign({ memberId: member.id, memberCode: member.code }),
+      member: {
+        id: member.id,
+        code: member.code,
+        fullName: member.fullName,
+        status: member.status,
         branch: member.branch,
       },
     };

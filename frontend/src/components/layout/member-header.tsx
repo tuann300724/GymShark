@@ -23,14 +23,19 @@ import {
   LogIn,
   LogOut,
   ChevronDown,
+<<<<<<< HEAD
   MessageSquare,
   Utensils,
+=======
+  ScanLine,
+>>>>>>> e465e7496c0f4a3840f144202755e173588bc380
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
   { name: 'Dashboard', href: '/member', icon: LayoutDashboard },
   { name: 'Check-in', href: '/member/checkin', icon: QrCode },
+  { name: 'Thẻ QR', href: '/member/qr', icon: ScanLine },
   { name: 'Lịch tập', href: '/member/schedule', icon: CalendarDays },
   { name: 'Thực đơn', href: '/member/meal-plans', icon: Utensils },
   { name: 'Tin nhắn', href: '/member/messages', icon: MessageSquare },

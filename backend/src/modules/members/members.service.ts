@@ -190,7 +190,9 @@ export class MembersService {
     const data: Prisma.MemberUpdateInput = {};
     if (dto.fullName !== undefined) data.fullName = dto.fullName;
     if (dto.phone !== undefined) data.phone = dto.phone;
-    if (dto.email !== undefined) data.email = dto.email;
+    // Email là danh tính đăng nhập — chuẩn hoá theo chuẩn của luồng đăng ký
+    // (auth.service.normalizeEmail) để không sinh bản ghi "hệ và không hệ".
+    if (dto.email !== undefined) data.email = dto.email.trim().toLowerCase();
     if (dto.gender !== undefined) data.gender = dto.gender;
     if (dto.dateOfBirth !== undefined) data.dateOfBirth = new Date(dto.dateOfBirth);
     if (dto.address !== undefined) data.address = dto.address;
@@ -200,6 +202,18 @@ export class MembersService {
 
     if (Object.keys(data).length === 0) {
       throw new BadRequestException('Không có dữ liệu nào để cập nhật');
+    }
+
+    // Email là danh tính đăng nhập — chặn email đã thuộc một tài khoản khác
+    // trước khi ghi, để không vấp ràng buộc duy nhất của User.email giữa chừng.
+    if (dto.email !== undefined && member.userId) {
+      const owner = await this.prisma.user.findUnique({
+        where: { email: data.email as string },
+        select: { id: true },
+      });
+      if (owner && owner.id !== member.userId) {
+        throw new ConflictException('Email này đã được sử dụng cho tài khoản khác');
+      }
     }
 
     // Đồng bộ trạng thái tài khoản đăng nhập (nếu có) — khóa member = khóa luôn login
@@ -215,7 +229,12 @@ export class MembersService {
         await this.prisma.$transaction(async (tx) => {
           await tx.user.update({
             where: { id: member.userId! },
-            data: { status: userStatus },
+            // Cập nhật email của hồ sơ phải đổi luôn email đăng nhập,
+            // nếu không sẽ lệch giữa Member.email và User.email.
+            data: {
+              status: userStatus,
+              ...(dto.email !== undefined ? { email: data.email as string } : {}),
+            },
           });
           await tx.member.update({ where: { id }, data });
         });
@@ -232,7 +251,17 @@ export class MembersService {
       }
     }
 
-    const updated = await this.prisma.member.update({ where: { id }, data });
+    // Nhánh chung: cũng phải đồng bộ email sang tài khoản đăng nhập (nếu có)
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const updatedMember = await tx.member.update({ where: { id }, data });
+      if (dto.email !== undefined && member.userId) {
+        await tx.user.update({
+          where: { id: member.userId },
+          data: { email: data.email as string },
+        });
+      }
+      return updatedMember;
+    });
 
     if (dto.status) {
       await this.notifyStatus(member.id, member.fullName, dto.status);

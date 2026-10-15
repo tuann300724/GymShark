@@ -7,6 +7,21 @@ export const memberApi = {
     return res.data;
   },
 
+  /** Mã QR cá nhân (thẻ ra vào) — token cố định nên QR không đổi giữa các lần tải */
+  getMyQr: async (): Promise<{
+    token: string;
+    member: {
+      id: string;
+      code: string;
+      fullName: string;
+      status: string;
+      branch: { id: string; name: string; code: string };
+    };
+  }> => {
+    const res = await apiClient.get('/member/qr');
+    return res.data;
+  },
+
   updateMe: async (payload: {
     fullName?: string;
     phone?: string;
