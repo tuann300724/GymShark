@@ -18,14 +18,5 @@
     { "action": "shell", "resource": "git push *", "effect": "ask" },
     { "action": "shell", "resource": "git push", "effect": "ask" },
     { "action": "shell", "resource": "rm -rf *", "effect": "ask" }
-  ],
-  // GitHub MCP (remote, đăng nhập OAuth qua lệnh /mcps sau khi nạp config)
-  "mcp": {
-    "servers": {
-      "github": {
-        "type": "remote",
-        "url": "https://api.githubcopilot.com/mcp/"
-      }
-    }
-  }
+  ]
 }
