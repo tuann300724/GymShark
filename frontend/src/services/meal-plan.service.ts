@@ -56,7 +56,10 @@ export interface MealPlan {
   createdAt: string;
   updatedAt: string;
   member?: { id: string; fullName: string; avatarUrl: string | null; code: string } | null;
-  trainer?: { id: string; user?: { id: string; fullName: string; avatarUrl: string | null } } | null;
+  trainer?: {
+    id: string;
+    user?: { id: string; fullName: string; avatarUrl: string | null };
+  } | null;
   meals: Meal[];
   _count?: { meals: number };
 }
@@ -110,13 +113,22 @@ export const mealPlanApi = {
     return res.data;
   },
 
-  duplicate: async (id: string, payload?: { memberId?: string; title?: string }): Promise<MealPlan> => {
+  duplicate: async (
+    id: string,
+    payload?: { memberId?: string; title?: string },
+  ): Promise<MealPlan> => {
     const res = await apiClient.post<MealPlan>(`/meal-plans/${id}/duplicate`, payload || {});
     return res.data;
   },
 
-  send: async (id: string, payload?: { content?: string }): Promise<{ planId: string; message: any }> => {
-    const res = await apiClient.post<{ planId: string; message: any }>(`/meal-plans/${id}/send`, payload || {});
+  send: async (
+    id: string,
+    payload?: { content?: string },
+  ): Promise<{ planId: string; message: any }> => {
+    const res = await apiClient.post<{ planId: string; message: any }>(
+      `/meal-plans/${id}/send`,
+      payload || {},
+    );
     return res.data;
   },
 

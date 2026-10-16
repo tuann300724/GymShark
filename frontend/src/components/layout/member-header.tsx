@@ -23,18 +23,14 @@ import {
   LogIn,
   LogOut,
   ChevronDown,
-<<<<<<< HEAD
   MessageSquare,
   Utensils,
-=======
   ScanLine,
->>>>>>> e465e7496c0f4a3840f144202755e173588bc380
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
   { name: 'Dashboard', href: '/member', icon: LayoutDashboard },
-  { name: 'Check-in', href: '/member/checkin', icon: QrCode },
   { name: 'Thẻ QR', href: '/member/qr', icon: ScanLine },
   { name: 'Lịch tập', href: '/member/schedule', icon: CalendarDays },
   { name: 'Thực đơn', href: '/member/meal-plans', icon: Utensils },
@@ -42,7 +38,6 @@ const NAV_ITEMS = [
   { name: 'Gói tập của tôi', href: '/member/membership', icon: CreditCard },
   { name: 'Lịch sử check-in', href: '/member/checkins', icon: LogIn },
   { name: 'Thanh toán', href: '/member/payments', icon: Receipt },
-  { name: 'Hồ sơ', href: '/member/profile', icon: User },
 ];
 
 const NAV_LINK_CLASSES =
@@ -106,7 +101,7 @@ export function MemberHeader() {
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden items-center gap-0.5 lg:flex">
+          <nav className="hidden items-center gap-0.5 md:flex">
             {NAV_ITEMS.slice(0, 5).map((item) => (
               <Link
                 key={item.href}
@@ -184,7 +179,7 @@ export function MemberHeader() {
 
             {/* Mobile hamburger */}
             <button
-              className="flex size-9 items-center justify-center rounded-sm border border-line bg-surface text-chalk transition-colors hover:border-neon/50 lg:hidden"
+              className="flex size-9 items-center justify-center rounded-sm border border-line bg-surface text-chalk transition-colors hover:border-neon/50 md:hidden"
               onClick={() => setMenuOpen(!menuOpen)}
               aria-label="Menu"
               aria-expanded={menuOpen}
@@ -197,7 +192,7 @@ export function MemberHeader() {
 
       {/* Mobile drawer */}
       {menuOpen && (
-        <div className="animate-fade-in border-t border-line bg-ink lg:hidden">
+        <div className="animate-fade-in border-t border-line bg-ink md:hidden">
           <nav className="container-x flex flex-col gap-1 py-3">
             {NAV_ITEMS.map((item) => (
               <Link
