@@ -23,12 +23,9 @@ import {
   LogIn,
   LogOut,
   ChevronDown,
-<<<<<<< HEAD
   MessageSquare,
   Utensils,
-=======
   ScanLine,
->>>>>>> e465e7496c0f4a3840f144202755e173588bc380
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
