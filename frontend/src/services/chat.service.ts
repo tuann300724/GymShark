@@ -1,6 +1,6 @@
 import apiClient from '@/lib/axios';
 
-export interface ConversationPartner {
+interface ConversationPartner {
   type: 'TRAINER' | 'MEMBER';
   id: string;
   userId: string | null;
@@ -26,7 +26,7 @@ export interface ConversationListResponse {
   limit: number;
 }
 
-export interface MessageAttachment {
+interface MessageAttachment {
   id: string;
   dataUrl: string;
   mimeType: string | null;
@@ -36,7 +36,7 @@ export interface MessageAttachment {
   kind: string | null;
 }
 
-export interface MessageSender {
+interface MessageSender {
   id: string;
   fullName: string;
   avatarUrl: string | null;

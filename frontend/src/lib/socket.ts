@@ -37,15 +37,3 @@ export function initSocket(): Socket | null {
 
   return socket;
 }
-
-export function closeSocket() {
-  if (socket) {
-    socket.disconnect();
-    socket = null;
-  }
-}
-
-export function ensureSocket(): Socket | null {
-  if (socket?.connected) return socket;
-  return initSocket();
-}

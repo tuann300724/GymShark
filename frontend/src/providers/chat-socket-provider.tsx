@@ -1,15 +1,14 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { initSocket, ensureSocket } from '@/lib/socket';
+import { initSocket } from '@/lib/socket';
 
-interface ChatSocketContextType {
-  ensure: () => void;
-}
-
-const ChatSocketContext = createContext<ChatSocketContextType | undefined>(undefined);
-
+/**
+ * Mount toàn cục: kết nối Socket.IO và đăng ký các listener giữ cho
+ * danh sách hội thoại / badge chưa đọc luôn mới. Trang chat cụ thể
+ * tự đăng ký thêm listener riêng qua `getSocket()`.
+ */
 export function ChatSocketProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const registered = useRef(false);
@@ -43,25 +42,9 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
       socket.off('message:new', onMessageNew);
       socket.off('conversation:updated', onConversationUpdated);
       socket.off('messages:read', onMessagesRead);
-      // Không disconnect toàn cục — trang khác có thể cần. Nếu muốn, chỉ disconnect khi unmount toàn app.
-      // closeSocket();
+      // Không disconnect toàn cục — trang khác có thể cần.
     };
   }, [queryClient]);
 
-  const value = useMemo<ChatSocketContextType>(
-    () => ({
-      ensure: () => {
-        ensureSocket();
-      },
-    }),
-    [],
-  );
-
-  return <ChatSocketContext.Provider value={value}>{children}</ChatSocketContext.Provider>;
-}
-
-export function useChatSocket() {
-  const ctx = useContext(ChatSocketContext);
-  if (!ctx) throw new Error('useChatSocket must be used within ChatSocketProvider');
-  return ctx;
+  return <>{children}</>;
 }

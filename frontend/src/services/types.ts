@@ -27,9 +27,6 @@ export interface MemberRegisterPayload {
   emergencyContact?: string;
 }
 
-/** Bước 1 đăng ký hội viên — gửi mã xác minh 6 số về email (payload giống form) */
-export type MemberRegisterSendCodePayload = MemberRegisterPayload;
-
 /** Bước 2 đăng ký hội viên — nhập mã xác minh để tạo tài khoản */
 export interface MemberRegisterVerifyPayload {
   email: string;
