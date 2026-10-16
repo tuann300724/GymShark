@@ -1,14 +1,15 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { initSocket } from '@/lib/socket';
+import { initSocket, ensureSocket } from '@/lib/socket';
 
-/**
- * Mount toàn cục: kết nối Socket.IO và đăng ký các listener giữ cho
- * danh sách hội thoại / badge chưa đọc luôn mới. Trang chat cụ thể
- * tự đăng ký thêm listener riêng qua `getSocket()`.
- */
+interface ChatSocketContextType {
+  ensure: () => void;
+}
+
+const ChatSocketContext = createContext<ChatSocketContextType | undefined>(undefined);
+
 export function ChatSocketProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const registered = useRef(false);
@@ -46,5 +47,20 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
     };
   }, [queryClient]);
 
-  return <>{children}</>;
+  const value = useMemo<ChatSocketContextType>(
+    () => ({
+      ensure: () => {
+        ensureSocket();
+      },
+    }),
+    [],
+  );
+
+  return <ChatSocketContext.Provider value={value}>{children}</ChatSocketContext.Provider>;
+}
+
+export function useChatSocket() {
+  const ctx = useContext(ChatSocketContext);
+  if (!ctx) throw new Error('useChatSocket must be used within ChatSocketProvider');
+  return ctx;
 }

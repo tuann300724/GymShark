@@ -94,7 +94,7 @@ export function TrainerHeader() {
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden items-center gap-0.5 lg:flex">
+          <nav className="hidden items-center gap-0.5 md:flex">
             {NAV_ITEMS.map((item) => (
               <Link
                 key={item.href}
@@ -172,7 +172,7 @@ export function TrainerHeader() {
 
             {/* Mobile hamburger */}
             <button
-              className="flex size-9 items-center justify-center rounded-sm border border-line bg-surface text-chalk transition-colors hover:border-neon/50 lg:hidden"
+              className="flex size-9 items-center justify-center rounded-sm border border-line bg-surface text-chalk transition-colors hover:border-neon/50 md:hidden"
               onClick={() => setMenuOpen(!menuOpen)}
               aria-label="Menu"
               aria-expanded={menuOpen}
@@ -185,7 +185,7 @@ export function TrainerHeader() {
 
       {/* Mobile drawer */}
       {menuOpen && (
-        <div className="animate-fade-in border-t border-line bg-ink lg:hidden">
+        <div className="animate-fade-in border-t border-line bg-ink md:hidden">
           <nav className="container-x flex flex-col gap-1 py-3">
             {NAV_ITEMS.map((item) => (
               <Link

@@ -1,7 +1,7 @@
 import apiClient from '@/lib/axios';
 
 export type MealType = 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK';
-export type MealPlanScope = 'DAY' | 'WEEK';
+type MealPlanScope = 'DAY' | 'WEEK';
 export type MealPlanStatus = 'DRAFT' | 'SENT' | 'CONFIRMED';
 
 interface MealItem {
@@ -19,7 +19,7 @@ interface MealItem {
   orderIndex: number;
 }
 
-export interface Meal {
+interface Meal {
   id: string;
   mealPlanId: string;
   type: MealType;
