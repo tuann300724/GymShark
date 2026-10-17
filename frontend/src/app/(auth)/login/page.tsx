@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dumbbell, AlertCircle, Sparkles, KeyRound, ArrowLeft } from 'lucide-react';
+import { Dumbbell, AlertCircle, KeyRound, ArrowLeft } from 'lucide-react';
 import { isAdminRole } from '@/lib/auth';
 
 const loginSchema = z.object({
@@ -32,13 +32,12 @@ export default function LoginPage() {
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: 'admin@gym.com',
-      password: 'Admin@123456',
+      email: '',
+      password: '',
     },
   });
 
@@ -75,11 +74,6 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const fillQuickAccount = (email: string, pass: string) => {
-    setValue('email', email);
-    setValue('password', pass);
   };
 
   return (
@@ -203,56 +197,6 @@ export default function LoginPage() {
                 Đăng ký ngay
               </Link>
             </p>
-
-            {/* Quick Demo Accounts Helper */}
-            <div className="mt-6 border-t border-line pt-5">
-              <div className="mb-2.5 flex items-center gap-1.5 text-xs font-semibold text-muted">
-                <Sparkles className="size-3.5 text-neon" />
-                <span>Chọn nhanh tài khoản mẫu:</span>
-              </div>
-              <div className="grid grid-cols-3 gap-2 text-xs">
-                <button
-                  type="button"
-                  onClick={() => fillQuickAccount('admin@gym.com', 'Admin@123456')}
-                  className="rounded-sm border border-line bg-ink px-2.5 py-1.5 text-left font-medium text-chalk transition-colors hover:border-neon/40 hover:bg-line/40"
-                >
-                  <span className="block font-bold text-neon text-[11px]">ADMIN</span>
-                  admin@gym.com
-                </button>
-                <button
-                  type="button"
-                  onClick={() => fillQuickAccount('manager@gym.com', 'Manager@123456')}
-                  className="rounded-sm border border-line bg-ink px-2.5 py-1.5 text-left font-medium text-chalk transition-colors hover:border-neon/40 hover:bg-line/40"
-                >
-                  <span className="block font-bold text-neon text-[11px]">MANAGER</span>
-                  manager@gym.com
-                </button>
-                <button
-                  type="button"
-                  onClick={() => fillQuickAccount('staff@gym.com', 'Staff@123456')}
-                  className="rounded-sm border border-line bg-ink px-2.5 py-1.5 text-left font-medium text-chalk transition-colors hover:border-neon/40 hover:bg-line/40"
-                >
-                  <span className="block font-bold text-neon text-[11px]">STAFF</span>
-                  staff@gym.com
-                </button>
-                <button
-                  type="button"
-                  onClick={() => fillQuickAccount('trainer@gym.com', 'Trainer@123456')}
-                  className="rounded-sm border border-line bg-ink px-2.5 py-1.5 text-left font-medium text-chalk transition-colors hover:border-neon/40 hover:bg-line/40"
-                >
-                  <span className="block font-bold text-neon text-[11px]">TRAINER</span>
-                  trainer@gym.com
-                </button>
-                <button
-                  type="button"
-                  onClick={() => fillQuickAccount('member@gym.com', 'Member@123456')}
-                  className="rounded-sm border border-line bg-ink px-2.5 py-1.5 text-left font-medium text-chalk transition-colors hover:border-neon/40 hover:bg-line/40"
-                >
-                  <span className="block font-bold text-neon text-[11px]">MEMBER</span>
-                  member@gym.com
-                </button>
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>

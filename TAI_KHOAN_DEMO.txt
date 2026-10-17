@@ -1,0 +1,36 @@
+================================================================
+ TÀI KHOẢN DEMO — DỰ ÁN GYMSHARK
+ Nguồn: backend/prisma/seed.ts (dữ liệu seed)
+ Cách dùng: copy email + mật khẩu, dán vào http://localhost:3000/login
+================================================================
+
+QUẢN TRỊ (khu /admin)
+  admin@gym.com      / Admin@123456     — Quản trị cao nhất
+  manager@gym.com    / Manager@123456   — Quản lý
+  staff@gym.com      / Staff@123456     — Lễ tân
+
+HUẤN LUYỆN VIÊN / PT (khu /trainer)
+  trainer@gym.com    / Trainer@123456
+  trainer2@gym.com   / Trainer@123456
+  trainer3@gym.com   / Trainer@123456
+
+HỘI VIÊN (khu /member)
+  member@gym.com     / Member@123456
+  member2@gym.com    / Member@123456
+  member3@gym.com    / Member@123456
+  member4@gym.com    / Member@123456
+  member5@gym.com    / Member@123456
+  member6@gym.com    / Member@123456
+  member7@gym.com    / Member@123456
+  member8@gym.com    / Member@123456
+  member9@gym.com    / Member@123456
+  member10@gym.com   / Member@123456
+  member11@gym.com   / Member@123456
+
+LƯU Ý
+  - Chỉ dùng cho môi trường dev/test; KHÔNG dùng lại mật khẩu này
+    cho tài khoản thật ngoài đời.
+  - Muốn reset dữ liệu về ban đầu: chạy `npm run prisma:seed`
+    trong thư mục backend/.
+  - Trang đăng nhập không còn hiển thị danh sách tài khoản mẫu nữa
+    (đã dời vào file này).

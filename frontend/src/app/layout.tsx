@@ -45,9 +45,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen bg-ink font-sans antialiased text-chalk">
         <ThemeProvider>
           <QueryProvider>
-            <ChatSocketProvider>
-              <ToastProvider>{children}</ToastProvider>
-            </ChatSocketProvider>
+            {/* ToastProvider phải BAO ChatSocketProvider — socket provider gọi
+                useToast() để popup "tin nhắn mới" khi HLV/hội viên gửi tin. */}
+            <ToastProvider>
+              <ChatSocketProvider>{children}</ChatSocketProvider>
+            </ToastProvider>
           </QueryProvider>
         </ThemeProvider>
       </body>

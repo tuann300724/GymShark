@@ -944,6 +944,61 @@ async function main() {
     return c;
   };
 
+  // -------------------------------------------------------------
+  // 16.0b THƯ VIỆN THỰC PHẨM — 26 món ăn Việt Nam phổ biến
+  //      (nguyên liệu cho HLV soạn thực đơn). Idempotent: findFirst
+  //      rồi update/create; KHÔNG đụng isActive nếu món đã bị ẩn.
+  // -------------------------------------------------------------
+  const foodSeeds = [
+    // --- Đạm ---
+    { name: 'Ức gà luộc', category: 'PROTEIN', servingSize: 100, servingUnit: 'g', caloriesPer100g: 165, proteinPer100g: 31, carbsPer100g: 0, fatPer100g: 3.6, description: 'Ức gà bỏ da luộc chín — nguồn đạm nạc chủ lực, ít béo.' },
+    { name: 'Trứng gà luộc', category: 'PROTEIN', servingSize: 50, servingUnit: 'quả', caloriesPer100g: 155, proteinPer100g: 13, carbsPer100g: 1.1, fatPer100g: 11, description: 'Trứng gà luộc chín (1 quả ~50 g) — đạm hoàn chỉnh, tiện lợi.' },
+    { name: 'Thịt bò áp chảo', category: 'PROTEIN', servingSize: 100, servingUnit: 'g', caloriesPer100g: 250, proteinPer100g: 26, carbsPer100g: 0, fatPer100g: 15, description: 'Thịt bò thăn áp chảo ít dầu — giàu đạm và sắt.' },
+    { name: 'Cá hồi áp chảo', category: 'PROTEIN', servingSize: 100, servingUnit: 'g', caloriesPer100g: 208, proteinPer100g: 20, carbsPer100g: 0, fatPer100g: 13, description: 'Cá hồi phi lê áp chảo — đạm cao, giàu omega-3.' },
+    { name: 'Tôm luộc', category: 'PROTEIN', servingSize: 100, servingUnit: 'g', caloriesPer100g: 99, proteinPer100g: 24, carbsPer100g: 0.2, fatPer100g: 0.3, description: 'Tôm sú luộc chín — đạm cao, rất ít béo.' },
+    { name: 'Đậu hũ trắng', category: 'PROTEIN', servingSize: 100, servingUnit: 'g', caloriesPer100g: 76, proteinPer100g: 8, carbsPer100g: 1.9, fatPer100g: 4.8, description: 'Đậu hũ (tàu hũ) hấp — đạm thực vật, phù hợp chay.' },
+    { name: 'Thịt lợn nạc áp chảo', category: 'PROTEIN', servingSize: 100, servingUnit: 'g', caloriesPer100g: 143, proteinPer100g: 21, carbsPer100g: 0, fatPer100g: 6.2, description: 'Thịt lợn thăn áp chảo ít dầu.' },
+    { name: 'Đùi gà nướng không da', category: 'PROTEIN', servingSize: 100, servingUnit: 'g', caloriesPer100g: 178, proteinPer100g: 19, carbsPer100g: 0, fatPer100g: 11, description: 'Đùi gà bỏ da ướp nướng — mềm, dễ ăn.' },
+    // --- Tinh bột ---
+    { name: 'Cơm trắng', category: 'CARBOHYDRATE', servingSize: 180, servingUnit: 'chén', caloriesPer100g: 130, proteinPer100g: 2.7, carbsPer100g: 28, fatPer100g: 0.3, description: 'Cơm gạo tám trắng nấu chín (1 chén ~180 g).' },
+    { name: 'Khoai lang hấp', category: 'CARBOHYDRATE', servingSize: 100, servingUnit: 'g', caloriesPer100g: 86, proteinPer100g: 1.6, carbsPer100g: 20, fatPer100g: 0.1, description: 'Khoai lang hấp chín — tinh bột tốt, nhiều chất xơ.' },
+    { name: 'Yến mạch nấu', category: 'CARBOHYDRATE', servingSize: 100, servingUnit: 'g', caloriesPer100g: 71, proteinPer100g: 2.5, carbsPer100g: 12, fatPer100g: 1.5, description: 'Yến mạch nguyên hạt nấu chín với nước.' },
+    { name: 'Bánh mì nguyên cám', category: 'CARBOHYDRATE', servingSize: 40, servingUnit: 'lát', caloriesPer100g: 247, proteinPer100g: 13, carbsPer100g: 41, fatPer100g: 3.4, description: 'Bánh mì nguyên cám (1 lát ~40 g).' },
+    { name: 'Mì ống nấu chín', category: 'CARBOHYDRATE', servingSize: 100, servingUnit: 'g', caloriesPer100g: 158, proteinPer100g: 5.8, carbsPer100g: 31, fatPer100g: 0.9, description: 'Pasta mì ống nấu chín, không sốt.' },
+    { name: 'Ngô luộc', category: 'CARBOHYDRATE', servingSize: 100, servingUnit: 'g', caloriesPer100g: 96, proteinPer100g: 3.4, carbsPer100g: 21, fatPer100g: 1.5, description: 'Bắp ngọt luộc chín.' },
+    // --- Rau củ ---
+    { name: 'Rau cải xanh luộc', category: 'VEGETABLE', servingSize: 100, servingUnit: 'g', caloriesPer100g: 35, proteinPer100g: 2.6, carbsPer100g: 4, fatPer100g: 0.5, description: 'Cải thìa luộc chín, ít dầu.' },
+    { name: 'Bông cải xanh hấp', category: 'VEGETABLE', servingSize: 100, servingUnit: 'g', caloriesPer100g: 34, proteinPer100g: 2.8, carbsPer100g: 7, fatPer100g: 0.4, description: 'Bông cải (súp lơ xanh) hấp chín.' },
+    { name: 'Cà rốt hấp', category: 'VEGETABLE', servingSize: 100, servingUnit: 'g', caloriesPer100g: 35, proteinPer100g: 1.3, carbsPer100g: 8, fatPer100g: 0.2, description: 'Cà rốt hấp chín, giàu beta-carotene.' },
+    // --- Trái cây ---
+    { name: 'Chuối chín', category: 'FRUIT', servingSize: 120, servingUnit: 'quả', caloriesPer100g: 89, proteinPer100g: 1.1, carbsPer100g: 23, fatPer100g: 0.3, description: 'Chuối sứ chín (1 quả ~120 g) — bổ sung năng lượng nhanh trước tập.' },
+    { name: 'Táo xanh', category: 'FRUIT', servingSize: 180, servingUnit: 'quả', caloriesPer100g: 52, proteinPer100g: 0.3, carbsPer100g: 14, fatPer100g: 0.2, description: 'Táo xanh tươi (1 quả ~180 g).' },
+    // --- Sữa & sản phẩm từ sữa ---
+    { name: 'Sữa tươi không đường', category: 'DAIRY', servingSize: 240, servingUnit: 'ly', caloriesPer100g: 61, proteinPer100g: 3.2, carbsPer100g: 4.8, fatPer100g: 3.3, description: 'Sữa bò tươi không đường (1 ly ~240 ml).' },
+    { name: 'Sữa chua Hy Lạp', category: 'DAIRY', servingSize: 170, servingUnit: 'hũ', caloriesPer100g: 59, proteinPer100g: 10, carbsPer100g: 3.6, fatPer100g: 0.4, description: 'Sữa chua Hy Lạp ít béo (1 hũ ~170 g) — đạm cao, tốt cho tiêu hoá.' },
+    // --- Chất béo ---
+    { name: 'Bơ đậu phộng', category: 'FAT', servingSize: 16, servingUnit: 'muỗng canh', caloriesPer100g: 588, proteinPer100g: 25, carbsPer100g: 20, fatPer100g: 50, description: 'Bơ đậu phộng nguyên chất, không đường (1 muỗng canh ~16 g).' },
+    { name: 'Dầu ô liu', category: 'FAT', servingSize: 14, servingUnit: 'muỗng canh', caloriesPer100g: 884, proteinPer100g: 0, carbsPer100g: 0, fatPer100g: 100, description: 'Dầu ô liu extra virgin để trộn salad, ướp món (1 muỗng canh ~14 g).' },
+    // --- Đồ uống ---
+    { name: 'Nước ép cam vắt', category: 'DRINK', servingSize: 240, servingUnit: 'ly', caloriesPer100g: 45, proteinPer100g: 0.7, carbsPer100g: 10, fatPer100g: 0.2, description: 'Nước ép cam vắt nguyên chất, không thêm đường (1 ly ~240 ml).' },
+    // --- Đồ ăn vặt ---
+    { name: 'Hạnh nhân rang', category: 'SNACK', servingSize: 30, servingUnit: 'nắm', caloriesPer100g: 579, proteinPer100g: 21, carbsPer100g: 22, fatPer100g: 50, description: 'Hạnh nhân rang không muối (1 nắm ~30 g) — snack giàu đạm và chất béo tốt.' },
+    { name: 'Granola yến mạch', category: 'SNACK', servingSize: 40, servingUnit: 'gói', caloriesPer100g: 471, proteinPer100g: 10, carbsPer100g: 64, fatPer100g: 20, description: 'Granola yến mạch ăn liền (1 gói ~40 g).' },
+  ] as const;
+  let foodCreated = 0;
+  let foodUpdated = 0;
+  for (const f of foodSeeds) {
+    const existingFood = await prisma.food.findFirst({ where: { name: f.name } });
+    if (existingFood) {
+      await prisma.food.update({ where: { id: existingFood.id }, data: { ...f } });
+      foodUpdated += 1;
+    } else {
+      await prisma.food.create({ data: { ...f, createdById: adminUser.id } });
+      foodCreated += 1;
+    }
+  }
+  console.log(`. Foods library: +${foodCreated} moi, ${foodUpdated} cap nhat (${foodSeeds.length} mon)`);
+
   const pkg9_1m = await prisma.membershipPackage.findUnique({ where: { code: 'PKG-1M' } });
   const pkg9_6m = await prisma.membershipPackage.findUnique({ where: { code: 'PKG-6M-VIP' } });
   const pkg9_12m = await prisma.membershipPackage.findUnique({ where: { code: 'PKG-12M-DIAMOND' } });

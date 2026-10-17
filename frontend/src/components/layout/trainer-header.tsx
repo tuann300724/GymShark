@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { memberApi } from '@/services/member.service';
 import { notificationApi } from '@/services/notification.service';
+import { chatApi } from '@/services/chat.service';
 import { authApi } from '@/services/auth.service';
 import NotificationBell from '@/components/notifications/notification-bell';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
@@ -64,6 +65,16 @@ export function TrainerHeader() {
     retry: 0,
   });
 
+  // Badge tin nhắn chưa đọc — cùng queryKey với socket provider nên
+  // cập nhật ngay khi hội viên gửi tin (không cần refresh trang).
+  const { data: chatUnreadData } = useQuery({
+    queryKey: ['chat-unread'],
+    queryFn: chatApi.unreadCount,
+    refetchInterval: 60_000,
+    retry: 0,
+  });
+  const chatUnread = chatUnreadData?.count ?? 0;
+
   useEffect(() => {
     setMenuOpen(false);
   }, [pathname]);
@@ -103,6 +114,11 @@ export function TrainerHeader() {
               >
                 <item.icon className="size-4" />
                 {item.name}
+                {item.href === '/trainer/messages' && chatUnread > 0 && (
+                  <span className="absolute -right-1.5 -top-1 min-w-[16px] rounded-full bg-danger px-1 text-center text-[10px] font-bold leading-4 text-white">
+                    {chatUnread > 99 ? '99+' : chatUnread}
+                  </span>
+                )}
               </Link>
             ))}
             <Link href="/trainer/profile" className={navLinkClass(pathname === '/trainer/profile')}>
@@ -200,6 +216,11 @@ export function TrainerHeader() {
               >
                 <item.icon className="size-4" />
                 {item.name}
+                {item.href === '/trainer/messages' && chatUnread > 0 && (
+                  <span className="ml-auto min-w-[18px] rounded-full bg-danger px-1 text-center text-[10px] font-bold text-white">
+                    {chatUnread > 99 ? '99+' : chatUnread}
+                  </span>
+                )}
               </Link>
             ))}
             <Link
