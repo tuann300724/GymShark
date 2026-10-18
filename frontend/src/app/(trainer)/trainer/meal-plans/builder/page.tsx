@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
 import {
   Utensils,
@@ -288,7 +289,7 @@ function Builder() {
                   key={s}
                   onClick={() => setScope(s)}
                   className={cn(
-                    'rounded-sm border px-3 py-2 text-sm font-medium transition',
+                    'rounded-sm border px-3 py-2 text-sm font-medium transition-colors',
                     scope === s
                       ? 'border-neon bg-neon/10 text-neon'
                       : 'border-line bg-ink text-muted hover:text-chalk',
@@ -321,7 +322,7 @@ function Builder() {
               id="builder-member"
               value={memberId}
               onChange={(e) => setMemberId(e.target.value)}
-              className="h-10 w-full rounded-sm border border-line bg-ink px-3 text-sm text-chalk focus:outline-none focus:ring-2 focus:ring-neon/70"
+              className="h-10 w-full rounded-sm border border-line bg-ink px-3 text-sm text-chalk [&>option]:bg-surface [&>option]:text-chalk focus:border-neon/70 focus:outline-none focus:ring-2 focus:ring-neon/70"
             >
               <option value="">— Chọn hội viên —</option>
               {activeMembers.map((a: any) => (
@@ -354,7 +355,7 @@ function Builder() {
                   <select
                     value={meal.type}
                     onChange={(e) => updateMeal(mi, { type: e.target.value as MealType })}
-                    className="h-9 rounded-sm border border-line bg-ink px-2 text-sm text-chalk focus:outline-none focus:ring-2 focus:ring-neon/70"
+                    className="h-9 rounded-sm border border-line bg-ink px-2 text-sm text-chalk focus:border-neon/70 focus:outline-none focus:ring-2 focus:ring-neon/70"
                   >
                     {MEAL_TYPES.map((t) => (
                       <option key={t.value} value={t.value}>
@@ -366,7 +367,7 @@ function Builder() {
                     <select
                       value={meal.dayIndex ?? 0}
                       onChange={(e) => updateMeal(mi, { dayIndex: Number(e.target.value) })}
-                      className="h-9 rounded-sm border border-line bg-ink px-2 text-sm text-chalk focus:outline-none focus:ring-2 focus:ring-neon/70"
+                      className="h-9 rounded-sm border border-line bg-ink px-2 text-sm text-chalk focus:border-neon/70 focus:outline-none focus:ring-2 focus:ring-neon/70"
                     >
                       {DAY_LABELS.map((d, i) => (
                         <option key={i} value={i}>
@@ -387,7 +388,12 @@ function Builder() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="default">{nutrition.calories} kcal</Badge>
-                  <Button size="sm" variant="ghost" onClick={() => removeMeal(mi)}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    aria-label="Xóa bữa ăn"
+                    onClick={() => removeMeal(mi)}
+                  >
                     <Trash2 className="size-3.5" />
                   </Button>
                 </div>
@@ -410,11 +416,17 @@ function Builder() {
         })}
 
         {meals.length === 0 && (
-          <Card className="border-dashed border-line bg-surface/50">
-            <CardContent className="py-10 text-center text-sm text-muted">
-              Chưa có bữa ăn nào. Bấm &ldquo;Thêm bữa&rdquo; để bắt đầu.
-            </CardContent>
-          </Card>
+          <EmptyState
+            icon={Utensils}
+            title="Chưa có bữa ăn nào"
+            description="Bấm “Thêm bữa” để bắt đầu xây dựng thực đơn."
+            action={
+              <Button size="sm" variant="secondary" onClick={addMeal}>
+                <Plus className="size-4" /> Thêm bữa
+              </Button>
+            }
+            className="border-line"
+          />
         )}
       </div>
 
@@ -509,7 +521,7 @@ function FoodItemRow({
         <Button size="sm" variant="outline" onClick={() => setShowSearch(!showSearch)}>
           <Search className="size-3.5" /> Thư viện
         </Button>
-        <Button size="sm" variant="ghost" onClick={onRemove}>
+        <Button size="sm" variant="ghost" aria-label="Xóa món ăn" onClick={onRemove}>
           <Trash2 className="size-3.5" />
         </Button>
       </div>

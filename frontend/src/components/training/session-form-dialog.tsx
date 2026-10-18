@@ -455,7 +455,7 @@ function MemberCombobox({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Tìm theo tên, email, SĐT, mã hội viên..."
-            className="h-11 w-full rounded-sm border border-line bg-ink pl-9 pr-3.5 text-sm text-chalk placeholder:text-muted/70 focus:outline-none focus:ring-2 focus:ring-neon/70 focus:border-neon/70"
+            className="h-11 w-full rounded-sm border border-line bg-ink pl-9 pr-3.5 text-sm text-chalk placeholder:text-muted/70 focus:border-neon/70 focus:outline-none focus:ring-2 focus:ring-neon/70"
           />
           {searching && <p className="mt-1 text-xs text-muted">Đang tìm...</p>}
           {!searching && query && (

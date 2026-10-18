@@ -79,7 +79,7 @@ function SessionChip({
       type="button"
       onClick={onClick}
       className={cn(
-        'block w-full rounded-md border px-1.5 py-1 text-left transition-colors hover:brightness-125',
+        'block w-full rounded-md border px-1.5 py-1 text-left transition-colors hover:brightness-125 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neon/70',
         STATUS_STYLES[session.status] || STATUS_STYLES.SCHEDULED,
         dense ? 'text-[10px] leading-tight' : 'text-[11px] leading-tight',
       )}
@@ -217,6 +217,7 @@ export function TrainingCalendar({
                   'min-h-[92px] border-b border-r border-line/60 p-1.5 transition-colors',
                   !inMonth && 'bg-ink/40',
                   isToday && 'bg-neon/5',
+                  inMonth && !isToday && 'hover:bg-line/20',
                 )}
               >
                 <span

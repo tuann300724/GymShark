@@ -12,6 +12,8 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Dialog } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/components/ui/toast';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
 import { PAYMENT_STATUS_META, PAYMENT_METHOD_LABEL } from '@/lib/status';
@@ -28,6 +30,8 @@ import {
   ExternalLink,
   Wallet,
   FilterX,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -201,7 +205,7 @@ export default function PaymentsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-chalk flex items-center gap-2">
+        <h1 className="font-display text-2xl font-bold uppercase tracking-tight text-chalk flex items-center gap-2">
           <Receipt className="size-6 text-neon" />
           Hóa Đơn & Thanh Toán (Payments)
         </h1>
@@ -315,30 +319,33 @@ export default function PaymentsPage() {
               ))}
             </div>
           ) : isError ? (
-            <div className="py-16 text-center">
-              <p className="text-sm text-danger">Không tải được danh sách thanh toán.</p>
-              <Button variant="secondary" size="sm" className="mt-3" onClick={() => refetch()}>
-                Thử lại
-              </Button>
-            </div>
+            <ErrorState
+              className="m-3"
+              title="Không tải được thanh toán"
+              description="Không tải được danh sách thanh toán. Vui lòng kiểm tra kết nối API và thử lại."
+              onRetry={() => refetch()}
+            />
           ) : data?.data.length === 0 ? (
-            <div className="py-16 text-center text-xs text-muted">
-              Chưa có giao dịch thanh toán nào phù hợp.
-            </div>
+            <EmptyState
+              className="m-3"
+              icon={Receipt}
+              title="Chưa có giao dịch"
+              description="Không có giao dịch thanh toán nào phù hợp với bộ lọc hiện tại."
+            />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
+              <table className="w-full min-w-[960px] text-left text-sm">
                 <thead className="text-[11px] uppercase tracking-wider text-muted bg-ink border-b border-line">
                   <tr>
-                    <th className="py-3 px-4">Mã hóa đơn</th>
-                    <th className="py-3 px-4">Hội viên</th>
-                    <th className="py-3 px-4">Gói tập</th>
-                    <th className="py-3 px-4">Số tiền</th>
-                    <th className="py-3 px-4">Phương thức</th>
-                    <th className="py-3 px-4">Ngày tạo</th>
-                    <th className="py-3 px-4">Ngày thanh toán</th>
-                    <th className="py-3 px-4">Trạng thái</th>
-                    <th className="py-3 px-4 text-right">Thao tác</th>
+                    <th className="py-3 px-4 font-semibold">Mã hóa đơn</th>
+                    <th className="py-3 px-4 font-semibold">Hội viên</th>
+                    <th className="py-3 px-4 font-semibold">Gói tập</th>
+                    <th className="py-3 px-4 font-semibold">Số tiền</th>
+                    <th className="py-3 px-4 font-semibold">Phương thức</th>
+                    <th className="py-3 px-4 font-semibold">Ngày tạo</th>
+                    <th className="py-3 px-4 font-semibold">Ngày thanh toán</th>
+                    <th className="py-3 px-4 font-semibold">Trạng thái</th>
+                    <th className="py-3 px-4 font-semibold text-right">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line font-medium">
@@ -348,7 +355,7 @@ export default function PaymentsPage() {
                       variant: 'outline',
                     };
                     return (
-                      <tr key={p.id} className="hover:bg-line/20 transition-colors">
+                      <tr key={p.id} className="hover:bg-line/30 transition-colors">
                         <td className="py-3 px-4">
                           <p className="font-mono font-bold text-chalk">{p.code}</p>
                           {p.invoice?.invoiceNumber && (
@@ -449,7 +456,7 @@ export default function PaymentsPage() {
                   disabled={page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
-                  ← Trước
+                  <ChevronLeft className="size-4" /> Trước
                 </Button>
                 <Button
                   variant="secondary"
@@ -457,7 +464,7 @@ export default function PaymentsPage() {
                   disabled={page >= totalPages}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 >
-                  Sau →
+                  Sau <ChevronRight className="size-4" />
                 </Button>
               </div>
             </div>

@@ -10,7 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { MessageSquare, Send, User, Utensils } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
+import { MessageSquare, Send, User, Users, Utensils } from 'lucide-react';
 
 type Role = 'TRAINER' | 'MEMBER';
 
@@ -145,7 +146,7 @@ export default function ChatClient({ myRole, emptyHint }: ChatClientProps) {
               <MessageSquare className="size-4" /> Hội thoại
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-1 flex-col gap-2 overflow-auto p-3">
+          <CardContent className="flex min-h-0 flex-1 flex-col gap-2 overflow-auto p-3">
             <Input
               placeholder="Tìm theo tên, mã..."
               value={search}
@@ -153,7 +154,11 @@ export default function ChatClient({ myRole, emptyHint }: ChatClientProps) {
               className="h-9 text-sm"
             />
             {loadingConvs ? (
-              <Skeleton className="h-16 w-full" />
+              <div className="space-y-2">
+                <Skeleton className="h-16 w-full rounded-sm" />
+                <Skeleton className="h-16 w-full rounded-sm" />
+                <Skeleton className="h-16 w-full rounded-sm" />
+              </div>
             ) : (
               <div className="divide-y divide-line/60">
                 {filtered.map((c: ConversationItem) => (
@@ -161,7 +166,7 @@ export default function ChatClient({ myRole, emptyHint }: ChatClientProps) {
                     key={c.id}
                     onClick={() => setActiveConv(c.id)}
                     className={cn(
-                      'flex w-full items-center gap-3 rounded-sm px-2 py-2.5 text-left transition hover:bg-line/30',
+                      'flex w-full items-center gap-3 rounded-sm px-2.5 py-2.5 text-left transition-colors hover:bg-line/30',
                       activeConv === c.id && 'bg-neon/10',
                     )}
                   >
@@ -186,7 +191,12 @@ export default function ChatClient({ myRole, emptyHint }: ChatClientProps) {
                   </button>
                 ))}
                 {filtered.length === 0 && (
-                  <p className="p-4 text-center text-sm text-muted">{emptyHint}</p>
+                  <EmptyState
+                    icon={MessageSquare}
+                    title="Chưa có hội thoại"
+                    description={emptyHint}
+                    className="border-0 bg-transparent px-3 py-8"
+                  />
                 )}
               </div>
             )}
@@ -209,10 +219,13 @@ export default function ChatClient({ myRole, emptyHint }: ChatClientProps) {
               )}
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-1 flex-col gap-3 overflow-hidden p-4">
-            <div className="flex-1 space-y-2 overflow-auto pr-1">
+          <CardContent className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-4">
+            <div className="min-h-0 flex-1 space-y-2 overflow-auto pr-1">
               {loadingMsgs ? (
-                <Skeleton className="h-20 w-3/4" />
+                <div className="space-y-2">
+                  <Skeleton className="h-16 w-3/4 rounded-sm" />
+                  <Skeleton className="ml-auto h-12 w-1/2 rounded-sm" />
+                </div>
               ) : (
                 <>
                   {messageList.map((m: MessageItem) => {
@@ -227,17 +240,17 @@ export default function ChatClient({ myRole, emptyHint }: ChatClientProps) {
                       >
                         <div
                           className={cn(
-                            'max-w-[80%] rounded-sm px-3 py-2 text-sm shadow-sm',
+                            'max-w-[80%] rounded-[14px] px-3.5 py-2 text-sm',
                             isMine
-                              ? 'bg-neon/90 text-ink'
-                              : 'border border-line bg-surface text-chalk',
+                              ? 'rounded-br-[4px] border border-neon/25 bg-neon/10 text-chalk'
+                              : 'rounded-bl-[4px] border border-line bg-ink text-chalk',
                           )}
                         >
                           {m.type === 'IMAGE' && m.attachments[0]?.dataUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
                               src={m.attachments[0].dataUrl}
-                              alt={m.attachments[0].fileName || 'image'}
+                              alt={m.attachments[0].fileName || 'Ảnh đính kèm'}
                               className="mb-1 max-h-64 rounded-sm object-cover"
                             />
                           ) : null}
@@ -258,8 +271,8 @@ export default function ChatClient({ myRole, emptyHint }: ChatClientProps) {
                           )}
                           <p
                             className={cn(
-                              'mt-1 text-[10px] opacity-70',
-                              isMine ? 'text-ink/70' : 'text-muted',
+                              'mt-1 text-[10px]',
+                              isMine ? 'text-muted/80' : 'text-muted',
                             )}
                           >
                             {new Date(m.createdAt).toLocaleTimeString('vi-VN')}
@@ -269,14 +282,20 @@ export default function ChatClient({ myRole, emptyHint }: ChatClientProps) {
                     );
                   })}
                   {messageList.length === 0 && activeConv && (
-                    <p className="py-10 text-center text-sm text-muted">
-                      Chưa có tin nhắn. Gửi lời chào nhé!
-                    </p>
+                    <EmptyState
+                      icon={MessageSquare}
+                      title="Chưa có tin nhắn"
+                      description="Gửi lời chào để bắt đầu cuộc trò chuyện!"
+                      className="border-0 bg-transparent px-4 py-8"
+                    />
                   )}
                   {!activeConv && (
-                    <p className="py-10 text-center text-sm text-muted">
-                      Chọn một hội thoại để bắt đầu.
-                    </p>
+                    <EmptyState
+                      icon={Users}
+                      title="Chọn một hội thoại"
+                      description="Chọn hội thoại ở danh sách bên trái để bắt đầu trò chuyện."
+                      className="border-0 bg-transparent px-4 py-8"
+                    />
                   )}
                   <div ref={bottomRef} />
                 </>
@@ -310,6 +329,7 @@ export default function ChatClient({ myRole, emptyHint }: ChatClientProps) {
                 size="sm"
                 onClick={handleSend}
                 disabled={!activeConv || !text.trim() || sendMut.isPending}
+                aria-label="Gửi tin nhắn"
               >
                 <Send className="size-4" />
               </Button>

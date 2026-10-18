@@ -3,10 +3,20 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import { useQuery } from '@tanstack/react-query';
 import { publicApi } from '@/services/package.service';
 import { ArrowRight, FlaskConical, Headphones, TrendingUp, Users } from 'lucide-react';
 import { Reveal } from './reveal';
+import { StaggerGroup, StaggerItem } from '@/components/ui/motion';
+
+// Cảnh 3D (Three.js) — tách chunk riêng, chỉ tải phía client sau khi hydrate.
+// Không có WebGL / mobile / bật reduced-motion → component tự render null,
+// lộ ảnh hero.jpg bên dưới làm fallback.
+const Hero3DCanvas = dynamic(() => import('@/components/three/hero-3d'), {
+  ssr: false,
+  loading: () => null,
+});
 
 const FEATURES = [
   {
@@ -82,7 +92,7 @@ export function Hero() {
           </Reveal>
         </div>
 
-        {/* ===== Right: hero visual ===== */}
+        {/* ===== Right: hero visual (ảnh fallback + cảnh 3D trên desktop) ===== */}
         <Reveal delay={140} className="relative">
           <div className="relative aspect-[4/5] max-h-[560px] overflow-hidden rounded-2xl border border-line">
             <Image
@@ -100,6 +110,17 @@ export function Hero() {
             />
             <div
               className="absolute inset-y-0 left-0 hidden w-28 bg-gradient-to-r from-ink/70 to-transparent lg:block"
+              aria-hidden
+            />
+            {/* Cảnh 3D (desktop có WebGL) — che ảnh bằng nền tối cinematic riêng */}
+            <Hero3DCanvas className="absolute inset-0" />
+            {/* Lớp blend trên cùng: giữ viền tối hai bên để khối 3D hoà vào trang */}
+            <div
+              className="pointer-events-none absolute inset-y-0 left-0 hidden w-28 bg-gradient-to-r from-ink/80 to-transparent lg:block"
+              aria-hidden
+            />
+            <div
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-ink/70 to-transparent"
               aria-hidden
             />
           </div>
@@ -123,9 +144,9 @@ export function Hero() {
 
       {/* ===== Feature strip ===== */}
       <div className="container-x border-t border-line pb-10 pt-8">
-        <div className="grid gap-6 sm:grid-cols-3 sm:gap-8">
-          {FEATURES.map((f, i) => (
-            <Reveal key={f.title} delay={i * 90}>
+        <StaggerGroup className="grid gap-6 sm:grid-cols-3 sm:gap-8">
+          {FEATURES.map((f) => (
+            <StaggerItem key={f.title}>
               <div className="flex gap-3.5">
                 <f.icon className="mt-0.5 size-5 shrink-0 text-neon" />
                 <div>
@@ -133,9 +154,9 @@ export function Hero() {
                   <p className="mt-1 text-sm leading-relaxed text-muted">{f.desc}</p>
                 </div>
               </div>
-            </Reveal>
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerGroup>
       </div>
     </section>
   );

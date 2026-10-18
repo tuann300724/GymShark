@@ -15,6 +15,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/toast';
+import { EmptyState } from '@/components/ui/empty-state';
+import { StaggerGroup, StaggerItem } from '@/components/ui/motion';
 import {
   QrCode,
   CalendarCheck,
@@ -429,23 +431,25 @@ export default function MemberDashboardPage() {
       </Card>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <StaggerGroup className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {statItems.map((s) => (
-          <Link key={s.label} href={s.to}>
-            <Card className="h-full transition-colors hover:border-neon/40">
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between">
-                  <div className="flex size-10 items-center justify-center rounded-xl border border-neon/25 bg-neon/10">
-                    <s.icon className="size-5 text-neon" />
+          <StaggerItem key={s.label}>
+            <Link href={s.to} className="block h-full">
+              <Card className="h-full transition-colors hover:border-neon/40">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex size-10 items-center justify-center rounded-xl border border-neon/25 bg-neon/10">
+                      <s.icon className="size-5 text-neon" />
+                    </div>
                   </div>
-                </div>
-                <p className="mt-3 font-display text-2xl font-bold text-chalk">{s.value}</p>
-                <p className="mt-0.5 text-xs text-muted">{s.label}</p>
-              </CardContent>
-            </Card>
-          </Link>
+                  <p className="mt-3 font-display text-2xl font-bold text-chalk">{s.value}</p>
+                  <p className="mt-0.5 text-xs text-muted">{s.label}</p>
+                </CardContent>
+              </Card>
+            </Link>
+          </StaggerItem>
         ))}
-      </div>
+      </StaggerGroup>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Recent check-ins */}
@@ -470,9 +474,12 @@ export default function MemberDashboardPage() {
                   <Skeleton className="h-10 w-full" />
                 </div>
               ) : checkins.data.length === 0 ? (
-                <p className="py-6 text-center text-sm text-muted">
-                  Chưa có lượt check-in nào. Ghé phòng tập để bắt đầu nhé!
-                </p>
+                <EmptyState
+                  icon={QrCode}
+                  title="Chưa có lượt check-in"
+                  description="Ghé phòng tập để bắt đầu nhé!"
+                  className="border-0 bg-transparent px-4 py-8"
+                />
               ) : (
                 <div className="divide-y divide-line">
                   {checkins.data.slice(0, 4).map((c) => (
@@ -524,9 +531,12 @@ export default function MemberDashboardPage() {
                   <Skeleton className="h-10 w-full" />
                 </div>
               ) : nextSessions.length === 0 ? (
-                <p className="py-6 text-center text-sm text-muted">
-                  Không có buổi tập nào sắp tới. Liên hệ lễ tân để đặt lịch PT nhé!
-                </p>
+                <EmptyState
+                  icon={CalendarDays}
+                  title="Chưa có buổi tập sắp tới"
+                  description="Liên hệ lễ tân để đặt lịch PT nhé!"
+                  className="border-0 bg-transparent px-4 py-8"
+                />
               ) : (
                 <div className="space-y-3">
                   {nextSessions.map((s) => (
@@ -588,7 +598,11 @@ export default function MemberDashboardPage() {
                 <Skeleton className="h-12 w-full" />
               </div>
             ) : notifs.data.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted">Không có thông báo mới.</p>
+              <EmptyState
+                icon={BellRing}
+                title="Không có thông báo mới"
+                className="border-0 bg-transparent px-4 py-8"
+              />
             ) : (
               <div className="space-y-3">
                 {notifs.data.slice(0, 4).map((n) => (

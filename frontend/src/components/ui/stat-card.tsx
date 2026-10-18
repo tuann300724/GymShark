@@ -32,7 +32,7 @@ export function StatCard({
   };
 
   return (
-    <Card className="hover:border-line/80 transition-colors">
+    <Card className="transition-colors hover:border-neon/30">
       <CardContent className="p-5">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">

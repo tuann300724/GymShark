@@ -87,7 +87,7 @@ Hierarchy:
 | File | Nội dung |
 |---|---|
 | `hero.jpg` | Battle rope trong garage tối (portrait) |
-| `program-chest-triceps.jpg` · `program-back-biceps.jpg` · `program-shoulders.jpg` · `program-legs-abs.jpg` · `program-chest-shoulders.jpg` · `program-back-arms.jpg` | 6 ảnh tập luyện dark |
+| `program-push.jpg` · `program-pull.jpg` · `program-upper.jpg` · `program-back-arms.jpg` · `program-shoulders.jpg` · `program-legs-abs.jpg` | 6 ảnh tập luyện dark |
 | `article.jpg` | Nữ vận động viên, ánh sáng tối |
 | `cta.jpg` | Deadlift gần như đen tuyệt đối (nền chữ) |
 | `gym-wide.jpg` | Hàng tạ đơn trong gym |
@@ -102,3 +102,35 @@ Xem các file này để lấy chuẩn (KHÔNG sửa chúng khi đang làm trang
 - `src/app/(public)/page.tsx` + `src/components/home/*` — homepage
 - `src/components/layout/public-header.tsx`, `public-footer.tsx`
 - `src/app/globals.css`, `tailwind.config.ts`
+
+## 9. Motion (framer-motion) — thêm 2026-10-18
+
+Project đã cài `framer-motion` (v11). Toàn app bọc `<MotionProvider>` (`reducedMotion="user"`
+trong root layout) → animation tự tắt khi người dùng bật giảm chuyển động. CSS `Reveal`
+vẫn là mặc định cho scroll-reveal; framer-motion dùng cho các trường hợp sau:
+
+- `@/components/ui/motion` — `RevealFx` (fade/slide khi cuộn), `StaggerGroup` + `StaggerItem`
+  (**chỉ** cho lưới card ≤8 phần tử; không dùng cho bảng/list dài/form), `AnimatedNumber`
+  (count-up số liệu).
+- `@/lib/motion` — biến số chung: `EASE`, `fadeUp`, `staggerContainer`, `staggerItem`,
+  `viewportOnce`.
+- `Dialog` và `Tabs` đã có animation sẵn (AnimatePresence + indicator trượt) — KHÔNG tự
+  thêm animation khi dùng chúng.
+- Quy tắc: ≤400ms, chỉ transform/opacity, không animate liên tục.
+
+## 10. Trạng thái UI thống nhất — thêm 2026-10-18
+
+- `EmptyState` (`@/components/ui/empty-state`) — icon + title + description + action tuỳ chọn.
+  Thay cho các đoạn "Chưa có ..." rải rác.
+- `ErrorState` (`@/components/ui/error-state`) — gắn với query lỗi, `onRetry={() => refetch()}`.
+- `Spinner` (`@/components/ui/spinner`) — loading inline.
+- Skeleton: giữ nguyên, nhưng nên khớp hình dạng nội dung thật (lưới card → lưới skeleton card).
+
+## 11. Three.js (hero 3D) — thêm 2026-10-18
+
+- Đã cài `three@0.171` + `@react-three/fiber@8.18` + `@react-three/drei@9.12` (tương thích React 18).
+- Cảnh 3D **chỉ** dùng ở hero trang chủ công khai: `src/components/three/hero-3d.tsx`
+  (cục tạ trừu tượng, viền neon, hạt bụi) — dynamic import `ssr:false` trong `hero.tsx`.
+- Bắt buộc: chỉ mount khi desktop (≥1024px) + có WebGL + không bật reduced-motion;
+  pause khi tab ẩn/cuộn ra xa; không shadow/post-processing; ảnh `hero.jpg` là fallback.
+- KHÔNG dùng 3D ở trang quản trị/bảng/modal. Muốn thêm cảnh 3D mới → hỏi lại tôi trước.

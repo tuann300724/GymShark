@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Dumbbell, Flame, Scale, TrendingUp } from 'lucide-react';
 import { Reveal } from './reveal';
+import { AnimatedNumber, StaggerGroup, StaggerItem } from '@/components/ui/motion';
 
 const WEEKLY_COMPLETION = 78; // mock — % buổi tập hoàn thành trong tuần
 const TOTAL_WORKOUTS = 128;
@@ -101,7 +102,7 @@ export function ProgressDashboard() {
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
                     <span className="font-display text-5xl font-extrabold leading-none text-chalk">
-                      {WEEKLY_COMPLETION}%
+                      <AnimatedNumber value={WEEKLY_COMPLETION} />%
                     </span>
                     <span className="mt-2 text-[11px] uppercase tracking-[0.18em] text-muted">
                       Hoàn thành tuần
@@ -114,9 +115,9 @@ export function ProgressDashboard() {
               </div>
 
               {/* Stats grid */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                {STATS.map((s, i) => (
-                  <div
+              <StaggerGroup className="grid gap-4 sm:grid-cols-2">
+                {STATS.map((s) => (
+                  <StaggerItem
                     key={s.label}
                     className="flex items-center gap-4 rounded-xl border border-line bg-ink p-4 transition-colors hover:border-neon/30"
                   >
@@ -141,9 +142,9 @@ export function ProgressDashboard() {
                         {s.label}
                       </span>
                     </span>
-                  </div>
+                  </StaggerItem>
                 ))}
-              </div>
+              </StaggerGroup>
             </div>
           </div>
         </Reveal>

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Utensils, Plus, Send, Trash2, Copy } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -47,7 +48,7 @@ function MealPlans() {
       </div>
 
       <Card className="border-line bg-surface/95 backdrop-blur">
-        <CardHeader className="flex flex-row items-center justify-between gap-3">
+        <CardHeader className="flex flex-col gap-3 space-y-0 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="flex items-center gap-2 text-base">
             <Utensils className="size-4" /> Danh sách ({filtered.length})
           </CardTitle>
@@ -55,7 +56,7 @@ function MealPlans() {
             placeholder="Tìm thực đơn..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-64"
+            className="w-full sm:w-64"
           />
         </CardHeader>
         <CardContent>
@@ -93,7 +94,7 @@ function MealPlans() {
                         <Button size="sm" variant="outline">
                           <Send className="size-3.5" /> Gửi
                         </Button>
-                        <Button size="sm" variant="ghost">
+                        <Button size="sm" variant="ghost" aria-label="Xóa thực đơn">
                           <Trash2 className="size-3.5" />
                         </Button>
                       </>
@@ -102,7 +103,12 @@ function MealPlans() {
                 </div>
               ))}
               {filtered.length === 0 && (
-                <p className="py-6 text-center text-sm text-muted">Chưa có thực đơn nào.</p>
+                <EmptyState
+                  icon={Utensils}
+                  title="Chưa có thực đơn nào"
+                  description="Bấm “Tạo mới” để xây thực đơn gửi cho hội viên."
+                  className="border-0 bg-transparent py-8"
+                />
               )}
             </div>
           )}

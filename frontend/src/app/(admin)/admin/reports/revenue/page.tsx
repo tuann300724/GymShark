@@ -12,6 +12,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { PAYMENT_METHOD_LABEL } from '@/lib/status';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState } from '@/components/ui/error-state';
 import {
   BarChart3,
   TrendingUp,
@@ -47,7 +49,13 @@ interface BarDatum {
 function BarChart({ data, height = 180 }: { data: BarDatum[]; height?: number }) {
   const max = Math.max(1, ...data.map((d) => d.value));
   if (data.length === 0) {
-    return <p className="py-8 text-center text-xs text-muted">Chưa có dữ liệu trong khoảng này.</p>;
+    return (
+      <EmptyState
+        icon={BarChart3}
+        title="Chưa có dữ liệu"
+        description="Chưa có doanh thu trong khoảng thời gian này."
+      />
+    );
   }
   return (
     <div>
@@ -90,7 +98,13 @@ function BarChart({ data, height = 180 }: { data: BarDatum[]; height?: number })
 function MethodBars({ data }: { data: { method: string; revenue: number; count: number }[] }) {
   const max = Math.max(1, ...data.map((d) => d.revenue));
   if (data.length === 0) {
-    return <p className="py-6 text-center text-xs text-muted">Chưa có giao dịch thanh toán.</p>;
+    return (
+      <EmptyState
+        icon={Wallet}
+        title="Chưa có giao dịch"
+        description="Chưa có giao dịch thanh toán nào trong khoảng này."
+      />
+    );
   }
   return (
     <div className="space-y-3">
@@ -165,7 +179,7 @@ export default function RevenueReportPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-chalk flex items-center gap-2">
+        <h1 className="font-display text-2xl font-bold uppercase tracking-tight text-chalk flex items-center gap-2">
           <BarChart3 className="size-6 text-neon" />
           Báo Cáo Doanh Thu (Revenue)
         </h1>
@@ -338,7 +352,11 @@ export default function RevenueReportPage() {
             {isLoading ? (
               <Skeleton className="h-32 w-full" />
             ) : (data?.byPackage || []).length === 0 ? (
-              <p className="py-6 text-center text-xs text-muted">Chưa có dữ liệu.</p>
+              <EmptyState
+                icon={CheckCircle2}
+                title="Chưa có dữ liệu"
+                description="Chưa có giao dịch theo gói tập trong khoảng này."
+              />
             ) : (
               <div className="space-y-3">
                 {data!.byPackage.map((p) => (
@@ -373,30 +391,35 @@ export default function RevenueReportPage() {
               <Skeleton className="h-10 w-full" />
             </div>
           ) : isError ? (
-            <div className="py-10 text-center">
-              <p className="text-xs text-danger">Không tải được báo cáo.</p>
-              <Button variant="secondary" size="sm" className="mt-3" onClick={() => refetch()}>
-                Thử lại
-              </Button>
-            </div>
+            <ErrorState
+              className="m-3"
+              title="Không tải được báo cáo"
+              description="Không tải được báo cáo doanh thu từ Backend. Vui lòng thử lại."
+              onRetry={() => refetch()}
+            />
           ) : (data?.recentPayments || []).length === 0 ? (
-            <p className="py-12 text-center text-xs text-muted">Chưa có giao dịch nào.</p>
+            <EmptyState
+              className="m-3"
+              icon={RefreshCw}
+              title="Chưa có giao dịch"
+              description="Khoảng thời gian này chưa có giao dịch thanh toán nào."
+            />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-xs">
+              <table className="w-full min-w-[760px] text-left text-sm">
                 <thead className="border-b border-line bg-ink text-left text-[11px] uppercase tracking-wider text-muted">
                   <tr>
-                    <th className="px-4 py-3">Mã hóa đơn</th>
-                    <th className="px-4 py-3">Hội viên</th>
-                    <th className="px-4 py-3">Gói tập</th>
-                    <th className="px-4 py-3">Phương thức</th>
-                    <th className="px-4 py-3">Ngày thanh toán</th>
-                    <th className="px-4 py-3 text-right">Số tiền</th>
+                    <th className="px-4 py-3 font-semibold">Mã hóa đơn</th>
+                    <th className="px-4 py-3 font-semibold">Hội viên</th>
+                    <th className="px-4 py-3 font-semibold">Gói tập</th>
+                    <th className="px-4 py-3 font-semibold">Phương thức</th>
+                    <th className="px-4 py-3 font-semibold">Ngày thanh toán</th>
+                    <th className="px-4 py-3 font-semibold text-right">Số tiền</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
                   {(data?.recentPayments || []).map((p) => (
-                    <tr key={p.id} className="hover:bg-line/20 transition-colors">
+                    <tr key={p.id} className="hover:bg-line/30 transition-colors">
                       <td className="px-4 py-3 font-mono font-bold text-neon">{p.code}</td>
                       <td className="px-4 py-3">
                         <p className="font-semibold text-chalk">{p.member.fullName}</p>

@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/components/ui/toast';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils';
 import { PAYMENT_STATUS_META, PAYMENT_METHOD_LABEL } from '@/lib/status';
@@ -30,6 +31,9 @@ import {
   Landmark,
   Copy,
   Building2,
+  Tag,
+  FileText,
+  ArrowRight,
 } from 'lucide-react';
 
 export default function PaymentDetailPage() {
@@ -121,11 +125,12 @@ export default function PaymentDetailPage() {
 
   if (isError || !payment) {
     return (
-      <div className="py-20 text-center">
-        <p className="text-sm text-danger">Không tìm thấy giao dịch thanh toán.</p>
-        <Button variant="secondary" size="sm" className="mt-3" onClick={() => refetch()}>
-          Thử lại
-        </Button>
+      <div className="py-20">
+        <ErrorState
+          title="Không tìm thấy giao dịch"
+          description="Không tìm thấy giao dịch thanh toán hoặc có lỗi kết nối đến API."
+          onRetry={() => refetch()}
+        />
       </div>
     );
   }
@@ -223,8 +228,11 @@ export default function PaymentDetailPage() {
               </p>
             </div>
             {payment.promotion && (
-              <p className="mt-3 rounded-lg bg-neon/5 border border-neon/20 px-3 py-2 text-[11px] text-neon">
-                🎁 Mã giảm giá: <b>{payment.promotion.code}</b> ({payment.promotion.name})
+              <p className="mt-3 flex items-center gap-1.5 rounded-lg border border-neon/20 bg-neon/5 px-3 py-2 text-[11px] text-neon">
+                <Tag className="size-3.5 shrink-0" />
+                <span>
+                  Mã giảm giá: <b>{payment.promotion.code}</b> ({payment.promotion.name})
+                </span>
               </p>
             )}
           </CardContent>
@@ -296,8 +304,9 @@ export default function PaymentDetailPage() {
               </span>
             </div>
             {payment.notes && (
-              <p className="sm:col-span-2 rounded-lg bg-ink border border-line px-3 py-2 text-muted">
-                📝 {payment.notes}
+              <p className="sm:col-span-2 flex items-start gap-1.5 rounded-lg border border-line bg-ink px-3 py-2 text-muted">
+                <FileText className="mt-0.5 size-3.5 shrink-0" />
+                <span>{payment.notes}</span>
               </p>
             )}
           </CardContent>
@@ -374,7 +383,7 @@ export default function PaymentDetailPage() {
           {payment.member && (
             <Link href={`/admin/members/${payment.member.id}`}>
               <Button variant="outline" size="sm">
-                Xem hồ sơ →
+                Xem hồ sơ <ArrowRight className="size-3.5" />
               </Button>
             </Link>
           )}

@@ -12,6 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState } from '@/components/ui/error-state';
 import { Tabs } from '@/components/ui/tabs';
 import { BarChart, MethodBars } from '@/components/charts/bar-chart';
 import { useToast } from '@/components/ui/toast';
@@ -76,7 +78,7 @@ function LoadingState({ rows = 3 }: { rows?: number }) {
 
 /* ------------------------------ Tổng quan ------------------------------ */
 function OverviewTab({ branchId }: { branchId: string }) {
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['report-overview', branchId],
     queryFn: () => reportApi.overview(branchId || undefined),
     retry: 1,
@@ -85,11 +87,11 @@ function OverviewTab({ branchId }: { branchId: string }) {
   if (isLoading) return <LoadingState />;
   if (isError || !data)
     return (
-      <Card>
-        <CardContent className="py-14 text-center text-xs text-danger">
-          Không tải được báo cáo tổng quan.
-        </CardContent>
-      </Card>
+      <ErrorState
+        title="Không tải được báo cáo"
+        description="Không tải được báo cáo tổng quan."
+        onRetry={() => refetch()}
+      />
     );
 
   const s = data.summary;
@@ -222,7 +224,7 @@ function RevenueTab({ branchId }: { branchId: string }) {
   const [applied, setApplied] = useState({ from: '', to: '' });
   const [exporting, setExporting] = useState(false);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['report-revenue', branchId, applied],
     queryFn: () =>
       reportApi.revenue({
@@ -274,11 +276,11 @@ function RevenueTab({ branchId }: { branchId: string }) {
 
   if (isError)
     return (
-      <Card>
-        <CardContent className="py-14 text-center text-xs text-danger">
-          Không tải được báo cáo doanh thu.
-        </CardContent>
-      </Card>
+      <ErrorState
+        title="Không tải được báo cáo"
+        description="Không tải được báo cáo doanh thu."
+        onRetry={() => refetch()}
+      />
     );
 
   return (
@@ -412,7 +414,11 @@ function RevenueTab({ branchId }: { branchId: string }) {
             {isLoading ? (
               <Skeleton className="h-32 w-full" />
             ) : byPackageAgg.length === 0 ? (
-              <p className="py-8 text-center text-xs text-muted">Chưa có dữ liệu.</p>
+              <EmptyState
+                icon={BarChart3}
+                title="Chưa có dữ liệu"
+                description="Chưa có doanh thu theo gói tập trong khoảng này."
+              />
             ) : (
               <MethodBars data={byPackageAgg} />
             )}
@@ -425,7 +431,7 @@ function RevenueTab({ branchId }: { branchId: string }) {
 
 /* ------------------------------ Chuyên cần ------------------------------ */
 function AttendanceTab({ branchId }: { branchId: string }) {
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['report-attendance', branchId],
     queryFn: () => reportApi.attendance({ branchId: branchId || undefined }),
     retry: 1,
@@ -433,11 +439,11 @@ function AttendanceTab({ branchId }: { branchId: string }) {
 
   if (isError)
     return (
-      <Card>
-        <CardContent className="py-14 text-center text-xs text-danger">
-          Không tải được báo cáo chuyên cần.
-        </CardContent>
-      </Card>
+      <ErrorState
+        title="Không tải được báo cáo"
+        description="Không tải được báo cáo chuyên cần."
+        onRetry={() => refetch()}
+      />
     );
 
   const dayData = (data?.byDay || []).map((d) => ({
@@ -523,7 +529,11 @@ function AttendanceTab({ branchId }: { branchId: string }) {
             </CardHeader>
             <CardContent>
               {data.byBranch.length === 0 ? (
-                <p className="py-8 text-center text-xs text-muted">Chưa có dữ liệu.</p>
+                <EmptyState
+                  icon={Building2}
+                  title="Chưa có dữ liệu"
+                  description="Chưa có lượt check-in theo chi nhánh."
+                />
               ) : (
                 <MethodBars
                   data={data.byBranch.map((b) => ({ label: b.branchName, value: b.count }))}
@@ -538,7 +548,11 @@ function AttendanceTab({ branchId }: { branchId: string }) {
             </CardHeader>
             <CardContent>
               {!data.byMethod || data.byMethod.length === 0 ? (
-                <p className="py-8 text-center text-xs text-muted">Chưa có dữ liệu.</p>
+                <EmptyState
+                  icon={Activity}
+                  title="Chưa có dữ liệu"
+                  description="Chưa có lượt check-in theo hình thức."
+                />
               ) : (
                 <MethodBars
                   data={data.byMethod.map((m) => ({
@@ -558,7 +572,7 @@ function AttendanceTab({ branchId }: { branchId: string }) {
 
 /* ------------------------------ Hội viên ------------------------------ */
 function MembersTab({ branchId }: { branchId: string }) {
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['report-members', branchId],
     queryFn: () => reportApi.members({ branchId: branchId || undefined }),
     retry: 1,
@@ -566,11 +580,11 @@ function MembersTab({ branchId }: { branchId: string }) {
 
   if (isError)
     return (
-      <Card>
-        <CardContent className="py-14 text-center text-xs text-danger">
-          Không tải được báo cáo hội viên.
-        </CardContent>
-      </Card>
+      <ErrorState
+        title="Không tải được báo cáo"
+        description="Không tải được báo cáo hội viên."
+        onRetry={() => refetch()}
+      />
     );
 
   const growth = (data?.growthByMonth || []).map((m) => ({ label: m.month, value: m.count }));
@@ -622,20 +636,20 @@ function MembersTab({ branchId }: { branchId: string }) {
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[680px] text-left text-xs">
+              <table className="w-full min-w-[680px] text-left text-sm">
                 <thead className="border-b border-line bg-ink text-[11px] uppercase tracking-wider text-muted">
                   <tr>
-                    <th className="px-4 py-3">Mã HV</th>
-                    <th className="px-4 py-3">Họ tên</th>
-                    <th className="px-4 py-3">Chi nhánh</th>
-                    <th className="px-4 py-3">Ngày tham gia</th>
-                    <th className="px-4 py-3 text-right">Thanh toán</th>
-                    <th className="px-4 py-3 text-right">Check-in</th>
+                    <th className="px-4 py-3 font-semibold">Mã HV</th>
+                    <th className="px-4 py-3 font-semibold">Họ tên</th>
+                    <th className="px-4 py-3 font-semibold">Chi nhánh</th>
+                    <th className="px-4 py-3 font-semibold">Ngày tham gia</th>
+                    <th className="px-4 py-3 text-right font-semibold">Thanh toán</th>
+                    <th className="px-4 py-3 text-right font-semibold">Check-in</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
                   {(data?.recent || []).map((m) => (
-                    <tr key={m.id} className="transition-colors hover:bg-line/20">
+                    <tr key={m.id} className="transition-colors hover:bg-line/30">
                       <td className="px-4 py-3 font-mono font-bold text-neon">{m.code}</td>
                       <td className="px-4 py-3 font-semibold text-chalk">{m.fullName}</td>
                       <td className="px-4 py-3 text-muted">{m.branch?.name || '—'}</td>
@@ -656,7 +670,7 @@ function MembersTab({ branchId }: { branchId: string }) {
 
 /* ------------------------------ Gói tập ------------------------------ */
 function MembershipsTab({ branchId }: { branchId: string }) {
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['report-memberships', branchId],
     queryFn: () => reportApi.memberships({ branchId: branchId || undefined }),
     retry: 1,
@@ -664,11 +678,11 @@ function MembershipsTab({ branchId }: { branchId: string }) {
 
   if (isError)
     return (
-      <Card>
-        <CardContent className="py-14 text-center text-xs text-danger">
-          Không tải được báo cáo gói tập.
-        </CardContent>
-      </Card>
+      <ErrorState
+        title="Không tải được báo cáo"
+        description="Không tải được báo cáo gói tập."
+        onRetry={() => refetch()}
+      />
     );
 
   const byMonth = (data?.stats.byMonth || []).map((m) => ({ label: m.month, value: m.count }));
@@ -715,7 +729,11 @@ function MembershipsTab({ branchId }: { branchId: string }) {
             {isLoading ? (
               <Skeleton className="h-32 w-full" />
             ) : (data?.packagePopularity || []).length === 0 ? (
-              <p className="py-8 text-center text-xs text-muted">Chưa có dữ liệu.</p>
+              <EmptyState
+                icon={Layers}
+                title="Chưa có dữ liệu"
+                description="Chưa có lượt đăng ký gói nào."
+              />
             ) : (
               <MethodBars
                 data={(data?.packagePopularity || []).map((p) => ({
@@ -735,7 +753,11 @@ function MembershipsTab({ branchId }: { branchId: string }) {
             {isLoading ? (
               <Skeleton className="h-32 w-full" />
             ) : (data?.byStatus || []).length === 0 ? (
-              <p className="py-8 text-center text-xs text-muted">Chưa có dữ liệu.</p>
+              <EmptyState
+                icon={Gauge}
+                title="Chưa có dữ liệu"
+                description="Chưa có gói tập nào để phân bố trạng thái."
+              />
             ) : (
               <MethodBars
                 data={(data?.byStatus || []).map((r) => ({
@@ -754,7 +776,7 @@ function MembershipsTab({ branchId }: { branchId: string }) {
 
 /* ------------------------------ HLV ------------------------------ */
 function TrainersTab({ branchId }: { branchId: string }) {
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['report-trainers', branchId],
     queryFn: () => reportApi.trainers({ branchId: branchId || undefined }),
     retry: 1,
@@ -762,11 +784,11 @@ function TrainersTab({ branchId }: { branchId: string }) {
 
   if (isError)
     return (
-      <Card>
-        <CardContent className="py-14 text-center text-xs text-danger">
-          Không tải được báo cáo HLV.
-        </CardContent>
-      </Card>
+      <ErrorState
+        title="Không tải được báo cáo"
+        description="Không tải được báo cáo HLV."
+        onRetry={() => refetch()}
+      />
     );
 
   return (
@@ -798,23 +820,28 @@ function TrainersTab({ branchId }: { branchId: string }) {
           {isLoading ? (
             <LoadingState rows={4} />
           ) : (data?.data || []).length === 0 ? (
-            <p className="py-12 text-center text-xs text-muted">Chưa có HLV nào.</p>
+            <EmptyState
+              className="m-3"
+              icon={UserCheck}
+              title="Chưa có huấn luyện viên"
+              description="Hiện chưa có HLV nào trong hệ thống."
+            />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[680px] text-left text-xs">
+              <table className="w-full min-w-[720px] text-left text-sm">
                 <thead className="border-b border-line bg-ink text-[11px] uppercase tracking-wider text-muted">
                   <tr>
-                    <th className="px-4 py-3">HLV</th>
-                    <th className="px-4 py-3">Chi nhánh</th>
-                    <th className="px-4 py-3">Trạng thái</th>
-                    <th className="px-4 py-3 text-right">Hội viên phụ trách</th>
-                    <th className="px-4 py-3 text-right">Lịch dạy</th>
-                    <th className="px-4 py-3 text-right">Buổi đã hoàn thành</th>
+                    <th className="px-4 py-3 font-semibold">HLV</th>
+                    <th className="px-4 py-3 font-semibold">Chi nhánh</th>
+                    <th className="px-4 py-3 font-semibold">Trạng thái</th>
+                    <th className="px-4 py-3 text-right font-semibold">Hội viên phụ trách</th>
+                    <th className="px-4 py-3 text-right font-semibold">Lịch dạy</th>
+                    <th className="px-4 py-3 text-right font-semibold">Buổi đã hoàn thành</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
                   {(data?.data || []).map((t) => (
-                    <tr key={t.id} className="transition-colors hover:bg-line/20">
+                    <tr key={t.id} className="transition-colors hover:bg-line/30">
                       <td className="px-4 py-3">
                         <p className="font-semibold text-chalk">{t.fullName}</p>
                         <p className="text-[10px] font-mono text-muted">{t.email}</p>
@@ -844,7 +871,7 @@ function TrainersTab({ branchId }: { branchId: string }) {
 
 /* ------------------------------ Thiết bị ------------------------------ */
 function EquipmentTab() {
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['report-equipment'],
     queryFn: () => reportApi.equipment(),
     retry: 1,
@@ -870,11 +897,11 @@ function EquipmentTab() {
 
   if (isError)
     return (
-      <Card>
-        <CardContent className="py-14 text-center text-xs text-danger">
-          Không tải được báo cáo thiết bị.
-        </CardContent>
-      </Card>
+      <ErrorState
+        title="Không tải được báo cáo"
+        description="Không tải được báo cáo thiết bị."
+        onRetry={() => refetch()}
+      />
     );
 
   return (
@@ -969,7 +996,7 @@ function EquipmentTab() {
 
 /* ------------------------------ Chi nhánh ------------------------------ */
 function BranchesTab() {
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['report-branches'],
     queryFn: () => reportApi.branches(),
     retry: 1,
@@ -977,11 +1004,11 @@ function BranchesTab() {
 
   if (isError)
     return (
-      <Card>
-        <CardContent className="py-14 text-center text-xs text-danger">
-          Không tải được báo cáo chi nhánh.
-        </CardContent>
-      </Card>
+      <ErrorState
+        title="Không tải được báo cáo"
+        description="Không tải được báo cáo chi nhánh."
+        onRetry={() => refetch()}
+      />
     );
 
   const rows = (data as BranchOverviewReport | undefined)?.data || [];
@@ -989,54 +1016,58 @@ function BranchesTab() {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {isLoading
-          ? Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-52 w-full" />)
-          : rows.map((b) => {
-              const meta = BRANCH_STATUS_META[b.status] || {
-                label: b.status,
-                variant: 'outline' as const,
-              };
-              return (
-                <Card key={b.id} className="border-l-2 border-l-neon">
-                  <CardContent className="space-y-3 p-5">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <h4 className="flex items-center gap-2 font-display text-base font-bold text-chalk">
-                          <Building2 className="size-4 text-neon" /> {b.name}
-                        </h4>
-                        <p className="mt-0.5 truncate text-[11px] text-muted">{b.address}</p>
-                        {b.openingHours && (
-                          <p className="text-[11px] text-muted">Giờ mở: {b.openingHours}</p>
-                        )}
+        {isLoading ? (
+          Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-52 w-full" />)
+        ) : rows.length === 0 ? (
+          <div className="lg:col-span-2">
+            <EmptyState
+              icon={Building2}
+              title="Chưa có chi nhánh"
+              description="Hệ thống chưa có chi nhánh nào để tổng hợp."
+            />
+          </div>
+        ) : (
+          rows.map((b) => {
+            const meta = BRANCH_STATUS_META[b.status] || {
+              label: b.status,
+              variant: 'outline' as const,
+            };
+            return (
+              <Card key={b.id} className="border-l-2 border-l-neon">
+                <CardContent className="space-y-3 p-5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <h4 className="flex items-center gap-2 font-display text-base font-bold text-chalk">
+                        <Building2 className="size-4 text-neon" /> {b.name}
+                      </h4>
+                      <p className="mt-0.5 truncate text-[11px] text-muted">{b.address}</p>
+                      {b.openingHours && (
+                        <p className="text-[11px] text-muted">Giờ mở: {b.openingHours}</p>
+                      )}
+                    </div>
+                    <Badge variant={meta.variant as any}>{meta.label}</Badge>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 border-t border-line pt-3 text-center">
+                    {[
+                      ['Hội viên', `${b.activeMembers}/${b.members}`, 'đang tập'],
+                      ['Check-in tháng', String(b.checkInsThisMonth), `${b.checkInsToday} hôm nay`],
+                      ['Doanh thu tháng', formatCurrency(b.revenueThisMonth), 'PAID'],
+                      ['Thiết bị', String(b.equipment), `${b.rooms} phòng`],
+                      ['HLV', String(b.trainers), 'đang hoạt động'],
+                      ['Lịch sắp tới', String(b.upcomingSessions), 'buổi SCHEDULED'],
+                    ].map(([label, val, note]) => (
+                      <div key={String(label)} className="rounded-lg bg-ink p-2">
+                        <p className="text-[10px] uppercase tracking-wide text-muted">{label}</p>
+                        <p className="font-display text-base font-black text-neon">{String(val)}</p>
+                        <p className="text-[9px] text-muted">{note}</p>
                       </div>
-                      <Badge variant={meta.variant as any}>{meta.label}</Badge>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 border-t border-line pt-3 text-center">
-                      {[
-                        ['Hội viên', `${b.activeMembers}/${b.members}`, 'đang tập'],
-                        [
-                          'Check-in tháng',
-                          String(b.checkInsThisMonth),
-                          `${b.checkInsToday} hôm nay`,
-                        ],
-                        ['Doanh thu tháng', formatCurrency(b.revenueThisMonth), 'PAID'],
-                        ['Thiết bị', String(b.equipment), `${b.rooms} phòng`],
-                        ['HLV', String(b.trainers), 'đang hoạt động'],
-                        ['Lịch sắp tới', String(b.upcomingSessions), 'buổi SCHEDULED'],
-                      ].map(([label, val, note]) => (
-                        <div key={String(label)} className="rounded-lg bg-ink p-2">
-                          <p className="text-[10px] uppercase tracking-wide text-muted">{label}</p>
-                          <p className="font-display text-base font-black text-neon">
-                            {String(val)}
-                          </p>
-                          <p className="text-[9px] text-muted">{note}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })
+        )}
       </div>
     </div>
   );

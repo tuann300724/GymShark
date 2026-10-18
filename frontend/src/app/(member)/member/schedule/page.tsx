@@ -7,6 +7,7 @@ import { trainerApi } from '@/services/trainer.service';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 import { SessionDetailDialog } from '@/components/training/session-detail-dialog';
 import { SessionStatusBadge, SessionTypeBadge } from '@/components/training/session-badges';
 import { formatDateTime, formatTime } from '@/lib/utils';
@@ -214,16 +215,15 @@ export default function MemberSchedulePage() {
               <Skeleton className="h-28 rounded-2xl" />
             </div>
           ) : filtered.length === 0 ? (
-            <Card>
-              <CardContent className="p-10 text-center">
-                <CalendarDays className="mx-auto size-10 text-muted" />
-                <p className="mt-3 text-sm text-muted">
-                  {selectedKey
-                    ? 'Không có buổi tập nào vào ngày này.'
-                    : 'Bạn chưa có buổi tập nào.'}
-                </p>
-              </CardContent>
-            </Card>
+            <EmptyState
+              icon={CalendarDays}
+              title={selectedKey ? 'Không có buổi tập vào ngày này' : 'Chưa có buổi tập'}
+              description={
+                selectedKey
+                  ? 'Chọn một ngày khác hoặc xóa bộ lọc để xem toàn bộ lịch.'
+                  : 'Bạn chưa có buổi tập nào trong lịch sử.'
+              }
+            />
           ) : (
             filtered.map((s) => (
               <button
@@ -275,11 +275,11 @@ export default function MemberSchedulePage() {
           Lịch sử tập luyện
         </h2>
         {history.length === 0 ? (
-          <Card>
-            <CardContent className="py-10 text-center text-xs text-muted">
-              Chưa có lịch sử. Khi có buổi tập hoàn thành hoặc bị hủy, chúng sẽ xuất hiện tại đây.
-            </CardContent>
-          </Card>
+          <EmptyState
+            icon={History}
+            title="Chưa có lịch sử tập luyện"
+            description="Khi có buổi tập hoàn thành hoặc bị hủy, chúng sẽ xuất hiện tại đây."
+          />
         ) : (
           <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
             {history.slice(0, 8).map((s) => (

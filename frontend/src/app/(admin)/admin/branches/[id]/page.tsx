@@ -27,6 +27,9 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState } from '@/components/ui/error-state';
+import { Spinner } from '@/components/ui/spinner';
 import { useToast } from '@/components/ui/toast';
 import {
   ArrowLeft,
@@ -75,6 +78,7 @@ export default function BranchDetailPage() {
     data: branch,
     isLoading,
     isError,
+    refetch,
   } = useQuery({
     queryKey: ['branch-detail', id],
     queryFn: () => branchApi.detail(id),
@@ -87,6 +91,16 @@ export default function BranchDetailPage() {
     enabled: !!id,
   });
 
+  if (isError) {
+    return (
+      <ErrorState
+        title="Không tải được chi nhánh"
+        description="Đã xảy ra lỗi khi tải dữ liệu chi nhánh."
+        onRetry={() => refetch()}
+      />
+    );
+  }
+
   if (isLoading || !branch) {
     return (
       <div className="space-y-4">
@@ -98,10 +112,6 @@ export default function BranchDetailPage() {
         </div>
       </div>
     );
-  }
-
-  if (isError) {
-    return <div className="py-20 text-center text-xs text-danger">Lỗi tải chi nhánh.</div>;
   }
 
   const meta = BRANCH_STATUS_META[branch.status] || { label: branch.status, variant: 'outline' };
@@ -330,7 +340,11 @@ function OverviewTab({ branch, stats }: { branch: Branch; stats?: any }) {
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
           {Object.entries(stats?.equipmentByStatus ?? {}).length === 0 ? (
-            <p className="text-xs text-muted">Chưa có thiết bị tại chi nhánh.</p>
+            <EmptyState
+              icon={Dumbbell}
+              title="Chưa có thiết bị"
+              description="Chi nhánh chưa có thiết bị nào."
+            />
           ) : (
             Object.entries(stats.equipmentByStatus).map(([status, count]) => (
               <div
@@ -383,7 +397,12 @@ function RoomsTab({ branchId }: { branchId: string }) {
   const [form, setForm] = useState<RoomFormState>(emptyRoom);
   const [error, setError] = useState('');
 
-  const { data: rooms, isLoading } = useQuery({
+  const {
+    data: rooms,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ['branch-rooms', branchId],
     queryFn: () => branchApi.rooms(branchId),
     enabled: !!branchId,
@@ -493,7 +512,11 @@ function RoomsTab({ branchId }: { branchId: string }) {
       </CardHeader>
       <CardContent className="p-0">
         {isLoading ? (
-          <div className="py-12 text-center text-xs text-muted">Đang tải phòng...</div>
+          <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted">
+            <Spinner /> Đang tải phòng...
+          </div>
+        ) : isError ? (
+          <ErrorState className="m-3" onRetry={() => refetch()} />
         ) : rooms && rooms.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
             {rooms.map((room) => {
@@ -586,10 +609,12 @@ function RoomsTab({ branchId }: { branchId: string }) {
             })}
           </div>
         ) : (
-          <div className="py-12 text-center text-xs text-muted">
-            Chưa có phòng nào trong chi nhánh này.
-            {manage && ' Nhấn "Thêm phòng" để khai báo.'}
-          </div>
+          <EmptyState
+            className="m-3"
+            icon={LayoutGrid}
+            title="Chưa có phòng tập"
+            description={`Chi nhánh chưa có phòng nào.${manage ? ' Nhấn "Thêm phòng" để khai báo.' : ''}`}
+          />
         )}
       </CardContent>
 
@@ -672,7 +697,7 @@ function RoomsTab({ branchId }: { branchId: string }) {
 // Equipment tab
 // ---------------------------------------------------------------------------
 function EquipmentTab({ branchId }: { branchId: string }) {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['branch-equipment', branchId],
     queryFn: () => equipmentApi.list({ branchId, limit: 100 }),
     enabled: !!branchId,
@@ -697,27 +722,34 @@ function EquipmentTab({ branchId }: { branchId: string }) {
       </CardHeader>
       <CardContent className="p-0">
         {isLoading ? (
-          <div className="py-12 text-center text-xs text-muted">Đang tải thiết bị...</div>
-        ) : items.length === 0 ? (
-          <div className="py-12 text-center text-xs text-muted">
-            Chi nhánh chưa có thiết bị nào.
+          <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted">
+            <Spinner /> Đang tải thiết bị...
           </div>
+        ) : isError ? (
+          <ErrorState className="m-3" onRetry={() => refetch()} />
+        ) : items.length === 0 ? (
+          <EmptyState
+            className="m-3"
+            icon={Dumbbell}
+            title="Chưa có thiết bị"
+            description="Chi nhánh chưa có thiết bị nào."
+          />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
+            <table className="w-full min-w-[760px] text-left text-sm">
               <thead className="text-[11px] uppercase tracking-wider text-muted bg-ink border-b border-line">
                 <tr>
-                  <th className="py-2.5 px-4">Mã</th>
-                  <th className="py-2.5 px-4">Tên thiết bị</th>
-                  <th className="py-2.5 px-4">Nhóm</th>
-                  <th className="py-2.5 px-4">Phòng</th>
-                  <th className="py-2.5 px-4">Trạng thái</th>
-                  <th className="py-2.5 px-4 text-right">Lần bảo trì tới</th>
+                  <th className="py-2.5 px-4 font-semibold">Mã</th>
+                  <th className="py-2.5 px-4 font-semibold">Tên thiết bị</th>
+                  <th className="py-2.5 px-4 font-semibold">Nhóm</th>
+                  <th className="py-2.5 px-4 font-semibold">Phòng</th>
+                  <th className="py-2.5 px-4 font-semibold">Trạng thái</th>
+                  <th className="py-2.5 px-4 text-right font-semibold">Lần bảo trì tới</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
                 {items.map((eq) => (
-                  <tr key={eq.id} className="hover:bg-line/20 transition-colors">
+                  <tr key={eq.id} className="hover:bg-line/30 transition-colors">
                     <td className="py-2.5 px-4">
                       <Link
                         href={`/admin/equipment/${eq.id}`}
@@ -752,7 +784,7 @@ function EquipmentTab({ branchId }: { branchId: string }) {
 // Schedule tab
 // ---------------------------------------------------------------------------
 function ScheduleTab({ branchId }: { branchId: string }) {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['branch-schedules', branchId],
     queryFn: () => trainingApi.list({ branchId, limit: 50 }),
     enabled: !!branchId,
@@ -775,22 +807,29 @@ function ScheduleTab({ branchId }: { branchId: string }) {
       </CardHeader>
       <CardContent className="p-0">
         {isLoading ? (
-          <div className="py-12 text-center text-xs text-muted">Đang tải lịch tập...</div>
-        ) : items.length === 0 ? (
-          <div className="py-12 text-center text-xs text-muted">
-            Chưa có buổi tập nào tại chi nhánh.
+          <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted">
+            <Spinner /> Đang tải lịch tập...
           </div>
+        ) : isError ? (
+          <ErrorState className="m-3" onRetry={() => refetch()} />
+        ) : items.length === 0 ? (
+          <EmptyState
+            className="m-3"
+            icon={CalendarDays}
+            title="Chưa có buổi tập"
+            description="Chưa có buổi tập nào tại chi nhánh."
+          />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
+            <table className="w-full min-w-[760px] text-left text-sm">
               <thead className="text-[11px] uppercase tracking-wider text-muted bg-ink border-b border-line">
                 <tr>
-                  <th className="py-2.5 px-4">Buổi tập</th>
-                  <th className="py-2.5 px-4">HLV</th>
-                  <th className="py-2.5 px-4">Phòng</th>
-                  <th className="py-2.5 px-4">Thời gian</th>
-                  <th className="py-2.5 px-4">Loại</th>
-                  <th className="py-2.5 px-4 text-right">Trạng thái</th>
+                  <th className="py-2.5 px-4 font-semibold">Buổi tập</th>
+                  <th className="py-2.5 px-4 font-semibold">HLV</th>
+                  <th className="py-2.5 px-4 font-semibold">Phòng</th>
+                  <th className="py-2.5 px-4 font-semibold">Thời gian</th>
+                  <th className="py-2.5 px-4 font-semibold">Loại</th>
+                  <th className="py-2.5 px-4 text-right font-semibold">Trạng thái</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
@@ -800,7 +839,7 @@ function ScheduleTab({ branchId }: { branchId: string }) {
                     variant: 'outline',
                   };
                   return (
-                    <tr key={s.id} className="hover:bg-line/20 transition-colors">
+                    <tr key={s.id} className="hover:bg-line/30 transition-colors">
                       <td className="py-2.5 px-4 font-semibold text-chalk">{s.title}</td>
                       <td className="py-2.5 px-4 text-muted">{s.trainer?.user?.fullName || '—'}</td>
                       <td className="py-2.5 px-4 text-muted">{s.room?.name || '—'}</td>
@@ -827,7 +866,7 @@ function ScheduleTab({ branchId }: { branchId: string }) {
 // Members tab
 // ---------------------------------------------------------------------------
 function MembersTab({ branchId }: { branchId: string }) {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['branch-members', branchId],
     queryFn: async () => {
       const res = await apiClient.get('/members', { params: { branchId, limit: 100 } });
@@ -855,19 +894,28 @@ function MembersTab({ branchId }: { branchId: string }) {
       </CardHeader>
       <CardContent className="p-0">
         {isLoading ? (
-          <div className="py-12 text-center text-xs text-muted">Đang tải hội viên...</div>
+          <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted">
+            <Spinner /> Đang tải hội viên...
+          </div>
+        ) : isError ? (
+          <ErrorState className="m-3" onRetry={() => refetch()} />
         ) : members.length === 0 ? (
-          <div className="py-12 text-center text-xs text-muted">Chi nhánh chưa có hội viên.</div>
+          <EmptyState
+            className="m-3"
+            icon={Users}
+            title="Chưa có hội viên"
+            description="Chi nhánh chưa có hội viên nào."
+          />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
+            <table className="w-full min-w-[640px] text-left text-sm">
               <thead className="text-[11px] uppercase tracking-wider text-muted bg-ink border-b border-line">
                 <tr>
-                  <th className="py-2.5 px-4">Mã</th>
-                  <th className="py-2.5 px-4">Họ tên</th>
-                  <th className="py-2.5 px-4">SĐT</th>
-                  <th className="py-2.5 px-4">Trạng thái hồ sơ</th>
-                  <th className="py-2.5 px-4 text-right">Tham gia</th>
+                  <th className="py-2.5 px-4 font-semibold">Mã</th>
+                  <th className="py-2.5 px-4 font-semibold">Họ tên</th>
+                  <th className="py-2.5 px-4 font-semibold">SĐT</th>
+                  <th className="py-2.5 px-4 font-semibold">Trạng thái hồ sơ</th>
+                  <th className="py-2.5 px-4 text-right font-semibold">Tham gia</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
@@ -877,7 +925,7 @@ function MembersTab({ branchId }: { branchId: string }) {
                     variant: 'outline',
                   };
                   return (
-                    <tr key={m.id} className="hover:bg-line/20 transition-colors">
+                    <tr key={m.id} className="hover:bg-line/30 transition-colors">
                       <td className="py-2.5 px-4">
                         <Link
                           href={`/admin/members/${m.id}`}

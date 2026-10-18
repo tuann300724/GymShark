@@ -9,6 +9,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState } from '@/components/ui/error-state';
+import { Spinner } from '@/components/ui/spinner';
 import { useToast } from '@/components/ui/toast';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import { MEMBERSHIP_STATUS_META, PAYMENT_METHOD_LABEL } from '@/lib/status';
@@ -36,6 +39,7 @@ export default function MembershipsPage() {
     data: memberships,
     isLoading,
     isError,
+    refetch,
   } = useQuery({
     queryKey: ['admin-memberships'],
     queryFn: async () => {
@@ -128,7 +132,7 @@ export default function MembershipsPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-chalk flex items-center gap-2">
+          <h1 className="font-display text-2xl font-bold uppercase tracking-tight text-chalk flex items-center gap-2">
             <CreditCard className="size-6 text-neon" />
             Hợp Đồng & Thẻ Hội Viên
           </h1>
@@ -147,25 +151,28 @@ export default function MembershipsPage() {
       <Card>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="py-16 text-center text-xs text-muted">
-              Đang tải danh sách thẻ hội viên...
+            <div className="flex items-center justify-center gap-2 py-16 text-xs text-muted">
+              <Spinner /> Đang tải danh sách thẻ hội viên...
             </div>
           ) : isError ? (
-            <div className="py-16 text-center text-xs text-danger">
-              Lỗi tải dữ liệu thẻ hội viên từ Backend.
-            </div>
+            <ErrorState
+              className="m-3"
+              title="Không tải được thẻ hội viên"
+              description="Lỗi tải dữ liệu thẻ hội viên từ Backend. Vui lòng thử lại."
+              onRetry={() => refetch()}
+            />
           ) : memberships && memberships.length > 0 ? (
             <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
+              <table className="w-full min-w-[840px] text-left text-sm">
                 <thead className="text-[11px] uppercase tracking-wider text-muted bg-ink border-b border-line">
                   <tr>
-                    <th className="py-3 px-4">Hội viên</th>
-                    <th className="py-3 px-4">Gói dịch vụ</th>
-                    <th className="py-3 px-4">Hiệu lực</th>
-                    <th className="py-3 px-4">Thành tiền</th>
-                    <th className="py-3 px-4">Thanh toán</th>
-                    <th className="py-3 px-4">Trạng thái</th>
-                    <th className="py-3 px-4 text-right">Thao tác</th>
+                    <th className="py-3 px-4 font-semibold">Hội viên</th>
+                    <th className="py-3 px-4 font-semibold">Gói dịch vụ</th>
+                    <th className="py-3 px-4 font-semibold">Hiệu lực</th>
+                    <th className="py-3 px-4 font-semibold">Thành tiền</th>
+                    <th className="py-3 px-4 font-semibold">Thanh toán</th>
+                    <th className="py-3 px-4 font-semibold">Trạng thái</th>
+                    <th className="py-3 px-4 font-semibold text-right">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line font-medium">
@@ -176,7 +183,7 @@ export default function MembershipsPage() {
                     };
                     const pendingPayment = item.payments?.find((p: any) => p.status === 'PENDING');
                     return (
-                      <tr key={item.id} className="hover:bg-line/20 transition-colors">
+                      <tr key={item.id} className="hover:bg-line/30 transition-colors">
                         <td className="py-3 px-4">
                           <p className="font-semibold text-chalk">{item.member?.fullName}</p>
                           <p className="font-mono text-neon text-[11px]">{item.member?.code}</p>
@@ -311,9 +318,12 @@ export default function MembershipsPage() {
               </table>
             </div>
           ) : (
-            <div className="py-16 text-center text-xs text-muted">
-              Chưa có hợp đồng nào được tạo.
-            </div>
+            <EmptyState
+              className="m-3"
+              icon={CreditCard}
+              title="Chưa có hợp đồng"
+              description="Chưa có hợp đồng gói tập nào được tạo. Vào trang Thanh toán hoặc đăng ký gói cho hội viên để bắt đầu."
+            />
           )}
         </CardContent>
       </Card>

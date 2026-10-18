@@ -10,6 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 import { useToast } from '@/components/ui/toast';
 import {
   CreditCard,
@@ -107,13 +108,13 @@ function RegisterMembershipContent() {
 
   if (!packageId) {
     return (
-      <div className="mx-auto max-w-xl py-20 text-center">
-        <Package className="mx-auto size-12 text-muted" />
-        <h1 className="mt-4 text-xl font-bold text-chalk">Chưa chọn gói tập</h1>
-        <p className="mt-2 text-sm text-muted">Hãy chọn một gói tập trước khi đăng ký.</p>
-        <Button className="mt-6" onClick={() => router.push('/packages')}>
-          Xem gói tập
-        </Button>
+      <div className="mx-auto max-w-xl py-16">
+        <EmptyState
+          icon={Package}
+          title="Chưa chọn gói tập"
+          description="Hãy chọn một gói tập trước khi đăng ký."
+          action={<Button onClick={() => router.push('/packages')}>Xem gói tập</Button>}
+        />
       </div>
     );
   }

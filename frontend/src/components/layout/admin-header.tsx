@@ -59,8 +59,12 @@ export function AdminHeader() {
     router.push('/login');
   };
 
-  const statusDot = isSuccess ? 'bg-neon' : isError ? 'bg-danger' : 'bg-amber-400 animate-pulse';
-  const statusText = isSuccess ? 'API Connected' : isError ? 'API Disconnected' : 'Checking API...';
+  const statusDot = isSuccess ? 'bg-neon' : isError ? 'bg-danger' : 'bg-muted animate-pulse';
+  const statusText = isSuccess
+    ? 'Đã kết nối API'
+    : isError
+      ? 'Mất kết nối API'
+      : 'Đang kiểm tra API...';
 
   return (
     <header className="h-16 px-4 md:px-6 border-b border-line bg-ink/85 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between">
@@ -88,9 +92,9 @@ export function AdminHeader() {
                 ? 'Không kết nối được với Backend'
                 : 'Đang kiểm tra kết nối Backend...'
           }
-          className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-colors bg-ink border-line"
+          className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-colors bg-ink border-line shrink-0"
         >
-          <span className={`size-2 rounded-full ${statusDot}`} />
+          <span className={`size-2 rounded-full shrink-0 ${statusDot}`} />
           <span className="text-muted">{statusText}</span>
         </div>
 

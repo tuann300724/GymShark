@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState } from '@/components/ui/error-state';
 import { Dialog } from '@/components/ui/dialog';
 import { FaceScanner } from '@/components/ui/face-scanner';
 import { StatCard } from '@/components/ui/stat-card';
@@ -378,9 +380,12 @@ export default function AdminCheckinsPage() {
               <Skeleton className="h-14 w-full" />
             </div>
           ) : !inside || inside.length === 0 ? (
-            <div className="py-12 text-center text-sm text-muted">
-              Không có hội viên nào đang ở trong phòng. Hãy chờ lượt check-in đầu tiên!
-            </div>
+            <EmptyState
+              className="m-3"
+              icon={UserCheck}
+              title="Chưa có ai trong phòng"
+              description="Không có hội viên nào đang ở trong phòng. Hãy chờ lượt check-in đầu tiên!"
+            />
           ) : (
             <div className="divide-y divide-line">
               {inside.map((c) => {
@@ -388,7 +393,7 @@ export default function AdminCheckinsPage() {
                 return (
                   <div
                     key={c.id}
-                    className="flex flex-col gap-3 px-4 py-3.5 transition-colors hover:bg-line/20 sm:flex-row sm:items-center"
+                    className="flex flex-col gap-3 px-4 py-3.5 transition-colors hover:bg-line/30 sm:flex-row sm:items-center"
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-3">
                       {member?.avatarUrl ? (
@@ -536,31 +541,41 @@ export default function AdminCheckinsPage() {
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
             </div>
+          ) : historyQuery.isError ? (
+            <ErrorState
+              className="m-3"
+              title="Không tải được lịch sử"
+              description="Không thể tải lịch sử check-in từ Backend. Vui lòng thử lại."
+              onRetry={() => historyQuery.refetch()}
+            />
           ) : !history || history.data.length === 0 ? (
-            <div className="py-14 text-center text-sm text-muted">
-              Không có bản ghi check-in nào phù hợp với bộ lọc.
-            </div>
+            <EmptyState
+              className="m-3"
+              icon={Clock4}
+              title="Không có bản ghi"
+              description="Không có bản ghi check-in nào phù hợp với bộ lọc."
+            />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
+              <table className="w-full min-w-[960px] text-left text-sm">
                 <thead className="bg-ink border-b border-line text-[11px] uppercase tracking-wider text-muted">
                   <tr>
-                    <th className="py-2.5 px-4">Hội viên</th>
-                    <th className="py-2.5 px-4">Ngày</th>
-                    <th className="py-2.5 px-4">Check-in</th>
-                    <th className="py-2.5 px-4">Check-out</th>
-                    <th className="py-2.5 px-4">Thời lượng</th>
-                    <th className="py-2.5 px-4">Chi nhánh</th>
-                    <th className="py-2.5 px-4">Hình thức</th>
-                    <th className="py-2.5 px-4">Trạng thái</th>
-                    <th className="py-2.5 px-4 text-right">Thao tác</th>
+                    <th className="py-2.5 px-4 font-semibold">Hội viên</th>
+                    <th className="py-2.5 px-4 font-semibold">Ngày</th>
+                    <th className="py-2.5 px-4 font-semibold">Check-in</th>
+                    <th className="py-2.5 px-4 font-semibold">Check-out</th>
+                    <th className="py-2.5 px-4 font-semibold">Thời lượng</th>
+                    <th className="py-2.5 px-4 font-semibold">Chi nhánh</th>
+                    <th className="py-2.5 px-4 font-semibold">Hình thức</th>
+                    <th className="py-2.5 px-4 font-semibold">Trạng thái</th>
+                    <th className="py-2.5 px-4 font-semibold text-right">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line font-medium">
                   {history.data.map((c) => {
                     const methodMeta = METHOD_META[c.method || 'MANUAL'] || METHOD_META.MANUAL;
                     return (
-                      <tr key={c.id} className="transition-colors hover:bg-line/20">
+                      <tr key={c.id} className="transition-colors hover:bg-line/30">
                         <td className="py-2.5 px-4">
                           <div className="flex items-center gap-2.5">
                             <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-neon/30 bg-neon/10 text-[10px] font-bold uppercase text-neon">
@@ -629,6 +644,7 @@ export default function AdminCheckinsPage() {
                   variant="outline"
                   size="sm"
                   disabled={page <= 1 || historyQuery.isFetching}
+                  aria-label="Trang trước"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
                   <ChevronLeft className="size-4" />
@@ -637,6 +653,7 @@ export default function AdminCheckinsPage() {
                   variant="outline"
                   size="sm"
                   disabled={page >= totalPages || historyQuery.isFetching}
+                  aria-label="Trang sau"
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 >
                   <ChevronRight className="size-4" />

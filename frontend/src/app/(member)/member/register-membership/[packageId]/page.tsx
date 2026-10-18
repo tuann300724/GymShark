@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog } from '@/components/ui/dialog';
+import { EmptyState } from '@/components/ui/empty-state';
 import { useToast } from '@/components/ui/toast';
 import {
   CreditCard,
@@ -170,13 +171,13 @@ export default function RegisterMembershipPage() {
 
   if (!selectedPackage) {
     return (
-      <div className="mx-auto max-w-xl py-20 text-center">
-        <Package className="mx-auto size-12 text-muted" />
-        <h1 className="mt-4 text-xl font-bold text-chalk">Chưa chọn gói tập</h1>
-        <p className="mt-2 text-sm text-muted">Hãy chọn một gói tập trước khi đăng ký.</p>
-        <Button className="mt-6" onClick={() => router.push('/packages')}>
-          Xem gói tập
-        </Button>
+      <div className="mx-auto max-w-xl py-16">
+        <EmptyState
+          icon={Package}
+          title="Chưa chọn gói tập"
+          description="Hãy chọn một gói tập trước khi đăng ký."
+          action={<Button onClick={() => router.push('/packages')}>Xem gói tập</Button>}
+        />
       </div>
     );
   }
@@ -482,7 +483,7 @@ export default function RegisterMembershipPage() {
       <Dialog
         open={!!successPayment}
         onClose={() => router.push('/member/membership')}
-        title="Đã gửi yêu cầu đăng ký gói tập! 🎟️"
+        title="Đã gửi yêu cầu đăng ký gói tập!"
         className="max-w-md"
       >
         {successPayment && (
@@ -504,7 +505,9 @@ export default function RegisterMembershipPage() {
 
             {method === 'BANK_TRANSFER' && bankInfo && me && (
               <div className="rounded-xl border border-line bg-ink p-4 text-xs">
-                <p className="font-semibold text-chalk">💳 Chuyển khoản để kích hoạt gói:</p>
+                <p className="flex items-center gap-1.5 font-semibold text-chalk">
+                  <Landmark className="size-3.5 text-neon" /> Chuyển khoản để kích hoạt gói:
+                </p>
                 <p className="mt-2 text-muted">
                   Ngân hàng: <b className="text-chalk">{bankInfo.bankName}</b>
                 </p>
@@ -536,8 +539,8 @@ export default function RegisterMembershipPage() {
 
             {method === 'CASH' && (
               <div className="rounded-xl border border-line bg-ink p-4 text-xs text-muted">
-                💵 Mang mã hóa đơn <b className="text-chalk">{successPayment.payment?.code}</b> ra
-                quầy lễ tân để thanh toán tiền mặt — gói tập sẽ được kích hoạt ngay sau đó.
+                Mang mã hóa đơn <b className="text-chalk">{successPayment.payment?.code}</b> ra quầy
+                lễ tân để thanh toán tiền mặt — gói tập sẽ được kích hoạt ngay sau đó.
               </div>
             )}
 

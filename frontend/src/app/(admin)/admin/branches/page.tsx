@@ -13,6 +13,8 @@ import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/components/ui/toast';
 import {
   Building2,
@@ -75,6 +77,7 @@ export default function BranchesPage() {
     data: branches,
     isLoading,
     isError,
+    refetch,
   } = useQuery({
     queryKey: ['branches-list'],
     queryFn: branchApi.list,
@@ -170,7 +173,7 @@ export default function BranchesPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-chalk flex items-center gap-2">
+          <h1 className="font-display text-2xl font-bold uppercase tracking-tight text-chalk flex items-center gap-2">
             <Building2 className="size-6 text-neon" />
             Hệ Thống Chi Nhánh
           </h1>
@@ -201,7 +204,11 @@ export default function BranchesPage() {
           ))}
         </div>
       ) : isError ? (
-        <div className="py-20 text-center text-xs text-danger">Lỗi kết nối API chi nhánh.</div>
+        <ErrorState
+          title="Không tải được chi nhánh"
+          description="Lỗi kết nối API chi nhánh. Vui lòng kiểm tra Backend rồi thử lại."
+          onRetry={() => refetch()}
+        />
       ) : branches && branches.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {branches.map((branch) => {
@@ -334,10 +341,15 @@ export default function BranchesPage() {
           })}
         </div>
       ) : (
-        <div className="py-20 text-center text-sm text-muted">
-          <Building2 className="mx-auto size-10 text-muted/40 mb-3" />
-          Chưa có chi nhánh nào. {manage && 'Nhấn "Mở Thêm Chi Nhánh" để bắt đầu.'}
-        </div>
+        <EmptyState
+          icon={Building2}
+          title="Chưa có chi nhánh"
+          description={
+            manage
+              ? 'Chưa có chi nhánh nào. Nhấn "Mở Thêm Chi Nhánh" để bắt đầu.'
+              : 'Chưa có chi nhánh nào trong hệ thống.'
+          }
+        />
       )}
 
       {/* Edit / Create Dialog */}

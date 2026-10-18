@@ -5,6 +5,8 @@ import { useQuery } from '@tanstack/react-query';
 import { publicApi } from '@/services/package.service';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState } from '@/components/ui/error-state';
 import { Reveal } from '@/components/home/reveal';
 import { CalendarDays, Clock, MapPin, User } from 'lucide-react';
 
@@ -21,7 +23,12 @@ function formatTime(dateStr: string): string {
 }
 
 export default function PublicSchedulePage() {
-  const { data: schedules, isLoading } = useQuery({
+  const {
+    data: schedules,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ['public-schedule'],
     queryFn: publicApi.getClassSchedule,
     staleTime: 5 * 60 * 1000,
@@ -65,16 +72,14 @@ export default function PublicSchedulePage() {
                   <Skeleton key={i} className="h-24 rounded-2xl" />
                 ))}
               </div>
+            ) : isError ? (
+              <ErrorState onRetry={() => refetch()} />
             ) : grouped.length === 0 ? (
-              <div className="rounded-2xl border border-line bg-surface py-16 text-center">
-                <CalendarDays className="mx-auto mb-3 size-10 text-muted opacity-50" />
-                <p className="font-semibold text-chalk">
-                  Chưa có lớp học nào được lên lịch ở thời điểm hiện tại.
-                </p>
-                <p className="mt-1.5 text-sm text-muted">
-                  Vui lòng quay lại sau hoặc liên hệ lễ tân để biết thêm.
-                </p>
-              </div>
+              <EmptyState
+                icon={CalendarDays}
+                title="Chưa có lớp học nào được lên lịch"
+                description="Vui lòng quay lại sau hoặc liên hệ lễ tân để biết thêm."
+              />
             ) : (
               <div className="space-y-10">
                 {grouped.map((group, gi) => (

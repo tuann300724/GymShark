@@ -5,6 +5,9 @@ import { useQuery } from '@tanstack/react-query';
 import { publicApi } from '@/services/package.service';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState } from '@/components/ui/error-state';
+import { StaggerGroup, StaggerItem } from '@/components/ui/motion';
 import { Reveal } from '@/components/home/reveal';
 import { Star, Award, Briefcase, Quote, Users } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
@@ -12,7 +15,12 @@ import { formatCurrency } from '@/lib/utils';
 export default function PublicTrainersPage() {
   const [specialization, setSpecialization] = useState<string>('ALL');
 
-  const { data: trainers, isLoading } = useQuery({
+  const {
+    data: trainers,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ['public-trainers'],
     queryFn: publicApi.getTrainers,
     staleTime: 5 * 60 * 1000,
@@ -73,10 +81,12 @@ export default function PublicTrainersPage() {
                 <Skeleton key={i} className="h-80 rounded-2xl" />
               ))}
             </div>
+          ) : isError ? (
+            <ErrorState className="mt-8" onRetry={() => refetch()} />
           ) : (
-            <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {filtered.map((tr, i) => (
-                <Reveal key={tr.id} delay={(i % 3) * 90}>
+            <StaggerGroup className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {filtered.map((tr) => (
+                <StaggerItem key={tr.id} className="h-full">
                   <div className="h-full rounded-2xl border border-line bg-surface p-7 transition-colors duration-300 hover:border-neon/40">
                     {/* Avatar tile */}
                     <div className="flex items-center gap-4">
@@ -131,17 +141,18 @@ export default function PublicTrainersPage() {
                       </p>
                     )}
                   </div>
-                </Reveal>
+                </StaggerItem>
               ))}
-            </div>
+            </StaggerGroup>
           )}
 
-          {!isLoading && filtered.length === 0 && (
-            <div className="mt-8 rounded-2xl border border-line bg-surface py-16 text-center">
-              <Users className="mx-auto mb-3 size-10 text-muted opacity-50" />
-              <p className="font-semibold text-chalk">Chưa có huấn luyện viên phù hợp.</p>
-              <p className="mt-1.5 text-sm text-muted">Thử chọn một chuyên môn khác.</p>
-            </div>
+          {!isLoading && !isError && filtered.length === 0 && (
+            <EmptyState
+              className="mt-8"
+              icon={Users}
+              title="Chưa có huấn luyện viên phù hợp"
+              description="Thử chọn một chuyên môn khác."
+            />
           )}
         </div>
       </section>

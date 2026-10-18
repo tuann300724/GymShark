@@ -11,6 +11,8 @@ import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Dialog } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/components/ui/toast';
 import { cn } from '@/lib/utils';
 import {
@@ -112,7 +114,7 @@ function Foods() {
   // Xác nhận ẩn (xoá mềm)
   const [hideTarget, setHideTarget] = useState<FoodItem | null>(null);
 
-  const { data, isLoading, isFetching } = useQuery({
+  const { data, isLoading, isFetching, isError, refetch } = useQuery({
     queryKey: ['admin-foods', page, search, category, includeInactive],
     queryFn: () =>
       foodApi.list({
@@ -275,6 +277,22 @@ function Foods() {
         <CardContent>
           {isLoading ? (
             <Skeleton className="h-24 w-full" />
+          ) : isError ? (
+            <ErrorState
+              title="Không tải được thực phẩm"
+              description="Không tải được thư viện thực phẩm từ Backend. Vui lòng thử lại."
+              onRetry={() => refetch()}
+            />
+          ) : foods.length === 0 ? (
+            <EmptyState
+              icon={UtensilsCrossed}
+              title="Chưa có thực phẩm"
+              description={
+                search.trim() || category
+                  ? 'Không tìm thấy thực phẩm nào khớp với bộ lọc.'
+                  : 'Chưa có thực phẩm nào. Nhấn Thêm để nhập liệu dinh dưỡng đầu tiên.'
+              }
+            />
           ) : (
             <div className="divide-y divide-line/60">
               {foods.map((f) => (
@@ -315,13 +333,6 @@ function Foods() {
                   </div>
                 </div>
               ))}
-              {foods.length === 0 && (
-                <p className="py-6 text-center text-sm text-muted">
-                  {search.trim() || category
-                    ? 'Không tìm thấy thực phẩm nào khớp.'
-                    : 'Chưa có thực phẩm nào.'}
-                </p>
-              )}
             </div>
           )}
         </CardContent>

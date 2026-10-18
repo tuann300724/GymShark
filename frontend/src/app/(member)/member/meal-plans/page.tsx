@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Utensils, Check } from 'lucide-react';
 
 export default function MemberMealPlansPage() {
@@ -80,7 +81,12 @@ function MealPlans() {
                 </div>
               ))}
               {plans.length === 0 && (
-                <p className="py-6 text-center text-sm text-muted">Chưa có thực đơn nào.</p>
+                <EmptyState
+                  icon={Utensils}
+                  title="Chưa có thực đơn nào"
+                  description="HLV sẽ gửi thực đơn dinh dưỡng cho bạn trong thời gian tới."
+                  className="border-0 bg-transparent py-8"
+                />
               )}
             </div>
           )}

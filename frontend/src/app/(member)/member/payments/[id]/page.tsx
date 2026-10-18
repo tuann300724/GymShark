@@ -8,6 +8,7 @@ import { paymentApi } from '@/services/payment.service';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/components/ui/toast';
 import { formatCurrency, formatDateTime, formatDate } from '@/lib/utils';
 import { PAYMENT_STATUS_META, PAYMENT_METHOD_LABEL } from '@/lib/status';
@@ -56,11 +57,12 @@ export default function MemberPaymentDetailPage() {
 
   if (isError || !payment) {
     return (
-      <div className="py-20 text-center">
-        <p className="text-sm text-danger">Không tìm thấy hóa đơn.</p>
-        <Button variant="secondary" size="sm" className="mt-3" onClick={() => refetch()}>
-          Thử lại
-        </Button>
+      <div className="mx-auto max-w-2xl py-16">
+        <ErrorState
+          title="Không tìm thấy hóa đơn"
+          description="Hóa đơn không tồn tại hoặc bạn không có quyền xem."
+          onRetry={() => refetch()}
+        />
       </div>
     );
   }

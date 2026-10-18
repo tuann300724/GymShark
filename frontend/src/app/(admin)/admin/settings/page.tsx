@@ -20,7 +20,7 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-chalk flex items-center gap-2">
+        <h1 className="font-display text-2xl font-bold uppercase tracking-tight text-chalk flex items-center gap-2">
           <Settings className="size-6 text-neon" />
           Cài Đặt Hệ Thống & Hồ Sơ (Settings)
         </h1>

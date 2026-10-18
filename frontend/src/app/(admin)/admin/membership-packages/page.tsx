@@ -17,8 +17,11 @@ import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState } from '@/components/ui/error-state';
+import { Spinner } from '@/components/ui/spinner';
 import { formatCurrency } from '@/lib/utils';
-import { Package, Plus, Check, Pencil, Trash2, Power, Ban } from 'lucide-react';
+import { Package, Plus, Check, Pencil, Trash2, Power, Ban, X } from 'lucide-react';
 
 const EMPTY_FORM = {
   name: '',
@@ -46,6 +49,7 @@ export default function MembershipPackagesPage() {
     data: packages,
     isLoading,
     isError,
+    refetch,
   } = useQuery({
     queryKey: ['membership-packages'],
     queryFn: async () => {
@@ -158,7 +162,7 @@ export default function MembershipPackagesPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-chalk flex items-center gap-2">
+          <h1 className="font-display text-2xl font-bold uppercase tracking-tight text-chalk flex items-center gap-2">
             <Package className="size-6 text-neon" />
             Gói Tập Gym (Membership Packages)
           </h1>
@@ -173,11 +177,15 @@ export default function MembershipPackagesPage() {
       </div>
 
       {isLoading ? (
-        <div className="py-20 text-center text-xs text-muted">Đang tải danh sách gói tập...</div>
-      ) : isError ? (
-        <div className="py-20 text-center text-xs text-danger">
-          Không thể tải dữ liệu từ Backend. Hãy đảm bảo Backend đang chạy.
+        <div className="flex items-center justify-center gap-2 py-20 text-xs text-muted">
+          <Spinner /> Đang tải danh sách gói tập...
         </div>
+      ) : isError ? (
+        <ErrorState
+          title="Không tải được gói tập"
+          description="Không thể tải dữ liệu từ Backend. Hãy đảm bảo Backend đang chạy rồi thử lại."
+          onRetry={() => refetch()}
+        />
       ) : packages && packages.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {packages.map((pkg: any) => (
@@ -267,11 +275,11 @@ export default function MembershipPackagesPage() {
           ))}
         </div>
       ) : (
-        <Card>
-          <CardContent className="py-16 text-center text-xs text-muted">
-            Chưa có gói tập nào được khởi tạo. Nhấn Tạo Gói Tập Mới để bắt đầu.
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={Package}
+          title="Chưa có gói tập"
+          description="Chưa có gói tập nào được khởi tạo. Nhấn Tạo Gói Tập Mới để bắt đầu."
+        />
       )}
 
       {/* Create/Edit dialog */}
@@ -359,9 +367,10 @@ export default function MembershipPackagesPage() {
                   <Button
                     variant="ghost"
                     size="icon"
+                    aria-label="Xóa tính năng này"
                     onClick={() => setFeatureItems(featureItems.filter((_, i) => i !== idx))}
                   >
-                    ✕
+                    <X className="size-4" />
                   </Button>
                 </div>
               ))}

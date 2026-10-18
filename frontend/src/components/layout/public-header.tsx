@@ -7,6 +7,7 @@ import { getStoredUser } from '@/services/auth.service';
 import { Button } from '@/components/ui/button';
 import { Menu, X, Dumbbell, Search, ArrowRight } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { cn } from '@/lib/utils';
 import { isAdminRole } from '@/lib/auth';
@@ -40,6 +41,12 @@ export function PublicHeader() {
   const [query, setQuery] = useState('');
   const [user, setUser] = useState<any>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Portal dùng document.body — chỉ render sau khi mount (tránh lỗi SSR)
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const stored = localStorage.getItem('gym_user');
@@ -172,100 +179,124 @@ export function PublicHeader() {
       </div>
 
       {/* Mobile drawer */}
-      {menuOpen && (
-        <div className="border-t border-line bg-ink animate-fade-in lg:hidden">
-          <nav className="container-x flex flex-col gap-1 py-3">
-            {NAV_ITEMS.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  'rounded-[10px] px-3 py-2.5 text-sm font-medium transition-colors',
-                  pathname === item.href
-                    ? 'bg-neon/10 text-neon'
-                    : 'text-muted hover:bg-surface hover:text-chalk',
+      <AnimatePresence>
+        {menuOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="border-t border-line bg-ink lg:hidden"
+          >
+            <nav className="container-x flex flex-col gap-1 py-3">
+              {NAV_ITEMS.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    'rounded-[10px] px-3 py-2.5 text-sm font-medium transition-colors',
+                    pathname === item.href
+                      ? 'bg-neon/10 text-neon'
+                      : 'text-muted hover:bg-surface hover:text-chalk',
+                  )}
+                >
+                  {item.name}
+                </Link>
+              ))}
+              <div className="mt-2 flex gap-2 border-t border-line pt-3">
+                {user ? (
+                  <Button className="flex-1" onClick={() => router.push(portalHref)}>
+                    Khu vực của tôi
+                  </Button>
+                ) : (
+                  <>
+                    <Link href="/login" className="flex-1">
+                      <Button variant="outline" className="w-full">
+                        Đăng nhập
+                      </Button>
+                    </Link>
+                    <Link href="/register" className="flex-1">
+                      <Button className="w-full">Đăng ký</Button>
+                    </Link>
+                  </>
                 )}
-              >
-                {item.name}
-              </Link>
-            ))}
-            <div className="mt-2 flex gap-2 border-t border-line pt-3">
-              {user ? (
-                <Button className="flex-1" onClick={() => router.push(portalHref)}>
-                  Khu vực của tôi
-                </Button>
-              ) : (
-                <>
-                  <Link href="/login" className="flex-1">
-                    <Button variant="outline" className="w-full">
-                      Đăng nhập
-                    </Button>
-                  </Link>
-                  <Link href="/register" className="flex-1">
-                    <Button className="w-full">Đăng ký</Button>
-                  </Link>
-                </>
-              )}
-            </div>
-          </nav>
-        </div>
-      )}
+              </div>
+            </nav>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Search overlay */}
-      {searchOpen &&
+      {mounted &&
         createPortal(
-          <div className="fixed inset-0 z-[80] animate-fade-in">
-            <button
-              type="button"
-              tabIndex={-1}
-              aria-label="Đóng tìm kiếm"
-              className="absolute inset-0 bg-ink/80 backdrop-blur-sm"
-              onClick={() => setSearchOpen(false)}
-            />
-            <div className="relative mx-auto mt-24 w-[calc(100%-2rem)] max-w-lg rounded-2xl border border-line bg-surface p-3 shadow-2xl animate-slide-up">
-              <div className="flex items-center gap-2.5 rounded-sm border border-line bg-ink px-3">
-                <Search className="size-4 shrink-0 text-muted" />
-                <input
-                  ref={inputRef}
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && results[0]) go(results[0].href);
-                  }}
-                  placeholder="Tìm trang, gói tập, bài viết..."
-                  className="h-11 w-full bg-transparent text-sm text-chalk outline-none placeholder:text-muted/70"
-                  aria-label="Tìm kiếm"
+          <AnimatePresence>
+            {searchOpen && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.18 }}
+                className="fixed inset-0 z-[80]"
+              >
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  aria-label="Đóng tìm kiếm"
+                  className="absolute inset-0 bg-ink/80 backdrop-blur-sm"
+                  onClick={() => setSearchOpen(false)}
                 />
-                <kbd className="hidden shrink-0 rounded border border-line px-1.5 py-0.5 text-[10px] text-muted sm:block">
-                  ESC
-                </kbd>
-              </div>
+                <motion.div
+                  initial={{ opacity: 0, y: -14, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.99 }}
+                  transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                  className="relative mx-auto mt-24 w-[calc(100%-2rem)] max-w-lg rounded-2xl border border-line bg-surface p-3 shadow-2xl"
+                >
+                  <div className="flex items-center gap-2.5 rounded-sm border border-line bg-ink px-3">
+                    <Search className="size-4 shrink-0 text-muted" />
+                    <input
+                      ref={inputRef}
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && results[0]) go(results[0].href);
+                      }}
+                      placeholder="Tìm trang, gói tập, bài viết..."
+                      className="h-11 w-full bg-transparent text-sm text-chalk outline-none placeholder:text-muted/70"
+                      aria-label="Tìm kiếm"
+                    />
+                    <kbd className="hidden shrink-0 rounded border border-line px-1.5 py-0.5 text-[10px] text-muted sm:block">
+                      ESC
+                    </kbd>
+                  </div>
 
-              <div className="mt-2 max-h-72 overflow-y-auto">
-                {results.length === 0 ? (
-                  <p className="px-3 py-6 text-center text-sm text-muted">
-                    Không tìm thấy trang phù hợp.
-                  </p>
-                ) : (
-                  results.map((item) => (
-                    <button
-                      key={item.href}
-                      onClick={() => go(item.href)}
-                      className="flex w-full items-center justify-between gap-3 rounded-sm px-3 py-2.5 text-left transition-colors hover:bg-ink"
-                    >
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-semibold text-chalk">
-                          {item.title}
-                        </span>
-                        <span className="block truncate text-xs text-muted">{item.desc}</span>
-                      </span>
-                      <ArrowRight className="size-3.5 shrink-0 text-muted" />
-                    </button>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>,
+                  <div className="mt-2 max-h-72 overflow-y-auto">
+                    {results.length === 0 ? (
+                      <p className="px-3 py-6 text-center text-sm text-muted">
+                        Không tìm thấy trang phù hợp.
+                      </p>
+                    ) : (
+                      results.map((item) => (
+                        <button
+                          key={item.href}
+                          onClick={() => go(item.href)}
+                          className="flex w-full items-center justify-between gap-3 rounded-sm px-3 py-2.5 text-left transition-colors hover:bg-ink"
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-semibold text-chalk">
+                              {item.title}
+                            </span>
+                            <span className="block truncate text-xs text-muted">{item.desc}</span>
+                          </span>
+                          <ArrowRight className="size-3.5 shrink-0 text-muted" />
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>,
           document.body,
         )}
     </header>

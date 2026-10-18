@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Receipt, Wallet, Clock, CheckCircle2, CreditCard, ArrowRight } from 'lucide-react';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
 import { PAYMENT_STATUS_META, PAYMENT_METHOD_LABEL } from '@/lib/status';
@@ -89,10 +90,13 @@ export default function MemberPaymentsPage() {
       </div>
 
       {ps?.pendingCount ? (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs text-chalk">
-          <b className="text-amber-400">⏳ Bạn có {ps.pendingCount} hóa đơn đang chờ xác nhận.</b>{' '}
-          Nếu thanh toán bằng chuyển khoản, vui lòng ghi đúng nội dung chuyển khoản trong hóa đơn để
-          lễ tân xác nhận nhanh nhất.
+        <div className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs text-chalk">
+          <Clock className="mt-0.5 size-3.5 shrink-0 text-amber-400" />
+          <p>
+            <b className="text-amber-400">Bạn có {ps.pendingCount} hóa đơn đang chờ xác nhận.</b>{' '}
+            Nếu thanh toán bằng chuyển khoản, vui lòng ghi đúng nội dung chuyển khoản trong hóa đơn
+            để lễ tân xác nhận nhanh nhất.
+          </p>
         </div>
       ) : null}
 
@@ -104,18 +108,22 @@ export default function MemberPaymentsPage() {
               <Skeleton className="h-10 w-full" />
             </div>
           ) : (payments || []).length === 0 ? (
-            <div className="py-14 text-center">
-              <Receipt className="mx-auto size-10 text-line" />
-              <p className="mt-3 text-sm text-muted">Chưa có giao dịch nào.</p>
-              <Link href="/member/membership">
-                <Button variant="secondary" size="sm" className="mt-4">
-                  Đăng ký gói tập <ArrowRight className="size-3.5" />
-                </Button>
-              </Link>
-            </div>
+            <EmptyState
+              icon={Receipt}
+              title="Chưa có giao dịch nào"
+              description="Các hóa đơn và giao dịch của bạn sẽ hiển thị tại đây."
+              action={
+                <Link href="/member/membership">
+                  <Button variant="secondary" size="sm">
+                    Đăng ký gói tập <ArrowRight className="size-3.5" />
+                  </Button>
+                </Link>
+              }
+              className="border-0 bg-transparent"
+            />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[760px] text-sm">
                 <thead>
                   <tr className="border-b border-line text-left">
                     <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted">

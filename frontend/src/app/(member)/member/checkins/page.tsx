@@ -7,6 +7,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState } from '@/components/ui/error-state';
 import {
   QrCode,
   CalendarCheck,
@@ -41,7 +43,7 @@ export default function MemberCheckinsPage() {
   const [page, setPage] = useState(1);
   const [month, setMonth] = useState<string>('');
 
-  const { data, isLoading, isFetching } = useQuery({
+  const { data, isLoading, isFetching, isError, refetch } = useQuery({
     queryKey: ['member-checkins', page, month],
     queryFn: () => checkinApi.getMyCheckins(page, PAGE_SIZE, month ? { month } : {}),
     retry: 0,
@@ -80,7 +82,7 @@ export default function MemberCheckinsPage() {
               setMonth(e.target.value);
               setPage(1);
             }}
-            className="h-9 rounded-sm border border-line bg-ink px-3 text-xs font-medium text-chalk focus:outline-none focus:ring-2 focus:ring-neon/60"
+            className="h-10 rounded-sm border border-line bg-ink px-3 text-xs font-medium text-chalk transition-colors focus:border-neon/60 focus:outline-none focus:ring-2 focus:ring-neon/60"
           />
           {month && (
             <Button
@@ -123,15 +125,20 @@ export default function MemberCheckinsPage() {
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
             </div>
+          ) : isError ? (
+            <ErrorState className="border-0 bg-transparent" onRetry={() => refetch()} />
           ) : (data?.data || []).length === 0 ? (
-            <p className="py-14 text-center text-sm text-muted">
-              {month
-                ? 'Không có lượt check-in nào trong tháng này.'
-                : 'Chưa có lượt check-in nào. Ghé phòng tập để bắt đầu nhé!'}
-            </p>
+            <EmptyState
+              icon={CalendarCheck}
+              title={month ? 'Không có lượt check-in trong tháng' : 'Chưa có lượt check-in'}
+              description={
+                month ? 'Thử chọn tháng khác hoặc xóa bộ lọc.' : 'Ghé phòng tập để bắt đầu nhé!'
+              }
+              className="border-0 bg-transparent"
+            />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[760px] text-sm">
                 <thead>
                   <tr className="border-b border-line text-left">
                     <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted">
@@ -221,6 +228,7 @@ export default function MemberCheckinsPage() {
                   variant="outline"
                   size="sm"
                   disabled={page <= 1 || isFetching}
+                  aria-label="Trang trước"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
                   <ChevronLeft className="size-4" />
@@ -229,6 +237,7 @@ export default function MemberCheckinsPage() {
                   variant="outline"
                   size="sm"
                   disabled={page >= totalPages || isFetching}
+                  aria-label="Trang sau"
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 >
                   <ChevronRight className="size-4" />

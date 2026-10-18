@@ -3,6 +3,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight, Clock } from 'lucide-react';
 import { Reveal } from '@/components/home/reveal';
+import { StaggerGroup, StaggerItem } from '@/components/ui/motion';
 
 const ARTICLES = [
   {
@@ -59,9 +60,9 @@ export default function BlogPage() {
       {/* Article list */}
       <section className="py-14 lg:py-16">
         <div className="container-x">
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {ARTICLES.map((a, i) => (
-              <Reveal key={a.title} delay={i * 90}>
+          <StaggerGroup className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {ARTICLES.map((a) => (
+              <StaggerItem key={a.title} className="h-full">
                 <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-line bg-surface transition-colors duration-300 hover:border-neon/40">
                   <div className="relative aspect-[16/10] overflow-hidden">
                     <Image
@@ -97,9 +98,9 @@ export default function BlogPage() {
                     </div>
                   </div>
                 </article>
-              </Reveal>
+              </StaggerItem>
             ))}
-          </div>
+          </StaggerGroup>
 
           <div className="mt-12 flex justify-center">
             <Link href="/register">

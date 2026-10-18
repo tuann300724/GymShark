@@ -12,6 +12,9 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
 import { MemberCreateDialog } from '@/components/admin/member-create-dialog';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState } from '@/components/ui/error-state';
+import { Spinner } from '@/components/ui/spinner';
 import { formatDate } from '@/lib/utils';
 import { MEMBER_STATUS_META, MEMBERSHIP_STATUS_META } from '@/lib/status';
 import {
@@ -61,7 +64,7 @@ export default function MembersPage() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['admin-members', search, statusFilter, membershipStatus, packageId, sort, page],
     queryFn: async () => {
       const params = new URLSearchParams({ page: String(page), limit: String(LIMIT) });
@@ -141,7 +144,7 @@ export default function MembersPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-chalk flex items-center gap-2">
+          <h1 className="font-display text-2xl font-bold uppercase tracking-tight text-chalk flex items-center gap-2">
             <Users className="size-6 text-neon" />
             Quản Lý Hội Viên
           </h1>
@@ -247,25 +250,28 @@ export default function MembersPage() {
       <Card>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="py-16 text-center text-xs text-muted">
-              Đang tải danh sách hội viên...
+            <div className="flex items-center justify-center gap-2 py-16 text-xs text-muted">
+              <Spinner /> Đang tải danh sách hội viên...
             </div>
           ) : isError ? (
-            <div className="py-16 text-center text-xs text-danger">
-              Không thể tải dữ liệu hội viên từ Backend REST API. Vui lòng kiểm tra kết nối API.
-            </div>
+            <ErrorState
+              className="m-3"
+              title="Không tải được dữ liệu"
+              description="Không thể tải danh sách hội viên từ Backend REST API. Vui lòng kiểm tra kết nối API."
+              onRetry={() => refetch()}
+            />
           ) : data?.data.length > 0 ? (
             <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
+              <table className="w-full min-w-[800px] text-left text-sm">
                 <thead className="text-[11px] uppercase tracking-wider text-muted bg-ink border-b border-line">
                   <tr>
-                    <th className="py-3 px-4">Mã HV</th>
-                    <th className="py-3 px-4">Họ và Tên</th>
-                    <th className="py-3 px-4">Số điện thoại</th>
-                    <th className="py-3 px-4">Gói tập</th>
-                    <th className="py-3 px-4">Ngày đăng ký</th>
-                    <th className="py-3 px-4">Trạng thái</th>
-                    <th className="py-3 px-4 text-right">Thao tác</th>
+                    <th className="py-3 px-4 font-semibold">Mã HV</th>
+                    <th className="py-3 px-4 font-semibold">Họ và Tên</th>
+                    <th className="py-3 px-4 font-semibold">Số điện thoại</th>
+                    <th className="py-3 px-4 font-semibold">Gói tập</th>
+                    <th className="py-3 px-4 font-semibold">Ngày đăng ký</th>
+                    <th className="py-3 px-4 font-semibold">Trạng thái</th>
+                    <th className="py-3 px-4 font-semibold text-right">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line font-medium">
@@ -277,7 +283,7 @@ export default function MembersPage() {
                       variant: 'outline',
                     };
                     return (
-                      <tr key={m.id} className="hover:bg-line/20 transition-colors">
+                      <tr key={m.id} className="hover:bg-line/30 transition-colors">
                         <td className="py-3 px-4 font-mono font-bold text-neon">{m.code}</td>
                         <td className="py-3 px-4">
                           <p className="font-semibold text-chalk">{m.fullName}</p>
@@ -350,9 +356,12 @@ export default function MembersPage() {
               </table>
             </div>
           ) : (
-            <div className="py-16 text-center text-xs text-muted">
-              Không tìm thấy hội viên nào phù hợp với bộ lọc tìm kiếm.
-            </div>
+            <EmptyState
+              className="m-3"
+              icon={Users}
+              title="Không tìm thấy hội viên"
+              description="Không có hội viên nào phù hợp với bộ lọc tìm kiếm. Hãy thử từ khóa khác hoặc bỏ bớt điều kiện lọc."
+            />
           )}
 
           {/* Pagination */}
@@ -366,6 +375,7 @@ export default function MembersPage() {
                   variant="outline"
                   size="sm"
                   disabled={page <= 1}
+                  aria-label="Trang trước"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
                   <ChevronLeft className="size-4" />
@@ -374,6 +384,7 @@ export default function MembersPage() {
                   variant="outline"
                   size="sm"
                   disabled={page >= totalPages}
+                  aria-label="Trang sau"
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 >
                   <ChevronRight className="size-4" />

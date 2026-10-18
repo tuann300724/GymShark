@@ -22,6 +22,8 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/components/ui/toast';
 import {
   Dumbbell,
@@ -166,7 +168,7 @@ export default function EquipmentPage() {
   });
   const { data: branches } = useQuery({ queryKey: ['branches-list'], queryFn: branchApi.list });
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['equipment-list', page, search, category, status, branchFilter],
     queryFn: () =>
       equipmentApi.list({
@@ -364,7 +366,7 @@ export default function EquipmentPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-chalk flex items-center gap-2">
+          <h1 className="font-display text-2xl font-bold uppercase tracking-tight text-chalk flex items-center gap-2">
             <Dumbbell className="size-6 text-neon" />
             Quản Lý Thiết Bị
           </h1>
@@ -512,24 +514,33 @@ export default function EquipmentPage() {
               ))}
             </div>
           ) : isError ? (
-            <div className="py-16 text-center text-xs text-danger">Lỗi tải danh sách thiết bị.</div>
+            <ErrorState
+              className="m-3"
+              title="Không tải được thiết bị"
+              description="Lỗi tải danh sách thiết bị từ Backend. Vui lòng thử lại."
+              onRetry={() => refetch()}
+            />
           ) : items.length === 0 ? (
-            <div className="py-16 text-center text-sm text-muted">
-              <Dumbbell className="mx-auto size-10 text-muted/40 mb-3" />
-              Không có thiết bị phù hợp.{manage && ' Nhấn "Khai Báo Thiết Bị" để thêm mới.'}
-            </div>
+            <EmptyState
+              className="m-3"
+              icon={Dumbbell}
+              title="Chưa có thiết bị"
+              description={`Không có thiết bị phù hợp với bộ lọc.${
+                manage ? ' Nhấn "Khai Báo Thiết Bị" để thêm mới.' : ''
+              }`}
+            />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
+              <table className="w-full min-w-[800px] text-left text-sm">
                 <thead className="text-[11px] uppercase tracking-wider text-muted bg-ink border-b border-line">
                   <tr>
-                    <th className="py-3 px-4">Thiết bị</th>
-                    <th className="py-3 px-4">Chi nhánh</th>
-                    <th className="py-3 px-4">Phòng</th>
-                    <th className="py-3 px-4">Trạng thái</th>
-                    <th className="py-3 px-4">Tình trạng</th>
-                    <th className="py-3 px-4">Bảo trì tiếp</th>
-                    <th className="py-3 px-4 text-right">Thao tác</th>
+                    <th className="py-3 px-4 font-semibold">Thiết bị</th>
+                    <th className="py-3 px-4 font-semibold">Chi nhánh</th>
+                    <th className="py-3 px-4 font-semibold">Phòng</th>
+                    <th className="py-3 px-4 font-semibold">Trạng thái</th>
+                    <th className="py-3 px-4 font-semibold">Tình trạng</th>
+                    <th className="py-3 px-4 font-semibold">Bảo trì tiếp</th>
+                    <th className="py-3 px-4 font-semibold text-right">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
@@ -543,7 +554,7 @@ export default function EquipmentPage() {
                       variant: 'outline',
                     };
                     return (
-                      <tr key={eq.id} className="hover:bg-line/20 transition-colors">
+                      <tr key={eq.id} className="hover:bg-line/30 transition-colors">
                         <td className="py-3 px-4">
                           <Link
                             href={`/admin/equipment/${eq.id}`}

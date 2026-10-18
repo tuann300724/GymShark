@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { motion } from 'framer-motion';
 import { Dumbbell, AlertCircle, KeyRound, ArrowLeft } from 'lucide-react';
 import { isAdminRole } from '@/lib/auth';
 
@@ -92,7 +93,12 @@ export default function LoginPage() {
         <div className="absolute inset-x-0 top-0 h-px bg-line" />
       </div>
 
-      <div className="relative z-10 w-full max-w-md animate-fade-in">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+        className="relative z-10 w-full max-w-md"
+      >
         {/* Back to home */}
         <Link
           href="/"
@@ -199,7 +205,7 @@ export default function LoginPage() {
             </p>
           </CardContent>
         </Card>
-      </div>
+      </motion.div>
     </div>
   );
 }

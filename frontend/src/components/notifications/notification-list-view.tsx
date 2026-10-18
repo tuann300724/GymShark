@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 import { useToast } from '@/components/ui/toast';
 import { cn, formatDateTime } from '@/lib/utils';
 import { NOTIFICATION_TYPE_META } from '@/lib/status';
@@ -175,7 +176,8 @@ export default function NotificationListView({
         <select
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value)}
-          className="h-9 rounded-lg border border-line bg-surface px-3 text-xs text-chalk outline-none focus:border-neon/50"
+          aria-label="Lọc theo loại thông báo"
+          className="h-9 rounded-sm border border-line bg-surface px-3 text-xs text-chalk outline-none focus:border-neon/50 focus:ring-2 focus:ring-neon/40"
         >
           {TYPE_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
@@ -194,15 +196,12 @@ export default function NotificationListView({
               <Skeleton className="h-16 w-full" />
             </div>
           ) : notifications.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 py-16 text-center">
-              <div className="flex size-14 items-center justify-center rounded-2xl border border-line bg-ink">
-                <BellOff className="size-6 text-muted" />
-              </div>
-              <p className="text-sm font-semibold text-muted">Không có thông báo nào</p>
-              <p className="max-w-xs text-xs text-muted">
-                Khi có cập nhật về gói tập, thanh toán hay lịch tập, thông báo sẽ hiện ở đây.
-              </p>
-            </div>
+            <EmptyState
+              icon={BellOff}
+              title="Không có thông báo nào"
+              description="Khi có cập nhật về gói tập, thanh toán hay lịch tập, thông báo sẽ hiện ở đây."
+              className="border-0 bg-transparent"
+            />
           ) : (
             <ul className="divide-y divide-line">
               {notifications.map((n) => {

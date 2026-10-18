@@ -10,6 +10,9 @@ import type { PublicPromotion } from '@/services/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState } from '@/components/ui/error-state';
+import { StaggerGroup, StaggerItem } from '@/components/ui/motion';
 import { Reveal } from '@/components/home/reveal';
 import {
   Check,
@@ -45,7 +48,12 @@ export default function PublicPackagesPage() {
   const [sort, setSort] = useState<SortKey>('price_asc');
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'FIXED_TERM' | 'SESSION_BASED'>('ALL');
 
-  const { data: packages, isLoading } = useQuery({
+  const {
+    data: packages,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ['public-packages'],
     queryFn: publicApi.getPackages,
     staleTime: 5 * 60 * 1000,
@@ -186,12 +194,14 @@ export default function PublicPackagesPage() {
                 <Skeleton key={i} className="h-96 rounded-2xl" />
               ))}
             </div>
+          ) : isError ? (
+            <ErrorState className="mt-8" onRetry={() => refetch()} />
           ) : (
-            <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {filtered.map((pkg, i) => {
+            <StaggerGroup className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {filtered.map((pkg) => {
                 const isActive = pkg.status === 'ACTIVE';
                 return (
-                  <Reveal key={pkg.id} delay={(i % 3) * 90}>
+                  <StaggerItem key={pkg.id} className="h-full">
                     <div
                       className={`flex h-full flex-col rounded-2xl border bg-surface p-7 transition-all duration-300 ${
                         isActive
@@ -251,18 +261,19 @@ export default function PublicPackagesPage() {
                         <ArrowRight className="size-4" />
                       </Button>
                     </div>
-                  </Reveal>
+                  </StaggerItem>
                 );
               })}
-            </div>
+            </StaggerGroup>
           )}
 
-          {!isLoading && filtered.length === 0 && (
-            <div className="mt-8 rounded-2xl border border-line bg-surface py-16 text-center">
-              <PackageOpen className="mx-auto mb-3 size-10 text-muted opacity-50" />
-              <p className="font-semibold text-chalk">Không tìm thấy gói tập phù hợp với bộ lọc.</p>
-              <p className="mt-1.5 text-sm text-muted">Thử đổi bộ lọc hoặc thứ tự sắp xếp.</p>
-            </div>
+          {!isLoading && !isError && filtered.length === 0 && (
+            <EmptyState
+              className="mt-8"
+              icon={PackageOpen}
+              title="Không tìm thấy gói tập phù hợp"
+              description="Thử đổi bộ lọc hoặc thứ tự sắp xếp."
+            />
           )}
         </div>
       </section>

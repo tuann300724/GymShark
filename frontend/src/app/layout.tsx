@@ -6,6 +6,7 @@ import { QueryProvider } from '@/providers/query-provider';
 import { ChatSocketProvider } from '@/providers/chat-socket-provider';
 import { ThemeProvider } from '@/providers/theme-provider';
 import { ToastProvider } from '@/components/ui/toast';
+import { MotionProvider } from '@/components/ui/motion-provider';
 
 const sans = Be_Vietnam_Pro({
   subsets: ['vietnamese', 'latin'],
@@ -44,13 +45,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-screen bg-ink font-sans antialiased text-chalk">
         <ThemeProvider>
-          <QueryProvider>
-            {/* ToastProvider phải BAO ChatSocketProvider — socket provider gọi
-                useToast() để popup "tin nhắn mới" khi HLV/hội viên gửi tin. */}
-            <ToastProvider>
-              <ChatSocketProvider>{children}</ChatSocketProvider>
-            </ToastProvider>
-          </QueryProvider>
+          {/* MotionProvider: framer-motion tôn trọng prefers-reduced-motion toàn app */}
+          <MotionProvider>
+            <QueryProvider>
+              {/* ToastProvider phải BAO ChatSocketProvider — socket provider gọi
+                  useToast() để popup "tin nhắn mới" khi HLV/hội viên gửi tin. */}
+              <ToastProvider>
+                <ChatSocketProvider>{children}</ChatSocketProvider>
+              </ToastProvider>
+            </QueryProvider>
+          </MotionProvider>
         </ThemeProvider>
       </body>
     </html>

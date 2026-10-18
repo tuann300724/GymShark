@@ -42,6 +42,9 @@ Thumbs.db
 *.swp
 *.swo
 
+# Bundle analyzer report (tạm, sinh lại bằng `npm run analyze`)
+bundle-analyze/
+
 # Prisma generated & SQLite DBs (if any)
 prisma/*.db
 prisma/*.db-journal

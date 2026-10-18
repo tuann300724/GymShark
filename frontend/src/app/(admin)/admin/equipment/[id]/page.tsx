@@ -23,6 +23,8 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/components/ui/toast';
 import {
   ArrowLeft,
@@ -92,6 +94,7 @@ export default function EquipmentDetailPage() {
     data: eq,
     isLoading,
     isError,
+    refetch,
   } = useQuery({
     queryKey: ['equipment-detail', id],
     queryFn: () => equipmentApi.detail(id),
@@ -194,6 +197,16 @@ export default function EquipmentDetailPage() {
     },
   });
 
+  if (isError) {
+    return (
+      <ErrorState
+        title="Không tải được thiết bị"
+        description="Đã xảy ra lỗi khi tải thông tin thiết bị."
+        onRetry={() => refetch()}
+      />
+    );
+  }
+
   if (isLoading || !eq) {
     return (
       <div className="space-y-4">
@@ -201,10 +214,6 @@ export default function EquipmentDetailPage() {
         <Skeleton className="h-80 w-full rounded-2xl" />
       </div>
     );
-  }
-
-  if (isError) {
-    return <div className="py-20 text-center text-xs text-danger">Lỗi tải thông tin thiết bị.</div>;
   }
 
   const sMeta = EQUIPMENT_STATUS_META[eq.status] || { label: eq.status, variant: 'outline' };
@@ -410,22 +419,24 @@ export default function EquipmentDetailPage() {
         </CardHeader>
         <CardContent className="p-0">
           {maintenances.length === 0 ? (
-            <div className="py-12 text-center text-xs text-muted">
-              <Wrench className="mx-auto size-8 text-muted/40 mb-2" />
-              Chưa có phiếu bảo trì nào.
-            </div>
+            <EmptyState
+              className="m-3"
+              icon={Wrench}
+              title="Chưa có phiếu bảo trì"
+              description="Thiết bị chưa có phiếu bảo trì nào."
+            />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
+              <table className="w-full min-w-[860px] text-left text-sm">
                 <thead className="text-[11px] uppercase tracking-wider text-muted bg-ink border-b border-line">
                   <tr>
-                    <th className="py-2.5 px-4">Ngày</th>
-                    <th className="py-2.5 px-4">Loại</th>
-                    <th className="py-2.5 px-4">Mô tả</th>
-                    <th className="py-2.5 px-4">Chi phí</th>
-                    <th className="py-2.5 px-4">Người thực hiện</th>
-                    <th className="py-2.5 px-4">Trạng thái</th>
-                    <th className="py-2.5 px-4 text-right">Thao tác</th>
+                    <th className="py-2.5 px-4 font-semibold">Ngày</th>
+                    <th className="py-2.5 px-4 font-semibold">Loại</th>
+                    <th className="py-2.5 px-4 font-semibold">Mô tả</th>
+                    <th className="py-2.5 px-4 font-semibold">Chi phí</th>
+                    <th className="py-2.5 px-4 font-semibold">Người thực hiện</th>
+                    <th className="py-2.5 px-4 font-semibold">Trạng thái</th>
+                    <th className="py-2.5 px-4 text-right font-semibold">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
@@ -436,7 +447,7 @@ export default function EquipmentDetailPage() {
                     };
                     const pending = mt.status === 'IN_PROGRESS' || mt.status === 'SCHEDULED';
                     return (
-                      <tr key={mt.id} className="hover:bg-line/20 transition-colors">
+                      <tr key={mt.id} className="hover:bg-line/30 transition-colors">
                         <td className="py-2.5 px-4 text-muted">
                           {formatDateTime(mt.maintenanceDate)}
                           {mt.nextDueDate && (

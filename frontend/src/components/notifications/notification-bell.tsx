@@ -100,6 +100,7 @@ export default function NotificationBell({
           open ? 'border-neon/50 text-neon' : 'hover:border-neon/50 hover:text-neon',
         )}
         aria-label="Thông báo"
+        aria-expanded={open}
       >
         {badge ? <BellRing className="size-4" /> : <Bell className="size-4" />}
         {badge && (
@@ -166,7 +167,9 @@ export default function NotificationBell({
                         <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-muted">
                           {n.content}
                         </p>
-                        <p className="mt-1 text-[10px] text-line">{formatDateTime(n.createdAt)}</p>
+                        <p className="mt-1 text-[10px] text-muted/70">
+                          {formatDateTime(n.createdAt)}
+                        </p>
                       </div>
                     </div>
                   </button>

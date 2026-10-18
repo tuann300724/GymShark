@@ -13,6 +13,9 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
 import { FaceScanner } from '@/components/ui/face-scanner';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState } from '@/components/ui/error-state';
+import { Spinner } from '@/components/ui/spinner';
 import { faceApi } from '@/services/face.service';
 import {
   formatCurrency,
@@ -59,6 +62,7 @@ export default function MemberDetailPage() {
     data: member,
     isLoading,
     isError,
+    refetch,
   } = useQuery({
     queryKey: ['member-detail', id],
     queryFn: async () => {
@@ -216,8 +220,8 @@ export default function MemberDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="py-20 text-center text-xs text-muted">
-        Đang tải thông tin chi tiết hội viên...
+      <div className="flex items-center justify-center gap-2 py-20 text-xs text-muted">
+        <Spinner /> Đang tải thông tin chi tiết hội viên...
       </div>
     );
   }
@@ -230,11 +234,11 @@ export default function MemberDetailPage() {
             <ArrowLeft className="size-4 mr-1.5" /> Quay lại danh sách
           </Button>
         </Link>
-        <Card>
-          <CardContent className="py-12 text-center text-danger text-sm">
-            Không tìm thấy thông tin hội viên hoặc có lỗi kết nối đến API.
-          </CardContent>
-        </Card>
+        <ErrorState
+          title="Không tìm thấy hội viên"
+          description="Không tìm thấy thông tin hội viên hoặc có lỗi kết nối đến API."
+          onRetry={() => refetch()}
+        />
       </div>
     );
   }
@@ -315,7 +319,9 @@ export default function MemberDetailPage() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-bold text-chalk">{member.fullName}</h2>
+                  <h2 className="font-display text-xl font-bold uppercase tracking-tight text-chalk">
+                    {member.fullName}
+                  </h2>
                   <span className="font-mono text-xs px-2 py-0.5 rounded bg-neon/10 text-neon border border-neon/40 font-bold">
                     {member.code}
                   </span>
@@ -480,11 +486,11 @@ export default function MemberDetailPage() {
               );
             })
           ) : (
-            <Card>
-              <CardContent className="py-12 text-center text-xs text-muted">
-                Hội viên này chưa đăng ký gói tập nào.
-              </CardContent>
-            </Card>
+            <EmptyState
+              icon={CreditCard}
+              title="Chưa có gói tập"
+              description="Hội viên này chưa đăng ký gói tập nào. Đăng ký gói tại trang Thanh toán để tạo thẻ tập."
+            />
           )}
         </div>
       )}
@@ -583,19 +589,19 @@ export default function MemberDetailPage() {
             <CardContent className="p-0">
               {member.checkIns && member.checkIns.length > 0 ? (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-xs text-left">
+                  <table className="w-full min-w-[640px] text-left text-sm">
                     <thead className="bg-ink border-b border-line text-[11px] uppercase tracking-wider text-muted">
                       <tr>
-                        <th className="py-2.5 px-4">Vào lúc</th>
-                        <th className="py-2.5 px-4">Ra lúc</th>
-                        <th className="py-2.5 px-4">Thời lượng</th>
-                        <th className="py-2.5 px-4">Hình thức</th>
-                        <th className="py-2.5 px-4">Trạng thái</th>
+                        <th className="py-2.5 px-4 font-semibold">Vào lúc</th>
+                        <th className="py-2.5 px-4 font-semibold">Ra lúc</th>
+                        <th className="py-2.5 px-4 font-semibold">Thời lượng</th>
+                        <th className="py-2.5 px-4 font-semibold">Hình thức</th>
+                        <th className="py-2.5 px-4 font-semibold">Trạng thái</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-line font-medium">
                       {member.checkIns.map((c: any) => (
-                        <tr key={c.id} className="hover:bg-line/20 transition-colors">
+                        <tr key={c.id} className="hover:bg-line/30 transition-colors">
                           <td className="py-2.5 px-4 font-mono text-muted">
                             {formatTime(c.checkInTime)}
                             <span className="ml-1.5 text-[10px] text-muted/60">
@@ -637,9 +643,12 @@ export default function MemberDetailPage() {
                   </table>
                 </div>
               ) : (
-                <div className="py-12 text-center text-xs text-muted">
-                  Chưa có lượt quét thẻ check-in nào.
-                </div>
+                <EmptyState
+                  className="m-3"
+                  icon={QrCode}
+                  title="Chưa có lượt check-in"
+                  description="Chưa có lượt quét thẻ check-in nào được ghi nhận."
+                />
               )}
             </CardContent>
           </Card>
@@ -729,14 +738,14 @@ export default function MemberDetailPage() {
           <CardContent className="p-0">
             {member.payments && member.payments.length > 0 ? (
               <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left">
+                <table className="w-full min-w-[640px] text-left text-sm">
                   <thead className="bg-ink border-b border-line text-[11px] uppercase tracking-wider text-muted">
                     <tr>
-                      <th className="py-2.5 px-4">Mã hoá đơn</th>
-                      <th className="py-2.5 px-4">Số tiền</th>
-                      <th className="py-2.5 px-4">Phương thức</th>
-                      <th className="py-2.5 px-4">Thời gian</th>
-                      <th className="py-2.5 px-4 text-right">Trạng thái</th>
+                      <th className="py-2.5 px-4 font-semibold">Mã hoá đơn</th>
+                      <th className="py-2.5 px-4 font-semibold">Số tiền</th>
+                      <th className="py-2.5 px-4 font-semibold">Phương thức</th>
+                      <th className="py-2.5 px-4 font-semibold">Thời gian</th>
+                      <th className="py-2.5 px-4 font-semibold text-right">Trạng thái</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line font-medium">
@@ -746,7 +755,7 @@ export default function MemberDetailPage() {
                         variant: 'outline',
                       };
                       return (
-                        <tr key={p.id} className="hover:bg-line/20 transition-colors">
+                        <tr key={p.id} className="hover:bg-line/30 transition-colors">
                           <td className="py-2.5 px-4 font-mono font-bold text-chalk">{p.code}</td>
                           <td className="py-2.5 px-4 font-bold text-neon">
                             {formatCurrency(p.amount)}
@@ -765,9 +774,12 @@ export default function MemberDetailPage() {
                 </table>
               </div>
             ) : (
-              <div className="py-12 text-center text-xs text-muted">
-                Chưa có hoá đơn thanh toán nào.
-              </div>
+              <EmptyState
+                className="m-3"
+                icon={Receipt}
+                title="Chưa có hoá đơn"
+                description="Chưa có hoá đơn thanh toán nào cho hội viên này."
+              />
             )}
           </CardContent>
         </Card>

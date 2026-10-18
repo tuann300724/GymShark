@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 import { useToast } from '@/components/ui/toast';
 import {
   CreditCard,
@@ -160,21 +161,19 @@ export default function MemberMembershipPage() {
           </CardContent>
         </Card>
       ) : !current ? (
-        <Card>
-          <CardContent className="p-10 text-center">
-            <CreditCard className="mx-auto size-12 text-muted" />
-            <h2 className="mt-4 text-lg font-bold text-chalk">Bạn chưa có gói tập nào</h2>
-            <p className="mx-auto mt-2 max-w-sm text-sm text-muted">
-              Hãy chọn một gói tập phù hợp để bắt đầu hành trình fitness của bạn.
-            </p>
-            <Link href="/packages" className="mt-6 inline-block">
+        <EmptyState
+          icon={CreditCard}
+          title="Bạn chưa có gói tập nào"
+          description="Hãy chọn một gói tập phù hợp để bắt đầu hành trình fitness của bạn."
+          action={
+            <Link href="/packages">
               <Button>
                 Chọn gói tập
                 <ChevronRight className="size-4" />
               </Button>
             </Link>
-          </CardContent>
-        </Card>
+          }
+        />
       ) : (
         <>
           {/* Expiring warning */}
@@ -256,9 +255,11 @@ export default function MemberMembershipPage() {
             </CardHeader>
             <CardContent>
               {history.length === 0 ? (
-                <p className="py-6 text-center text-sm text-muted">
-                  Chưa có gói tập nào trong lịch sử.
-                </p>
+                <EmptyState
+                  icon={CalendarDays}
+                  title="Chưa có lịch sử gói tập"
+                  className="border-0 bg-transparent py-8"
+                />
               ) : (
                 <div className="divide-y divide-line">
                   {history.map((m) => (

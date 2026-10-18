@@ -10,6 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { formatCurrency, formatDateTime, formatDate } from '@/lib/utils';
 import { MEMBERSHIP_STATUS_META, PAYMENT_STATUS_META, BRANCH_STATUS_META } from '@/lib/status';
 import { Select } from '@/components/ui/select';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Spinner } from '@/components/ui/spinner';
 import { branchApi } from '@/services/branch.service';
 import { equipmentApi } from '@/services/equipment.service';
 import {
@@ -36,6 +38,7 @@ import {
   AlertTriangle,
   Building2,
   Filter,
+  CalendarClock,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -252,8 +255,8 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             {!hourlyData ? (
-              <div className="flex h-32 items-center justify-center text-xs text-muted">
-                Đang tải dữ liệu...
+              <div className="flex h-32 items-center justify-center gap-2 text-xs text-muted">
+                <Spinner /> Đang tải dữ liệu...
               </div>
             ) : (
               <HourlyBars data={hourlyData.data || []} />
@@ -338,7 +341,11 @@ export default function DashboardPage() {
                     : 'bg-danger/10 border border-danger/40 text-danger'
                 }`}
               >
-                <CheckCircle2 className="size-4 shrink-0 mt-0.5" />
+                {checkInMsg.type === 'success' ? (
+                  <CheckCircle2 className="size-4 shrink-0 mt-0.5" />
+                ) : (
+                  <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+                )}
                 <span>{checkInMsg.text}</span>
               </div>
             )}
@@ -375,24 +382,24 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             {isCheckInsLoading ? (
-              <div className="py-8 text-center text-xs text-muted">
-                Đang tải lịch sử check-in...
+              <div className="flex items-center justify-center gap-2 py-8 text-xs text-muted">
+                <Spinner /> Đang tải lịch sử check-in...
               </div>
             ) : checkIns && checkIns.length > 0 ? (
               <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left">
+                <table className="w-full min-w-[640px] text-left text-sm">
                   <thead className="text-[11px] uppercase tracking-wider text-muted bg-ink border-b border-line">
                     <tr>
-                      <th className="py-2.5 px-3">Hội viên</th>
-                      <th className="py-2.5 px-3">Mã thẻ</th>
-                      <th className="py-2.5 px-3">Chi nhánh</th>
-                      <th className="py-2.5 px-3">Thời gian</th>
-                      <th className="py-2.5 px-3 text-right">Trạng thái</th>
+                      <th className="py-2.5 px-3 font-semibold">Hội viên</th>
+                      <th className="py-2.5 px-3 font-semibold">Mã thẻ</th>
+                      <th className="py-2.5 px-3 font-semibold">Chi nhánh</th>
+                      <th className="py-2.5 px-3 font-semibold">Thời gian</th>
+                      <th className="py-2.5 px-3 font-semibold text-right">Trạng thái</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line font-medium">
                     {checkIns.slice(0, 5).map((ci: any) => (
-                      <tr key={ci.id} className="hover:bg-line/20 transition-colors">
+                      <tr key={ci.id} className="hover:bg-line/30 transition-colors">
                         <td className="py-2.5 px-3 font-semibold text-chalk">
                           {ci.member.fullName}
                         </td>
@@ -408,9 +415,11 @@ export default function DashboardPage() {
                 </table>
               </div>
             ) : (
-              <div className="py-8 text-center text-xs text-muted border border-dashed rounded-xl border-line">
-                Chưa có lượt check-in nào trong ngày hôm nay. Hãy quét mã thẻ bên cạnh để ghi nhận!
-              </div>
+              <EmptyState
+                icon={QrCode}
+                title="Chưa có lượt check-in"
+                description="Hôm nay chưa ghi nhận lượt ra vào nào. Quét mã thẻ ở ô bên cạnh để bắt đầu."
+              />
             )}
           </CardContent>
         </Card>
@@ -436,7 +445,12 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="p-0">
             {recentRegistrations.length === 0 ? (
-              <p className="py-8 text-center text-xs text-muted">Chưa có đăng ký gói nào.</p>
+              <EmptyState
+                className="m-3"
+                icon={PackagePlus}
+                title="Chưa có đăng ký"
+                description="Các yêu cầu đăng ký hoặc gia hạn gói tập mới nhất sẽ hiển thị tại đây."
+              />
             ) : (
               <div className="divide-y divide-line">
                 {recentRegistrations.map((r: any) => {
@@ -447,7 +461,7 @@ export default function DashboardPage() {
                   return (
                     <div
                       key={r.id}
-                      className="flex items-center gap-3 px-4 py-3 hover:bg-line/20 transition-colors"
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-line/30 transition-colors"
                     >
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-chalk">
@@ -487,9 +501,12 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="p-0">
             {pendingPaymentsDash.length === 0 ? (
-              <p className="py-8 text-center text-xs text-muted">
-                🎉 Không còn hóa đơn nào chờ xác nhận.
-              </p>
+              <EmptyState
+                className="m-3"
+                icon={CheckCircle2}
+                title="Đã xử lý xong"
+                description="Không còn hóa đơn nào chờ xác nhận."
+              />
             ) : (
               <div className="divide-y divide-line">
                 {pendingPaymentsDash.map((p: any) => {
@@ -500,7 +517,7 @@ export default function DashboardPage() {
                   return (
                     <div
                       key={p.id}
-                      className="flex items-center gap-3 px-4 py-3 hover:bg-line/20 transition-colors"
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-line/30 transition-colors"
                     >
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-chalk">
@@ -542,8 +559,8 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             {!equipmentStats ? (
-              <div className="py-8 text-center text-xs text-muted">
-                Đang tải dữ liệu thiết bị...
+              <div className="flex items-center justify-center gap-2 py-8 text-xs text-muted">
+                <Spinner /> Đang tải dữ liệu thiết bị...
               </div>
             ) : (
               <div className="space-y-2">
@@ -576,15 +593,24 @@ export default function DashboardPage() {
                   <span className="font-display font-bold text-chalk">{equipmentStats.broken}</span>
                 </div>
                 {(equipmentStats.alerts.overdue > 0 || equipmentStats.alerts.upcoming > 0) && (
-                  <div className="mt-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-400 space-y-0.5">
+                  <div className="mt-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-400 space-y-1">
                     {equipmentStats.alerts.overdue > 0 && (
-                      <p>⚠ {equipmentStats.alerts.overdue} thiết bị quá hạn bảo trì</p>
+                      <p className="flex items-center gap-1.5">
+                        <AlertTriangle className="size-3 shrink-0" />
+                        {equipmentStats.alerts.overdue} thiết bị quá hạn bảo trì
+                      </p>
                     )}
                     {equipmentStats.alerts.upcoming > 0 && (
-                      <p>🔧 {equipmentStats.alerts.upcoming} phiếu bảo trì trong 14 ngày tới</p>
+                      <p className="flex items-center gap-1.5">
+                        <Wrench className="size-3 shrink-0" />
+                        {equipmentStats.alerts.upcoming} phiếu bảo trì trong 14 ngày tới
+                      </p>
                     )}
                     {equipmentStats.alerts.warrantyExpiring > 0 && (
-                      <p>🗓 {equipmentStats.alerts.warrantyExpiring} thiết bị sắp hết bảo hành</p>
+                      <p className="flex items-center gap-1.5">
+                        <CalendarClock className="size-3 shrink-0" />
+                        {equipmentStats.alerts.warrantyExpiring} thiết bị sắp hết bảo hành
+                      </p>
                     )}
                   </div>
                 )}
@@ -611,19 +637,24 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="p-0">
             {!branchOverview || branchOverview.length === 0 ? (
-              <div className="py-8 text-center text-xs text-muted">Chưa có dữ liệu chi nhánh.</div>
+              <EmptyState
+                className="m-3"
+                icon={Building2}
+                title="Chưa có dữ liệu chi nhánh"
+                description="Số liệu vận hành theo chi nhánh sẽ hiển thị khi có dữ liệu."
+              />
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left">
+                <table className="w-full min-w-[800px] text-left text-sm">
                   <thead className="text-[11px] uppercase tracking-wider text-muted bg-ink border-b border-line">
                     <tr>
-                      <th className="py-2.5 px-4">Chi nhánh</th>
-                      <th className="py-2.5 px-4 text-center">Hội viên</th>
-                      <th className="py-2.5 px-4 text-center">Thẻ hiệu lực</th>
-                      <th className="py-2.5 px-4 text-center">Phòng</th>
-                      <th className="py-2.5 px-4 text-center">Thiết bị</th>
-                      <th className="py-2.5 px-4 text-center">Check-in HN</th>
-                      <th className="py-2.5 px-4 text-right">Doanh thu T.Này</th>
+                      <th className="py-2.5 px-4 font-semibold">Chi nhánh</th>
+                      <th className="py-2.5 px-4 font-semibold text-center">Hội viên</th>
+                      <th className="py-2.5 px-4 font-semibold text-center">Thẻ hiệu lực</th>
+                      <th className="py-2.5 px-4 font-semibold text-center">Phòng</th>
+                      <th className="py-2.5 px-4 font-semibold text-center">Thiết bị</th>
+                      <th className="py-2.5 px-4 font-semibold text-center">Check-in HN</th>
+                      <th className="py-2.5 px-4 font-semibold text-right">Doanh thu T.Này</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line">
@@ -633,7 +664,7 @@ export default function DashboardPage() {
                         variant: 'outline',
                       };
                       return (
-                        <tr key={b.id} className="hover:bg-line/20 transition-colors">
+                        <tr key={b.id} className="hover:bg-line/30 transition-colors">
                           <td className="py-2.5 px-4">
                             <Link href={`/admin/branches/${b.id}`} className="hover:opacity-90">
                               <div className="font-semibold text-chalk flex items-center gap-2">
@@ -676,7 +707,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Link
           href="/admin/members"
-          className="p-4 rounded-xl border border-line bg-surface hover:border-neon/40 transition-colors group"
+          className="p-4 rounded-2xl border border-line bg-surface hover:border-neon/40 transition-colors group"
         >
           <Users className="size-5 text-muted group-hover:text-neon mb-2 transition-colors" />
           <h4 className="font-bold text-sm text-chalk">Quản lý Hội viên</h4>
@@ -684,7 +715,7 @@ export default function DashboardPage() {
         </Link>
         <Link
           href="/admin/membership-packages"
-          className="p-4 rounded-xl border border-line bg-surface hover:border-neon/40 transition-colors group"
+          className="p-4 rounded-2xl border border-line bg-surface hover:border-neon/40 transition-colors group"
         >
           <Dumbbell className="size-5 text-muted group-hover:text-neon mb-2 transition-colors" />
           <h4 className="font-bold text-sm text-chalk">Gói tập Gym</h4>
@@ -692,7 +723,7 @@ export default function DashboardPage() {
         </Link>
         <Link
           href="/admin/payments"
-          className="p-4 rounded-xl border border-line bg-surface hover:border-neon/40 transition-colors group"
+          className="p-4 rounded-2xl border border-line bg-surface hover:border-neon/40 transition-colors group"
         >
           <DollarSign className="size-5 text-muted group-hover:text-neon mb-2 transition-colors" />
           <h4 className="font-bold text-sm text-chalk">Thu ngân & Hoá đơn</h4>
@@ -700,7 +731,7 @@ export default function DashboardPage() {
         </Link>
         <Link
           href="/admin/reports"
-          className="p-4 rounded-xl border border-line bg-surface hover:border-neon/40 transition-colors group"
+          className="p-4 rounded-2xl border border-line bg-surface hover:border-neon/40 transition-colors group"
         >
           <ShieldCheck className="size-5 text-muted group-hover:text-neon mb-2 transition-colors" />
           <h4 className="font-bold text-sm text-chalk">Báo cáo & Phân tích</h4>

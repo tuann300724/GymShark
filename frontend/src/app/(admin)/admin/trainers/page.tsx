@@ -22,10 +22,11 @@ import {
   Power,
   ChevronLeft,
   ChevronRight,
-  Phone,
   Users,
   CalendarDays,
 } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState } from '@/components/ui/error-state';
 import { cn } from '@/lib/utils';
 
 const PAGE_SIZE = 10;
@@ -43,7 +44,7 @@ export default function TrainersPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<TrainerListItem | null>(null);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['trainers', { page, search, status, specialization }],
     queryFn: () =>
       trainerApi.list({
@@ -79,7 +80,7 @@ export default function TrainersPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-chalk flex items-center gap-2">
+          <h1 className="font-display text-2xl font-bold uppercase tracking-tight text-chalk flex items-center gap-2">
             <UserCheck className="size-6 text-neon" />
             Huấn Luyện Viên (PT)
           </h1>
@@ -123,7 +124,7 @@ export default function TrainersPage() {
               setPage(1);
               setSearch(searchInput.trim());
             }}
-            className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-lg bg-neon px-3 py-1.5 text-xs font-bold text-ink transition-colors hover:bg-neon-hover"
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-sm bg-neon px-3 py-1.5 text-xs font-bold text-ink transition-colors hover:bg-neon-hover"
           >
             Tìm
           </button>
@@ -163,21 +164,24 @@ export default function TrainersPage() {
             ))}
           </div>
         ) : isError ? (
-          <div className="py-16 text-center text-xs text-danger">
-            Không tải được danh sách huấn luyện viên.
-          </div>
+          <ErrorState
+            className="m-3"
+            title="Không tải được huấn luyện viên"
+            description="Không tải được danh sách huấn luyện viên từ Backend. Vui lòng thử lại."
+            onRetry={() => refetch()}
+          />
         ) : data && data.data.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
+            <table className="w-full min-w-[800px] text-left text-sm">
               <thead className="text-[11px] uppercase tracking-wider text-muted bg-ink border-b border-line">
                 <tr>
-                  <th className="py-3 px-4">HLV</th>
-                  <th className="py-3 px-4">Chuyên môn</th>
-                  <th className="py-3 px-4">Kinh nghiệm</th>
-                  <th className="py-3 px-4">Hội viên</th>
-                  <th className="py-3 px-4">Số buổi</th>
-                  <th className="py-3 px-4">Trạng thái</th>
-                  <th className="py-3 px-4 text-right">Thao tác</th>
+                  <th className="py-3 px-4 font-semibold">HLV</th>
+                  <th className="py-3 px-4 font-semibold">Chuyên môn</th>
+                  <th className="py-3 px-4 font-semibold">Kinh nghiệm</th>
+                  <th className="py-3 px-4 font-semibold">Hội viên</th>
+                  <th className="py-3 px-4 font-semibold">Số buổi</th>
+                  <th className="py-3 px-4 font-semibold">Trạng thái</th>
+                  <th className="py-3 px-4 font-semibold text-right">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line font-medium">
@@ -187,7 +191,7 @@ export default function TrainersPage() {
                     variant: 'outline' as const,
                   };
                   return (
-                    <tr key={t.id} className="hover:bg-line/20 transition-colors">
+                    <tr key={t.id} className="hover:bg-line/30 transition-colors">
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-3">
                           {t.user.avatarUrl ? (
@@ -231,7 +235,7 @@ export default function TrainersPage() {
                         <div className="flex items-center justify-end gap-1.5">
                           <a
                             href={`/admin/trainers/${t.id}`}
-                            className="flex h-8 items-center gap-1 rounded-lg border border-line px-2.5 text-xs font-semibold text-muted transition-colors hover:border-neon/50 hover:text-neon"
+                            className="flex h-8 items-center gap-1 rounded-sm border border-line px-2.5 text-xs font-semibold text-muted transition-colors hover:border-neon/50 hover:text-neon"
                           >
                             <Eye className="size-3.5" /> Chi tiết
                           </a>
@@ -241,7 +245,7 @@ export default function TrainersPage() {
                               setEditing(t);
                               setFormOpen(true);
                             }}
-                            className="flex h-8 items-center gap-1 rounded-lg border border-line px-2.5 text-xs font-semibold text-muted transition-colors hover:border-neon/50 hover:text-neon"
+                            className="flex h-8 items-center gap-1 rounded-sm border border-line px-2.5 text-xs font-semibold text-muted transition-colors hover:border-neon/50 hover:text-neon"
                           >
                             <Pencil className="size-3.5" /> Sửa
                           </button>
@@ -256,7 +260,7 @@ export default function TrainersPage() {
                               if (window.confirm(msg)) toggleMutation.mutate(t);
                             }}
                             className={cn(
-                              'flex h-8 items-center gap-1 rounded-lg border px-2.5 text-xs font-semibold transition-colors',
+                              'flex h-8 items-center gap-1 rounded-[10px] border px-2.5 text-xs font-semibold transition-colors',
                               t.status === 'ACTIVE'
                                 ? 'border-danger/40 text-danger hover:bg-danger/10'
                                 : 'border-neon/40 text-neon hover:bg-neon/10',
@@ -274,12 +278,12 @@ export default function TrainersPage() {
             </table>
           </div>
         ) : (
-          <div className="py-16 text-center">
-            <Phone className="mx-auto size-8 text-muted/50" />
-            <p className="mt-3 text-xs text-muted">
-              Chưa có huấn luyện viên nào. Hãy thêm HLV đầu tiên.
-            </p>
-          </div>
+          <EmptyState
+            className="m-3"
+            icon={UserCheck}
+            title="Chưa có huấn luyện viên"
+            description="Hãy thêm HLV đầu tiên để phân công tập cho hội viên."
+          />
         )}
 
         {/* Pagination */}
@@ -293,7 +297,7 @@ export default function TrainersPage() {
                 type="button"
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="flex size-8 items-center justify-center rounded-lg border border-line bg-surface text-muted transition-colors hover:border-neon/50 hover:text-neon disabled:opacity-40"
+                className="flex size-8 items-center justify-center rounded-sm border border-line bg-surface text-muted transition-colors hover:border-neon/50 hover:text-neon disabled:opacity-40"
                 aria-label="Trang trước"
               >
                 <ChevronLeft className="size-4" />
@@ -302,7 +306,7 @@ export default function TrainersPage() {
                 type="button"
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                className="flex size-8 items-center justify-center rounded-lg border border-line bg-surface text-muted transition-colors hover:border-neon/50 hover:text-neon disabled:opacity-40"
+                className="flex size-8 items-center justify-center rounded-sm border border-line bg-surface text-muted transition-colors hover:border-neon/50 hover:text-neon disabled:opacity-40"
                 aria-label="Trang sau"
               >
                 <ChevronRight className="size-4" />

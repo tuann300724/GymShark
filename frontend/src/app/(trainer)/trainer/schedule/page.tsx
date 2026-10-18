@@ -4,6 +4,7 @@ import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 import { trainingApi } from '@/services/training.service';
 import {
   TrainingCalendar,
@@ -98,6 +99,13 @@ export default function TrainerSchedulePage() {
 
       {/* Mobile agenda */}
       <div className="space-y-2 lg:hidden">
+        {!isLoading && sessions.length === 0 && (
+          <EmptyState
+            icon={CalendarDays}
+            title="Không có buổi dạy trong kỳ này"
+            description="Chuyển sang kỳ khác hoặc bấm “Hôm nay” để xem lịch."
+          />
+        )}
         {!isLoading &&
           sessions
             .slice()

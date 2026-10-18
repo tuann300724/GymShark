@@ -3,6 +3,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowUpRight, Clock, Dumbbell } from 'lucide-react';
 import { Reveal } from './reveal';
+import { StaggerGroup, StaggerItem } from '@/components/ui/motion';
 import { PROGRAMS } from '@/lib/programs';
 
 export function Programs() {
@@ -19,9 +20,9 @@ export function Programs() {
           </div>
         </Reveal>
 
-        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {PROGRAMS.map((p, i) => (
-            <Reveal key={p.slug} delay={(i % 3) * 90}>
+        <StaggerGroup className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {PROGRAMS.map((p) => (
+            <StaggerItem key={p.slug} className="h-full">
               <Link
                 href={`/programs/${p.slug}`}
                 className="group block h-full overflow-hidden rounded-2xl border border-line bg-surface transition-colors duration-300 hover:border-neon/40"
@@ -68,9 +69,9 @@ export function Programs() {
                   </div>
                 </article>
               </Link>
-            </Reveal>
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerGroup>
       </div>
     </section>
   );

@@ -29,17 +29,20 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
 
   // Chỉ gọi API khi đã đăng nhập — khách vãng lai không bắn request 401.
   const hasToken = typeof window !== 'undefined' && !!localStorage.getItem('gym_access_token');
+  // Backend khai báo @Roles(TRAINER, MEMBER) cấp controller cho toàn bộ /chat/* —
+  //Admin/MANAGER/STAFF gọi sẽ nhận 403 lặp mỗi 60s, nên chỉ bật query khi đúng role.
+  const canChatRole = getStoredUser()?.role === 'TRAINER' || getStoredUser()?.role === 'MEMBER';
 
   // Số tin chưa đọc — CHUNG queryKey với badge "Tin nhắn" ở header,
   // nên invalidate từ socket làm badge sáng ngay.
   const { data: unreadData } = useQuery({
     queryKey: ['chat-unread'],
     queryFn: chatApi.unreadCount,
-    enabled: hasToken,
+    enabled: hasToken && canChatRole,
     refetchInterval: 60_000,
     retry: 0,
   });
-  const unread = hasToken ? (unreadData?.count ?? 0) : 0;
+  const unread = canChatRole ? (unreadData?.count ?? 0) : 0;
 
   // Hiện số tin chưa đọc trên TIÊU ĐỀ TAB (taskbar trình duyệt): "(2) GymMaster...".
   // Next tự đổi title theo metadata khi chuyển trang → chạy lại theo pathname

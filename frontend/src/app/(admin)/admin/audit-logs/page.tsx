@@ -12,6 +12,8 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Dialog } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState } from '@/components/ui/error-state';
 import { formatDateTime } from '@/lib/utils';
 import { AUDIT_ACTION_META, AUDIT_ENTITY_LABEL, AUDIT_ROLE_LABEL } from '@/lib/status';
 import { getStoredUser } from '@/lib/auth';
@@ -294,34 +296,37 @@ export default function AuditLogsPage() {
               ))}
             </div>
           ) : isError ? (
-            <div className="py-16 text-center">
-              <p className="text-sm text-danger">Không tải được nhật ký hoạt động.</p>
-              <Button variant="secondary" size="sm" className="mt-3" onClick={() => refetch()}>
-                Thử lại
-              </Button>
-            </div>
+            <ErrorState
+              className="m-3"
+              title="Không tải được nhật ký"
+              description="Không tải được nhật ký hoạt động từ Backend. Vui lòng thử lại."
+              onRetry={() => refetch()}
+            />
           ) : list.length === 0 ? (
-            <div className="py-16 text-center text-xs text-muted">
-              Chưa có bản ghi nhật ký nào phù hợp với bộ lọc.
-            </div>
+            <EmptyState
+              className="m-3"
+              icon={ScrollText}
+              title="Chưa có bản ghi"
+              description="Chưa có bản ghi nhật ký nào phù hợp với bộ lọc."
+            />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
+              <table className="w-full min-w-[760px] text-left text-sm">
                 <thead className="border-b border-line bg-ink text-[11px] uppercase tracking-wider text-muted">
                   <tr>
-                    <th className="px-4 py-3">Thời gian</th>
-                    <th className="px-4 py-3">Hành động</th>
-                    <th className="px-4 py-3">Đối tượng</th>
-                    <th className="px-4 py-3">Người thực hiện</th>
-                    <th className="px-4 py-3">IP</th>
-                    <th className="px-4 py-3 text-right">Chi tiết</th>
+                    <th className="px-4 py-3 font-semibold">Thời gian</th>
+                    <th className="px-4 py-3 font-semibold">Hành động</th>
+                    <th className="px-4 py-3 font-semibold">Đối tượng</th>
+                    <th className="px-4 py-3 font-semibold">Người thực hiện</th>
+                    <th className="px-4 py-3 font-semibold">IP</th>
+                    <th className="px-4 py-3 font-semibold text-right">Chi tiết</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line font-medium">
                   {list.map((item) => {
                     const actionMeta = AUDIT_ACTION_META[item.action];
                     return (
-                      <tr key={item.id} className="transition-colors hover:bg-line/20">
+                      <tr key={item.id} className="transition-colors hover:bg-line/30">
                         <td className="whitespace-nowrap px-4 py-3 text-muted">
                           {formatDateTime(item.createdAt)}
                         </td>

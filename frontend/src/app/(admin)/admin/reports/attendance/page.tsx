@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatCard } from '@/components/ui/stat-card';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState } from '@/components/ui/error-state';
 import { formatDate, formatDuration } from '@/lib/utils';
 import {
   CalendarRange,
@@ -47,13 +49,23 @@ export default function AttendanceReportPage() {
   const [to, setTo] = useState(todayKey());
   const [search, setSearch] = useState('');
 
-  const { data: daily, isLoading: dailyLoading } = useQuery({
+  const {
+    data: daily,
+    isLoading: dailyLoading,
+    isError: dailyError,
+    refetch: refetchDaily,
+  } = useQuery({
     queryKey: ['att-report-daily', from, to],
     queryFn: () => checkinApi.getDailyReport(from || undefined, to || undefined),
     retry: 0,
   });
 
-  const { data: members, isLoading: membersLoading } = useQuery({
+  const {
+    data: members,
+    isLoading: membersLoading,
+    isError: membersError,
+    refetch: refetchMembers,
+  } = useQuery({
     queryKey: ['att-report-members', from, to, search],
     queryFn: () =>
       checkinApi.getMemberAttendance({
@@ -65,7 +77,12 @@ export default function AttendanceReportPage() {
   });
 
   // KPI theo hình thức check-in (tự quét, lễ tân, QR, khuôn mặt)
-  const { data: attReport, isLoading: attLoading } = useQuery({
+  const {
+    data: attReport,
+    isLoading: attLoading,
+    isError: attError,
+    refetch: refetchAtt,
+  } = useQuery({
     queryKey: ['att-report-methods', from, to],
     queryFn: () => reportApi.attendance({ from: from || undefined, to: to || undefined }),
     retry: 0,
@@ -169,10 +186,18 @@ export default function AttendanceReportPage() {
               <Skeleton className="h-24 w-full rounded-xl" />
               <Skeleton className="h-24 w-full rounded-xl" />
             </div>
+          ) : attError ? (
+            <ErrorState
+              title="Không tải được số liệu"
+              description="Không tải được thống kê theo hình thức check-in. Vui lòng thử lại."
+              onRetry={() => refetchAtt()}
+            />
           ) : !attReport?.byMethod?.length ? (
-            <p className="py-6 text-center text-xs text-muted">
-              Chưa có dữ liệu check-in trong khoảng này.
-            </p>
+            <EmptyState
+              icon={QrCode}
+              title="Chưa có dữ liệu check-in"
+              description="Khoảng thời gian này chưa ghi nhận lượt check-in nào."
+            />
           ) : (
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               {attReport.byMethod.map((m) => {
@@ -216,24 +241,36 @@ export default function AttendanceReportPage() {
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
             </div>
+          ) : dailyError ? (
+            <ErrorState
+              className="m-3"
+              title="Không tải được báo cáo"
+              description="Không tải được số liệu check-in theo ngày. Vui lòng thử lại."
+              onRetry={() => refetchDaily()}
+            />
           ) : !daily || daily.data.length === 0 ? (
-            <div className="py-12 text-center text-sm text-muted">
-              Không có dữ liệu check-in trong khoảng thời gian này.
-            </div>
+            <EmptyState
+              className="m-3"
+              icon={BarChart3}
+              title="Không có dữ liệu"
+              description="Không có dữ liệu check-in trong khoảng thời gian này."
+            />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
+              <table className="w-full min-w-[560px] text-left text-sm">
                 <thead className="bg-ink border-b border-line text-[11px] uppercase tracking-wider text-muted">
                   <tr>
-                    <th className="py-2.5 px-4">Ngày</th>
-                    <th className="py-2.5 px-4 text-right">Tổng Check-in</th>
-                    <th className="py-2.5 px-4 text-right">Tổng Check-out</th>
-                    <th className="py-2.5 px-4 text-right">Chênh lệch (đang ở lại)</th>
+                    <th className="py-2.5 px-4 font-semibold">Ngày</th>
+                    <th className="py-2.5 px-4 font-semibold text-right">Tổng Check-in</th>
+                    <th className="py-2.5 px-4 font-semibold text-right">Tổng Check-out</th>
+                    <th className="py-2.5 px-4 font-semibold text-right">
+                      Chênh lệch (đang ở lại)
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line font-medium">
                   {daily.data.map((d) => (
-                    <tr key={d.date} className="transition-colors hover:bg-line/20">
+                    <tr key={d.date} className="transition-colors hover:bg-line/30">
                       <td className="py-2.5 px-4 font-semibold text-chalk">{formatDate(d.date)}</td>
                       <td className="py-2.5 px-4 text-right font-mono text-neon">{d.checkIns}</td>
                       <td className="py-2.5 px-4 text-right font-mono text-muted">{d.checkOuts}</td>
@@ -268,25 +305,35 @@ export default function AttendanceReportPage() {
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
             </div>
+          ) : membersError ? (
+            <ErrorState
+              className="m-3"
+              title="Không tải được báo cáo"
+              description="Không tải được danh sách chuyên cần hội viên. Vui lòng thử lại."
+              onRetry={() => refetchMembers()}
+            />
           ) : !members || members.data.length === 0 ? (
-            <div className="py-12 text-center text-sm text-muted">
-              Không có hội viên nào tập trong khoảng thời gian này.
-            </div>
+            <EmptyState
+              className="m-3"
+              icon={Users}
+              title="Không có hội viên"
+              description="Không có hội viên nào tập trong khoảng thời gian này."
+            />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
+              <table className="w-full min-w-[720px] text-left text-sm">
                 <thead className="bg-ink border-b border-line text-[11px] uppercase tracking-wider text-muted">
                   <tr>
-                    <th className="py-2.5 px-4">Hội viên</th>
-                    <th className="py-2.5 px-4 text-right">Tổng lượt</th>
-                    <th className="py-2.5 px-4 text-right">Thời gian TB/lượt</th>
-                    <th className="py-2.5 px-4">Lần tập gần nhất</th>
-                    <th className="py-2.5 px-4 text-right">Thao tác</th>
+                    <th className="py-2.5 px-4 font-semibold">Hội viên</th>
+                    <th className="py-2.5 px-4 font-semibold text-right">Tổng lượt</th>
+                    <th className="py-2.5 px-4 font-semibold text-right">Thời gian TB/lượt</th>
+                    <th className="py-2.5 px-4 font-semibold">Lần tập gần nhất</th>
+                    <th className="py-2.5 px-4 font-semibold text-right">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line font-medium">
                   {members.data.map((row) => (
-                    <tr key={row.member.id} className="transition-colors hover:bg-line/20">
+                    <tr key={row.member.id} className="transition-colors hover:bg-line/30">
                       <td className="py-2.5 px-4">
                         <div className="flex items-center gap-2.5">
                           <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-neon/30 bg-neon/10 text-[10px] font-bold uppercase text-neon">

@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { motion } from 'framer-motion';
 import { ArrowLeft, KeyRound, AlertCircle, CheckCircle2, MailCheck } from 'lucide-react';
 
 const emailSchema = z.object({
@@ -97,7 +98,12 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-ink p-4 py-10">
-      <div className="relative z-10 w-full max-w-md animate-fade-in">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+        className="relative z-10 w-full max-w-md"
+      >
         <Link
           href="/login"
           className="mb-6 inline-flex items-center gap-1.5 rounded-sm border border-line bg-surface/70 px-3 py-2 text-xs font-semibold text-muted transition-colors hover:border-neon/40 hover:text-chalk"
@@ -212,7 +218,7 @@ export default function ForgotPasswordPage() {
             )}
           </CardContent>
         </Card>
-      </div>
+      </motion.div>
     </div>
   );
 }

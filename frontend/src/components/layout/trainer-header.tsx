@@ -92,11 +92,15 @@ export function TrainerHeader() {
       <div className="container-x">
         <div className="flex h-16 items-center justify-between gap-4">
           {/* Logo */}
-          <Link href="/trainer" className="group flex shrink-0 items-center gap-2.5">
+          <Link
+            href="/trainer"
+            aria-label="GymMaster — Khu huấn luyện viên"
+            className="group flex shrink-0 items-center gap-2.5"
+          >
             <span className="flex size-9 items-center justify-center rounded-sm border border-neon/40 bg-surface text-neon transition-colors group-hover:border-neon/70">
               <Dumbbell className="size-4" />
             </span>
-            <span className="font-display text-lg font-bold uppercase leading-none tracking-wide text-chalk xl:text-xl">
+            <span className="hidden font-display text-lg font-bold uppercase leading-none tracking-wide text-chalk min-[360px]:inline xl:text-xl">
               GYM<span className="text-neon">MASTER</span>
               <span className="ml-2 hidden rounded border border-neon/25 bg-neon/10 px-1.5 py-0.5 align-middle font-sans text-[10px] font-bold uppercase tracking-normal text-neon sm:inline-block">
                 Trainer
@@ -105,7 +109,7 @@ export function TrainerHeader() {
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden items-center gap-0.5 md:flex">
+          <nav className="hidden items-center gap-0.5 xl:flex">
             {NAV_ITEMS.map((item) => (
               <Link
                 key={item.href}
@@ -137,7 +141,8 @@ export function TrainerHeader() {
             <div className="relative">
               <button
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="flex items-center gap-2 rounded-sm p-1.5 transition-colors hover:bg-ink"
+                className="flex items-center gap-2 rounded-sm p-1.5 transition-colors hover:bg-surface"
+                aria-expanded={userMenuOpen}
               >
                 <span className="flex size-8 items-center justify-center rounded-full border border-neon/40 bg-neon/10 text-xs font-bold uppercase text-neon">
                   {fullName.charAt(0)}
@@ -188,7 +193,7 @@ export function TrainerHeader() {
 
             {/* Mobile hamburger */}
             <button
-              className="flex size-9 items-center justify-center rounded-sm border border-line bg-surface text-chalk transition-colors hover:border-neon/50 md:hidden"
+              className="flex size-9 items-center justify-center rounded-sm border border-line bg-surface text-chalk transition-colors hover:border-neon/50 xl:hidden"
               onClick={() => setMenuOpen(!menuOpen)}
               aria-label="Menu"
               aria-expanded={menuOpen}
@@ -201,7 +206,7 @@ export function TrainerHeader() {
 
       {/* Mobile drawer */}
       {menuOpen && (
-        <div className="animate-fade-in border-t border-line bg-ink md:hidden">
+        <div className="animate-fade-in border-t border-line bg-ink xl:hidden">
           <nav className="container-x flex flex-col gap-1 py-3">
             {NAV_ITEMS.map((item) => (
               <Link

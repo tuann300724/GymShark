@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/components/ui/toast';
 import { formatDate } from '@/lib/utils';
 import { TRAINER_STATUS_META } from '@/lib/status';
@@ -27,7 +28,11 @@ import {
 export default function TrainerProfilePage() {
   const toast = useToast();
 
-  const { data: profile, isLoading } = useQuery({
+  const {
+    data: profile,
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ['trainer-my-profile'],
     queryFn: trainerApi.myProfile,
     retry: 0,
@@ -86,11 +91,11 @@ export default function TrainerProfilePage() {
           <Skeleton className="h-64 w-full" />
         </div>
       ) : !profile ? (
-        <Card>
-          <CardContent className="py-14 text-center text-xs text-danger">
-            Không tải được hồ sơ huấn luyện viên. Vui lòng liên hệ quản trị viên.
-          </CardContent>
-        </Card>
+        <ErrorState
+          title="Không tải được hồ sơ huấn luyện viên"
+          description="Vui lòng thử lại hoặc liên hệ quản trị viên nếu lỗi tiếp diễn."
+          onRetry={() => refetch()}
+        />
       ) : (
         <>
           {/* Profile card */}

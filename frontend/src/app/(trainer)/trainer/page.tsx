@@ -7,6 +7,9 @@ import { trainingApi } from '@/services/training.service';
 import { trainerApi } from '@/services/trainer.service';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/ui/empty-state';
+import { StaggerGroup, StaggerItem } from '@/components/ui/motion';
 import { SessionDetailDialog } from '@/components/training/session-detail-dialog';
 import { SessionStatusBadge, SessionTypeBadge } from '@/components/training/session-badges';
 import { formatTime, formatDateTime } from '@/lib/utils';
@@ -113,11 +116,13 @@ export default function TrainerDashboardPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <StaggerGroup className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {statItems.map((s) => (
-          <StatTile key={s.label} {...s} />
+          <StaggerItem key={s.label}>
+            <StatTile {...s} />
+          </StaggerItem>
         ))}
-      </div>
+      </StaggerGroup>
 
       {/* Today */}
       <Section
@@ -131,14 +136,11 @@ export default function TrainerDashboardPage() {
             <Skeleton className="h-20 rounded-2xl" />
           </div>
         ) : todaySessions.length === 0 ? (
-          <Card>
-            <CardContent className="py-10 text-center">
-              <CalendarDays className="mx-auto size-8 text-muted/50" />
-              <p className="mt-3 text-sm text-muted">
-                Hôm nay bạn không có buổi dạy nào. Nghỉ ngơi thật tốt nhé!
-              </p>
-            </CardContent>
-          </Card>
+          <EmptyState
+            icon={CalendarDays}
+            title="Không có buổi dạy hôm nay"
+            description="Nghỉ ngơi thật tốt nhé!"
+          />
         ) : (
           <div className="space-y-2">
             {todaySessions.map((s) => (
@@ -161,11 +163,7 @@ export default function TrainerDashboardPage() {
               <Skeleton className="h-16 rounded-2xl" />
             </div>
           ) : upcomingSessions.length === 0 ? (
-            <Card>
-              <CardContent className="py-8 text-center text-sm text-muted">
-                Chưa có buổi tập nào sắp tới.
-              </CardContent>
-            </Card>
+            <EmptyState icon={TrendingUp} title="Chưa có buổi tập sắp tới" className="py-8" />
           ) : (
             <div className="space-y-2">
               {upcomingSessions.slice(0, 5).map((s) => (
@@ -194,11 +192,12 @@ export default function TrainerDashboardPage() {
               <Skeleton className="h-16 rounded-2xl" />
             </div>
           ) : activeMembers.length === 0 ? (
-            <Card>
-              <CardContent className="py-8 text-center text-sm text-muted">
-                Bạn chưa được gán cho hội viên nào. Liên hệ admin để cập nhật.
-              </CardContent>
-            </Card>
+            <EmptyState
+              icon={Users}
+              title="Chưa có hội viên phụ trách"
+              description="Liên hệ quản trị viên để cập nhật phân công."
+              className="py-8"
+            />
           ) : (
             <div className="space-y-2">
               {activeMembers.slice(0, 5).map((a) => (
@@ -222,7 +221,9 @@ export default function TrainerDashboardPage() {
                       {a.member.memberships.find((m) => m.status === 'ACTIVE')?.package?.name}
                     </span>
                   ) : (
-                    <span className="shrink-0 text-[10px] font-bold text-amber-400">HẾT HẠN</span>
+                    <Badge variant="warning" className="shrink-0">
+                      HẾT HẠN
+                    </Badge>
                   )}
                 </div>
               ))}
@@ -293,7 +294,7 @@ function StatTile({
     purple: 'bg-purple-500/10 text-purple-400 border-purple-500/25',
   };
   return (
-    <Card>
+    <Card className="h-full">
       <CardContent className="flex items-center gap-3 p-4">
         <span
           className={cn(
@@ -304,7 +305,7 @@ function StatTile({
           <Icon className="size-5" />
         </span>
         <div>
-          <p className="text-2xl font-bold text-chalk font-display">{value}</p>
+          <p className="font-display text-2xl font-bold text-chalk">{value}</p>
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">{label}</p>
         </div>
       </CardContent>

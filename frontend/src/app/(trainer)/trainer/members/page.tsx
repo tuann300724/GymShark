@@ -6,6 +6,8 @@ import { trainerApi } from '@/services/trainer.service';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState } from '@/components/ui/error-state';
 import { formatDate } from '@/lib/utils';
 import { ASSIGNMENT_STATUS_META } from '@/lib/status';
 import { Users, Phone, CalendarDays, Search, UserRound, Award } from 'lucide-react';
@@ -18,6 +20,7 @@ export default function TrainerMembersPage() {
     data: assignments,
     isLoading,
     isError,
+    refetch,
   } = useQuery({
     queryKey: ['trainer-me-members'],
     queryFn: trainerApi.myMembers,
@@ -55,7 +58,7 @@ export default function TrainerMembersPage() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Tìm theo tên, mã hội viên, SĐT..."
-          className="h-11 w-full rounded-sm border border-line bg-ink pl-9 pr-3.5 text-sm text-chalk placeholder:text-muted/70 focus:outline-none focus:ring-2 focus:ring-neon/70 focus:border-neon/70"
+          className="h-11 w-full rounded-sm border border-line bg-ink pl-9 pr-3.5 text-sm text-chalk placeholder:text-muted/70 transition-colors focus:border-neon/70 focus:outline-none focus:ring-2 focus:ring-neon/70"
         />
       </div>
 
@@ -65,20 +68,13 @@ export default function TrainerMembersPage() {
           <Skeleton className="h-24 w-full" />
         </div>
       ) : isError ? (
-        <Card>
-          <CardContent className="py-14 text-center text-xs text-danger">
-            Không tải được danh sách hội viên.
-          </CardContent>
-        </Card>
+        <ErrorState title="Không tải được danh sách hội viên" onRetry={() => refetch()} />
       ) : active.length === 0 ? (
-        <Card>
-          <CardContent className="py-14 text-center">
-            <UserRound className="mx-auto size-10 text-muted/50" />
-            <p className="mt-3 text-sm text-muted">
-              Bạn chưa được gán cho hội viên nào. Liên hệ quản trị viên để bắt đầu huấn luyện.
-            </p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={UserRound}
+          title="Chưa có hội viên phụ trách"
+          description="Liên hệ quản trị viên để bắt đầu huấn luyện."
+        />
       ) : (
         <>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -128,11 +124,12 @@ export default function TrainerMembersPage() {
           </div>
 
           {filtered.length === 0 && (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted">
-                Không tìm thấy hội viên nào khớp với từ khóa.
-              </CardContent>
-            </Card>
+            <EmptyState
+              icon={Search}
+              title="Không tìm thấy hội viên"
+              description="Thử từ khóa khác theo tên, mã hội viên hoặc số điện thoại."
+              className="py-8"
+            />
           )}
 
           {/* History */}

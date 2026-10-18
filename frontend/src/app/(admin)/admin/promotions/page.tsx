@@ -14,6 +14,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog } from '@/components/ui/dialog';
 import { StatCard } from '@/components/ui/stat-card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/components/ui/toast';
 import { PROMOTION_STATUS_META } from '@/lib/status';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
@@ -88,7 +90,7 @@ export default function PromotionsPage() {
   const [editing, setEditing] = useState<Promotion | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['promotions-list', search, status],
     queryFn: () => promotionApi.list({ search: search || undefined, status: status || undefined }),
     retry: 1,
@@ -270,7 +272,7 @@ export default function PromotionsPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Tìm theo mã hoặc tên chương trình..."
-              className="h-10 w-full rounded-lg border border-line bg-surface pl-9 pr-3 text-sm text-chalk placeholder:text-muted/70 outline-none transition-colors focus:border-neon/60"
+              className="h-10 w-full rounded-sm border border-line bg-ink pl-9 pr-3 text-sm text-chalk placeholder:text-muted/70 outline-none transition-colors focus:border-neon/60"
             />
           </div>
           <Select
@@ -295,17 +297,17 @@ export default function PromotionsPage() {
           ))}
         </div>
       ) : isError ? (
-        <Card>
-          <CardContent className="py-14 text-center text-xs text-danger">
-            Không kết nối được API khuyến mãi. Hãy kiểm tra backend.
-          </CardContent>
-        </Card>
+        <ErrorState
+          title="Không kết nối được API khuyến mãi"
+          description="Không tải được danh sách mã khuyến mãi. Hãy kiểm tra backend rồi thử lại."
+          onRetry={() => refetch()}
+        />
       ) : promoList.length === 0 ? (
-        <Card>
-          <CardContent className="py-16 text-center text-xs text-muted">
-            Chưa có mã khuyến mãi nào phù hợp với bộ lọc.
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={Tag}
+          title="Chưa có mã khuyến mãi"
+          description="Không có mã nào phù hợp với bộ lọc. Tạo mã mới để bắt đầu chương trình ưu đãi."
+        />
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {promoList.map((p) => {
@@ -367,14 +369,14 @@ export default function PromotionsPage() {
                   <div className="flex items-center gap-1.5">
                     <Link
                       href={`/admin/promotions/${p.id}`}
-                      className="flex size-8 items-center justify-center rounded-lg border border-line text-muted transition-colors hover:border-neon/50 hover:text-neon"
+                      className="flex size-8 items-center justify-center rounded-sm border border-line text-muted transition-colors hover:border-neon/50 hover:text-neon"
                       title="Chi tiết & lịch sử dùng"
                     >
                       <Eye className="size-3.5" />
                     </Link>
                     <button
                       onClick={() => openEdit(p)}
-                      className="flex size-8 items-center justify-center rounded-lg border border-line text-muted transition-colors hover:border-neon/50 hover:text-neon"
+                      className="flex size-8 items-center justify-center rounded-sm border border-line text-muted transition-colors hover:border-neon/50 hover:text-neon"
                       title="Chỉnh sửa"
                     >
                       <Pencil className="size-3.5" />
@@ -383,7 +385,7 @@ export default function PromotionsPage() {
                       <button
                         onClick={() => toggleMutation.mutate({ id: p.id, action: 'deactivate' })}
                         disabled={toggleMutation.isPending}
-                        className="flex size-8 items-center justify-center rounded-lg border border-line text-muted transition-colors hover:border-danger/50 hover:text-danger disabled:opacity-50"
+                        className="flex size-8 items-center justify-center rounded-sm border border-line text-muted transition-colors hover:border-danger/50 hover:text-danger disabled:opacity-50"
                         title="Ngừng kích hoạt"
                       >
                         <Power className="size-3.5" />
@@ -392,7 +394,7 @@ export default function PromotionsPage() {
                       <button
                         onClick={() => toggleMutation.mutate({ id: p.id, action: 'activate' })}
                         disabled={toggleMutation.isPending || p.status === 'EXPIRED'}
-                        className="flex size-8 items-center justify-center rounded-lg border border-neon/30 text-neon transition-colors hover:border-neon disabled:opacity-40"
+                        className="flex size-8 items-center justify-center rounded-sm border border-neon/30 text-neon transition-colors hover:border-neon disabled:opacity-40"
                         title={
                           p.status === 'EXPIRED'
                             ? 'Mã đã hết hạn, không kích hoạt lại được'

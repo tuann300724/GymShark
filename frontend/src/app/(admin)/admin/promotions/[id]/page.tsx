@@ -10,6 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select } from '@/components/ui/select';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState } from '@/components/ui/error-state';
 import { PROMOTION_STATUS_META, PAYMENT_STATUS_META, PAYMENT_METHOD_LABEL } from '@/lib/status';
 import { cn, formatCurrency, formatDateTime } from '@/lib/utils';
 import {
@@ -46,14 +48,24 @@ export default function PromotionDetailPage() {
   const [method, setMethod] = useState('');
   const [status, setStatus] = useState('');
 
-  const { data: promo, isLoading: promoLoading } = useQuery({
+  const {
+    data: promo,
+    isLoading: promoLoading,
+    isError: promoError,
+    refetch: refetchPromo,
+  } = useQuery({
     queryKey: ['promotion-detail', id],
     queryFn: () => promotionApi.detail(id),
     enabled: !!id,
     retry: 1,
   });
 
-  const { data: usage, isLoading: usageLoading } = useQuery({
+  const {
+    data: usage,
+    isLoading: usageLoading,
+    isError: usageError,
+    refetch: refetchUsage,
+  } = useQuery({
     queryKey: ['promotion-usages', id, method, status],
     queryFn: () =>
       promotionApi.usages(id, { method: method || undefined, status: status || undefined }),
@@ -68,6 +80,16 @@ export default function PromotionDetailPage() {
         <Skeleton className="h-44 w-full" />
         <Skeleton className="h-64 w-full" />
       </div>
+    );
+  }
+
+  if (promoError || (!promo && !promoLoading)) {
+    return (
+      <ErrorState
+        title="Không tải được mã khuyến mãi"
+        description="Mã khuyến mãi không tồn tại hoặc đã bị xóa."
+        onRetry={() => refetchPromo()}
+      />
     );
   }
 
@@ -212,16 +234,20 @@ export default function PromotionDetailPage() {
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
             </div>
+          ) : usageError ? (
+            <ErrorState className="m-3" onRetry={() => refetchUsage()} />
           ) : usages.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-14 text-center">
-              <Wrench className="size-6 text-line" />
-              <p className="text-xs text-muted">Chưa có giao dịch nào dùng mã này.</p>
-            </div>
+            <EmptyState
+              className="m-3"
+              icon={Wrench}
+              title="Chưa có giao dịch"
+              description="Chưa có giao dịch nào dùng mã này."
+            />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[760px] text-left text-sm">
-                <thead>
-                  <tr className="border-b border-line text-[11px] uppercase tracking-wide text-muted">
+                <thead className="text-[11px] uppercase tracking-wider text-muted border-b border-line">
+                  <tr>
                     <th className="px-4 py-3 font-semibold">Hóa đơn</th>
                     <th className="px-4 py-3 font-semibold">Hội viên</th>
                     <th className="px-4 py-3 font-semibold">Gói tập</th>
@@ -239,7 +265,7 @@ export default function PromotionDetailPage() {
                       variant: 'outline' as const,
                     };
                     return (
-                      <tr key={u.id} className="transition-colors hover:bg-line/20">
+                      <tr key={u.id} className="transition-colors hover:bg-line/30">
                         <td className="px-4 py-3 font-mono text-xs text-neon">{u.paymentCode}</td>
                         <td className="px-4 py-3">
                           <p className="text-xs font-semibold text-chalk">{u.member.fullName}</p>

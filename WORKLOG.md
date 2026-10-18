@@ -5,6 +5,54 @@
 
 ---
 
+## 2026-10-18 — Kỳ 13: Nâng cấp UI toàn diện — Three.js + Framer Motion + hệ thống trạng thái
+
+> Trạng thái: **CHƯA COMMIT** — code + QA xong, chờ commit/push. Backend/API/auth không đổi.
+
+### 🎯 Mục tiêu
+
+Đưa giao diện cả 4 khu (công khai, hội viên, HLV, quản trị) lên phong cách Fitness SaaS cao cấp: hiệu ứng motion có kiểm soát, cảnh 3D hero, trạng thái UI thống nhất — vẫn theo `DESIGN_SYSTEM.md`.
+
+### ✅ Deps mới (tương thích React 18/Next 14, không nâng major)
+
+`three@0.171.0` · `@react-three/fiber@8.18.0` · `@react-three/drei@9.122.0` · `@types/three@0.171.0` · `framer-motion@11.18.2`.
+
+### ✅ Nền tảng dùng chung
+
+- `lib/motion.ts` (EASE/fadeUp/stagger/viewportOnce) + `ui/motion.tsx` (RevealFx, StaggerGroup/Item, AnimatedNumber) + `ui/motion-provider.tsx` (`MotionConfig reducedMotion="user"` gắn ở root layout).
+- `ui/empty-state.tsx` / `error-state.tsx` (kèm retry) / `spinner.tsx`; nâng cấp `dialog.tsx` (AnimatePresence), `tabs.tsx` (indicator layoutId), `stat-card.tsx`.
+- `components/three/hero-3d.tsx` + dynamic import ở `home/hero.tsx`: chỉ mount desktop ≥1024px + WebGL OK + không reduced-motion; pause khi tab ẩn/cuộn ra xa; fallback ảnh `hero.jpg`.
+- DESIGN_SYSTEM.md bổ sung mục 9 (Motion), 10 (Trạng thái UI), 11 (Three.js).
+
+### ✅ Các khu vực đã nâng cấp
+
+- **Public + auth** (tự làm): stagger hero/programs/about/blog/packages/trainers, EmptyState/ErrorState cho list public, entrance login/register/forgot, drawer + search overlay AnimatePresence ở `public-header`.
+- **Member + HLV** (subagent): 22 file — KPI stagger, mọi empty → EmptyState, error → ErrorState+refetch, bỏ emoji, bảng `min-w` scroll ngang, chat bong bóng theo token, fix hover header invisible.
+- **Admin** (subagent): ~25 file — 8 tab reports có error/empty state, 21 bảng chuẩn hóa, spinner thay text-loader, bỏ emoji, pill "Đã kết nối API".
+
+### 🐞 Lỗi/bẫy mới (đã fix)
+
+- **403 `/chat/unread-count` lặp trên mọi trang admin** (bug có sẵn, không phải phiên này gây ra): `ChatSocketProvider` bật query khi có token nhưng backend `@Roles(TRAINER, MEMBER)` cấp controller → admin nhận 403 mỗi 60s. Fix frontend: `enabled: hasToken && canChatRole` (giữ nguyên provider).
+- **Tràn ngang `/trainer/meal-plans` mobile** (8px): `w-64` gắn vào `<input>` bên trong khiến input cố định dù wrapper đã co → đổi `flex-col sm:flex-row` + `w-full sm:w-64`.
+- **30 warning lint** `rounded-[10px]` → `rounded-sm`: config project đặt `borderRadius.sm = '10px'` nên thay **giống hệt** visual; `eslint --fix` làm được (không đụng encoding như `-replace` PowerShell).
+- **`next lint` có cache** — chạy `npx eslint "src/**/*.{ts,tsx}"` không cache để thấy đủ warning thật.
+- **Tràn ngang member/trainer ở 320 & 768px** (QA mở rộng theo Master Prompt phát hiện — bug có sẵn, không do agent gây ra): nav header hiện từ `md` nhưng logo + 6 link + cụm nút cần ~991px → bàn phím 768–1279px tràn; wordmark + nút vượt 9px ở 320. Fix ở `member-header.tsx` + `trainer-header.tsx`: nav/hamburger/drawer `md:` → **`xl:`** (1280 đã verify PASS), wordmark `hidden min-[360px]:inline` (logo icon-only trên máy 320–359px), thêm `aria-label` cho link logo.
+
+### ✅ Kiểm tra cuối (tất cả PASS)
+
+- `typecheck` · `lint` (0 warning) · `format:check` · `build` (**62 routes**: 53 static + 9 dynamic, shared 87.7 kB).
+- Browser sweep `qa-full-sweep.js`: **102/102 PASS** (51 route × 1440/390; public 12 + member 13 + trainer 8 + admin 18; đăng nhập 1 lần/role, tái dùng storageState) — 0 console error, 0 HTTP ≥400 (404 có chủ đích được loại), 0 tràn ngang, 0 trang rỗng.
+- Browser mở rộng `qa-extended.js` (bổ sung theo yêu cầu Master Prompt): **167/167 PASS** — 7 trang dynamic `[id]` (admin members/payments/branches/trainers/promotions/equipment + member payments, lấy href từ trang list thật) × 1440/390, cộng 51 route × **320/768/1280**. Đủ 5 viewport: 320 · 390 · 768 · 1280 · 1440.
+- `npm run analyze` (ANALYZE=true next build): PASS — First Load JS shared **87.7 kB** (three.js tách chunk async, không nằm shared); bundle report tương tác ở `.next/analyze/client.html`.
+
+### 📌 Việc dang dở
+
+- **ĐÃ PUSH** (2026-10-18): toàn bộ nâng cấp UI/UX Kỳ 13 — 75 đường dẫn (68 sửa + 7 mới), commit `feat(frontend)` lên `origin/main`.
+- `npm audit`: 14 vulnerabilities (three/drei mang thêm) — chưa xử lý, không chạy `audit fix --force`.
+- Chưa test camera thật (quét khuôn mặt) — máy QA bị deny quyền camera.
+
+---
+
 ## 2026-09-30 — Kỳ 12: Xác minh email 2 bước khi đăng ký hội viên (nodemailer + Gmail SMTP)
 
 > Trạng thái: **CHƯA COMMIT** — code + QA xong, Gmail thật đã gửi được; chờ commit/push.

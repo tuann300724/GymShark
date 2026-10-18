@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState } from '@/components/ui/error-state';
 import { Dialog } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/toast';
 import { trainerApi } from '@/services/trainer.service';
@@ -57,6 +59,7 @@ export default function TrainerDetailPage() {
     data: trainer,
     isLoading,
     isError,
+    refetch,
   } = useQuery({
     queryKey: ['trainer-detail', id],
     queryFn: () => trainerApi.detail(id),
@@ -98,9 +101,11 @@ export default function TrainerDetailPage() {
 
   if (isError || !trainer) {
     return (
-      <div className="py-20 text-center text-xs text-danger">
-        Không tải được thông tin huấn luyện viên. Có thể HLV đã bị xóa hoặc ID không đúng.
-      </div>
+      <ErrorState
+        title="Không tải được huấn luyện viên"
+        description="Không tải được thông tin huấn luyện viên. Có thể HLV đã bị xóa hoặc ID không đúng."
+        onRetry={() => refetch()}
+      />
     );
   }
 
@@ -124,7 +129,7 @@ export default function TrainerDetailPage() {
           )}
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold tracking-tight text-chalk">
+              <h1 className="font-display text-2xl font-bold uppercase tracking-tight text-chalk">
                 {trainer.user.fullName}
               </h1>
               <Badge variant={statusMeta.variant}>{statusMeta.label}</Badge>
@@ -378,10 +383,12 @@ export default function TrainerDetailPage() {
                 ))}
               </div>
             ) : (
-              <div className="mt-4 py-10 text-center text-xs text-muted">
-                <UserPlus className="mx-auto size-7 text-muted/50" />
-                <p className="mt-2">HLV chưa được gán cho hội viên nào.</p>
-              </div>
+              <EmptyState
+                className="mt-4"
+                icon={UserPlus}
+                title="Chưa phân công hội viên"
+                description="HLV chưa được gán cho hội viên nào."
+              />
             )}
           </CardContent>
         </Card>
@@ -511,7 +518,9 @@ function SessionList({
   if (sessions.length === 0) {
     return (
       <Card>
-        <CardContent className="py-12 text-center text-xs text-muted">{emptyText}</CardContent>
+        <CardContent>
+          <EmptyState icon={CalendarDays} title="Chưa có buổi tập" description={emptyText} />
+        </CardContent>
       </Card>
     );
   }

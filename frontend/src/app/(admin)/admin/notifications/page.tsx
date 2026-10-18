@@ -14,6 +14,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog } from '@/components/ui/dialog';
 import { StatCard } from '@/components/ui/stat-card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/components/ui/toast';
 import { NOTIFICATION_TYPE_META, ANNOUNCEMENT_TARGET_LABEL } from '@/lib/status';
 import { cn, formatDateTime } from '@/lib/utils';
@@ -71,7 +73,7 @@ export default function AdminNotificationsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['notifications-admin', search, type, role],
     queryFn: () =>
       notificationApi.findAllAdmin({
@@ -211,7 +213,7 @@ export default function AdminNotificationsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Tìm theo tiêu đề hoặc nội dung..."
-            className="h-10 w-full rounded-lg border border-line bg-surface pl-9 pr-3 text-sm text-chalk placeholder:text-muted/70 outline-none transition-colors focus:border-neon/60"
+            className="h-10 w-full rounded-sm border border-line bg-ink pl-9 pr-3 text-sm text-chalk placeholder:text-muted/70 outline-none transition-colors focus:border-neon/60"
           />
         </div>
         <Select
@@ -236,18 +238,17 @@ export default function AdminNotificationsPage() {
           <Skeleton className="h-20 w-full" />
         </div>
       ) : isError ? (
-        <Card>
-          <CardContent className="py-14 text-center text-xs text-danger">
-            Không kết nối được API thông báo.
-          </CardContent>
-        </Card>
+        <ErrorState
+          title="Không kết nối được API thông báo"
+          description="Không tải được danh sách thông báo từ Backend. Vui lòng thử lại."
+          onRetry={() => refetch()}
+        />
       ) : list.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center gap-2 py-16 text-center">
-            <BellRing className="size-6 text-line" />
-            <p className="text-xs text-muted">Không có thông báo nào phù hợp.</p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={BellRing}
+          title="Không có thông báo"
+          description="Không có thông báo nào phù hợp với bộ lọc hiện tại."
+        />
       ) : (
         <div className="space-y-2.5">
           {list.map((n) => {

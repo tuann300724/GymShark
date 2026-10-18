@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState } from '@/components/ui/error-state';
 import { trainingApi } from '@/services/training.service';
 import { trainerApi } from '@/services/trainer.service';
 import {
@@ -47,7 +49,12 @@ export default function SchedulesPage() {
     return { from: first, to: new Date(date.getFullYear(), date.getMonth() + 1, 1) };
   }, [date, view]);
 
-  const { data: sessionData, isLoading } = useQuery({
+  const {
+    data: sessionData,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: [
       'training-sessions',
       { view, from: range.from.toISOString(), to: range.to.toISOString(), trainerId, status, type },
@@ -87,7 +94,7 @@ export default function SchedulesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-chalk flex items-center gap-2">
+          <h1 className="font-display text-2xl font-bold uppercase tracking-tight text-chalk flex items-center gap-2">
             <CalendarDays className="size-6 text-neon" />
             Lịch Tập & PT Sessions
           </h1>
@@ -165,6 +172,12 @@ export default function SchedulesPage() {
               <Skeleton className="h-80 w-full" />
             </CardContent>
           </Card>
+        ) : isError ? (
+          <ErrorState
+            title="Không tải được lịch tập"
+            description="Không thể tải danh sách buổi tập từ Backend. Vui lòng thử lại."
+            onRetry={() => refetch()}
+          />
         ) : (
           <TrainingCalendar
             view={view}
@@ -190,12 +203,20 @@ export default function SchedulesPage() {
               <Skeleton className="mt-2 h-20 w-full" />
             </CardContent>
           </Card>
+        ) : isError ? (
+          <ErrorState
+            title="Không tải được lịch tập"
+            description="Không thể tải danh sách buổi tập từ Backend. Vui lòng thử lại."
+            onRetry={() => refetch()}
+          />
         ) : sessions.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center text-xs text-muted">
-              Không có buổi tập trong khoảng này.
-            </CardContent>
-          </Card>
+          <EmptyState
+            icon={CalendarDays}
+            title="Không có buổi tập"
+            description={
+              'Không có buổi tập nào trong khoảng thời gian này. Chọn "Tạo buổi tập mới" để bắt đầu.'
+            }
+          />
         ) : (
           <div className="space-y-2">
             {sessions.map((s) => (

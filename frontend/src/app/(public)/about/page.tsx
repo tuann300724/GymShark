@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { publicApi } from '@/services/package.service';
 import { Button } from '@/components/ui/button';
+import { StaggerGroup, StaggerItem } from '@/components/ui/motion';
 import { Reveal } from '@/components/home/reveal';
 import { Target, HeartHandshake, ShieldCheck, ArrowRight, Flame } from 'lucide-react';
 
@@ -136,9 +137,9 @@ export default function PublicAboutPage() {
             </div>
           </Reveal>
 
-          <div className="mt-10 grid gap-5 md:grid-cols-3">
-            {VALUES.map((v, i) => (
-              <Reveal key={v.title} delay={i * 90}>
+          <StaggerGroup className="mt-10 grid gap-5 md:grid-cols-3">
+            {VALUES.map((v) => (
+              <StaggerItem key={v.title} className="h-full">
                 <div className="h-full rounded-2xl border border-line bg-surface p-7 transition-colors duration-300 hover:border-neon/40">
                   <div className="mb-4 flex size-11 items-center justify-center rounded-sm border border-neon/25 bg-neon/10 text-neon">
                     <v.icon className="size-5" />
@@ -148,9 +149,9 @@ export default function PublicAboutPage() {
                   </h3>
                   <p className="mt-2.5 text-sm leading-relaxed text-muted">{v.desc}</p>
                 </div>
-              </Reveal>
+              </StaggerItem>
             ))}
-          </div>
+          </StaggerGroup>
         </div>
       </section>
 
