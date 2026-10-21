@@ -47,19 +47,19 @@ export class Conversation {
   status: ConversationStatus;
 
   @Index()
-  @Column({ type: 'datetime2', nullable: true, name: 'lastMessageAt' })
+  @Column({ type: 'timestamp', nullable: true, name: 'lastMessageAt' })
   lastMessageAt: Date | null;
 
-  @Column({ type: 'nvarchar', length: 500, nullable: true, name: 'lastMessagePreview' })
+  @Column({ type: 'varchar', length: 500, nullable: true, name: 'lastMessagePreview' })
   lastMessagePreview: string | null;
 
   @Column({ type: 'varchar', length: 20, nullable: true, name: 'lastSenderRole' })
   lastSenderRole: string | null;
 
-  @CreateDateColumn({ type: 'datetime2' })
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'datetime2' })
+  @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 
   @OneToMany(() => Message, (message) => message.conversation)

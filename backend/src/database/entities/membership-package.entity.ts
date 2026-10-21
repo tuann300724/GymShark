@@ -20,14 +20,14 @@ export class MembershipPackage {
   @Column({ type: 'varchar', length: 50, unique: true })
   code: string;
 
-  @Column({ type: 'nvarchar', length: 255 })
+  @Column({ type: 'varchar', length: 255 })
   name: string;
 
-  @Column({ type: 'nvarchar', length: 2000, nullable: true })
+  @Column({ type: 'varchar', length: 2000, nullable: true })
   description: string | null;
 
   // features Json? — lưu JSON trong nvarchar(max)
-  @Column({ type: 'nvarchar', length: 'max', nullable: true, transformer: JsonTransformer })
+  @Column({ type: 'varchar', nullable: true, transformer: JsonTransformer })
   features: any | null;
 
   @Column({ type: 'int', name: 'durationDays' })
@@ -52,13 +52,13 @@ export class MembershipPackage {
   status: string;
 
   // allowedBranches Json? — null/[] = GLOBAL
-  @Column({ type: 'nvarchar', length: 'max', nullable: true, name: 'allowedBranches', transformer: JsonTransformer })
+  @Column({ type: 'varchar', nullable: true, name: 'allowedBranches', transformer: JsonTransformer })
   allowedBranches: string[] | null;
 
-  @CreateDateColumn({ type: 'datetime2' })
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'datetime2' })
+  @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 
   @OneToMany(() => Membership, (membership) => membership.package)

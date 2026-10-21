@@ -1,0 +1,164 @@
+User: tuan1\user
+======================================================
+ 1. SQL SERVER LOG DIRECTORY
+======================================================
+FOUND: C:\Program Files\Microsoft SQL Server\MSSQL17.MSSQLSERVER\MSSQL\Log
+   ExtensibilityLog  1 bytes
+   Polybase  1 bytes
+   ERRORLOG  0 bytes
+   ERRORLOG.1  35518 bytes
+   ERRORLOG.2  43880 bytes
+   ERRORLOG.3  33052 bytes
+   ERRORLOG.4  43732 bytes
+   ERRORLOG.5  32814 bytes
+   ERRORLOG.6  36622 bytes
+   fd  0 bytes
+FOUND: C:\Program Files\Microsoft SQL Server\MSSQL17.MSSQLSERVER\MSSQL\Log\
+   ExtensibilityLog  1 bytes
+   Polybase  1 bytes
+   ERRORLOG  0 bytes
+   ERRORLOG.1  35518 bytes
+   ERRORLOG.2  43880 bytes
+   ERRORLOG.3  33052 bytes
+   ERRORLOG.4  43732 bytes
+   ERRORLOG.5  32814 bytes
+   ERRORLOG.6  36622 bytes
+   fd  0 bytes
+
+======================================================
+ 2. ERRORLOG (60 dong cuoi)
+======================================================
+Reading: C:\Program Files\Microsoft SQL Server\MSSQL17.MSSQLSERVER\MSSQL\Log\ERRORLOG
+2026-10-21 09:50:55.94 Server      Using dynamic lock allocation.  Initial allocation of 2500 Lock blocks and 5000 Lock Owner blocks per node.  This is an informational message only.  No user action is required.
+2026-10-21 09:50:55.95 Server      In-Memory OLTP initialized on standard machine.
+2026-10-21 09:50:55.97 Server      [INFO] Created Extended Events session 'hkenginexesession'
+2026-10-21 09:50:55.97 Server      Database Instant File Initialization: enabled. For security and performance considerations see the topic 'Database Instant File Initialization' in SQL Server Books Online. This is an informational message only. No user action is required.
+2026-10-21 09:50:55.99 Server      Total Log Writer threads: 2. This is an informational message; no user action is required.
+2026-10-21 09:50:56.02 Server      clwb is selected for pmem flush operation.
+2026-10-21 09:50:56.02 Server      Software Usage Metrics is disabled.
+2026-10-21 09:50:56.03 spid27s     Starting up database 'master'.
+2026-10-21 09:50:56.08 Server      CLR version v4.0.30319 loaded.
+2026-10-21 09:50:56.19 Server      Common language runtime (CLR) functionality initialized using CLR version v4.0.30319 from C:\Windows\Microsoft.NET\Framework64\v4.0.30319\.
+2026-10-21 09:50:56.20 spid27s     SQL Server Audit is starting the audits. This is an informational message. No user action is required.
+2026-10-21 09:50:56.20 spid27s     [AutoStartAuditSessions] Starting audit session task
+2026-10-21 09:50:56.20 spid27s     SQL Server Audit has started the audits. This is an informational message. No user action is required.
+2026-10-21 09:50:56.24 spid27s     SQL Trace ID 1 was started by login "sa".
+2026-10-21 09:50:56.24 spid27s     Server name is 'tuan1'. This is an informational message only. No user action is required.
+2026-10-21 09:50:56.39 spid27s     Error: 30064, Severity: 17, State: 1.
+2026-10-21 09:50:56.39 spid27s     SQL Server failed to set security information on the full-text FilterData directory in the FTData folder. Full-text indexing of some types of documents may fail until this issue is resolved. You will need to repair the SQL Server installation.
+2026-10-21 09:50:56.44 Server      External governance manager initialized
+2026-10-21 09:50:56.44 Server      Detected pause instruction latency: 133 cycles.
+2026-10-21 09:50:56.50 spid39s     A self-generated certificate was successfully loaded for encryption.
+2026-10-21 09:50:56.50 spid39s     Server is listening on [ 'any' <ipv6> 50862] accept sockets 1.
+2026-10-21 09:50:56.50 spid39s     Server is listening on [ 'any' <ipv4> 50862] accept sockets 1.
+2026-10-21 09:50:56.50 spid39s     Server local connection provider is ready to accept connection on [ \\.\pipe\SQLLocal\MSSQLSERVER ].
+2026-10-21 09:50:56.50 spid39s     Server named pipe provider is ready to accept connection on [ \\.\pipe\sql\query ].
+2026-10-21 09:50:56.50 spid39s     Dedicated administrator connection support was not started because it is disabled on this edition of SQL Server. If you want to use a dedicated administrator connection, restart SQL Server using the trace flag 7806. This is an informational message only. No user action is required.
+2026-10-21 09:50:56.50 Server      SQL Server is attempting to register a Service Principal Name (SPN) for the SQL Server service. Kerberos authentication will not be possible until a SPN is registered for the SQL Server service. This is an informational message. No user action is required.
+2026-10-21 09:50:56.50 spid39s     Server is listening on [ ::1 <ipv6> 57566] accept sockets 1.
+2026-10-21 09:50:56.50 Server      The SQL Server Network Interface library could not register the Service Principal Name (SPN) [ MSSQLSvc/tuan1 ] for the SQL Server service. Windows return code: 0xffffffff, state: 63. Failure to register a SPN might cause integrated authentication to use NTLM instead of Kerberos. This is an informational message. Further action is only required if Kerberos authentication is required by authentication policies and if the SPN has not been manually registered.
+2026-10-21 09:50:56.50 Server      The SQL Server Network Interface library could not register the Service Principal Name (SPN) [ MSSQLSvc/tuan1:50862 ] for the SQL Server service. Windows return code: 0xffffffff, state: 63. Failure to register a SPN might cause integrated authentication to use NTLM instead of Kerberos. This is an informational message. Further action is only required if Kerberos authentication is required by authentication policies and if the SPN has not been manually registered.
+2026-10-21 09:50:56.50 spid39s     Server is listening on [ 127.0.0.1 <ipv4> 57566] accept sockets 1.
+2026-10-21 09:50:56.50 spid39s     Server local connection provider is ready to accept connection on [ \\.\pipe\sqlsatellitelaunch ].
+2026-10-21 09:50:56.50 spid39s     Resource governor reconfiguration encountered an issue (HRESULT code : 0x80070002, reason: Construction of Launchpad Connection failed), while sending active external resource pool ids to launchpad. This will not fail reconfigure.
+2026-10-21 09:50:56.51 spid39s     SQL Server is now ready for client connections. This is an informational message; no user action is required.
+2026-10-21 09:50:56.54 spid40s     A new instance of the full-text filter daemon host process has been successfully started with version = V2.
+2026-10-21 09:50:56.58 spid44s     Always On Availability Groups: The availability replica manager is starting. This is an informational message only. No user action is required.
+2026-10-21 09:50:56.58 spid44s     Always On Availability Groups: The availability replica manager is waiting for the instance of SQL Server to allow client connections. This is an informational message only. No user action is required.
+2026-10-21 09:50:56.58 spid27s     Starting up database 'msdb'.
+2026-10-21 09:50:56.58 spid32s     Starting up database 'mssqlsystemresource'.
+2026-10-21 09:50:56.58 spid32s     The resource database build version is 17.00.1000. This is an informational message only. No user action is required.
+2026-10-21 09:50:56.60 spid32s     Starting up database 'model'.
+2026-10-21 09:50:56.63 spid32s     Clearing tempdb database.
+2026-10-21 09:50:56.67 spid32s     Starting up database 'tempdb'.
+2026-10-21 09:50:56.70 spid44s     The Service Broker endpoint is in disabled or stopped state.
+2026-10-21 09:50:56.70 spid44s     The Database Mirroring endpoint is in disabled or stopped state.
+2026-10-21 09:50:56.70 spid27s     TEMPDB configuration for Polybase completed successfully.
+2026-10-21 09:50:56.70 spid27s     Recovery is complete. This is an informational message only. No user action is required.
+2026-10-21 09:50:56.70 spid44s     Service Broker manager has started.
+2026-10-21 09:50:58.82 spid57      Starting up database 'DWConfiguration'.
+2026-10-21 09:50:58.83 spid57      Parallel redo is started for database 'DWConfiguration' with worker pool size [4].
+2026-10-21 09:50:58.84 spid57      Parallel redo is shutdown for database 'DWConfiguration' with worker pool size [4].
+2026-10-21 09:50:59.74 spid57      Starting up database 'DWDiagnostics'.
+2026-10-21 09:50:59.75 spid57      Parallel redo is started for database 'DWDiagnostics' with worker pool size [4].
+2026-10-21 09:50:59.77 spid57      Parallel redo is shutdown for database 'DWDiagnostics' with worker pool size [4].
+2026-10-21 09:51:02.03 spid75      Attempting to load library 'xpstar.dll' into memory. This is an informational message only. No user action is required.
+2026-10-21 09:51:02.05 spid75      Using 'xpstar.dll' version '2025.170.1000' to execute extended stored procedure 'xp_instance_regread'. This is an informational message only; no user action is required.
+2026-10-21 09:51:03.08 spid117     Starting up database 'DWQueue'.
+2026-10-21 09:51:03.09 spid117     Parallel redo is started for database 'DWQueue' with worker pool size [4].
+2026-10-21 09:51:03.10 spid117     Parallel redo is shutdown for database 'DWQueue' with worker pool size [4].
+2026-10-21 09:51:07.60 spid51      Attempting to load library C:\Program Files\Microsoft SQL Server\MSSQL17.MSSQLSERVER\MSSQL\Binn\Polybase\SharedMemory.dll
+2026-10-21 09:51:07.60 spid51      Shared memory segment initialized with name Global\5bd0d3650b6b4f1db0299f4976b99f87
+
+======================================================
+ 3. REGISTRY NETWORK + LOGIN MODE
+======================================================
+-- SuperSocketNetLib\Tcp
+   Enabled = 1
+   ListenOnAllIPs = 1
+   KeepAlive = 30000
+   DisplayName = TCP/IP
+-- SuperSocketNetLib\Tcp\IPAll
+   TcpPort = 50862
+   TcpDynamicPorts = 
+   DisplayName = Any IP Address
+   Enabled = 1
+   IpAllBound = 
+-- SuperSocketNetLib\Np
+   Enabled = 1
+   PipeName = \\.\pipe\sql\query
+   DisplayName = Named Pipes
+-- LoginMode
+   SysDb = 1
+   AuditLevel = 2
+   BackupDirectory = C:\Program Files\Microsoft SQL Server\MSSQL17.MSSQLSERVER\MSSQL\Backup
+   DefaultLogin = guest
+   LoginMode = 1
+   Tapeloadwaittime = -1
+   SetHostName = 0
+   FirstStart = 0
+   uptime_pid = 11916
+   uptime_time_utc = 2 68 142 254 6 97 221 1
+
+======================================================
+ 4. WINDOWS FIREWALL (rule SQL)
+======================================================
+   Block network access for AppContainer-00 in SQL Server instance MSSQLSERVER | True | Outbound | Block
+   Block network access for AppContainer-01 in SQL Server instance MSSQLSERVER | True | Outbound | Block
+   Block network access for AppContainer-02 in SQL Server instance MSSQLSERVER | True | Outbound | Block
+   Block network access for AppContainer-03 in SQL Server instance MSSQLSERVER | True | Outbound | Block
+   Block network access for AppContainer-04 in SQL Server instance MSSQLSERVER | True | Outbound | Block
+   Block network access for AppContainer-05 in SQL Server instance MSSQLSERVER | True | Outbound | Block
+   Block network access for AppContainer-06 in SQL Server instance MSSQLSERVER | True | Outbound | Block
+   Block network access for AppContainer-07 in SQL Server instance MSSQLSERVER | True | Outbound | Block
+   Block network access for AppContainer-08 in SQL Server instance MSSQLSERVER | True | Outbound | Block
+   Block network access for AppContainer-09 in SQL Server instance MSSQLSERVER | True | Outbound | Block
+   Block network access for AppContainer-10 in SQL Server instance MSSQLSERVER | True | Outbound | Block
+   Block network access for AppContainer-11 in SQL Server instance MSSQLSERVER | True | Outbound | Block
+   Block network access for AppContainer-12 in SQL Server instance MSSQLSERVER | True | Outbound | Block
+   Block network access for AppContainer-13 in SQL Server instance MSSQLSERVER | True | Outbound | Block
+   Block network access for AppContainer-14 in SQL Server instance MSSQLSERVER | True | Outbound | Block
+   Block network access for AppContainer-15 in SQL Server instance MSSQLSERVER | True | Outbound | Block
+   Block network access for AppContainer-16 in SQL Server instance MSSQLSERVER | True | Outbound | Block
+   Block network access for AppContainer-17 in SQL Server instance MSSQLSERVER | True | Outbound | Block
+   Block network access for AppContainer-18 in SQL Server instance MSSQLSERVER | True | Outbound | Block
+   Block network access for AppContainer-19 in SQL Server instance MSSQLSERVER | True | Outbound | Block
+   Block network access for AppContainer-20 in SQL Server instance MSSQLSERVER | True | Outbound | Block
+
+======================================================
+ 5. TCP RAW TEST
+======================================================
+   TcpTestSucceeded = True
+
+======================================================
+ 6. SQL LOGINS / DATABASES (neu ket noi duoc)
+======================================================
+   [fail] sa/SQLpassword -> Keyword not supported: 'DataSource'.
+   [fail] sa/YourStrong!Passw0rd -> Keyword not supported: 'DataSource'.
+   [fail] sa/Password123 -> Keyword not supported: 'DataSource'.
+   [fail] sa/123456 -> Keyword not supported: 'DataSource'.
+   [fail] gym_app/GymApp@2026 -> Keyword not supported: 'DataSource'.
+   [fail] gym_app/gym_app -> Keyword not supported: 'DataSource'.
+   [fail] WindowsAuth -> Keyword not supported: 'DataSource'.
+
+=== DONE ===

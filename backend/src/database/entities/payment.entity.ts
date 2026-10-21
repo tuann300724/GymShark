@@ -88,7 +88,7 @@ export class Payment {
   @Column({ type: 'varchar', length: 100, nullable: true, name: 'transactionRef' })
   transactionRef: string | null;
 
-  @Column({ type: 'nvarchar', length: 1000, nullable: true })
+  @Column({ type: 'varchar', length: 1000, nullable: true })
   notes: string | null;
 
   @Column({ name: 'confirmedById', type: 'uuid', nullable: true })
@@ -101,18 +101,18 @@ export class Payment {
   @JoinColumn({ name: 'confirmedById' })
   confirmedBy: User | null;
 
-  @Column({ type: 'datetime2', nullable: true, name: 'confirmedAt' })
+  @Column({ type: 'timestamp', nullable: true, name: 'confirmedAt' })
   confirmedAt: Date | null;
 
   @Index()
-  @Column({ type: 'datetime2', nullable: true, name: 'paidAt' })
+  @Column({ type: 'timestamp', nullable: true, name: 'paidAt' })
   paidAt: Date | null;
 
   @Index()
-  @CreateDateColumn({ type: 'datetime2' })
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'datetime2' })
+  @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 
   @OneToOne(() => Invoice, (invoice) => invoice.payment)

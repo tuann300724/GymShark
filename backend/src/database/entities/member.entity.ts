@@ -44,7 +44,7 @@ export class Member {
   @JoinColumn({ name: 'userId' })
   user: User | null;
 
-  @Column({ type: 'nvarchar', length: 255, name: 'fullName' })
+  @Column({ type: 'varchar', length: 255, name: 'fullName' })
   fullName: string;
 
   @Column({ type: 'varchar', length: 100, nullable: true })
@@ -57,10 +57,10 @@ export class Member {
   @Column({ type: 'varchar', length: 10, default: Gender.MALE })
   gender: Gender;
 
-  @Column({ type: 'datetime2', nullable: true, name: 'dateOfBirth' })
+  @Column({ type: 'timestamp', nullable: true, name: 'dateOfBirth' })
   dateOfBirth: Date | null;
 
-  @Column({ type: 'nvarchar', length: 500, nullable: true })
+  @Column({ type: 'varchar', length: 500, nullable: true })
   address: string | null;
 
   @Column({ type: 'varchar', length: 500, nullable: true, name: 'avatarUrl' })
@@ -70,13 +70,13 @@ export class Member {
   @Column({ type: 'varchar', length: 20, default: MemberStatus.ACTIVE })
   status: MemberStatus;
 
-  @Column({ type: 'nvarchar', length: 2000, nullable: true })
+  @Column({ type: 'varchar', length: 2000, nullable: true })
   notes: string | null;
 
-  @Column({ type: 'nvarchar', length: 255, nullable: true, name: 'emergencyContact' })
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'emergencyContact' })
   emergencyContact: string | null;
 
-  @Column({ type: 'datetime2', nullable: true, name: 'joinedAt' })
+  @Column({ type: 'timestamp', nullable: true, name: 'joinedAt' })
   joinedAt: Date | null;
 
   @Index()
@@ -87,10 +87,10 @@ export class Member {
   @JoinColumn({ name: 'branchId' })
   branch: Branch;
 
-  @CreateDateColumn({ type: 'datetime2' })
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'datetime2' })
+  @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 
   @OneToMany(() => Membership, (membership) => membership.member)

@@ -39,16 +39,16 @@ export class MealPlan {
   @JoinColumn({ name: 'memberId' })
   member: Member | null;
 
-  @Column({ type: 'nvarchar', length: 255 })
+  @Column({ type: 'varchar', length: 255 })
   title: string;
 
-  @Column({ type: 'nvarchar', length: 2000, nullable: true })
+  @Column({ type: 'varchar', length: 2000, nullable: true })
   description: string | null;
 
   @Column({ type: 'varchar', length: 10, default: MealPlanScope.DAY })
   scope: MealPlanScope;
 
-  @Column({ type: 'datetime2', nullable: true, name: 'startDate' })
+  @Column({ type: 'timestamp', nullable: true, name: 'startDate' })
   startDate: Date | null;
 
   @Index()
@@ -56,13 +56,13 @@ export class MealPlan {
   status: MealPlanStatus;
 
   @Index()
-  @Column({ type: 'bit', default: false, name: 'isTemplate' })
+  @Column({ type: 'boolean', default: false, name: 'isTemplate' })
   isTemplate: boolean;
 
-  @Column({ type: 'nvarchar', length: 255, nullable: true, name: 'templateName' })
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'templateName' })
   templateName: string | null;
 
-  @Column({ type: 'nvarchar', length: 'max', nullable: true, name: 'imageData' })
+  @Column({ type: 'varchar', nullable: true, name: 'imageData' })
   imageData: string | null;
 
   @Column({ type: 'float', default: 0, name: 'totalCalories' })
@@ -80,13 +80,13 @@ export class MealPlan {
   @Column({ type: 'int', default: 1 })
   version: number;
 
-  @Column({ type: 'datetime2', nullable: true, name: 'confirmedAt' })
+  @Column({ type: 'timestamp', nullable: true, name: 'confirmedAt' })
   confirmedAt: Date | null;
 
-  @CreateDateColumn({ type: 'datetime2' })
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'datetime2' })
+  @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 
   @OneToMany(() => Meal, (meal) => meal.mealPlan)

@@ -23,16 +23,16 @@ export class PasswordReset {
   attempts: number;
 
   @Index()
-  @Column({ type: 'datetime2', name: 'expiresAt' })
+  @Column({ type: 'timestamp', name: 'expiresAt' })
   expiresAt: Date;
 
-  @Column({ type: 'datetime2', nullable: true, name: 'lastSentAt', default: () => 'SYSUTCDATETIME()' })
+  @Column({ type: 'timestamp', nullable: true, name: 'lastSentAt', default: () => 'CURRENT_TIMESTAMP' })
   lastSentAt: Date | null;
   // Prisma có @default(now()) — đồng bộ default 2 phía, tránh NULL khi INSERT quên truyền.
 
-  @CreateDateColumn({ type: 'datetime2' })
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'datetime2' })
+  @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 }

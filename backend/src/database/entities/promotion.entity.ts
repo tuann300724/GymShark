@@ -20,10 +20,10 @@ export class Promotion {
   @Column({ type: 'varchar', length: 50, unique: true })
   code: string;
 
-  @Column({ type: 'nvarchar', length: 255 })
+  @Column({ type: 'varchar', length: 255 })
   name: string;
 
-  @Column({ type: 'nvarchar', length: 2000, nullable: true })
+  @Column({ type: 'varchar', length: 2000, nullable: true })
   description: string | null;
 
   @Column({ type: 'varchar', length: 20, default: DiscountType.PERCENTAGE, name: 'discountType' })
@@ -58,11 +58,11 @@ export class Promotion {
   })
   maxDiscount: number | null;
 
-  @Column({ type: 'datetime2', name: 'startDate' })
+  @Column({ type: 'timestamp', name: 'startDate' })
   startDate: Date;
 
   @Index()
-  @Column({ type: 'datetime2', name: 'endDate' })
+  @Column({ type: 'timestamp', name: 'endDate' })
   endDate: Date;
 
   @Column({ type: 'int', nullable: true, name: 'usageLimit' })
@@ -78,10 +78,10 @@ export class Promotion {
   @Column({ type: 'varchar', length: 20, default: 'ACTIVE' })
   status: string;
 
-  @CreateDateColumn({ type: 'datetime2' })
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'datetime2' })
+  @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 
   @OneToMany(() => Payment, (payment) => payment.promotion)

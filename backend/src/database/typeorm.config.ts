@@ -68,19 +68,14 @@ export const allEntities = [
 /** Cấu hình TypeORM cho SQL Server — đọc env giống Prisma (host/port/user/pass/db). */
 export function buildDataSourceOptions() {
   return {
-    type: 'mssql' as const,
+    type: 'postgres' as const,
     host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '1433', 10),
-    username: process.env.DB_USERNAME || 'gym_app',
-    password: process.env.DB_PASSWORD || 'GymApp@2026',
+    port: parseInt(process.env.DB_PORT || '5432', 10),
+    username: process.env.DB_USERNAME || 'postgres',
+    password: process.env.DB_PASSWORD || 'postgres',
     database: process.env.DB_DATABASE || 'gym_db',
-    // SQLEXPRESS là instance đặt tên — ưu tiên instanceName nếu khai báo, nếu không dùng 1433.
     options: {
-      encrypt: process.env.DB_ENCRYPT === 'true',
-      trustServerCertificate: true,
-      ...(process.env.DB_INSTANCE_NAME
-        ? { instanceName: process.env.DB_INSTANCE_NAME }
-        : {}),
+      encrypt: false,
     },
     // Trong dev giữ synchronize; sẽ tắt khi chuyển sang migration ở Phase 3.
     synchronize: process.env.DB_SYNCHRONIZE !== 'false',

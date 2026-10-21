@@ -30,11 +30,11 @@ export class Equipment {
   @Column({ type: 'varchar', length: 50, unique: true })
   code: string;
 
-  @Column({ type: 'nvarchar', length: 255 })
+  @Column({ type: 'varchar', length: 255 })
   name: string;
 
   @Index()
-  @Column({ type: 'nvarchar', length: 100 })
+  @Column({ type: 'varchar', length: 100 })
   category: string;
 
   @Index()
@@ -56,16 +56,16 @@ export class Equipment {
   @JoinColumn({ name: 'roomId' })
   room: Room | null;
 
-  @Column({ type: 'nvarchar', length: 100, nullable: true })
+  @Column({ type: 'varchar', length: 100, nullable: true })
   brand: string | null;
 
-  @Column({ type: 'nvarchar', length: 100, nullable: true })
+  @Column({ type: 'varchar', length: 100, nullable: true })
   model: string | null;
 
   @Column({ type: 'varchar', length: 100, nullable: true, name: 'serialNumber' })
   serialNumber: string | null;
 
-  @Column({ type: 'datetime2', nullable: true, name: 'purchaseDate' })
+  @Column({ type: 'timestamp', nullable: true, name: 'purchaseDate' })
   purchaseDate: Date | null;
 
   @Column({
@@ -78,7 +78,7 @@ export class Equipment {
   })
   purchasePrice: number | null;
 
-  @Column({ type: 'datetime2', nullable: true, name: 'warrantyExpiry' })
+  @Column({ type: 'timestamp', nullable: true, name: 'warrantyExpiry' })
   warrantyExpiry: Date | null;
 
   @Index()
@@ -88,20 +88,20 @@ export class Equipment {
   @Column({ type: 'varchar', length: 20, default: EquipmentCondition.GOOD })
   condition: EquipmentCondition;
 
-  @Column({ type: 'datetime2', nullable: true, name: 'lastMaintenanceAt' })
+  @Column({ type: 'timestamp', nullable: true, name: 'lastMaintenanceAt' })
   lastMaintenanceAt: Date | null;
 
   @Index()
-  @Column({ type: 'datetime2', nullable: true, name: 'nextMaintenanceAt' })
+  @Column({ type: 'timestamp', nullable: true, name: 'nextMaintenanceAt' })
   nextMaintenanceAt: Date | null;
 
-  @Column({ type: 'nvarchar', length: 2000, nullable: true })
+  @Column({ type: 'varchar', length: 2000, nullable: true })
   description: string | null;
 
-  @CreateDateColumn({ type: 'datetime2' })
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'datetime2' })
+  @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 
   @OneToMany(() => EquipmentMaintenance, (m) => m.equipment)

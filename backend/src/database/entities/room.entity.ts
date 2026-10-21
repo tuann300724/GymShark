@@ -29,7 +29,7 @@ export class Room {
   @Column({ type: 'varchar', length: 50, nullable: true })
   code: string | null;
 
-  @Column({ type: 'nvarchar', length: 255 })
+  @Column({ type: 'varchar', length: 255 })
   name: string;
 
   @Index()
@@ -39,20 +39,20 @@ export class Room {
   @Column({ type: 'int', default: 20 })
   capacity: number;
 
-  @Column({ type: 'nvarchar', length: 100, nullable: true })
+  @Column({ type: 'varchar', length: 100, nullable: true })
   floor: string | null;
 
-  @Column({ type: 'nvarchar', length: 1000, nullable: true })
+  @Column({ type: 'varchar', length: 1000, nullable: true })
   description: string | null;
 
   @Index()
   @Column({ type: 'varchar', length: 20, default: 'AVAILABLE' })
   status: string;
 
-  @CreateDateColumn({ type: 'datetime2' })
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'datetime2' })
+  @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 
   @OneToMany(() => Equipment, (equipment) => equipment.room)

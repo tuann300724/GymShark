@@ -1,0 +1,55 @@
+=== SQL Server login failures ===
+Total lines scanned: 123
+---
+2026-10-21 09:50:55.69 Server      Authentication mode is WINDOWS-ONLY.
+2026-10-21 09:50:56.50 Server      SQL Server is attempting to register a Service Principal Name (SPN) for the SQL Server service. Kerberos authentication will not be possible until a SPN is registered for the SQL Server service. This is an informational message. No user action is required.
+2026-10-21 09:50:56.50 Server      The SQL Server Network Interface library could not register the Service Principal Name (SPN) [ MSSQLSvc/tuan1 ] for the SQL Server service. Windows return code: 0xffffffff, state: 63. Failure to register a SPN might cause integrated authentication to use NTLM instead of Kerberos. This is an informational message. Further action is only required if Kerberos authentication is required by authentication policies and if the SPN has not been manually registered.
+2026-10-21 09:50:56.50 Server      The SQL Server Network Interface library could not register the Service Principal Name (SPN) [ MSSQLSvc/tuan1:50862 ] for the SQL Server service. Windows return code: 0xffffffff, state: 63. Failure to register a SPN might cause integrated authentication to use NTLM instead of Kerberos. This is an informational message. Further action is only required if Kerberos authentication is required by authentication policies and if the SPN has not been manually registered.
+2026-10-21 09:50:56.50 spid39s     Resource governor reconfiguration encountered an issue (HRESULT code : 0x80070002, reason: Construction of Launchpad Connection failed), while sending active external resource pool ids to launchpad. This will not fail reconfigure.
+2026-10-21 09:55:01.33 Logon       Error: 18456, Severity: 14, State: 58.
+2026-10-21 09:55:01.33 Logon       Login failed for user 'gym_app'. Reason: An attempt to login using SQL authentication failed. Server is configured for Integrated authentication only. [CLIENT: fe80::ccae:b9cb:5136:96f7%23]
+2026-10-21 09:55:01.39 Logon       Error: 18456, Severity: 14, State: 58.
+2026-10-21 09:55:01.39 Logon       Login failed for user 'sa'. Reason: An attempt to login using SQL authentication failed. Server is configured for Integrated authentication only. [CLIENT: fe80::ccae:b9cb:5136:96f7%23]
+2026-10-21 09:55:16.70 Logon       Error: 18456, Severity: 14, State: 58.
+2026-10-21 09:55:16.70 Logon       Login failed for user 'gym_app'. Reason: An attempt to login using SQL authentication failed. Server is configured for Integrated authentication only. [CLIENT: fe80::ccae:b9cb:5136:96f7%23]
+2026-10-21 09:55:57.93 Logon       Error: 18456, Severity: 14, State: 58.
+2026-10-21 09:55:57.93 Logon       Login failed for user 'gym_app'. Reason: An attempt to login using SQL authentication failed. Server is configured for Integrated authentication only. [CLIENT: fe80::ccae:b9cb:5136:96f7%23]
+2026-10-21 09:55:57.96 Logon       Error: 18456, Severity: 14, State: 58.
+2026-10-21 09:55:57.96 Logon       Login failed for user 'gym_app'. Reason: An attempt to login using SQL authentication failed. Server is configured for Integrated authentication only. [CLIENT: fe80::ccae:b9cb:5136:96f7%23]
+2026-10-21 09:57:03.57 Logon       Error: 18456, Severity: 14, State: 58.
+2026-10-21 09:57:03.57 Logon       Login failed for user ''. Reason: An attempt to login using SQL authentication failed. Server is configured for Integrated authentication only. [CLIENT: <local machine>]
+2026-10-21 09:57:26.99 Logon       Error: 18456, Severity: 14, State: 58.
+2026-10-21 09:57:26.99 Logon       Login failed for user 'gym_test'. Reason: An attempt to login using SQL authentication failed. Server is configured for Integrated authentication only. [CLIENT: fe80::ccae:b9cb:5136:96f7%23]
+2026-10-21 09:57:27.02 Logon       Error: 18456, Severity: 14, State: 58.
+2026-10-21 09:57:27.02 Logon       Login failed for user 'gym_test'. Reason: An attempt to login using SQL authentication failed. Server is configured for Integrated authentication only. [CLIENT: fe80::ccae:b9cb:5136:96f7%23]
+
+--- 30 dong cuoi ERRORLOG ---
+2026-10-21 09:51:07.60 spid51      Shared memory segment initialized with name Global\5bd0d3650b6b4f1db0299f4976b99f87
+2026-10-21 09:55:01.33 Logon       Error: 18456, Severity: 14, State: 58.
+2026-10-21 09:55:01.33 Logon       Login failed for user 'gym_app'. Reason: An attempt to login using SQL authentication failed. Server is configured for Integrated authentication only. [CLIENT: fe80::ccae:b9cb:5136:96f7%23]
+2026-10-21 09:55:01.39 Logon       Error: 18456, Severity: 14, State: 58.
+2026-10-21 09:55:01.39 Logon       Login failed for user 'sa'. Reason: An attempt to login using SQL authentication failed. Server is configured for Integrated authentication only. [CLIENT: fe80::ccae:b9cb:5136:96f7%23]
+2026-10-21 09:55:16.33 spid56      [DBMgr::FindFreeDatabaseID] Next available DbId EX locked: 17
+2026-10-21 09:55:16.40 spid56      Starting up database 'gym_db'.
+2026-10-21 09:55:16.42 spid56      Parallel redo is started for database 'gym_db' with worker pool size [4].
+2026-10-21 09:55:16.43 spid56      Parallel redo is shutdown for database 'gym_db' with worker pool size [4].
+2026-10-21 09:55:16.64 spid56      Starting up database 'gym_db'.
+2026-10-21 09:55:16.66 spid56      Parallel redo is started for database 'gym_db' with worker pool size [4].
+2026-10-21 09:55:16.66 spid56      Parallel redo is shutdown for database 'gym_db' with worker pool size [4].
+2026-10-21 09:55:16.70 Logon       Error: 18456, Severity: 14, State: 58.
+2026-10-21 09:55:16.70 Logon       Login failed for user 'gym_app'. Reason: An attempt to login using SQL authentication failed. Server is configured for Integrated authentication only. [CLIENT: fe80::ccae:b9cb:5136:96f7%23]
+2026-10-21 09:55:57.93 Logon       Error: 18456, Severity: 14, State: 58.
+2026-10-21 09:55:57.93 Logon       Login failed for user 'gym_app'. Reason: An attempt to login using SQL authentication failed. Server is configured for Integrated authentication only. [CLIENT: fe80::ccae:b9cb:5136:96f7%23]
+2026-10-21 09:55:57.96 Logon       Error: 18456, Severity: 14, State: 58.
+2026-10-21 09:55:57.96 Logon       Login failed for user 'gym_app'. Reason: An attempt to login using SQL authentication failed. Server is configured for Integrated authentication only. [CLIENT: fe80::ccae:b9cb:5136:96f7%23]
+2026-10-21 09:57:03.57 Logon       Error: 18456, Severity: 14, State: 58.
+2026-10-21 09:57:03.57 Logon       Login failed for user ''. Reason: An attempt to login using SQL authentication failed. Server is configured for Integrated authentication only. [CLIENT: <local machine>]
+2026-10-21 09:57:26.99 Logon       Error: 18456, Severity: 14, State: 58.
+2026-10-21 09:57:26.99 Logon       Login failed for user 'gym_test'. Reason: An attempt to login using SQL authentication failed. Server is configured for Integrated authentication only. [CLIENT: fe80::ccae:b9cb:5136:96f7%23]
+2026-10-21 09:57:27.02 Logon       Error: 18456, Severity: 14, State: 58.
+2026-10-21 09:57:27.02 Logon       Login failed for user 'gym_test'. Reason: An attempt to login using SQL authentication failed. Server is configured for Integrated authentication only. [CLIENT: fe80::ccae:b9cb:5136:96f7%23]
+2026-10-21 10:00:26.36 spid27s     Always On Availability Groups: The availability replica manager is going offline because SQL Server is shutting down. This is an informational message only. No user action is required.
+2026-10-21 10:00:26.36 spid27s     SQL Server is terminating in response to a 'stop' request from Service Control Manager. This is an informational message only. No user action is required.
+2026-10-21 10:00:26.36 spid27s     .NET Framework runtime has been stopped.
+2026-10-21 10:00:26.39 spid27s     SQL Server shutdown has been initiated with exit code 0.
+2026-10-21 10:00:26.39 spid27s     SQL Trace was stopped due to server shutdown. Trace ID = '1'. This is an informational message only; no user action is required.

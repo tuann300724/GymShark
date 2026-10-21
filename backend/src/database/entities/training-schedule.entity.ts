@@ -21,7 +21,7 @@ export class TrainingSchedule {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'nvarchar', length: 255 })
+  @Column({ type: 'varchar', length: 255 })
   title: string;
 
   @Index()
@@ -70,33 +70,33 @@ export class TrainingSchedule {
   type: SessionType;
 
   @Index()
-  @Column({ type: 'datetime2', name: 'startTime' })
+  @Column({ type: 'timestamp', name: 'startTime' })
   startTime: Date;
 
   @Index()
-  @Column({ type: 'datetime2', name: 'endTime' })
+  @Column({ type: 'timestamp', name: 'endTime' })
   endTime: Date;
 
   @Index()
   @Column({ type: 'varchar', length: 20, default: ScheduleStatus.SCHEDULED })
   status: ScheduleStatus;
 
-  @Column({ type: 'nvarchar', length: 2000, nullable: true })
+  @Column({ type: 'varchar', length: 2000, nullable: true })
   description: string | null;
 
-  @Column({ type: 'nvarchar', length: 2000, nullable: true })
+  @Column({ type: 'varchar', length: 2000, nullable: true })
   notes: string | null;
 
-  @Column({ type: 'nvarchar', length: 1000, nullable: true, name: 'cancellationNote' })
+  @Column({ type: 'varchar', length: 1000, nullable: true, name: 'cancellationNote' })
   cancellationNote: string | null;
 
-  @Column({ type: 'datetime2', nullable: true, name: 'completedAt' })
+  @Column({ type: 'timestamp', nullable: true, name: 'completedAt' })
   completedAt: Date | null;
 
-  @CreateDateColumn({ type: 'datetime2' })
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'datetime2' })
+  @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 
   @OneToMany(() => TrainingProgress, (progress) => progress.session)

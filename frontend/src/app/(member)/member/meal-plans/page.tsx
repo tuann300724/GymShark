@@ -52,8 +52,8 @@ function MealPlans() {
                   <div>
                     <p className="text-sm font-semibold text-chalk">{p.title}</p>
                     <p className="text-xs text-muted">
-                      {p.scope === 'WEEK' ? 'Theo tuần' : 'Theo ngày'} • {p.meals.length} bữa •{' '}
-                      {p.totalCalories} kcal
+                      {p.scope === 'WEEK' ? 'Theo tuần' : 'Theo ngày'} • {p.meals?.length || 0} bữa
+                      • {p.totalCalories} kcal
                     </p>
                   </div>
                   <div className="flex items-center gap-2">

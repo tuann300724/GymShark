@@ -1,0 +1,27 @@
+[OK] Dang chay voi quyen Administrator
+User: tuan1\user
+Instances: SQLEXPRESS=MSSQL17.SQLEXPRESS, SQLEXPRESS01=MSSQL17.SQLEXPRESS01, MSSQLSERVER=MSSQL17.MSSQLSERVER
+Ports SQL Server dang listen: 50862
+Instance: MSSQLSERVER (service MSSQLSERVER) -> registry HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL17.MSSQLSERVER, port 50862
+
+--- Cau hinh MSSQLSERVER ---
+  [OK] TCP/IP: Enabled=1, TcpPort=50862
+  [OK] SuperSocketNetLib\Tcp Enabled=1
+  [OK] Named Pipes Enabled=1 (fallback)
+  [OK] LoginMode=1 (Mixed Mode)
+
+--- Restart service ---
+  [OK] Restarted MSSQLSERVER
+  Service MSSQLSERVER = Running
+  [OK] Port 50862 LISTENING (pid 11916)
+
+--- Test ket noi (localhost,50862) ---
+  [--] fail: gym_app / GymApp@2026
+  [--] fail: sa / SQLpassword
+  [--] fail: sa / YourStrong!Passw0rd
+  [--] fail: sa / Password123
+  [--] fail: sa / 123456
+  [--] fail: Windows Integrated Security
+[X] KHONG ket noi duoc voi SQL Server bang phan mem .NET.
+    Hay thu: SQL Server Configuration Manager > Protocolss for MSSQLSERVER > Enable TCP/IP > restart,
+    hoac kiem tra Firewall/Antivirus chan loopback.

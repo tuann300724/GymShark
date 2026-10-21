@@ -31,7 +31,7 @@ export class EquipmentMaintenance {
   type: MaintenanceType;
 
   @Index()
-  @Column({ type: 'datetime2', nullable: true, name: 'maintenanceDate' })
+  @Column({ type: 'timestamp', nullable: true, name: 'maintenanceDate' })
   maintenanceDate: Date | null;
 
   @Column({
@@ -43,22 +43,22 @@ export class EquipmentMaintenance {
   })
   cost: number | null;
 
-  @Column({ type: 'nvarchar', length: 2000 })
+  @Column({ type: 'varchar', length: 2000 })
   description: string;
 
-  @Column({ type: 'nvarchar', length: 255, nullable: true, name: 'performedBy' })
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'performedBy' })
   performedBy: string | null;
 
   @Index()
   @Column({ type: 'varchar', length: 20, default: MaintenanceStatus.COMPLETED })
   status: MaintenanceStatus;
 
-  @Column({ type: 'datetime2', nullable: true, name: 'nextDueDate' })
+  @Column({ type: 'timestamp', nullable: true, name: 'nextDueDate' })
   nextDueDate: Date | null;
 
-  @CreateDateColumn({ type: 'datetime2' })
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'datetime2' })
+  @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 }

@@ -32,22 +32,22 @@ export class Trainer {
   user: User;
 
   @Index()
-  @Column({ type: 'nvarchar', length: 255 })
+  @Column({ type: 'varchar', length: 255 })
   specialization: string;
 
-  @Column({ type: 'nvarchar', length: 255, nullable: true })
+  @Column({ type: 'varchar', length: 255, nullable: true })
   certification: string | null;
 
   @Column({ type: 'int', default: 1, name: 'experienceYears' })
   experienceYears: number;
 
-  @Column({ type: 'nvarchar', length: 2000, nullable: true })
+  @Column({ type: 'varchar', length: 2000, nullable: true })
   bio: string | null;
 
   @Column({ type: 'varchar', length: 10, nullable: true })
   gender: Gender | null;
 
-  @Column({ type: 'datetime2', nullable: true, name: 'dateOfBirth' })
+  @Column({ type: 'timestamp', nullable: true, name: 'dateOfBirth' })
   dateOfBirth: Date | null;
 
   @Column({ type: 'float', default: 5.0 })
@@ -67,10 +67,10 @@ export class Trainer {
   @Column({ type: 'varchar', length: 20, default: TrainerStatus.ACTIVE })
   status: TrainerStatus;
 
-  @CreateDateColumn({ type: 'datetime2' })
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'datetime2' })
+  @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 
   @OneToMany(() => TrainingSchedule, (schedule) => schedule.trainer)

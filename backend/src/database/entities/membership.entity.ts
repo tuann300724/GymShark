@@ -37,11 +37,11 @@ export class Membership {
   @JoinColumn({ name: 'packageId' })
   package: MembershipPackage;
 
-  @Column({ type: 'datetime2', name: 'startDate' })
+  @Column({ type: 'timestamp', name: 'startDate' })
   startDate: Date;
 
   @Index()
-  @Column({ type: 'datetime2', name: 'endDate' })
+  @Column({ type: 'timestamp', name: 'endDate' })
   endDate: Date;
 
   @Column({ type: 'decimal', precision: 12, scale: 2, transformer: DecimalTransformer })
@@ -74,10 +74,10 @@ export class Membership {
   @Column({ type: 'varchar', length: 20, default: MembershipStatus.ACTIVE })
   status: MembershipStatus;
 
-  @CreateDateColumn({ type: 'datetime2' })
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'datetime2' })
+  @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 
   @OneToMany(() => Payment, (payment) => payment.membership)

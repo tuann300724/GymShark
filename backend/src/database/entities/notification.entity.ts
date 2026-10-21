@@ -38,20 +38,20 @@ export class Notification {
   @JoinColumn({ name: 'memberId' })
   member: Member | null;
 
-  @Column({ type: 'nvarchar', length: 255 })
+  @Column({ type: 'varchar', length: 255 })
   title: string;
 
-  @Column({ type: 'nvarchar', length: 2000 })
+  @Column({ type: 'varchar', length: 2000 })
   content: string;
 
   @Column({ type: 'varchar', length: 30, default: 'SYSTEM' })
   type: string;
 
   @Index()
-  @Column({ type: 'bit', default: false, name: 'isRead' })
+  @Column({ type: 'boolean', default: false, name: 'isRead' })
   isRead: boolean;
 
-  @Column({ type: 'datetime2', nullable: true, name: 'readAt' })
+  @Column({ type: 'timestamp', nullable: true, name: 'readAt' })
   readAt: Date | null;
 
   @Column({ type: 'varchar', length: 500, nullable: true })
@@ -63,10 +63,10 @@ export class Notification {
   @Column({ type: 'uuid', nullable: true, name: 'referenceId' })
   referenceId: string | null;
 
-  @Column({ type: 'nvarchar', length: 'max', nullable: true, transformer: JsonTransformer })
+  @Column({ type: 'varchar', nullable: true, transformer: JsonTransformer })
   data: any | null;
 
   @Index()
-  @CreateDateColumn({ type: 'datetime2' })
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 }

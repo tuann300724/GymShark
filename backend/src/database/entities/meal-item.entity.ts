@@ -35,7 +35,7 @@ export class MealItem {
   @JoinColumn({ name: 'foodId' })
   food: Food | null;
 
-  @Column({ type: 'nvarchar', length: 255 })
+  @Column({ type: 'varchar', length: 255 })
   name: string;
 
   @Column({ type: 'varchar', length: 500, nullable: true, name: 'imageUrl' })
@@ -62,9 +62,9 @@ export class MealItem {
   @Column({ type: 'int', default: 0, name: 'orderIndex' })
   orderIndex: number;
 
-  @CreateDateColumn({ type: 'datetime2' })
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'datetime2' })
+  @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 }

@@ -23,10 +23,10 @@ export class Branch {
   @Column({ type: 'varchar', length: 50, unique: true })
   code: string;
 
-  @Column({ type: 'nvarchar', length: 255 })
+  @Column({ type: 'varchar', length: 255 })
   name: string;
 
-  @Column({ type: 'nvarchar', length: 500 })
+  @Column({ type: 'varchar', length: 500 })
   address: string;
 
   @Column({ type: 'varchar', length: 30 })
@@ -36,7 +36,7 @@ export class Branch {
   @Column({ type: 'varchar', length: 100, nullable: true })
   email: string | null;
 
-  @Column({ type: 'nvarchar', length: 1000, nullable: true })
+  @Column({ type: 'varchar', length: 1000, nullable: true })
   description: string | null;
 
   @Column({ type: 'varchar', length: 10, nullable: true })
@@ -45,17 +45,17 @@ export class Branch {
   @Column({ type: 'varchar', length: 10, nullable: true })
   closingTime: string | null;
 
-  @Column({ type: 'nvarchar', length: 255, nullable: true })
+  @Column({ type: 'varchar', length: 255, nullable: true })
   openingHours: string | null;
 
   @Index()
   @Column({ type: 'varchar', length: 20, default: 'ACTIVE' })
   status: string;
 
-  @CreateDateColumn({ type: 'datetime2' })
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'datetime2' })
+  @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 
   @OneToMany(() => Room, (room) => room.branch)

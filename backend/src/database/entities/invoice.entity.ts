@@ -74,16 +74,16 @@ export class Invoice {
   @Column({ type: 'varchar', length: 20, default: InvoiceStatus.ISSUED })
   status: InvoiceStatus;
 
-  @Column({ type: 'datetime2', nullable: true, name: 'issuedAt' })
+  @Column({ type: 'timestamp', nullable: true, name: 'issuedAt' })
   issuedAt: Date | null;
 
-  @Column({ type: 'datetime2', nullable: true, name: 'dueDate' })
+  @Column({ type: 'timestamp', nullable: true, name: 'dueDate' })
   dueDate: Date | null;
 
   @Index()
-  @CreateDateColumn({ type: 'datetime2' })
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'datetime2' })
+  @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 }

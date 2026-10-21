@@ -38,13 +38,13 @@ export class AuditLog {
   @Column({ type: 'uuid', nullable: true, name: 'entityId' })
   entityId: string | null;
 
-  @Column({ type: 'nvarchar', length: 'max', nullable: true, transformer: JsonTransformer })
+  @Column({ type: 'varchar', nullable: true, transformer: JsonTransformer })
   metadata: any | null;
 
   @Column({ type: 'varchar', length: 50, nullable: true })
   ip: string | null;
 
   @Index()
-  @CreateDateColumn({ type: 'datetime2' })
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 }

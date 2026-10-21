@@ -16,7 +16,7 @@ export class Food {
   id: string;
 
   @Index()
-  @Column({ type: 'nvarchar', length: 255 })
+  @Column({ type: 'varchar', length: 255 })
   name: string;
 
   @Index()
@@ -26,7 +26,7 @@ export class Food {
   @Column({ type: 'varchar', length: 500, nullable: true, name: 'imageUrl' })
   imageUrl: string | null;
 
-  @Column({ type: 'nvarchar', length: 2000, nullable: true })
+  @Column({ type: 'varchar', length: 2000, nullable: true })
   description: string | null;
 
   @Column({ type: 'float', default: 100, name: 'servingSize' })
@@ -48,16 +48,16 @@ export class Food {
   fatPer100g: number;
 
   @Index()
-  @Column({ type: 'bit', default: true, name: 'isActive' })
+  @Column({ type: 'boolean', default: true, name: 'isActive' })
   isActive: boolean;
 
   @Column({ type: 'uuid', nullable: true, name: 'createdById' })
   createdById: string | null;
 
-  @CreateDateColumn({ type: 'datetime2' })
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'datetime2' })
+  @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 
   @OneToMany(() => MealItem, (item) => item.food)

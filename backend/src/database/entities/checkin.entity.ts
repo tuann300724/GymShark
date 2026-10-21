@@ -34,10 +34,10 @@ export class CheckIn {
   branch: Branch;
 
   @Index()
-  @Column({ type: 'datetime2', nullable: true, name: 'checkInTime' })
+  @Column({ type: 'timestamp', nullable: true, name: 'checkInTime' })
   checkInTime: Date | null;
 
-  @Column({ type: 'datetime2', nullable: true, name: 'checkOutTime' })
+  @Column({ type: 'timestamp', nullable: true, name: 'checkOutTime' })
   checkOutTime: Date | null;
 
   @Index()
@@ -47,12 +47,12 @@ export class CheckIn {
   @Column({ type: 'varchar', length: 20, default: CheckInMethod.MANUAL })
   method: CheckInMethod;
 
-  @Column({ type: 'nvarchar', length: 1000, nullable: true })
+  @Column({ type: 'varchar', length: 1000, nullable: true })
   notes: string | null;
 
-  @CreateDateColumn({ type: 'datetime2' })
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'datetime2' })
+  @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 }

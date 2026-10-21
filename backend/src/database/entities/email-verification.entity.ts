@@ -17,7 +17,7 @@ export class EmailVerification {
   @Column({ type: 'varchar', length: 100 })
   email: string;
 
-  @Column({ type: 'nvarchar', length: 255, name: 'fullName' })
+  @Column({ type: 'varchar', length: 255, name: 'fullName' })
   fullName: string;
 
   @Column({ type: 'varchar', length: 30 })
@@ -32,13 +32,13 @@ export class EmailVerification {
   @Column({ type: 'varchar', length: 10, default: Gender.MALE })
   gender: Gender;
 
-  @Column({ type: 'datetime2', nullable: true, name: 'dateOfBirth' })
+  @Column({ type: 'timestamp', nullable: true, name: 'dateOfBirth' })
   dateOfBirth: Date | null;
 
-  @Column({ type: 'nvarchar', length: 500, nullable: true })
+  @Column({ type: 'varchar', length: 500, nullable: true })
   address: string | null;
 
-  @Column({ type: 'nvarchar', length: 255, nullable: true, name: 'emergencyContact' })
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'emergencyContact' })
   emergencyContact: string | null;
 
   @Column({ name: 'branchId', type: 'uuid', nullable: true })
@@ -48,18 +48,18 @@ export class EmailVerification {
   attempts: number;
 
   @Index()
-  @Column({ type: 'datetime2', name: 'expiresAt' })
+  @Column({ type: 'timestamp', name: 'expiresAt' })
   expiresAt: Date;
 
   @Index()
-  @Column({ type: 'datetime2', nullable: true, name: 'lastSentAt', default: () => 'SYSUTCDATETIME()' })
+  @Column({ type: 'timestamp', nullable: true, name: 'lastSentAt', default: () => 'CURRENT_TIMESTAMP' })
   lastSentAt: Date | null;
   // Prisma có @default(now()) — TypeORM cũng cần default, nếu không INSERT quên truyền
   // sẽ NULL và luồng resend đọc .getTime() bị crash. Đồng bộ 2 phía.
 
-  @CreateDateColumn({ type: 'datetime2' })
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'datetime2' })
+  @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 }

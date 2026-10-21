@@ -39,7 +39,7 @@ export class User {
   @Column({ type: 'varchar', length: 255, name: 'passwordHash' })
   passwordHash: string;
 
-  @Column({ type: 'nvarchar', length: 255, name: 'fullName' })
+  @Column({ type: 'varchar', length: 255, name: 'fullName' })
   fullName: string;
 
   @Index()
@@ -70,10 +70,10 @@ export class User {
   @JoinColumn({ name: 'branchId' })
   branch: Branch | null;
 
-  @CreateDateColumn({ type: 'datetime2' })
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'datetime2' })
+  @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 
   @OneToOne(() => Trainer, (trainer) => trainer.user)

@@ -45,7 +45,7 @@ export class Message {
   @Column({ type: 'varchar', length: 20, default: MessageType.TEXT })
   type: MessageType;
 
-  @Column({ type: 'nvarchar', length: 4000, nullable: true })
+  @Column({ type: 'varchar', length: 4000, nullable: true })
   content: string | null;
 
   @Index()
@@ -59,20 +59,20 @@ export class Message {
   @JoinColumn({ name: 'mealPlanId' })
   mealPlan: MealPlan | null;
 
-  @Column({ type: 'bit', default: false, name: 'isRead' })
+  @Column({ type: 'boolean', default: false, name: 'isRead' })
   isRead: boolean;
 
-  @Column({ type: 'datetime2', nullable: true, name: 'readAt' })
+  @Column({ type: 'timestamp', nullable: true, name: 'readAt' })
   readAt: Date | null;
 
-  @Column({ type: 'datetime2', nullable: true, name: 'editedAt' })
+  @Column({ type: 'timestamp', nullable: true, name: 'editedAt' })
   editedAt: Date | null;
 
   @Index()
-  @CreateDateColumn({ type: 'datetime2' })
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'datetime2' })
+  @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 
   @OneToMany(() => MessageAttachment, (attachment) => attachment.message)

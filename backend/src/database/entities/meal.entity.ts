@@ -35,10 +35,10 @@ export class Meal {
   @Column({ type: 'varchar', length: 10, nullable: true })
   time: string | null;
 
-  @Column({ type: 'nvarchar', length: 1000, nullable: true })
+  @Column({ type: 'varchar', length: 1000, nullable: true })
   note: string | null;
 
-  @Column({ type: 'nvarchar', length: 'max', nullable: true, name: 'imageData' })
+  @Column({ type: 'varchar', nullable: true, name: 'imageData' })
   imageData: string | null;
 
   @Column({ type: 'float', default: 0, name: 'totalCalories' })
@@ -56,10 +56,10 @@ export class Meal {
   @Column({ type: 'int', default: 0, name: 'orderIndex' })
   orderIndex: number;
 
-  @CreateDateColumn({ type: 'datetime2' })
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'datetime2' })
+  @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 
   @OneToMany(() => MealItem, (item) => item.meal)

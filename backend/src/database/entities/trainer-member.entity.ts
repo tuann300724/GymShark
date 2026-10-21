@@ -34,22 +34,22 @@ export class TrainerMember {
   @JoinColumn({ name: 'memberId' })
   member: Member;
 
-  @Column({ type: 'datetime2', nullable: true, name: 'startDate' })
+  @Column({ type: 'timestamp', nullable: true, name: 'startDate' })
   startDate: Date | null;
 
-  @Column({ type: 'datetime2', nullable: true, name: 'endDate' })
+  @Column({ type: 'timestamp', nullable: true, name: 'endDate' })
   endDate: Date | null;
 
   @Index()
   @Column({ type: 'varchar', length: 20, default: TrainerMemberStatus.ACTIVE })
   status: TrainerMemberStatus;
 
-  @Column({ type: 'nvarchar', length: 1000, nullable: true })
+  @Column({ type: 'varchar', length: 1000, nullable: true })
   note: string | null;
 
-  @CreateDateColumn({ type: 'datetime2' })
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'datetime2' })
+  @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 }
