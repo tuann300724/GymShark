@@ -8,6 +8,9 @@ import { DiscountType, PaymentStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit-logs/audit-logs.service';
+import { PromotionsRepository } from './repository/promotions.repository';
+import { PROMOTIONS_REPOSITORY } from './repository/promotions.tokens';
+import { Inject } from '@nestjs/common';
 import {
   CreatePromotionDto,
   PromotionQueryDto,
@@ -21,6 +24,7 @@ const RESERVED_STATUSES = ['PENDING', 'PAID'];
 export class PromotionsService {
   constructor(
     private prisma: PrismaService,
+    @Inject(PROMOTIONS_REPOSITORY) private repo: PromotionsRepository,
     private notificationsService: NotificationsService,
     private auditService: AuditService,
   ) {}
@@ -52,10 +56,10 @@ export class PromotionsService {
 
   /** Tự động đánh dấu EXPIRED các mã ACTIVE đã quá hạn (lazy sync, không reset dữ liệu) */
   private async autoExpire(): Promise<void> {
-    await this.prisma.promotion.updateMany({
-      where: { status: 'ACTIVE', endDate: { lt: new Date() } },
-      data: { status: 'EXPIRED' },
-    });
+    await this.repo.updateMany(
+      { status: 'ACTIVE', endDate: { lt: new Date() } },
+      { status: 'EXPIRED' },
+    );
   }
 
   /** Validate luật nghiệp vụ khi tạo/cập nhật */
@@ -123,10 +127,7 @@ export class PromotionsService {
       };
     }
 
-    const rows = await this.prisma.promotion.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-    });
+    const { data: rows } = await this.repo.list({ status: query?.status, type: query?.type, search: query?.search, from: query?.from ? new Date(query.from) : undefined, to: query?.to ? new Date(query.to) : undefined, limit: 100 });
 
     // Stats cho header (không phụ thuộc filter)
     const now = new Date();
@@ -189,27 +190,15 @@ export class PromotionsService {
 
   async findOne(id: string) {
     await this.autoExpire();
-    const p = await this.prisma.promotion.findUnique({
-      where: { id },
-      include: {
-        payments: {
-          select: { id: true, status: true, amount: true, discountAmount: true, createdAt: true },
-          orderBy: { createdAt: 'desc' },
-        },
-      },
-    });
+    const p = await this.repo.findOne(id);
     if (!p) throw new NotFoundException('Không tìm thấy mã khuyến mãi');
 
-    const reserved = p.payments.filter((x) => RESERVED_STATUSES.includes(x.status)).length;
-    const paid = p.payments.filter((x) => x.status === 'PAID').length;
-    const uniqueMembers = new Set(
-      (
-        await this.prisma.payment.findMany({
-          where: { promotionId: id, status: { in: RESERVED_STATUSES as PaymentStatus[] } },
-          select: { memberId: true },
-        })
-      ).map((m) => m.memberId),
-    ).size;
+    const [reserved, paid, memberRows] = await Promise.all([
+      this.prisma.payment.count({ where: { promotionId: id, status: { in: RESERVED_STATUSES as PaymentStatus[] } } }),
+      this.prisma.payment.count({ where: { promotionId: id, status: 'PAID' } }),
+      this.prisma.payment.findMany({ where: { promotionId: id, status: { in: RESERVED_STATUSES as PaymentStatus[] } }, select: { memberId: true } }),
+    ]);
+    const uniqueMembers = new Set(memberRows.map((m) => m.memberId)).size;
 
     const remaining =
       p.usageLimit !== null ? Math.max(0, p.usageLimit - reserved) : null;
@@ -223,7 +212,7 @@ export class PromotionsService {
 
   /** Lịch sử dùng mã: Member + Payment + Discount + thời điểm */
   async getUsages(id: string, query: PromotionUsagesQueryDto = {}) {
-    const promo = await this.prisma.promotion.findUnique({ where: { id } });
+    const promo = await this.repo.findOne(id);
     if (!promo) throw new NotFoundException('Không tìm thấy mã khuyến mãi');
 
     const where: Prisma.PaymentWhereInput = { promotionId: id };
@@ -286,22 +275,19 @@ export class PromotionsService {
       throw new BadRequestException('Ngày bắt đầu phải trước ngày kết thúc');
     }
 
-    const promotion = await this.prisma.promotion.create({
-      data: {
-        code,
-        name: dto.name,
-        description: dto.description ?? null,
-        discountType: dto.discountType,
-        discountValue: new Prisma.Decimal(dto.discountValue),
-        maxDiscount: dto.maxDiscount !== undefined ? new Prisma.Decimal(dto.maxDiscount) : null,
-        minOrderValue:
-          dto.minOrderAmount !== undefined ? new Prisma.Decimal(dto.minOrderAmount) : null,
-        startDate,
-        endDate,
-        usageLimit: dto.usageLimit ?? null,
-        perMemberLimit: dto.perMemberLimit ?? null,
-        status: dto.status ?? 'ACTIVE',
-      },
+    const promotion = await this.repo.create({
+      code,
+      name: dto.name,
+      description: dto.description ?? null,
+      discountType: dto.discountType,
+      discountValue: new Prisma.Decimal(dto.discountValue),
+      maxDiscount: dto.maxDiscount !== undefined ? new Prisma.Decimal(dto.maxDiscount) : null,
+      minOrderValue: dto.minOrderAmount !== undefined ? new Prisma.Decimal(dto.minOrderAmount) : null,
+      startDate,
+      endDate,
+      usageLimit: dto.usageLimit ?? null,
+      perMemberLimit: dto.perMemberLimit ?? null,
+      status: dto.status ?? 'ACTIVE',
     });
 
     // Thông báo "Chương trình mới" cho hội viên (không spam — dedupe theo referenceType/Id)
@@ -329,7 +315,7 @@ export class PromotionsService {
   }
 
   async update(id: string, dto: UpdatePromotionDto, actorId?: string) {
-    const existing = await this.prisma.promotion.findUnique({ where: { id } });
+    const existing = await this.repo.findOne(id);
     if (!existing) throw new NotFoundException('Không tìm thấy mã khuyến mãi');
 
     this.assertRules(dto, true);
@@ -367,7 +353,7 @@ export class PromotionsService {
       throw new BadRequestException('Ngày bắt đầu phải trước ngày kết thúc');
     }
 
-    const promotion = await this.prisma.promotion.update({ where: { id }, data });
+    const promotion = await this.repo.update(id, data);
     await this.auditService.log({
       userId: actorId,
       action: 'PROMOTION_UPDATE',
@@ -380,15 +366,13 @@ export class PromotionsService {
   }
 
   async activate(id: string, actorId?: string) {
-    const p = await this.prisma.promotion.findUnique({ where: { id } });
+    const p = await this.repo.findOne(id);
     if (!p) throw new NotFoundException('Không tìm thấy mã khuyến mãi');
     if (p.endDate < new Date()) {
       throw new BadRequestException('Mã khuyến mãi đã hết hạn, không thể kích hoạt lại');
     }
-    const promotion = await this.prisma.promotion.update({
-      where: { id },
-      data: { status: 'ACTIVE' },
-    });
+    await this.repo.setStatus(id, 'ACTIVE');
+    const promotion = await this.repo.findOne(id);
     await this.auditService.log({
       userId: actorId,
       action: 'PROMOTION_ACTIVATE',
@@ -401,12 +385,10 @@ export class PromotionsService {
   }
 
   async deactivate(id: string, actorId?: string) {
-    const p = await this.prisma.promotion.findUnique({ where: { id } });
+    const p = await this.repo.findOne(id);
     if (!p) throw new NotFoundException('Không tìm thấy mã khuyến mãi');
-    const promotion = await this.prisma.promotion.update({
-      where: { id },
-      data: { status: 'INACTIVE' },
-    });
+    await this.repo.setStatus(id, 'INACTIVE');
+    const promotion = await this.repo.findOne(id);
     await this.auditService.log({
       userId: actorId,
       action: 'PROMOTION_DEACTIVATE',

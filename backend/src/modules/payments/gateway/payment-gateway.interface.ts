@@ -1,11 +1,11 @@
-import { PaymentMethod } from '@prisma/client';
+import { PaymentMethod } from "@prisma/client";
 
 /**
  * Khai báo kiểu phương thức thanh toán được gateway hỗ trợ.
  * Ở bước này chỉ CASH / BANK_TRANSFER được xác nhận thủ công; MOMO / VNPAY
  * là nền tảng (architecture) sẵn sàng cho cổng thanh toán thật ở Step 7.
  */
-export type GatewayMethod = Exclude<PaymentMethod, 'CREDIT_CARD'>;
+export type GatewayMethod = Exclude<PaymentMethod, "CREDIT_CARD">;
 
 export interface GatewayCreateOrderInput {
   paymentId: string;

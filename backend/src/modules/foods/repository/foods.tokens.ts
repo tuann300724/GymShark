@@ -1,0 +1,1 @@
+export const FOODS_REPOSITORY = Symbol('FOODS_REPOSITORY');

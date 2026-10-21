@@ -1,0 +1,1 @@
+export const FACES_REPOSITORY = Symbol('FACES_REPOSITORY');

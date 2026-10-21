@@ -2,19 +2,24 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
-} from '@nestjs/common';
-import { InvoiceStatus, PaymentMethod, PaymentStatus, Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { AuditService } from '../audit-logs/audit-logs.service';
-import { Role } from '../../common/enums/role.enum';
-import { PaymentGatewayService } from './gateway/payment-gateway.service';
-import { ConfirmPaymentDto } from './dto/confirm-payment.dto';
-import { RejectPaymentDto } from './dto/reject-payment.dto';
-import { RefundPaymentDto } from './dto/refund-payment.dto';
-import { PaymentListQueryDto } from './dto/payment-list-query.dto';
-import { BANK_INFO } from './bank-info';
+} from "@nestjs/common";
+import { AuditService } from "../audit-logs/audit-logs.service";
+import { Role } from "../../common/enums/role.enum";
+import { PaymentGatewayService } from "./gateway/payment-gateway.service";
+import { ConfirmPaymentDto } from "./dto/confirm-payment.dto";
+import { RejectPaymentDto } from "./dto/reject-payment.dto";
+import { RefundPaymentDto } from "./dto/refund-payment.dto";
+import { PaymentListQueryDto } from "./dto/payment-list-query.dto";
+import { BANK_INFO } from "./bank-info";
+import {
+  PaymentDetailRow,
+  PaymentListRow,
+  PaymentsRepository,
+} from "./repository/payments.repository";
+import { PAYMENTS_REPOSITORY } from "./repository/payments.tokens";
 
 interface Actor {
   id: string;
@@ -22,10 +27,28 @@ interface Actor {
   fullName?: string;
 }
 
+function parseJson(v: unknown) {
+  if (v == null) return null;
+  if (typeof v === "object") return v;
+  if (typeof v === "string") {
+    try {
+      return JSON.parse(v);
+    } catch {
+      return v;
+    }
+  }
+  return v;
+}
+
+function num(v: string | number | null | undefined) {
+  if (v == null) return null;
+  return Number(v);
+}
+
 @Injectable()
 export class PaymentsService {
   constructor(
-    private prisma: PrismaService,
+    @Inject(PAYMENTS_REPOSITORY) private readonly repo: PaymentsRepository,
     private gatewayService: PaymentGatewayService,
     private auditService: AuditService,
   ) {}
@@ -36,153 +59,225 @@ export class PaymentsService {
     return copy;
   }
 
+  private shapeListRow(r: PaymentListRow) {
+    return {
+      id: r.id,
+      code: r.code,
+      memberId: r.memberId,
+      membershipId: r.membershipId,
+      promotionId: r.promotionId,
+      amount: num(r.amount),
+      discountAmount: num(r.discountAmount),
+      currency: r.currency,
+      method: r.method,
+      status: r.status,
+      transactionRef: r.transactionRef,
+      notes: r.notes,
+      confirmedById: r.confirmedById,
+      confirmedAt: r.confirmedAt,
+      paidAt: r.paidAt,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+      member: r.member_id
+        ? {
+            id: r.member_id,
+            code: r.member_code,
+            fullName: r.member_fullName,
+            email: r.member_email,
+            phone: r.member_phone,
+          }
+        : null,
+      membership: r.membership_id
+        ? {
+            id: r.membership_id,
+            package: r.package_id
+              ? { id: r.package_id, name: r.package_name }
+              : null,
+          }
+        : null,
+      promotion: r.promotion_id
+        ? { id: r.promotion_id, code: r.promotion_code, name: r.promotion_name }
+        : null,
+      invoice: r.invoice_id
+        ? {
+            id: r.invoice_id,
+            invoiceNumber: r.invoiceNumber,
+            status: r.invoice_status,
+          }
+        : null,
+      confirmedBy: r.confirmedBy_id
+        ? { id: r.confirmedBy_id, fullName: r.confirmedBy_fullName }
+        : null,
+    };
+  }
+
+  private shapeDetailRow(r: PaymentDetailRow) {
+    const invoice = r.invoice_id
+      ? {
+          id: r.invoice_id,
+          invoiceNumber: r.invoiceNumber,
+          memberId: r.invoice_memberId,
+          membershipId: r.invoice_membershipId,
+          paymentId: r.invoice_paymentId,
+          subtotal: num(r.invoice_subtotal),
+          discount: num(r.invoice_discount),
+          total: num(r.invoice_total),
+          status: r.invoice_status,
+          issuedAt: r.invoice_issuedAt,
+          dueDate: r.invoice_dueDate,
+          createdAt: r.invoice_createdAt,
+        }
+      : null;
+
+    return {
+      id: r.id,
+      code: r.code,
+      memberId: r.memberId,
+      membershipId: r.membershipId,
+      promotionId: r.promotionId,
+      amount: num(r.amount),
+      discountAmount: num(r.discountAmount),
+      currency: r.currency,
+      method: r.method,
+      status: r.status,
+      transactionRef: r.transactionRef,
+      notes: r.notes,
+      confirmedById: r.confirmedById,
+      confirmedAt: r.confirmedAt,
+      paidAt: r.paidAt,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+      member: r.member_id
+        ? {
+            id: r.member_id,
+            code: r.member_code,
+            fullName: r.member_fullName,
+            email: r.member_email,
+            phone: r.member_phone,
+            address: r.member_address,
+            gender: r.member_gender,
+            joinedAt: r.member_joinedAt,
+            branch: r.branch_id
+              ? { id: r.branch_id, name: r.branch_name, code: r.branch_code }
+              : null,
+          }
+        : null,
+      membership: r.membership_id
+        ? {
+            id: r.membership_id,
+            startDate: r.membership_startDate,
+            endDate: r.membership_endDate,
+            status: r.membership_status,
+            price: num(r.membership_price),
+            package: r.package_id
+              ? {
+                  id: r.package_id,
+                  name: r.package_name,
+                  durationDays: r.package_durationDays,
+                  price: num(r.package_price),
+                  description: r.package_description,
+                  type: r.package_type,
+                }
+              : null,
+          }
+        : null,
+      promotion: r.promotion_id
+        ? {
+            id: r.promotion_id,
+            code: r.promotion_code,
+            name: r.promotion_name,
+            discountType: r.promotion_discountType,
+            discountValue: num(r.promotion_discountValue),
+          }
+        : null,
+      invoice,
+      confirmedBy: r.confirmedBy_id
+        ? {
+            id: r.confirmedBy_id,
+            fullName: r.confirmedBy_fullName,
+            role: r.confirmedBy_role,
+          }
+        : null,
+    };
+  }
+
   /**
-   * Danh sách thanh toán (admin) + thống kê dashboard:
-   * Total Revenue, Today's Revenue, Pending, Paid, Failed, Refunded.
-   * Cards luôn toàn cục; bảng tôn trọng filter/search/pagination.
+   * Danh sách thanh toán (admin) + thống kê dashboard.
    */
   async findAll(query: PaymentListQueryDto) {
     const page = query.page || 1;
     const limit = query.limit || 20;
-    const skip = (page - 1) * limit;
-    const where: Prisma.PaymentWhereInput = {};
 
-    if (query.status) where.status = query.status;
-    if (query.method) where.method = query.method;
-    if (query.memberId) where.memberId = query.memberId;
-    if (query.packageId) where.membership = { is: { packageId: query.packageId } };
-    if (query.from || query.to) {
-      where.createdAt = {};
-      if (query.from) where.createdAt.gte = new Date(query.from);
-      if (query.to) where.createdAt.lte = this.endOfDay(new Date(query.to));
-    }
-    if (query.search) {
-      const q = query.search.trim();
-      where.OR = [
-        { code: { contains: q, mode: 'insensitive' } },
-        { transactionRef: { contains: q, mode: 'insensitive' } },
-        { member: { fullName: { contains: q, mode: 'insensitive' } } },
-        { member: { email: { contains: q, mode: 'insensitive' } } },
-        { member: { phone: { contains: q, mode: 'insensitive' } } },
-        { member: { code: { contains: q, mode: 'insensitive' } } },
-        { invoice: { invoiceNumber: { contains: q, mode: 'insensitive' } } },
-      ];
-    }
+    let from: string | undefined;
+    let to: string | undefined;
+    if (query.from) from = new Date(query.from).toISOString();
+    if (query.to) to = this.endOfDay(new Date(query.to)).toISOString();
 
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
-
-    const [data, total, paidAgg, revenueTodayAgg, pendingCount, paidCount, failedCount, cancelledCount, refundedAgg] =
-      await Promise.all([
-        this.prisma.payment.findMany({
-          where,
-          include: {
-            member: { select: { id: true, code: true, fullName: true, email: true, phone: true } },
-            membership: { include: { package: { select: { id: true, name: true } } } },
-            promotion: { select: { id: true, code: true, name: true } },
-            invoice: { select: { id: true, invoiceNumber: true, status: true } },
-            confirmedBy: { select: { id: true, fullName: true } },
-          },
-          orderBy: { createdAt: 'desc' },
-          skip,
-          take: limit,
-        }),
-        this.prisma.payment.count({ where }),
-        this.prisma.payment.aggregate({ _sum: { amount: true }, where: { status: 'PAID' } }),
-        this.prisma.payment.aggregate({
-          _sum: { amount: true },
-          where: { status: 'PAID', paidAt: { gte: startOfToday } },
-        }),
-        this.prisma.payment.count({ where: { status: 'PENDING' } }),
-        this.prisma.payment.count({ where: { status: 'PAID' } }),
-        this.prisma.payment.count({ where: { status: 'FAILED' } }),
-        this.prisma.payment.count({ where: { status: 'CANCELLED' } }),
-        this.prisma.payment.aggregate({
-          _sum: { amount: true },
-          _count: true,
-          where: { status: 'REFUNDED' },
-        }),
-      ]);
+    const [{ data, total }, stats] = await Promise.all([
+      this.repo.list({
+        page,
+        limit,
+        status: query.status as string | undefined,
+        method: query.method as string | undefined,
+        memberId: query.memberId,
+        packageId: query.packageId,
+        from,
+        to,
+        search: query.search,
+      }),
+      this.repo.stats(),
+    ]);
 
     return {
-      data,
+      data: data.map((r) => this.shapeListRow(r)),
       total,
       page,
       limit,
       stats: {
-        totalRevenue: paidAgg._sum.amount || 0,
-        revenueToday: revenueTodayAgg._sum.amount || 0,
-        pendingCount,
-        paidCount,
-        failedCount,
-        cancelledCount,
-        refundedCount: refundedAgg._count,
-        refundedTotal: refundedAgg._sum.amount || 0,
+        totalRevenue: num(stats.totalRevenue) || 0,
+        revenueToday: num(stats.revenueToday) || 0,
+        pendingCount: Number(stats.pendingCount || 0),
+        paidCount: Number(stats.paidCount || 0),
+        failedCount: Number(stats.failedCount || 0),
+        cancelledCount: Number(stats.cancelledCount || 0),
+        refundedCount: Number(stats.refundedCount || 0),
+        refundedTotal: num(stats.refundedTotal) || 0,
       },
     };
   }
 
   async findOne(id: string) {
-    const payment = await this.prisma.payment.findUnique({
-      where: { id },
-      include: {
-        member: {
-          select: {
-            id: true,
-            code: true,
-            fullName: true,
-            email: true,
-            phone: true,
-            address: true,
-            gender: true,
-            joinedAt: true,
-            branch: { select: { id: true, name: true, code: true } },
-          },
-        },
-        membership: { include: { package: true } },
-        promotion: true,
-        invoice: true,
-        confirmedBy: { select: { id: true, fullName: true, role: true } },
-      },
-    });
-    if (!payment) throw new NotFoundException('Không tìm thấy giao dịch thanh toán');
-    return payment;
+    const payment = await this.repo.findOne(id);
+    if (!payment)
+      throw new NotFoundException("Không tìm thấy giao dịch thanh toán");
+    return this.shapeDetailRow(payment);
   }
 
   /**
-   * Xác nhận thanh toán (PENDING → PAID):
-   * - set paidAt + confirmedBy/confirmedAt
-   * - Membership PENDING → ACTIVE
-   * - Invoice ISSUED → PAID
-   * - tăng lượt dùng promotion, gửi thông báo
-   * Toàn bộ trong transaction — lỗi 1 bước là rollback.
+   * Xác nhận thanh toán (PENDING → PAID).
    */
   async confirm(id: string, actor: Actor, dto: ConfirmPaymentDto) {
-    const payment = await this.prisma.payment.findUnique({
-      where: { id },
-      include: {
-        membership: { include: { package: true } },
-        member: { select: { id: true, code: true, fullName: true } },
-      },
-    });
-    if (!payment) throw new NotFoundException('Không tìm thấy giao dịch thanh toán');
-    if (payment.status !== 'PENDING') {
-      throw new BadRequestException('Chỉ hóa đơn đang chờ (PENDING) mới có thể xác nhận');
+    const payment = await this.repo.findByIdWithMembership(id);
+    if (!payment)
+      throw new NotFoundException("Không tìm thấy giao dịch thanh toán");
+
+    if ((payment as any).status !== "PENDING") {
+      throw new BadRequestException(
+        "Chỉ hóa đơn đang chờ (PENDING) mới có thể xác nhận",
+      );
     }
 
-    // STAFF chỉ xác nhận được phương thức xác nhận thủ công (CASH / BANK_TRANSFER)
-    const gateway = this.gatewayService.getGateway(payment.method as Exclude<PaymentMethod, 'CREDIT_CARD'>);
+    const method = (payment as any).method as string;
+    const gateway = this.gatewayService.getGateway(method as any);
     if (actor.role === Role.STAFF && !gateway.manualConfirmation) {
-      throw new ForbiddenException('Nhân viên chỉ xác nhận được thanh toán Tiền mặt / Chuyển khoản');
+      throw new ForbiddenException(
+        "Nhân viên chỉ xác nhận được thanh toán Tiền mặt / Chuyển khoản",
+      );
     }
 
-    // Mã giao dịch phải unique (kiểm tra application-level, dù DB cũng có unique index)
     const transactionRef = dto.transactionRef?.trim();
     if (transactionRef) {
-      const dup = await this.prisma.payment.findFirst({
-        where: { transactionRef, id: { not: id } },
-        select: { id: true, code: true },
-      });
+      const dup = await this.repo.findByTransactionRef(transactionRef, id);
       if (dup) {
         throw new ConflictException(
           `Mã giao dịch "${transactionRef}" đã được dùng cho hóa đơn ${dup.code}. Vui lòng kiểm tra lại.`,
@@ -190,236 +285,106 @@ export class PaymentsService {
       }
     }
 
-    const now = new Date();
-    const result = await this.prisma.$transaction(async (tx) => {
-      const updated = await tx.payment.update({
-        where: { id },
-        data: {
-          status: PaymentStatus.PAID,
-          paidAt: now,
-          confirmedById: actor.id,
-          confirmedAt: now,
-          ...(transactionRef ? { transactionRef } : {}),
-          ...(dto.note ? { notes: [payment.notes, dto.note].filter(Boolean).join(' | ') } : {}),
-        },
-      });
-
-      if (payment.promotionId) {
-        await tx.promotion.update({
-          where: { id: payment.promotionId },
-          data: { usedCount: { increment: 1 } },
-        });
-      }
-
-      let activatedMembership = null;
-      if (payment.membership && payment.membership.status === 'PENDING') {
-        activatedMembership = await tx.membership.update({
-          where: { id: payment.membership.id },
-          data: { status: 'ACTIVE' },
-        });
-      }
-
-      await tx.invoice.updateMany({
-        where: { paymentId: id, status: InvoiceStatus.ISSUED },
-        data: { status: InvoiceStatus.PAID },
-      });
-
-      await tx.notification.create({
-        data: {
-          memberId: payment.member.id,
-          title: 'Thanh toán thành công ✅',
-          content: `Hóa đơn ${payment.code} đã được xác nhận. ${
-            activatedMembership
-              ? `Gói tập của bạn đã được kích hoạt và có hiệu lực đến ${activatedMembership.endDate.toLocaleDateString('vi-VN')}.`
-              : ''
-          }`,
-          type: 'PAYMENT',
-          link: '/member/payments',
-          referenceType: 'PAYMENT_CONFIRMED',
-          referenceId: payment.id,
-        },
-      });
-
-      return { payment: updated, membership: activatedMembership };
+    const result = await this.repo.confirm({
+      id,
+      actorId: actor.id,
+      transactionRef: transactionRef ?? null,
+      note: dto.note ?? null,
     });
 
     await this.auditService.log({
       userId: actor.id,
-      action: 'PAYMENT_CONFIRM',
-      entity: 'Payment',
+      action: "PAYMENT_CONFIRM",
+      entity: "Payment",
       entityId: id,
       metadata: {
-        code: payment.code,
-        amount: payment.amount,
-        method: payment.method,
-        memberName: payment.member.fullName,
+        code: (payment as any).code,
+        amount: (payment as any).amount,
+        method,
+        memberName: (payment as any).member_fullName,
         transactionRef: transactionRef ?? null,
       },
     });
 
-    return { message: 'Xác nhận thanh toán thành công', ...result };
+    return {
+      message: "Xác nhận thanh toán thành công",
+      payment: result.payment,
+      membership: result.membership,
+    };
   }
 
   /**
-   * Từ chối / hủy hóa đơn đang chờ (PENDING → CANCELLED):
-   * Membership PENDING → CANCELLED, Invoice ISSUED → CANCELLED, thông báo member.
+   * Từ chối / hủy hóa đơn đang chờ (PENDING → CANCELLED).
    */
   async reject(id: string, actor: Actor, dto: RejectPaymentDto) {
-    const payment = await this.prisma.payment.findUnique({
-      where: { id },
-      include: {
-        membership: { include: { package: true } },
-        member: { select: { id: true, fullName: true } },
-      },
-    });
-    if (!payment) throw new NotFoundException('Không tìm thấy giao dịch thanh toán');
-    if (payment.status !== 'PENDING') {
-      throw new BadRequestException('Chỉ hóa đơn đang chờ (PENDING) mới có thể từ chối/hủy');
+    const payment = await this.repo.findByIdWithMembership(id);
+    if (!payment)
+      throw new NotFoundException("Không tìm thấy giao dịch thanh toán");
+    if ((payment as any).status !== "PENDING") {
+      throw new BadRequestException(
+        "Chỉ hóa đơn đang chờ (PENDING) mới có thể từ chối/hủy",
+      );
     }
 
-    const reason = dto.reason?.trim() || '';
-    const now = new Date();
-    const result = await this.prisma.$transaction(async (tx) => {
-      const updated = await tx.payment.update({
-        where: { id },
-        data: {
-          status: PaymentStatus.CANCELLED,
-          confirmedById: actor.id,
-          confirmedAt: now,
-          ...(reason
-            ? { notes: [payment.notes, `Lý do: ${reason}`].filter(Boolean).join(' | ') }
-            : {}),
-        },
-      });
-
-      let cancelledMembership = null;
-      if (payment.membership && payment.membership.status === 'PENDING') {
-        cancelledMembership = await tx.membership.update({
-          where: { id: payment.membership.id },
-          data: { status: 'CANCELLED' },
-        });
-      }
-
-      await tx.invoice.updateMany({
-        where: { paymentId: id, status: InvoiceStatus.ISSUED },
-        data: { status: InvoiceStatus.CANCELLED },
-      });
-
-      await tx.notification.create({
-        data: {
-          memberId: payment.member.id,
-          title: 'Thanh toán chưa được xác nhận ⚠️',
-          content: `Hóa đơn ${payment.code} đã bị từ chối. ${
-            reason ? `Lý do: ${reason}` : 'Vui lòng liên hệ lễ tân phòng tập để được hỗ trợ.'
-          }`,
-          type: 'PAYMENT',
-          link: '/member/payments',
-          referenceType: 'PAYMENT_REJECTED',
-          referenceId: payment.id,
-        },
-      });
-
-      return { payment: updated, membership: cancelledMembership };
-    });
+    const reason = dto.reason?.trim() || "";
+    const result = await this.repo.reject({ id, actorId: actor.id, reason });
 
     await this.auditService.log({
       userId: actor.id,
-      action: 'PAYMENT_REJECT',
-      entity: 'Payment',
+      action: "PAYMENT_REJECT",
+      entity: "Payment",
       entityId: id,
-      metadata: { code: payment.code, amount: payment.amount, reason: reason ?? null, memberName: payment.member.fullName },
+      metadata: {
+        code: (payment as any).code,
+        amount: (payment as any).amount,
+        reason: reason || null,
+        memberName: (payment as any).member_fullName,
+      },
     });
 
-    return { message: 'Đã hủy/từ chối hóa đơn', ...result };
+    return { message: "Đã hủy/từ chối hóa đơn", ...result };
   }
 
   /** Back-compat: PATCH /payments/:id/cancel */
   async cancel(id: string, actor: Actor) {
-    return this.reject(id, actor, { reason: 'Hủy bởi lễ tân/quản trị' });
+    return this.reject(id, actor, { reason: "Hủy bởi lễ tân/quản trị" });
   }
 
   /**
    * Hoàn tiền (PAID → REFUNDED) — chỉ ADMIN.
-   * Không tính REFUNDED vào doanh thu thực nhận; Invoice bị đóng lại.
    */
   async refund(id: string, actor: Actor, dto: RefundPaymentDto) {
-    const payment = await this.prisma.payment.findUnique({
-      where: { id },
-      include: {
-        membership: { include: { package: true } },
-        member: { select: { id: true, fullName: true } },
-      },
-    });
-    if (!payment) throw new NotFoundException('Không tìm thấy giao dịch thanh toán');
-    if (payment.status !== 'PAID') {
-      throw new BadRequestException('Chỉ giao dịch đã thanh toán (PAID) mới hoàn tiền được');
+    const payment = await this.repo.findByIdWithMembership(id);
+    if (!payment)
+      throw new NotFoundException("Không tìm thấy giao dịch thanh toán");
+    if ((payment as any).status !== "PAID") {
+      throw new BadRequestException(
+        "Chỉ giao dịch đã thanh toán (PAID) mới hoàn tiền được",
+      );
     }
 
-    const now = new Date();
-    const result = await this.prisma.$transaction(async (tx) => {
-      const updated = await tx.payment.update({
-        where: { id },
-        data: {
-          status: PaymentStatus.REFUNDED,
-          confirmedById: actor.id,
-          confirmedAt: now,
-          notes: [payment.notes, dto.reason ? `Hoàn tiền: ${dto.reason}` : 'Hoàn tiền'].filter(Boolean).join(' | '),
-        },
-      });
-
-      await tx.invoice.updateMany({
-        where: { paymentId: id, status: InvoiceStatus.PAID },
-        data: { status: InvoiceStatus.CANCELLED },
-      });
-
-      // Legacy sync: hoàn tiền → giảm usedCount của promo (không bị âm)
-      if (payment.promotionId) {
-        await tx.promotion.updateMany({
-          where: { id: payment.promotionId, usedCount: { gt: 0 } },
-          data: { usedCount: { decrement: 1 } },
-        });
-      }
-
-      let cancelledMembership = null;
-      if (dto.deactivateMembership && payment.membership && payment.membership.status === 'ACTIVE') {
-        cancelledMembership = await tx.membership.update({
-          where: { id: payment.membership.id },
-          data: { status: 'CANCELLED' },
-        });
-      }
-
-      await tx.notification.create({
-        data: {
-          memberId: payment.member.id,
-          title: 'Đã hoàn tiền 💸',
-          content: `Hóa đơn ${payment.code} (${
-            payment.membership?.package?.name || ''
-          }) đã được hoàn tiền. ${dto.reason ? 'Lý do: ' + dto.reason : ''}`,
-          type: 'PAYMENT',
-          link: '/member/payments',
-          referenceType: 'PAYMENT_REFUNDED',
-          referenceId: payment.id,
-        },
-      });
-
-      return { payment: updated, membership: cancelledMembership };
+    const result = await this.repo.refund({
+      id,
+      actorId: actor.id,
+      reason: dto.reason ?? null,
+      deactivateMembership: !!dto.deactivateMembership,
     });
 
     await this.auditService.log({
       userId: actor.id,
-      action: 'PAYMENT_REFUND',
-      entity: 'Payment',
+      action: "PAYMENT_REFUND",
+      entity: "Payment",
       entityId: id,
       metadata: {
-        code: payment.code,
-        amount: payment.amount,
+        code: (payment as any).code,
+        amount: (payment as any).amount,
         reason: dto.reason ?? null,
         deactivateMembership: dto.deactivateMembership ?? false,
-        memberName: payment.member.fullName,
+        memberName: (payment as any).member_fullName,
       },
     });
 
-    return { message: 'Đã hoàn tiền', ...result };
+    return { message: "Đã hoàn tiền", ...result };
   }
 
   /** Thông tin tài khoản nhận tiền (BANK_TRANSFER) + danh sách gateway */

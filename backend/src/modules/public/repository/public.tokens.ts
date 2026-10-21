@@ -1,0 +1,1 @@
+export const PUBLIC_REPOSITORY = Symbol('PUBLIC_REPOSITORY');

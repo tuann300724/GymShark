@@ -1,7 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { QueryAuditLogsDto } from './dto/query-audit-logs.dto';
+import {
+  AuditLogRow,
+  AuditLogsRepository,
+} from './repository/audit-logs.repository';
+import { AUDIT_LOGS_REPOSITORY } from './repository/audit-logs.tokens';
 
 export interface AuditLogParams {
   userId?: string | null;
@@ -21,77 +24,81 @@ export interface AuditLogParams {
 export class AuditService {
   private readonly logger = new Logger('AuditService');
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(AUDIT_LOGS_REPOSITORY)
+    private readonly repo: AuditLogsRepository,
+  ) {}
 
   async log(params: AuditLogParams): Promise<void> {
     try {
-      await this.prisma.auditLog.create({
-        data: {
-          userId: params.userId ?? null,
-          action: params.action,
-          entity: params.entity,
-          entityId: params.entityId ?? null,
-          metadata: (params.metadata as Prisma.InputJsonValue) ?? undefined,
-          ip: params.ip ?? null,
-        },
+      await this.repo.create({
+        userId: params.userId ?? null,
+        action: params.action,
+        entity: params.entity,
+        entityId: params.entityId ?? null,
+        metadata: params.metadata ?? null,
+        ip: params.ip ?? null,
       });
     } catch (e) {
-      this.logger.warn(`Không thể ghi audit log [${params.action}]`, e instanceof Error ? e.message : String(e));
+      this.logger.warn(
+        `Không thể ghi audit log [${params.action}]`,
+        e instanceof Error ? e.message : String(e),
+      );
     }
+  }
+
+  /** Chuyển row phẳng từ SP sang shape nested (user) khớp Prisma include. */
+  private toShape(row: AuditLogRow) {
+    let metadata: unknown = row.metadata;
+    if (typeof row.metadata === 'string') {
+      try {
+        metadata = JSON.parse(row.metadata);
+      } catch {
+        metadata = row.metadata;
+      }
+    }
+    return {
+      id: row.id,
+      userId: row.userId,
+      action: row.action,
+      entity: row.entity,
+      entityId: row.entityId,
+      metadata: metadata ?? null,
+      ip: row.ip,
+      createdAt: row.createdAt,
+      user: row.user_id
+        ? {
+            id: row.user_id,
+            email: row.user_email,
+            fullName: row.user_fullName,
+            role: row.user_role,
+          }
+        : null,
+    };
   }
 
   async findAll(query: QueryAuditLogsDto) {
     const page = Math.max(1, Number(query.page) || 1);
     const limit = Math.min(100, Math.max(1, Number(query.limit) || 20));
 
-    const where: Prisma.AuditLogWhereInput = {};
-
-    if (query.userId) where.userId = query.userId;
-    if (query.action) where.action = query.action;
-    if (query.entity) where.entity = query.entity;
-    if (query.search) {
-      where.OR = [
-        { action: { contains: query.search, mode: 'insensitive' } },
-        { entity: { contains: query.search, mode: 'insensitive' } },
-        { entityId: { contains: query.search, mode: 'insensitive' } },
-      ];
-    }
-    if (query.from || query.to) {
-      where.createdAt = {};
-      if (query.from) where.createdAt.gte = new Date(query.from);
-      if (query.to) where.createdAt.lte = new Date(query.to);
-    }
-
-    const [data, total] = await this.prisma.$transaction([
-      this.prisma.auditLog.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * limit,
-        take: limit,
-        include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              fullName: true,
-              role: true,
-            },
-          },
-        },
-      }),
-      this.prisma.auditLog.count({ where }),
-    ]);
-
-    const totalPages = Math.ceil(total / limit);
-
-    // Danh sách action/entity duy nhất phục vụ bộ lọc trên UI
-    const distinct = await this.prisma.auditLog.findMany({
-      where,
-      distinct: ['action'],
-      select: { action: true },
-      orderBy: { action: 'asc' },
+    const res = await this.repo.list({
+      page,
+      limit,
+      userId: query.userId ?? null,
+      action: query.action ?? null,
+      entity: query.entity ?? null,
+      search: query.search ? query.search.trim() : null,
+      from: query.from ? new Date(query.from) : null,
+      to: query.to ? new Date(query.to) : null,
     });
 
-    return { data, total, page, limit, totalPages, actions: distinct.map((d) => d.action) };
+    return {
+      data: res.data.map((r) => this.toShape(r)),
+      total: res.total,
+      page: res.page,
+      limit: res.limit,
+      totalPages: res.totalPages,
+      actions: res.actions,
+    };
   }
 }

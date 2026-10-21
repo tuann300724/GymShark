@@ -1,10 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable } from "@nestjs/common";
 import {
   GatewayCreateOrderInput,
   GatewayCreateOrderResult,
   GatewayMethod,
   PaymentGateway,
-} from './payment-gateway.interface';
+} from "./payment-gateway.interface";
 
 /**
  * Nền tảng cho VNPay — CHƯA tích hợp cổng thật (thiếu credentials).
@@ -12,7 +12,7 @@ import {
  */
 @Injectable()
 export class VnpayGateway implements PaymentGateway {
-  readonly method: GatewayMethod = 'VNPAY';
+  readonly method: GatewayMethod = "VNPAY";
   readonly manualConfirmation = false;
   readonly integrated = false;
 
@@ -20,7 +20,7 @@ export class VnpayGateway implements PaymentGateway {
     return {
       requiresRedirect: false,
       instructions:
-        'Cổng thanh toán VNPay chưa được kích hoạt. Vui lòng chọn Tiền mặt hoặc Chuyển khoản.',
+        "Cổng thanh toán VNPay chưa được kích hoạt. Vui lòng chọn Tiền mặt hoặc Chuyển khoản.",
     };
   }
 }

@@ -4,10 +4,14 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { RevenueReportQueryDto } from './dto/revenue-report-query.dto';
 import { EquipmentService } from '../equipment/equipment.service';
 import { BranchesService } from '../branches/branches.service';
+import { ReportsRepository } from './repository/reports.repository';
+import { REPORTS_REPOSITORY } from './repository/reports.tokens';
+import { Inject } from '@nestjs/common';
 
 @Injectable()
 export class ReportsService {
   constructor(
+    @Inject(REPORTS_REPOSITORY) private readonly repo: ReportsRepository,
     private prisma: PrismaService,
     private readonly equipmentService: EquipmentService,
     private readonly branchesService: BranchesService,

@@ -15,6 +15,25 @@
 
 ---
 
+## Phase 3 — Cắt SQL Server (Migration hoàn tất)
+
+**Trạng thái hiện tại (commit `81ac2e4`):**
+- 185 SP deploy `0 lỗi`
+- 13/23 module service sạch (`this.prisma.` = 0)
+- Data SQL Server khớp PG (28 bảng)
+- `DATABASE_URL` vẫn PG; `PrismaModule` chưa cắt
+
+**Bước tiếp theo cho bạn / bạn bè pull tiếp:**
+1. `backend/.env`: đổi `DATABASE_URL` → `sqlserver://...` (SQL Server local)
+2. `backend/src/app.module.ts`: bỏ dòng `PrismaModule`
+3. `backend/src/modules/trainers/trainers.service.ts`: viết lại adapter hoàn chỉnh (hiện restore gốc)
+4. 10 module còn `this.prisma.`: `chat`, `reports` (64), `schedules` (36), `checkins`, `faces`, `meal-plans`, `member`, `notifications`, `promotions`
+5. Chạy `npm run build` + `npm run start:dev`; kiểm tra `GET /api/health` → `database: "connected"`
+
+**Quy tắc không phá:** không thêm package mới; adapter dùng `DataSource` (đã `@Global()`); SP dùng `CREATE OR ALTER` + `TRY/CATCH`; UUID từ TS `randomUUID()`.
+
+---
+
 ## 📑 Mục lục
 
 1. [Tính năng](#-tính-năng)

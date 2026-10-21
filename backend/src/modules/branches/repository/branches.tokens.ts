@@ -1,0 +1,1 @@
+export const BRANCHES_REPOSITORY = Symbol("BRANCHES_REPOSITORY");

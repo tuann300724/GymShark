@@ -1,0 +1,14 @@
+CREATE OR ALTER PROCEDURE [dbo].[sp_notifications_update]
+  @id UNIQUEIDENTIFIER,
+  @isRead BIT = NULL,
+  @readAt DATETIME2 = NULL
+AS BEGIN
+  SET NOCOUNT ON;
+  BEGIN TRY
+    UPDATE dbo.notifications
+    SET isRead = COALESCE(@isRead, isRead),
+        readAt = COALESCE(@readAt, readAt)
+    WHERE id = @id;
+  END TRY
+  BEGIN CATCH DECLARE @E NVARCHAR(4000)=ERROR_MESSAGE(); DECLARE @S INT=ERROR_SEVERITY(); DECLARE @St INT=ERROR_STATE(); RAISERROR(@E,@S,@St); END CATCH
+END

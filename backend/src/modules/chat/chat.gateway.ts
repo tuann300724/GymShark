@@ -10,7 +10,7 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { PrismaService } from '../../prisma/prisma.service';
+import { DataSource } from 'typeorm';
 
 interface WsUser {
   id: string;
@@ -37,7 +37,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   constructor(
     private readonly jwt: JwtService,
-    private readonly prisma: PrismaService,
+    private readonly dataSource: DataSource,
   ) {}
 
   private extractToken(client: Socket): string | null {
@@ -54,10 +54,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       if (!token) throw new Error('Thiếu token xác thực.');
 
       const payload = await this.jwt.verifyAsync<{ sub: string; role: string }>(token);
-      const user = await this.prisma.user.findUnique({
-        where: { id: payload.sub },
-        select: { id: true, role: true, status: true },
-      });
+      const rows = await this.dataSource.query(
+        `SELECT id, role, status FROM dbo.users WHERE id = @0`, [payload.sub],
+      );
+      const user = (rows as any[])?.[0] ?? null;
 
       if (!user || user.status !== 'ACTIVE') throw new Error('Tài khoản không hợp lệ hoặc đã bị khoá.');
       if (user.role !== 'TRAINER' && user.role !== 'MEMBER') {
@@ -97,20 +97,22 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const user = client.data.user as WsUser | undefined;
     if (!user || !body?.conversationId) return;
 
-    const conversation = await this.prisma.conversation.findUnique({
-      where: { id: body.conversationId },
-      select: {
-        trainer: { select: { userId: true } },
-        member: { select: { userId: true } },
-      },
-    });
+    const rows = await this.dataSource.query(
+      `SELECT c.id, t.userId AS trainerUserId, m.userId AS memberUserId
+       FROM dbo.conversations c
+       LEFT JOIN dbo.trainers t ON c.trainerId = t.id
+       LEFT JOIN dbo.members m ON c.memberId = m.id
+       WHERE c.id = @0`,
+      [body.conversationId],
+    );
+    const conversation = (rows as any[])?.[0] ?? null;
     if (!conversation) return;
 
-    const isTrainer = conversation.trainer.userId === user.id;
-    const isMember = conversation.member.userId === user.id;
+    const isTrainer = conversation.trainerUserId === user.id;
+    const isMember = conversation.memberUserId === user.id;
     if (!isTrainer && !isMember) return;
 
-    const otherUserId = isTrainer ? conversation.member.userId : conversation.trainer.userId;
+    const otherUserId = isTrainer ? conversation.memberUserId : conversation.trainerUserId;
     this.emitToUser(otherUserId, 'typing', {
       conversationId: body.conversationId,
       userId: user.id,

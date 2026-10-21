@@ -1,11 +1,11 @@
-import { Injectable } from '@nestjs/common';
-import { BANK_INFO } from '../bank-info';
+import { Injectable } from "@nestjs/common";
+import { BANK_INFO } from "../bank-info";
 import {
   GatewayCreateOrderInput,
   GatewayCreateOrderResult,
   GatewayMethod,
   PaymentGateway,
-} from './payment-gateway.interface';
+} from "./payment-gateway.interface";
 
 /**
  * Chuyển khoản ngân hàng — member tự chuyển khoản theo nội dung
@@ -14,7 +14,7 @@ import {
  */
 @Injectable()
 export class BankTransferGateway implements PaymentGateway {
-  readonly method: GatewayMethod = 'BANK_TRANSFER';
+  readonly method: GatewayMethod = "BANK_TRANSFER";
   readonly manualConfirmation = true;
   readonly integrated = true;
 
@@ -25,8 +25,8 @@ export class BankTransferGateway implements PaymentGateway {
         `Chuyển khoản tới ${BANK_INFO.bankName}`,
         `Số tài khoản: ${BANK_INFO.accountNumber} - ${BANK_INFO.accountName}`,
         `Nội dung chuyển khoản: GYM ${input.memberCode} ${input.code}`,
-        'Sau khi chuyển, mang sao kê/hóa đơn lên quầy để lễ tân xác nhận.',
-      ].join(' | '),
+        "Sau khi chuyển, mang sao kê/hóa đơn lên quầy để lễ tân xác nhận.",
+      ].join(" | "),
     };
   }
 }

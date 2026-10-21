@@ -1,99 +1,32 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { Injectable, Inject } from '@nestjs/common';
+import { PUBLIC_REPOSITORY } from './repository/public.tokens';
+import { PublicRepository } from './repository/public.repository';
 
 @Injectable()
 export class PublicService {
-  constructor(private prisma: PrismaService) {}
+  constructor(@Inject(PUBLIC_REPOSITORY) private readonly repo: PublicRepository) {}
 
-  /** Membership packages cho trang public (chỉ lấy gói ACTIVE) */
   async getPackages() {
-    return this.prisma.membershipPackage.findMany({
-      where: { status: 'ACTIVE' },
-      orderBy: { price: 'asc' },
-    });
+    return this.repo.packages();
   }
 
-  /** Huấn luyện viên đang hoạt động cho trang public */
   async getTrainers() {
-    return this.prisma.trainer.findMany({
-      where: { status: 'ACTIVE' },
-      include: {
-        user: {
-          select: {
-            id: true,
-            fullName: true,
-            phone: true,
-            avatarUrl: true,
-          },
-        },
-      },
-      orderBy: { rating: 'desc' },
-    });
+    return this.repo.trainers();
   }
 
-  /** Lịch lớp học công khai (các lịch KHÔNG gắn member cụ thể) */
   async getClassSchedule() {
-    return this.prisma.trainingSchedule.findMany({
-      where: {
-        memberId: null,
-        startTime: { gte: new Date() },
-        status: 'SCHEDULED',
-      },
-      include: {
-        trainer: {
-          include: {
-            user: {
-              select: { id: true, fullName: true, avatarUrl: true },
-            },
-          },
-        },
-        room: { select: { id: true, name: true, capacity: true } },
-      },
-      orderBy: { startTime: 'asc' },
-      take: 50,
-    });
+    return this.repo.schedule();
   }
 
-  /** Danh sách chi nhánh hoạt động (trang liên hệ) */
   async getBranches() {
-    return this.prisma.branch.findMany({
-      where: { status: 'ACTIVE' },
-      orderBy: { createdAt: 'asc' },
-    });
+    return this.repo.branches();
   }
 
-  /** Mã khuyến mãi đang hiệu lực cho trang gói tập công khai (STEP 8) */
   async getPromotions() {
-    const now = new Date();
-    const rows = await this.prisma.promotion.findMany({
-      where: {
-        status: 'ACTIVE',
-        startDate: { lte: now },
-        endDate: { gte: now },
-      },
-      orderBy: { endDate: 'asc' },
-      take: 20,
-    });
-    return rows.map((p) => ({
-      id: p.id,
-      code: p.code,
-      name: p.name,
-      description: p.description,
-      discountType: p.discountType,
-      discountValue: p.discountValue,
-      maxDiscount: p.maxDiscount,
-      minOrderAmount: p.minOrderValue,
-      endAt: p.endDate,
-    }));
+    return this.repo.promotions();
   }
 
-  /** Thống kê nhanh cho hero / giới thiệu */
   async getHomeStats() {
-    const [memberCount, trainerCount, branchCount] = await Promise.all([
-      this.prisma.member.count(),
-      this.prisma.trainer.count({ where: { status: 'ACTIVE' } }),
-      this.prisma.branch.count({ where: { status: 'ACTIVE' } }),
-    ]);
-    return { totalMembers: memberCount, totalTrainers: trainerCount, totalBranches: branchCount };
+    return this.repo.homeStats();
   }
 }

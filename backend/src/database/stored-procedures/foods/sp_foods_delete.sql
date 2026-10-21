@@ -1,0 +1,18 @@
+CREATE OR ALTER PROCEDURE [dbo].[sp_foods_delete]
+  @id UNIQUEIDENTIFIER
+AS
+BEGIN
+  SET NOCOUNT ON;
+  BEGIN TRY
+    BEGIN TRANSACTION;
+    UPDATE dbo.foods SET isActive = 0, updatedAt = GETUTCDATE() WHERE id = @id;
+    COMMIT TRANSACTION;
+  END TRY
+  BEGIN CATCH
+    IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+    DECLARE @ErrorMsg NVARCHAR(4000) = ERROR_MESSAGE();
+    DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
+    DECLARE @ErrorState INT = ERROR_STATE();
+    RAISERROR(@ErrorMsg, @ErrorSeverity, @ErrorState);
+  END CATCH
+END

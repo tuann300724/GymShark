@@ -1,8 +1,9 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Inject } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../../prisma/prisma.service';
+import { AuthRepository } from './repository/auth.repository';
+import { AUTH_REPOSITORY } from './repository/auth.tokens';
 
 export interface JwtPayload {
   sub: string;
@@ -14,7 +15,7 @@ export interface JwtPayload {
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     private configService: ConfigService,
-    private prisma: PrismaService,
+    @Inject(AUTH_REPOSITORY) private authRepository: AuthRepository,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -24,23 +25,20 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
-      select: {
-        id: true,
-        email: true,
-        fullName: true,
-        role: true,
-        status: true,
-        branchId: true,
-        avatarUrl: true,
-      },
-    });
+    const user = await this.authRepository.findUserById(payload.sub);
 
     if (!user || user.status !== 'ACTIVE') {
       throw new UnauthorizedException('Tài khoản không hợp lệ hoặc đã bị khóa');
     }
 
-    return user;
+    return {
+      id: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      role: user.role,
+      status: user.status,
+      branchId: user.branchId ?? null,
+      avatarUrl: user.avatarUrl ?? null,
+    };
   }
 }

@@ -2,9 +2,12 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Inject,
   NotFoundException,
 } from '@nestjs/common';
 import { CheckInMethod, Prisma } from '@prisma/client';
+import { CHECKINS_REPOSITORY } from './repository/checkins.tokens';
+import { CheckinsRepository } from './repository/checkins.repository';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit-logs/audit-logs.service';
 import { FacesService } from '../faces/faces.service';
@@ -21,6 +24,7 @@ interface CheckInMember {
 @Injectable()
 export class CheckinsService {
   constructor(
+    @Inject(CHECKINS_REPOSITORY) private readonly repo: CheckinsRepository,
     private prisma: PrismaService,
     private auditService: AuditService,
     private facesService: FacesService,
@@ -85,7 +89,7 @@ export class CheckinsService {
   ) {
     const branch = await this.prisma.branch.findUnique({
       where: { id: branchId },
-      select: { id: true, name: true, status: true },
+      select: { id: true, name: true, code: true, status: true },
     });
     if (!branch) throw new NotFoundException('Không tìm thấy chi nhánh.');
     if (branch.status !== 'ACTIVE') {
@@ -135,9 +139,7 @@ export class CheckinsService {
     }
 
     // Điều kiện 6: không được có attendance đang CHECKED_IN
-    const active = await this.prisma.checkIn.findFirst({
-      where: { memberId: member.id, status: 'CHECKED_IN' },
-    });
+    const active = await this.repo.findActive(member.id);
     if (active) {
       throw new BadRequestException('Bạn đang trong phòng gym.');
     }
@@ -169,19 +171,14 @@ export class CheckinsService {
 
     // STEP 7 — chọn chi nhánh check-in (mặc định chi nhánh của hội viên)
     const targetBranchId = branchId ?? member.branchId;
-    await this.validateBranchForCheckIn(targetBranchId, membership);
+    const branch = await this.validateBranchForCheckIn(targetBranchId, membership);
 
-    const checkIn = await this.prisma.checkIn.create({
-      data: {
-        memberId: member.id,
-        branchId: targetBranchId,
-        checkInTime: new Date(),
-        status: 'CHECKED_IN',
-        method: method ?? CheckInMethod.MANUAL,
-      },
-      include: {
-        branch: { select: { id: true, name: true, code: true } },
-      },
+    const checkIn = await this.repo.create({
+      memberId: member.id,
+      branchId: targetBranchId,
+      checkInTime: new Date(),
+      status: 'CHECKED_IN',
+      method: method ?? CheckInMethod.MANUAL,
     });
 
     // Thông báo check-in thành công (STEP 8)
@@ -189,7 +186,7 @@ export class CheckinsService {
       data: {
         memberId: member.id,
         title: 'Check-in thành công 💪',
-        content: `Bạn đã check-in tại ${checkIn.branch?.name ?? 'phòng tập'} lúc ${checkIn.checkInTime.toLocaleTimeString('vi-VN')}.`,
+        content: `Bạn đã check-in tại ${branch.name ?? 'phòng tập'} lúc ${new Date(checkIn.checkInTime).toLocaleTimeString('vi-VN')}.`,
         type: 'CHECKIN',
         link: '/member/checkins',
         referenceType: 'CHECKIN',
@@ -202,7 +199,7 @@ export class CheckinsService {
       action: 'CHECK_IN',
       entity: 'CheckIn',
       entityId: checkIn.id,
-      metadata: { method: checkIn.method, branchName: checkIn.branch?.name ?? null, memberCode: member.code },
+      metadata: { method: checkIn.method, branchName: branch.name ?? null, memberCode: member.code },
     });
 
     return {
@@ -213,7 +210,7 @@ export class CheckinsService {
         checkInAt: checkIn.checkInTime,
         status: checkIn.status,
         method: checkIn.method,
-        branch: checkIn.branch,
+        branch: { id: branch.id, name: branch.name, code: branch.code },
         member: {
           id: member.id,
           code: member.code,
@@ -231,19 +228,13 @@ export class CheckinsService {
   async checkOut(userId: string) {
     const member = await this.resolveMemberByUserId(userId);
 
-    const active = await this.prisma.checkIn.findFirst({
-      where: { memberId: member.id, status: 'CHECKED_IN' },
-    });
+    const active = await this.repo.findActive(member.id);
     if (!active) {
       throw new BadRequestException('Không tìm thấy phiên tập đang hoạt động.');
     }
 
     const checkOutAt = new Date();
-    const updated = await this.prisma.checkIn.update({
-      where: { id: active.id },
-      data: { checkOutTime: checkOutAt, status: 'CHECKED_OUT' },
-      include: { branch: { select: { id: true, name: true, code: true } } },
-    });
+    const updated = await this.repo.updateCheckout(active.id, { checkOutTime: checkOutAt, status: 'CHECKED_OUT' });
 
     // Thông báo check-out thành công (STEP 8)
     await this.prisma.notification.create({

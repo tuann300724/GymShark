@@ -1,10 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable } from "@nestjs/common";
 import {
   GatewayCreateOrderInput,
   GatewayCreateOrderResult,
   GatewayMethod,
   PaymentGateway,
-} from './payment-gateway.interface';
+} from "./payment-gateway.interface";
 
 /**
  * Nền tảng cho ví MoMo — CHƯA tích hợp cổng thật (thiếu credentials).
@@ -12,7 +12,7 @@ import {
  */
 @Injectable()
 export class MomoGateway implements PaymentGateway {
-  readonly method: GatewayMethod = 'MOMO';
+  readonly method: GatewayMethod = "MOMO";
   readonly manualConfirmation = false;
   readonly integrated = false;
 
@@ -20,7 +20,7 @@ export class MomoGateway implements PaymentGateway {
     return {
       requiresRedirect: false,
       instructions:
-        'Cổng thanh toán MoMo chưa được kích hoạt. Vui lòng chọn Tiền mặt hoặc Chuyển khoản.',
+        "Cổng thanh toán MoMo chưa được kích hoạt. Vui lòng chọn Tiền mặt hoặc Chuyển khoản.",
     };
   }
 }

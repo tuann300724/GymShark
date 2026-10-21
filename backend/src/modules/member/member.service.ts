@@ -14,10 +14,14 @@ import { UpdateMemberDto } from './dto/update-member.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { RegisterMembershipDto } from './dto/register-membership.dto';
 import { MemberQrService } from '../../common/services/member-qr.service';
+import { MemberRepository } from './repository/member.repository';
+import { MEMBER_REPOSITORY } from './repository/member.tokens';
+import { Inject } from '@nestjs/common';
 
 @Injectable()
 export class MemberService {
   constructor(
+    @Inject(MEMBER_REPOSITORY) private readonly repo: MemberRepository,
     private prisma: PrismaService,
     private auditService: AuditService,
     private qrService: MemberQrService,
@@ -27,12 +31,23 @@ export class MemberService {
   // Helpers
   // ---------------------------------------------------------------------------
 
-  /** Tìm Member profile gắn với user đang đăng nhập (nếu có) */
+  /** Tìm Member profile gắn với user đang đăng nhập (dùng repo SP). */
   private async resolveMember(userId: string) {
-    return this.prisma.member.findUnique({
-      where: { userId },
-      include: { branch: { select: { id: true, name: true, code: true } } },
-    });
+    return this.repo.findByUserId(userId);
+  }
+
+  /** Dựng shape branch lồng từ row phẳng của SP (tương đương `include: { branch }` của Prisma). */
+  private branchOf(member: {
+    branch_id?: string | null;
+    branch_name?: string | null;
+    branch_code?: string | null;
+  }) {
+    if (!member.branch_id) return null;
+    return {
+      id: member.branch_id,
+      name: member.branch_name,
+      code: member.branch_code,
+    };
   }
 
   private async resolveTrainer(userId: string) {
@@ -94,7 +109,7 @@ export class MemberService {
         emergencyContact: member.emergencyContact,
         status: member.status,
         joinedAt: member.joinedAt,
-        branch: member.branch,
+        branch: this.branchOf(member),
       },
     };
   }
@@ -116,7 +131,7 @@ export class MemberService {
         code: member.code,
         fullName: member.fullName,
         status: member.status,
-        branch: member.branch,
+        branch: this.branchOf(member),
       },
     };
   }

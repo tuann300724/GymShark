@@ -1,9 +1,9 @@
-import { Injectable } from '@nestjs/common';
-import { CashGateway } from './cash.gateway';
-import { BankTransferGateway } from './bank-transfer.gateway';
-import { MomoGateway } from './momo.gateway';
-import { VnpayGateway } from './vnpay.gateway';
-import { GatewayMethod, PaymentGateway } from './payment-gateway.interface';
+import { Injectable } from "@nestjs/common";
+import { CashGateway } from "./cash.gateway";
+import { BankTransferGateway } from "./bank-transfer.gateway";
+import { MomoGateway } from "./momo.gateway";
+import { VnpayGateway } from "./vnpay.gateway";
+import { GatewayMethod, PaymentGateway } from "./payment-gateway.interface";
 
 /**
  * Registry các cổng thanh toán. PaymentsService dùng service này để lấy gateway

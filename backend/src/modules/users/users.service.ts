@@ -1,42 +1,13 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { Inject, Injectable } from '@nestjs/common';
+import { UsersRepository } from './repository/users.repository';
+import { USERS_REPOSITORY } from './repository/users.tokens';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    @Inject(USERS_REPOSITORY) private readonly repo: UsersRepository,
+  ) {}
 
-  async findAll() {
-    return this.prisma.user.findMany({
-      select: {
-        id: true,
-        email: true,
-        fullName: true,
-        phone: true,
-        role: true,
-        status: true,
-        avatarUrl: true,
-        branch: { select: { id: true, name: true, code: true } },
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
-  async findOne(id: string) {
-    return this.prisma.user.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        email: true,
-        fullName: true,
-        phone: true,
-        role: true,
-        status: true,
-        avatarUrl: true,
-        branch: { select: { id: true, name: true, code: true } },
-        trainer: true,
-        createdAt: true,
-      },
-    });
-  }
+  async findAll() { return await this.repo.list(); }
+  async findOne(id: string) { return await this.repo.findOne(id); }
 }

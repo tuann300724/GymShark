@@ -1,0 +1,1 @@
+export const TRAINERS_REPOSITORY = Symbol('TRAINERS_REPOSITORY');

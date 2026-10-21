@@ -1,8 +1,9 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { Food, Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
+import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Food } from '@prisma/client';
 import { AuditService } from '../audit-logs/audit-logs.service';
 import { CreateFoodDto, FoodQueryDto, UpdateFoodDto } from './dto/food.dto';
+import { FoodsRepository, FoodRow } from './repository/foods.repository';
+import { FOODS_REPOSITORY } from './repository/foods.tokens';
 
 /**
  * FoodsService — thư viện thực phẩm dùng chung cho công cụ tạo thực đơn.
@@ -12,7 +13,7 @@ import { CreateFoodDto, FoodQueryDto, UpdateFoodDto } from './dto/food.dto';
 @Injectable()
 export class FoodsService {
   constructor(
-    private readonly prisma: PrismaService,
+    @Inject(FOODS_REPOSITORY) private readonly repo: FoodsRepository,
     private readonly audit: AuditService,
   ) {}
 
@@ -21,22 +22,43 @@ export class FoodsService {
     return Number.isFinite(n) ? n : fallback;
   }
 
+  /** Chuyển row từ SP sang shape Food (khớp Prisma Food). */
+  private toFood(row: FoodRow): Food {
+    return {
+      id: row.id,
+      name: row.name,
+      category: row.category as Food['category'],
+      imageUrl: row.imageUrl,
+      description: row.description,
+      servingSize: Number(row.servingSize),
+      servingUnit: row.servingUnit,
+      caloriesPer100g: Number(row.caloriesPer100g),
+      proteinPer100g: Number(row.proteinPer100g),
+      carbsPer100g: Number(row.carbsPer100g),
+      fatPer100g: Number(row.fatPer100g),
+      isActive: !!row.isActive,
+      createdById: row.createdById,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    } as Food;
+  }
+
   async create(dto: CreateFoodDto, actor: { userId: string; ip?: string }): Promise<Food> {
-    const food = await this.prisma.food.create({
-      data: {
-        name: dto.name.trim(),
-        category: dto.category ?? 'PROTEIN',
-        imageUrl: dto.imageUrl ?? null,
-        description: dto.description ?? null,
-        servingSize: dto.servingSize ?? 100,
-        servingUnit: dto.servingUnit ?? 'g',
-        caloriesPer100g: this.toNumber(dto.caloriesPer100g),
-        proteinPer100g: this.toNumber(dto.proteinPer100g),
-        carbsPer100g: this.toNumber(dto.carbsPer100g),
-        fatPer100g: this.toNumber(dto.fatPer100g),
-        createdById: actor.userId,
-      },
+    const created = await this.repo.create({
+      name: dto.name.trim(),
+      category: dto.category ?? 'PROTEIN',
+      imageUrl: dto.imageUrl ?? null,
+      description: dto.description ?? null,
+      servingSize: dto.servingSize ?? 100,
+      servingUnit: dto.servingUnit ?? 'g',
+      caloriesPer100g: this.toNumber(dto.caloriesPer100g),
+      proteinPer100g: this.toNumber(dto.proteinPer100g),
+      carbsPer100g: this.toNumber(dto.carbsPer100g),
+      fatPer100g: this.toNumber(dto.fatPer100g),
+      createdById: actor.userId,
     });
+
+    const food = this.toFood(created);
 
     await this.audit.log({
       userId: actor.userId,
@@ -54,28 +76,26 @@ export class FoodsService {
     const page = Math.max(1, Number(query.page) || 1);
     const limit = Math.min(100, Math.max(1, Number(query.limit) || 20));
 
-    const where: Prisma.FoodWhereInput = {};
-    if (!query.includeInactive) where.isActive = true;
-    if (query.category) where.category = query.category;
-    if (query.search) where.name = { contains: query.search.trim(), mode: 'insensitive' };
+    const filter = {
+      category: query.category ?? null,
+      search: query.search ? query.search.trim() : null,
+      includeInactive: !!query.includeInactive,
+    };
 
-    const [data, total] = await this.prisma.$transaction([
-      this.prisma.food.findMany({
-        where,
-        orderBy: [{ category: 'asc' }, { name: 'asc' }],
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      this.prisma.food.count({ where }),
+    const [rows, total] = await Promise.all([
+      this.repo.list({ ...filter, page, limit }),
+      this.repo.count(filter),
     ]);
+
+    const data = rows.map((r) => this.toFood(r));
 
     return { data, total, page, limit };
   }
 
   async findOne(id: string): Promise<Food> {
-    const food = await this.prisma.food.findUnique({ where: { id } });
-    if (!food) throw new NotFoundException('Không tìm thấy thực phẩm.');
-    return food;
+    const row = await this.repo.findOne(id);
+    if (!row) throw new NotFoundException('Không tìm thấy thực phẩm.');
+    return this.toFood(row);
   }
 
   async update(
@@ -85,25 +105,24 @@ export class FoodsService {
   ): Promise<Food> {
     await this.findOne(id);
 
-    const food = await this.prisma.food.update({
-      where: { id },
-      data: {
-        ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
-        ...(dto.category !== undefined ? { category: dto.category } : {}),
-        ...(dto.imageUrl !== undefined ? { imageUrl: dto.imageUrl } : {}),
-        ...(dto.description !== undefined ? { description: dto.description } : {}),
-        ...(dto.servingSize !== undefined ? { servingSize: dto.servingSize } : {}),
-        ...(dto.servingUnit !== undefined ? { servingUnit: dto.servingUnit } : {}),
-        ...(dto.caloriesPer100g !== undefined
-          ? { caloriesPer100g: this.toNumber(dto.caloriesPer100g) }
-          : {}),
-        ...(dto.proteinPer100g !== undefined
-          ? { proteinPer100g: this.toNumber(dto.proteinPer100g) }
-          : {}),
-        ...(dto.carbsPer100g !== undefined ? { carbsPer100g: this.toNumber(dto.carbsPer100g) } : {}),
-        ...(dto.fatPer100g !== undefined ? { fatPer100g: this.toNumber(dto.fatPer100g) } : {}),
-      },
+    const updated = await this.repo.update(id, {
+      ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+      ...(dto.category !== undefined ? { category: dto.category } : {}),
+      ...(dto.imageUrl !== undefined ? { imageUrl: dto.imageUrl } : {}),
+      ...(dto.description !== undefined ? { description: dto.description } : {}),
+      ...(dto.servingSize !== undefined ? { servingSize: dto.servingSize } : {}),
+      ...(dto.servingUnit !== undefined ? { servingUnit: dto.servingUnit } : {}),
+      ...(dto.caloriesPer100g !== undefined
+        ? { caloriesPer100g: this.toNumber(dto.caloriesPer100g) }
+        : {}),
+      ...(dto.proteinPer100g !== undefined
+        ? { proteinPer100g: this.toNumber(dto.proteinPer100g) }
+        : {}),
+      ...(dto.carbsPer100g !== undefined ? { carbsPer100g: this.toNumber(dto.carbsPer100g) } : {}),
+      ...(dto.fatPer100g !== undefined ? { fatPer100g: this.toNumber(dto.fatPer100g) } : {}),
     });
+
+    const food = this.toFood(updated as FoodRow);
 
     await this.audit.log({
       userId: actor.userId,
@@ -124,7 +143,7 @@ export class FoodsService {
       throw new ForbiddenException('Thực phẩm này đã được ẩn trước đó.');
     }
 
-    await this.prisma.food.update({ where: { id }, data: { isActive: false } });
+    await this.repo.deactivate(id);
 
     await this.audit.log({
       userId: actor.userId,
@@ -140,6 +159,6 @@ export class FoodsService {
 
   /** Đếm nhanh số thực phẩm đang hoạt động (dùng cho dashboard thư viện). */
   countActive() {
-    return this.prisma.food.count({ where: { isActive: true } });
+    return this.repo.count({ includeInactive: false });
   }
 }

@@ -1,105 +1,104 @@
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
 import { CreatePackageDto } from './dto/create-package.dto';
 import { UpdatePackageDto } from './dto/update-package.dto';
+import { PackagesRepository, PackageRow } from './repository/packages.repository';
+import { PACKAGES_REPOSITORY } from './repository/packages.tokens';
 
 @Injectable()
 export class PackagesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    @Inject(PACKAGES_REPOSITORY) private readonly repo: PackagesRepository,
+  ) {}
 
-  /** Danh sách gói tập (admin: trả tất cả kèm số lượng đã bán) */
+  private toShape(row: PackageRow) {
+    return {
+      id: row.id,
+      code: row.code,
+      name: row.name,
+      description: row.description,
+      features: row.features,
+      durationDays: row.durationDays,
+      price: String(Number(row.price) || row.price),
+      sessions: row.sessions,
+      type: row.type,
+      status: row.status,
+      allowedBranches: row.allowedBranches,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      _count: { memberships: row.membershipsCount ?? 0 },
+    };
+  }
+
   async findAll() {
-    return this.prisma.membershipPackage.findMany({
-      include: {
-        _count: {
-          select: { memberships: true },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const rows = await this.repo.list({ limit: 100 });
+    return rows.map((r) => this.toShape(r));
   }
 
   async findOne(id: string) {
-    const pkg = await this.prisma.membershipPackage.findUnique({
-      where: { id },
-      include: {
-        _count: { select: { memberships: true } },
-      },
-    });
-    if (!pkg) throw new NotFoundException('Không tìm thấy gói tập');
-    return pkg;
+    const row = await this.repo.findOne(id);
+    if (!row) throw new NotFoundException('Không tìm thấy gói tập');
+    return this.toShape(row);
   }
 
-  /** Tạo gói tập mới — backend tự sinh mã gói, không tin frontend */
   async create(dto: CreatePackageDto) {
-    let code = `PKG-${Date.now().toString(36).toUpperCase()}`;
-    // Đảm bảo mã không trùng
-    for (let i = 0; i < 5; i++) {
-      const exists = await this.prisma.membershipPackage.findUnique({ where: { code } });
-      if (!exists) break;
-      code = `PKG-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
-    }
-
     if (dto.features && typeof dto.features === 'object') {
-      if (!Array.isArray(dto.features.items)) {
+      if (!Array.isArray((dto.features as any).items)) {
         throw new BadRequestException('features.items phải là mảng các chuỗi');
       }
     }
 
-    return this.prisma.membershipPackage.create({
-      data: {
-        code,
-        name: dto.name,
-        description: dto.description ?? null,
-        features: (dto.features as any) ?? Prisma.JsonNull,
-        durationDays: dto.durationDays,
-        price: new Prisma.Decimal(dto.price.toFixed(2)),
-        sessions: dto.sessions ?? null,
-        type: dto.type || 'FIXED_TERM',
-        status: dto.status || 'ACTIVE',
-      },
-    });
-  }
-
-  /** Cập nhật gói tập */
-  async update(id: string, dto: UpdatePackageDto) {
-    const pkg = await this.prisma.membershipPackage.findUnique({ where: { id } });
-    if (!pkg) throw new NotFoundException('Không tìm thấy gói tập');
-
-    const data: Prisma.MembershipPackageUpdateInput = {};
-    if (dto.name !== undefined) data.name = dto.name;
-    if (dto.description !== undefined) data.description = dto.description;
-    if (dto.features !== undefined) data.features = dto.features as any;
-    if (dto.durationDays !== undefined) data.durationDays = dto.durationDays;
-    if (dto.price !== undefined) data.price = new Prisma.Decimal(dto.price.toFixed(2));
-    if (dto.sessions !== undefined) data.sessions = dto.sessions;
-    if (dto.type !== undefined) data.type = dto.type;
-    if (dto.status !== undefined) data.status = dto.status;
-
-    return this.prisma.membershipPackage.update({ where: { id }, data });
-  }
-
-  /** Xoá gói tập — chỉ khi gói CHƯA được bán cho bất kỳ membership nào */
-  async remove(id: string) {
-    const pkg = await this.prisma.membershipPackage.findUnique({
-      where: { id },
-      include: { _count: { select: { memberships: true } } },
-    });
-    if (!pkg) throw new NotFoundException('Không tìm thấy gói tập');
-
-    if (pkg._count.memberships > 0) {
-      throw new ConflictException(
-        'Không thể xoá gói tập vì đã có hội viên đăng ký. Hãy chuyển trạng thái sang ngừng bán (INACTIVE).',
-      );
+    let code = `PKG-${Date.now().toString(36).toUpperCase()}`;
+    for (let i = 0; i < 5; i++) {
+      const exists = await this.repo.findByCode(code);
+      if (!exists) break;
+      code = `PKG-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
     }
 
-    await this.prisma.membershipPackage.delete({ where: { id } });
+    const created = await this.repo.create({
+      id: undefined,
+      code,
+      name: dto.name,
+      description: dto.description ?? null,
+      features: (dto.features as any) ?? null,
+      durationDays: dto.durationDays,
+      price: dto.price,
+      sessions: dto.sessions ?? null,
+      type: dto.type || 'FIXED_TERM',
+      status: dto.status || 'ACTIVE',
+      allowedBranches: null,
+    });
+    return this.toShape(created);
+  }
+
+  async update(id: string, dto: UpdatePackageDto) {
+    const pkg = await this.repo.findOne(id);
+    if (!pkg) throw new NotFoundException('Không tìm thấy gói tập');
+    const updated = await this.repo.update(id, {
+      ...(dto.name !== undefined ? { name: dto.name } : {}),
+      ...(dto.description !== undefined ? { description: dto.description } : {}),
+      ...(dto.features !== undefined ? { features: dto.features } : {}),
+      ...(dto.durationDays !== undefined ? { durationDays: dto.durationDays } : {}),
+      ...(dto.price !== undefined ? { price: dto.price } : {}),
+      ...(dto.sessions !== undefined ? { sessions: dto.sessions } : {}),
+      ...(dto.type !== undefined ? { type: dto.type } : {}),
+      ...(dto.status !== undefined ? { status: dto.status } : {}),
+    });
+    return this.toShape(updated as PackageRow);
+  }
+
+  async remove(id: string) {
+    const pkg = await this.repo.findOne(id);
+    if (!pkg) throw new NotFoundException('Không tìm thấy gói tập');
+    if ((pkg.membershipsCount ?? 0) > 0) {
+      throw new ConflictException('Không thể xoá gói tập vì đã có hội viên đăng ký. Hãy chuyển trạng thái sang ngừng bán (INACTIVE).');
+    }
+    await this.repo.delete(id);
     return { message: 'Đã xoá gói tập' };
   }
 }

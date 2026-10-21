@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { buildDataSourceOptions } from './database/typeorm.config';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
@@ -43,6 +45,9 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
         limit: 300,
       },
     ]),
+    // TypeORM → SQL Server (theo Architechture.md) — chạy song song Prisma trong Phase 2,
+    // service sẽ port dần từ Prisma sang TypeORM rồi cutover bỏ Prisma ở Phase 3.
+    TypeOrmModule.forRoot({ ...buildDataSourceOptions(), autoLoadEntities: true }),
     PrismaModule,
     MailModule,
     HealthModule,

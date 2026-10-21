@@ -7,6 +7,9 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
 import { GoogleStrategy } from './google.strategy';
 import { GoogleAuthGuard } from './google-auth.guard';
+import { AuthRepository } from './repository/auth.repository';
+import { TypeOrmAuthRepository } from './repository/typeorm-auth.repository';
+import { AUTH_REPOSITORY } from './repository/auth.tokens';
 
 @Module({
   imports: [
@@ -23,7 +26,13 @@ import { GoogleAuthGuard } from './google-auth.guard';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, GoogleStrategy, GoogleAuthGuard],
-  exports: [AuthService, JwtStrategy, PassportModule, JwtModule],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    GoogleStrategy,
+    GoogleAuthGuard,
+    { provide: AUTH_REPOSITORY, useClass: TypeOrmAuthRepository },
+  ],
+  exports: [AuthService, JwtStrategy, PassportModule, JwtModule, AUTH_REPOSITORY],
 })
 export class AuthModule {}

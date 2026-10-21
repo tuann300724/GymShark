@@ -1,0 +1,1647 @@
+import 'reflect-metadata';
+import { createHash } from 'crypto';
+import { DeepPartial, FindOptionsWhere, IsNull, Like, Not, Repository } from 'typeorm';
+import * as bcrypt from 'bcryptjs';
+
+import { AppDataSource } from './typeorm.config';
+import {
+  CheckInMethod,
+  CheckInStatus,
+  DiscountType,
+  EquipmentCondition,
+  EquipmentStatus,
+  FoodCategory,
+  Gender,
+  InvoiceStatus,
+  MaintenanceStatus,
+  MaintenanceType,
+  MemberStatus,
+  MembershipStatus,
+  PackageType,
+  PaymentMethod,
+  PaymentStatus,
+  ScheduleStatus,
+  SessionType,
+  TrainerMemberStatus,
+  UserRole,
+} from './enums';
+import { Branch } from './entities/branch.entity';
+import { Room } from './entities/room.entity';
+import { User } from './entities/user.entity';
+import { Trainer } from './entities/trainer.entity';
+import { Member } from './entities/member.entity';
+import { MembershipPackage } from './entities/membership-package.entity';
+import { Membership } from './entities/membership.entity';
+import { Payment } from './entities/payment.entity';
+import { Invoice } from './entities/invoice.entity';
+import { CheckIn } from './entities/checkin.entity';
+import { Equipment } from './entities/equipment.entity';
+import { EquipmentMaintenance } from './entities/equipment-maintenance.entity';
+import { TrainerMember } from './entities/trainer-member.entity';
+import { TrainingProgress } from './entities/training-progress.entity';
+import { TrainingSchedule } from './entities/training-schedule.entity';
+import { Promotion } from './entities/promotion.entity';
+import { Notification } from './entities/notification.entity';
+import { AuditLog } from './entities/audit-log.entity';
+import { Food } from './entities/food.entity';
+
+/**
+ * Seed TypeORM cho SQL Server — port 1-1 từ prisma/seed.ts (PostgreSQL).
+ * Cùng dữ liệu, cùng thứ tự, cùng ID hardcode; chỉ đổi cách lưu:
+ * - upsert theo khoá tự nhiên (code/email/...) → find-first rồi tạo nếu thiếu;
+ * - upsert theo khoá chính hardcode → repo.save(repo.create({ id: '...', ... }))
+ *   (save() tự insert nếu chưa có, update nếu đã có — idempotent);
+ * - createMany → save() mảng entity.
+ * Prisma/seed.ts GIỮ NGUYÊN cho giai đoạn chuyển đổi song song.
+ */
+
+/**
+ * ID phòng hardcode trong prisma/seed.ts ('room-cardio-01'...) là chuỗi KHÔNG phải
+ * UUID, nhưng cột rooms.id trên SQL Server là uniqueidentifier nên không lưu được.
+ * Theo đúng quy ước của _migrate_pg_mssql.ts: đổi sang UUID v5 (SHA-1 theo tên,
+ * namespace DNS) — idempotent, chạy lại vẫn ra cùng UUID và KHỚP với 5 phòng đã
+ * được migrate sẵn trong DB. Mảng dưới đây map id gốc (Prisma) → UUID tương ứng.
+ */
+const ROOM_ID_NS = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
+function uuidv5(name: string): string {
+  const namespaceBytes = Buffer.from(ROOM_ID_NS.replace(/-/g, ''), 'hex');
+  const hash = createHash('sha1')
+    .update(namespaceBytes)
+    .update(Buffer.from(name, 'utf8'))
+    .digest();
+  const b = Buffer.from(hash.subarray(0, 16));
+  b[6] = (b[6] & 0x0f) | 0x50; // version 5
+  b[8] = (b[8] & 0x3f) | 0x80; // variant RFC4122
+  const hex = b.toString('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+function roomId(originalId: string): string {
+  // BẮT BUỘC in hoa: driver mssql trả uniqueidentifier về UPPERCASE, còn
+  // OrmUtils.compareIds trong SubjectDatabaseEntityLoader so sánh CHỮ HOA/THƯỜNG
+  // (case-sensitive) — nếu để thường, save() không nhận ra hàng đã có → INSERT trùng PK.
+  return uuidv5(`room:${originalId}`).toUpperCase();
+}
+
+/** Tương đương Prisma upsert theo khoá tự nhiên: chưa có → tạo, đã có → update (nếu có trường update). */
+async function upsertByKey<T extends { id: string }>(
+  repo: Repository<T>,
+  where: FindOptionsWhere<T>,
+  createData: DeepPartial<T>,
+  updateData?: DeepPartial<T>,
+): Promise<T> {
+  const existing = await repo.findOne({ where });
+  if (existing) {
+    if (updateData) {
+      repo.merge(existing, updateData as any);
+      return await repo.save(existing);
+    }
+    return existing;
+  }
+  return await repo.save(repo.create(createData));
+}
+
+async function main() {
+  console.log('🌱 Starting database seed...');
+
+  if (!AppDataSource.isInitialized) {
+    await AppDataSource.initialize();
+  }
+
+  const branchRepo = AppDataSource.getRepository(Branch);
+  const roomRepo = AppDataSource.getRepository(Room);
+  const userRepo = AppDataSource.getRepository(User);
+  const trainerRepo = AppDataSource.getRepository(Trainer);
+  const memberRepo = AppDataSource.getRepository(Member);
+  const pkgRepo = AppDataSource.getRepository(MembershipPackage);
+  const membershipRepo = AppDataSource.getRepository(Membership);
+  const paymentRepo = AppDataSource.getRepository(Payment);
+  const invoiceRepo = AppDataSource.getRepository(Invoice);
+  const checkInRepo = AppDataSource.getRepository(CheckIn);
+  const equipmentRepo = AppDataSource.getRepository(Equipment);
+  const maintenanceRepo = AppDataSource.getRepository(EquipmentMaintenance);
+  const trainerMemberRepo = AppDataSource.getRepository(TrainerMember);
+  const progressRepo = AppDataSource.getRepository(TrainingProgress);
+  const scheduleRepo = AppDataSource.getRepository(TrainingSchedule);
+  const promotionRepo = AppDataSource.getRepository(Promotion);
+  const notificationRepo = AppDataSource.getRepository(Notification);
+  const auditLogRepo = AppDataSource.getRepository(AuditLog);
+  const foodRepo = AppDataSource.getRepository(Food);
+
+  // 1. Branch
+  const branch = await upsertByKey(
+    branchRepo,
+    { code: 'BR-BH01' },
+    {
+      code: 'BR-BH01',
+      name: 'LHU Fitness & Gym Center - Biên Hòa',
+      address: 'Số 10 Huỳnh Văn Nghệ, Phường Bửu Long, TP. Biên Hòa, Đồng Nai',
+      phone: '0251.3952.778',
+      email: 'contact@lhugym.vn',
+      description: 'Cơ sở chính trực thuộc Trường Đại Học Lạc Hồng - khu vực tập luyện hiện đại 3 tầng.',
+      openingTime: '05:30',
+      closingTime: '21:30',
+      openingHours: '05:30 - 21:30 (Tất cả các ngày)',
+      status: 'ACTIVE',
+    },
+  );
+  console.log('✅ Created branch:', branch.name);
+
+  // Branch phụ phục vụ demo Branch Selector / lọc đa chi nhánh
+  const branch2 = await upsertByKey(
+    branchRepo,
+    { code: 'BR-TD01' },
+    {
+      code: 'BR-TD01',
+      name: 'GymMaster - Thủ Đức',
+      address: '52 Võ Văn Ngân, Phường Linh Chiểu, TP. Thủ Đức, TP. Hồ Chí Minh',
+      phone: '028.3727.1886',
+      email: 'thuduc@gymmaster.vn',
+      description: 'Cơ sở phía Đông TP.HCM, nổi bật khu Group Class và phòng Yoga riêng.',
+      openingTime: '05:00',
+      closingTime: '22:00',
+      openingHours: '05:00 - 22:00 (Thứ 2 - CN)',
+      status: 'ACTIVE',
+    },
+  );
+
+  const branch3 = await upsertByKey(
+    branchRepo,
+    { code: 'BR-Q101' },
+    {
+      code: 'BR-Q101',
+      name: 'GymMaster - Quận 1',
+      address: '7 Nguyễn Bỉnh Khiêm, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh',
+      phone: '028.3829.2080',
+      email: 'q1@gymmaster.vn',
+      description: 'Cơ sở trung tâm thành phố - trọng tâm đào tạo cá nhân (PT Studio).',
+      openingTime: '06:00',
+      closingTime: '22:30',
+      openingHours: '06:00 - 22:30 (Tất cả các ngày)',
+      status: 'ACTIVE',
+    },
+  );
+
+  // 2. Rooms
+  const cardioRoom = await roomRepo.save(
+    roomRepo.create({
+      id: roomId('room-cardio-01'),
+      code: 'BR-BH01-R01',
+      name: 'Phòng Cardio & Máy Chạy',
+      type: 'CARDIO',
+      capacity: 30,
+      floor: '1',
+      description: 'Khu máy chạy bộ, xe đạp và máy tập cardio đa năng.',
+      branchId: branch.id,
+      status: 'AVAILABLE',
+    }),
+  );
+
+  const weightRoom = await roomRepo.save(
+    roomRepo.create({
+      id: roomId('room-weight-01'),
+      code: 'BR-BH01-R02',
+      name: 'Phòng Tạ Tự Do (Free Weight)',
+      type: 'WEIGHT_AREA',
+      capacity: 40,
+      floor: '2',
+      description: 'Khu tạ đơn, tạ đòn và khu vực bench press chuyên dụng.',
+      branchId: branch.id,
+      status: 'AVAILABLE',
+    }),
+  );
+
+  // Rooms cho branch phụ
+  const tdClassRoom = await roomRepo.save(
+    roomRepo.create({
+      id: roomId('room-td-class-01'),
+      code: 'BR-TD01-R01',
+      name: 'Studio Group Class',
+      type: 'GROUP_CLASS',
+      capacity: 25,
+      floor: '1',
+      description: 'Phòng tập lớp nhóm: HIIT, Zumba, Body Combat.',
+      branchId: branch2.id,
+      status: 'AVAILABLE',
+    }),
+  );
+
+  const tdYogaRoom = await roomRepo.save(
+    roomRepo.create({
+      id: roomId('room-td-yoga-01'),
+      code: 'BR-TD01-R02',
+      name: 'Phòng Yoga & Pilates',
+      type: 'YOGA',
+      capacity: 18,
+      floor: '2',
+      description: 'Không gian yên tĩnh, thảm tập và dụng cụ hỗ trợ yoga.',
+      branchId: branch2.id,
+      status: 'AVAILABLE',
+    }),
+  );
+
+  const q1PtRoom = await roomRepo.save(
+    roomRepo.create({
+      id: roomId('room-q1-pt-01'),
+      code: 'BR-Q101-R01',
+      name: 'PT Studio',
+      type: 'PERSONAL_TRAINING',
+      capacity: 6,
+      floor: '1',
+      description: 'Studio huấn luyện cá nhân 1-1 với HLV.',
+      branchId: branch3.id,
+      status: 'AVAILABLE',
+    }),
+  );
+
+  // 3. Users (RBAC: ADMIN, MANAGER, STAFF, TRAINER)
+  const salt = await bcrypt.genSalt(10);
+  const adminPassword = await bcrypt.hash('Admin@123456', salt);
+  const managerPassword = await bcrypt.hash('Manager@123456', salt);
+  const staffPassword = await bcrypt.hash('Staff@123456', salt);
+  const trainerPassword = await bcrypt.hash('Trainer@123456', salt);
+
+  const adminUser = await upsertByKey(
+    userRepo,
+    { email: 'admin@gym.com' },
+    {
+      email: 'admin@gym.com',
+      passwordHash: adminPassword,
+      fullName: 'Tổng Quản Trị Hệ Thống',
+      phone: '0901234567',
+      role: UserRole.ADMIN,
+      branchId: branch.id,
+    },
+  );
+
+  const managerUser = await upsertByKey(
+    userRepo,
+    { email: 'manager@gym.com' },
+    {
+      email: 'manager@gym.com',
+      passwordHash: managerPassword,
+      fullName: 'Quản Lý Chi Nhánh',
+      phone: '0902345678',
+      role: UserRole.MANAGER,
+      branchId: branch.id,
+    },
+  );
+
+  const staffUser = await upsertByKey(
+    userRepo,
+    { email: 'staff@gym.com' },
+    {
+      email: 'staff@gym.com',
+      passwordHash: staffPassword,
+      fullName: 'Nhân Viên Lễ Tân',
+      phone: '0903456789',
+      role: UserRole.STAFF,
+      branchId: branch.id,
+    },
+  );
+
+  const trainerUser = await upsertByKey(
+    userRepo,
+    { email: 'trainer@gym.com' },
+    {
+      email: 'trainer@gym.com',
+      passwordHash: trainerPassword,
+      fullName: 'HLV Nguyễn Văn Thể',
+      phone: '0904567890',
+      role: UserRole.TRAINER,
+      branchId: branch.id,
+    },
+  );
+
+  // Thêm 2 HLV nữa để trang public trainers phong phú
+  const trainerUser2 = await upsertByKey(
+    userRepo,
+    { email: 'trainer2@gym.com' },
+    {
+      email: 'trainer2@gym.com',
+      passwordHash: trainerPassword,
+      fullName: 'HLV Trần Thị Mai',
+      phone: '0905567890',
+      role: UserRole.TRAINER,
+      branchId: branch.id,
+    },
+  );
+
+  const trainerUser3 = await upsertByKey(
+    userRepo,
+    { email: 'trainer3@gym.com' },
+    {
+      email: 'trainer3@gym.com',
+      passwordHash: trainerPassword,
+      fullName: 'HLV Lê Minh Hoàng',
+      phone: '0906567890',
+      role: UserRole.TRAINER,
+      branchId: branch.id,
+    },
+  );
+
+  // 4. Trainer Profile
+  await upsertByKey(
+    trainerRepo,
+    { userId: trainerUser.id },
+    {
+      userId: trainerUser.id,
+      specialization: 'Tăng cơ giảm mỡ, Thể hình chuyên nghiệp (Bodybuilding)',
+      certification: 'ISSA Certified Personal Trainer, WFF-Asia',
+      experienceYears: 5,
+      bio: 'Chứng chỉ HLV Thể hình Quốc tế, cựu vận động viên thể hình Đông Nam Á. Chuyên gia thiết kế giáo án tăng cơ, giảm mỡ cho hơn 500 học viên.',
+      rating: 4.9,
+      hourlyRate: 350000,
+    },
+    { certification: 'ISSA Certified Personal Trainer, WFF-Asia' },
+  );
+
+  await upsertByKey(
+    trainerRepo,
+    { userId: trainerUser2.id },
+    {
+      userId: trainerUser2.id,
+      specialization: 'Yoga, Pilates & Giãn cơ phục hồi',
+      certification: 'RYT-500 Yoga Alliance, ACE Group Fitness',
+      experienceYears: 4,
+      bio: 'HLV Yoga & Pilates chứng nhận quốc tế. Chuyên cải thiện sự linh hoạt, tư thế và phục hồi sau chấn thương cho học viên mọi lứa tuổi.',
+      rating: 4.8,
+      hourlyRate: 300000,
+    },
+  );
+
+  await upsertByKey(
+    trainerRepo,
+    { userId: trainerUser3.id },
+    {
+      userId: trainerUser3.id,
+      specialization: 'HIIT, CrossFit & Rèn luyện sức bền',
+      certification: 'CrossFit L2 Trainer, NSCA-CPT',
+      experienceYears: 6,
+      bio: 'Cựu vận động viên điền kinh quốc gia. Chuyên các lớp HIIT, CrossFit, rèn thể lực tổng hợp và tinh thần thép.',
+      rating: 4.7,
+      hourlyRate: 320000,
+    },
+  );
+  console.log('✅ Created users and trainer profiles');
+
+  // 5. Membership Packages
+  const features1M = {
+    title: 'Gói Cơ Bản 1 Tháng (Basic)',
+    items: ['Tập luyện không giới hạn thời gian', '1 chi nhánh', 'Phòng Gym + Cardio', 'Tủ đồ cá nhân', 'Hướng dẫn sử dụng máy cơ bản'],
+  };
+  const pkg1M = await upsertByKey(
+    pkgRepo,
+    { code: 'PKG-1M' },
+    {
+      code: 'PKG-1M',
+      name: 'Gói Cơ Bản 1 Tháng (Basic)',
+      description: 'Tập luyện không giới hạn thời gian tại 1 chi nhánh',
+      features: features1M,
+      durationDays: 30,
+      price: 450000,
+      type: PackageType.FIXED_TERM,
+    },
+    { features: features1M },
+  );
+
+  const features6M = {
+    title: 'Gói VIP 6 Tháng',
+    items: ['Toàn quyền sử dụng dịch vụ gym', 'Khu xông hơi & massage', 'Tặng 3 buổi tập cùng HLV', '1 chi nhánh', 'Ưu đãi 10% dịch vụ bổ sung'],
+  };
+  const pkg6M = await upsertByKey(
+    pkgRepo,
+    { code: 'PKG-6M-VIP' },
+    {
+      code: 'PKG-6M-VIP',
+      name: 'Gói VIP 6 Tháng',
+      description: 'Toàn quyền sử dụng dịch vụ gym, xông hơi và tặng 3 buổi cùng HLV',
+      features: features6M,
+      durationDays: 180,
+      price: 2400000,
+      type: PackageType.FIXED_TERM,
+    },
+    { features: features6M },
+  );
+
+  const features12M = {
+    title: 'Gói Kim Cương 12 Tháng',
+    items: ['Trọn gói cao cấp', 'Không giới hạn CHI NHÁNH', 'Tặng khăn tập & tủ đồ VIP', 'Tặng 6 buổi PT trị giá 2.100.000đ', 'Ưu tiên đặt phòng & lớp học'],
+  };
+  const pkg12M = await upsertByKey(
+    pkgRepo,
+    { code: 'PKG-12M-DIAMOND' },
+    {
+      code: 'PKG-12M-DIAMOND',
+      name: 'Gói Kim Cương 12 Tháng',
+      description: 'Trọn gói cao cấp không giới hạn chi nhánh, tặng khăn tập và tủ đồ VIP',
+      features: features12M,
+      durationDays: 365,
+      price: 4200000,
+      type: PackageType.FIXED_TERM,
+    },
+    { features: features12M },
+  );
+  console.log('✅ Created membership packages');
+
+  // 6. Sample Member (+ tài khoản đăng nhập MEMBER để test member portal)
+  const memberPassword = await bcrypt.hash('Member@123456', salt);
+  const memberUser = await upsertByKey(
+    userRepo,
+    { email: 'member@gym.com' },
+    {
+      email: 'member@gym.com',
+      passwordHash: memberPassword,
+      fullName: 'Trần Minh Quân',
+      phone: '0987654321',
+      role: UserRole.MEMBER,
+      branchId: branch.id,
+    },
+  );
+
+  const member = await upsertByKey(
+    memberRepo,
+    { code: 'MEM-0001' },
+    {
+      code: 'MEM-0001',
+      userId: memberUser.id,
+      fullName: 'Trần Minh Quân',
+      email: 'member@gym.com',
+      phone: '0987654321',
+      gender: Gender.MALE,
+      dateOfBirth: new Date('1998-05-15'),
+      address: 'Phường Tân Tiến, TP. Biên Hòa, Đồng Nai',
+      emergencyContact: 'Nguyễn Văn Ba - 0911222333',
+      status: MemberStatus.ACTIVE,
+      branchId: branch.id,
+    },
+    { userId: memberUser.id },
+  );
+
+  // 7. Active Membership (chỉ tạo nếu chưa có để tránh trùng lặp khi seed lại)
+  const existingMembershipCount = await membershipRepo.count({
+    where: { memberId: member.id },
+  });
+
+  let membership: any = null;
+  if (existingMembershipCount === 0) {
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setDate(startDate.getDate() + 180);
+
+    membership = await membershipRepo.save(
+      membershipRepo.create({
+        memberId: member.id,
+        packageId: pkg6M.id,
+        startDate: startDate,
+        endDate: endDate,
+        price: pkg6M.price,
+        finalAmount: pkg6M.price,
+        status: MembershipStatus.ACTIVE,
+      }),
+    );
+  } else {
+    membership = await membershipRepo.findOne({
+      where: { memberId: member.id },
+      order: { createdAt: 'ASC' },
+    });
+  }
+
+  // 8. Payment (chỉ tạo nếu chưa có) + Invoice đi kèm (1-1)
+  const existingPayment = await paymentRepo.findOne({
+    where: { code: 'INV-2026-0001' },
+  });
+  if (!existingPayment) {
+    await paymentRepo.save(
+      paymentRepo.create({
+        code: 'INV-2026-0001',
+        memberId: member.id,
+        membershipId: membership.id,
+        amount: pkg6M.price,
+        method: PaymentMethod.BANK_TRANSFER,
+        status: PaymentStatus.PAID,
+        transactionRef: 'VCB-987123984',
+        paidAt: new Date(),
+        notes: 'Thanh toán chuyển khoản qua ngân hàng Vietcombank',
+      }),
+    );
+  }
+
+  const existingInvoice = await invoiceRepo.findOne({
+    where: { invoiceNumber: 'INV-2026-0001' },
+  });
+  if (!existingInvoice) {
+    const seedPayment = await paymentRepo.findOne({
+      where: { code: 'INV-2026-0001' },
+    });
+    await invoiceRepo.save(
+      invoiceRepo.create({
+        invoiceNumber: 'INV-2026-0001',
+        memberId: member.id,
+        membershipId: membership.id,
+        paymentId: seedPayment?.id ?? null,
+        subtotal: pkg6M.price,
+        discount: 0,
+        total: pkg6M.price,
+        status: InvoiceStatus.PAID,
+        issuedAt: new Date(),
+      }),
+    );
+  }
+
+  // 9. Equipment
+  await upsertByKey(
+    equipmentRepo,
+    { code: 'EQ-RUN-01' },
+    {
+      code: 'EQ-RUN-01',
+      name: 'Máy Chạy Bộ Điện Cao Cấp Matrix T70',
+      category: 'CARDIO',
+      branchId: branch.id,
+      roomId: cardioRoom.id,
+      brand: 'Matrix',
+      model: 'T70-XR',
+      serialNumber: 'MTX-T70-2024-001',
+      purchaseDate: new Date('2024-01-15'),
+      purchasePrice: 45000000,
+      warrantyExpiry: new Date('2027-01-15'),
+      condition: EquipmentCondition.GOOD,
+      status: EquipmentStatus.AVAILABLE,
+      nextMaintenanceAt: new Date(new Date().getTime() + 20 * 24 * 60 * 60 * 1000),
+      description: 'Máy chạy bộ điện cao cấp dành cho khu cardio.',
+    },
+  );
+
+  await upsertByKey(
+    equipmentRepo,
+    { code: 'EQ-BENCH-01' },
+    {
+      code: 'EQ-BENCH-01',
+      name: 'Ghế Đẩy Tạ Đa Năng Olympic Bench Press',
+      category: 'FREE_WEIGHT',
+      branchId: branch.id,
+      roomId: weightRoom.id,
+      brand: 'Inspire',
+      model: 'BENCH-PRO',
+      serialNumber: 'ISP-BN-2023-088',
+      purchaseDate: new Date('2023-11-20'),
+      purchasePrice: 18000000,
+      warrantyExpiry: new Date('2026-11-20'),
+      condition: EquipmentCondition.GOOD,
+      status: EquipmentStatus.AVAILABLE,
+      nextMaintenanceAt: new Date(new Date().getTime() - 5 * 24 * 60 * 60 * 1000),
+      description: 'Ghế đẩy tạ đa năng sử dụng tại khu free weight.',
+    },
+  );
+
+  await upsertByKey(
+    equipmentRepo,
+    { code: 'EQ-SQUAT-01' },
+    {
+      code: 'EQ-SQUAT-01',
+      name: 'Khung Squat Rack An Toàn',
+      category: 'FREE_WEIGHT',
+      branchId: branch.id,
+      roomId: weightRoom.id,
+      brand: 'Rogue',
+      model: 'RM-6',
+      serialNumber: 'RGE-RM6-2025-014',
+      purchaseDate: new Date('2025-03-01'),
+      purchasePrice: 65000000,
+      warrantyExpiry: new Date('2028-03-01'),
+      condition: EquipmentCondition.EXCELLENT,
+      status: EquipmentStatus.IN_USE,
+      nextMaintenanceAt: new Date(new Date().getTime() + 45 * 24 * 60 * 60 * 1000),
+      description: 'Khung squat an toàn với thanh đòn Olympic.',
+    },
+  );
+
+  // Equipment cho branch phụ (Thủ Đức)
+  await upsertByKey(
+    equipmentRepo,
+    { code: 'EQ-TD-CYCLE-01' },
+    {
+      code: 'EQ-TD-CYCLE-01',
+      name: 'Xe Đạp Trong Nhà Keiser M3i',
+      category: 'CARDIO',
+      branchId: branch2.id,
+      roomId: tdClassRoom.id,
+      brand: 'Keiser',
+      model: 'M3i',
+      serialNumber: 'KSR-M3I-2024-220',
+      purchaseDate: new Date('2024-06-10'),
+      purchasePrice: 38000000,
+      warrantyExpiry: new Date('2027-06-10'),
+      condition: EquipmentCondition.GOOD,
+      status: EquipmentStatus.AVAILABLE,
+      nextMaintenanceAt: new Date(new Date().getTime() + 60 * 24 * 60 * 60 * 1000),
+      description: 'Xe đạp trong nhà chuyên dụng cho lớp spinning.',
+    },
+  );
+
+  await upsertByKey(
+    equipmentRepo,
+    { code: 'EQ-TD-MAT-01' },
+    {
+      code: 'EQ-TD-MAT-01',
+      name: 'Bộ Thảm Tập Yoga Cao Su TPE',
+      category: 'ACCESSORY',
+      branchId: branch2.id,
+      roomId: tdYogaRoom.id,
+      brand: 'Manduka',
+      model: 'PRO 6mm',
+      serialNumber: 'MDK-PRO-2025-050',
+      purchaseDate: new Date('2025-01-05'),
+      purchasePrice: 2500000,
+      warrantyExpiry: new Date('2028-01-05'),
+      condition: EquipmentCondition.EXCELLENT,
+      status: EquipmentStatus.AVAILABLE,
+      nextMaintenanceAt: new Date(new Date().getTime() + 90 * 24 * 60 * 60 * 1000),
+      description: 'Thảm tập cao su cao cấp cho phòng yoga.',
+    },
+  );
+
+  // 10. Promotion
+  await upsertByKey(
+    promotionRepo,
+    { code: 'SUMMER2026' },
+    {
+      code: 'SUMMER2026',
+      name: 'Chào Hè 2026 - Giảm 15% tất cả gói tập',
+      description: 'Áp dụng cho học viên đăng ký mới các gói từ 6 tháng trở lên',
+      discountType: DiscountType.PERCENTAGE,
+      discountValue: 15,
+      startDate: new Date('2026-05-01'),
+      endDate: new Date('2026-08-31'),
+      usageLimit: 100,
+      perMemberLimit: 2,
+      usedCount: 1,
+    },
+  );
+
+  // STEP 8 — thêm mã KM đang hiệu lực (chạy nhiều lần không trùng, không reset DB)
+  await upsertByKey(
+    promotionRepo,
+    { code: 'WELCOME10' },
+    {
+      code: 'WELCOME10',
+      name: 'Chào mừng hội viên mới - Giảm 10%',
+      description: 'Giảm 10% cho hội viên đăng ký gói tập lần đầu (mỗi người dùng 1 lần)',
+      discountType: DiscountType.PERCENTAGE,
+      discountValue: 10,
+      maxDiscount: 500000,
+      minOrderValue: 1000000,
+      startDate: new Date('2026-01-01'),
+      endDate: new Date('2026-12-31'),
+      usageLimit: 100,
+      perMemberLimit: 1,
+      status: 'ACTIVE',
+    },
+  );
+
+  await upsertByKey(
+    promotionRepo,
+    { code: 'FIXED500' },
+    {
+      code: 'FIXED500',
+      name: 'Ưu đãi Tết - Giảm 500.000đ',
+      description: 'Giảm cố định 500.000đ cho mọi đơn đăng ký gói từ 3 tháng',
+      discountType: DiscountType.FIXED_AMOUNT,
+      discountValue: 500000,
+      minOrderValue: 2000000,
+      startDate: new Date('2026-01-01'),
+      endDate: new Date('2026-12-31'),
+      usageLimit: 50,
+      perMemberLimit: 1,
+      status: 'ACTIVE',
+    },
+  );
+
+  // Mã sắp hết hạn (2 ngày) để ticker sinh thông báo PROMOTION_ENDING
+  const endSoonDate = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+  await upsertByKey(
+    promotionRepo,
+    { code: 'ENDSOON7' },
+    {
+      code: 'ENDSOON7',
+      name: 'Flash Sale cuối tháng - Giảm 20%',
+      description: 'Chỉ còn 2 ngày cuối! Giảm 20% toàn bộ gói tập.',
+      discountType: DiscountType.PERCENTAGE,
+      discountValue: 20,
+      maxDiscount: 800000,
+      startDate: new Date('2026-01-01'),
+      endDate: endSoonDate,
+      usageLimit: 30,
+      perMemberLimit: 1,
+      status: 'ACTIVE',
+    },
+  );
+
+  // 11. Lịch tập mẫu (cho member + lớp học công khai)
+  const scheduleCount = await scheduleRepo.count();
+  if (scheduleCount === 0) {
+    const now = new Date();
+    const dayMs = 24 * 60 * 60 * 1000;
+    const trainer1 = await trainerRepo.findOne({
+      where: { userId: trainerUser.id },
+    });
+
+    // Buổi PT riêng cho member
+    await scheduleRepo.save(
+      scheduleRepo.create({
+        title: 'PT - Tăng cơ toàn thân',
+        trainerId: trainer1.id,
+        memberId: member.id,
+        roomId: weightRoom.id,
+        startTime: new Date(now.getTime() + 1 * dayMs),
+        endTime: new Date(now.getTime() + 1 * dayMs + 60 * 60 * 1000),
+        status: ScheduleStatus.SCHEDULED,
+      }),
+    );
+
+    await scheduleRepo.save(
+      scheduleRepo.create({
+        title: 'PT - Cardio & Đốt mỡ',
+        trainerId: trainer1.id,
+        memberId: member.id,
+        roomId: cardioRoom.id,
+        startTime: new Date(now.getTime() + 3 * dayMs),
+        endTime: new Date(now.getTime() + 3 * dayMs + 60 * 60 * 1000),
+        status: ScheduleStatus.SCHEDULED,
+      }),
+    );
+
+    // Lớp học công khai (không gắn member)
+    const trainer2 = await trainerRepo.findOne({
+      where: { userId: trainerUser2.id },
+    });
+    const trainer3 = await trainerRepo.findOne({
+      where: { userId: trainerUser3.id },
+    });
+
+    await scheduleRepo.save(
+      scheduleRepo.create([
+        {
+          title: 'Yoga Thư Giãn & Giãn Cơ',
+          trainerId: trainer2.id,
+          memberId: null,
+          roomId: cardioRoom.id,
+          startTime: new Date(now.getTime() + 1 * dayMs + 2 * 60 * 60 * 1000),
+          endTime: new Date(now.getTime() + 1 * dayMs + 3 * 60 * 60 * 1000),
+          status: ScheduleStatus.SCHEDULED,
+        },
+        {
+          title: 'HIIT Burn - Đốt mỡ toàn thân',
+          trainerId: trainer3.id,
+          memberId: null,
+          roomId: weightRoom.id,
+          startTime: new Date(now.getTime() + 2 * dayMs + 7 * 60 * 60 * 1000),
+          endTime: new Date(now.getTime() + 2 * dayMs + 8 * 60 * 60 * 1000),
+          status: ScheduleStatus.SCHEDULED,
+        },
+        {
+          title: 'CrossFit Functional Training',
+          trainerId: trainer3.id,
+          memberId: null,
+          roomId: weightRoom.id,
+          startTime: new Date(now.getTime() + 4 * dayMs + 7 * 60 * 60 * 1000),
+          endTime: new Date(now.getTime() + 4 * dayMs + 8 * 60 * 60 * 1000),
+          status: ScheduleStatus.SCHEDULED,
+        },
+        {
+          title: 'Pilates Core & Posture',
+          trainerId: trainer2.id,
+          memberId: null,
+          roomId: cardioRoom.id,
+          startTime: new Date(now.getTime() + 5 * dayMs + 2 * 60 * 60 * 1000),
+          endTime: new Date(now.getTime() + 5 * dayMs + 3 * 60 * 60 * 1000),
+          status: ScheduleStatus.SCHEDULED,
+        },
+      ]),
+    );
+
+    console.log('✅ Created schedules (member PT + public classes)');
+  }
+
+  // 12. Check-in lịch sử cho member (chỉ tạo lần đầu)
+  const memberCheckInCount = await checkInRepo.count({
+    where: { memberId: member.id },
+  });
+  if (memberCheckInCount === 0) {
+    const daysAgo = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
+    const atTime = (d: Date, hour: number, minute = 0) => {
+      const copy = new Date(d);
+      copy.setHours(hour, minute, 0, 0);
+      return copy;
+    };
+    const today = new Date();
+    await checkInRepo.save(
+      checkInRepo.create([
+        {
+          memberId: member.id,
+          branchId: branch.id,
+          checkInTime: atTime(today, 8, 15),
+          checkOutTime: atTime(today, 9, 55),
+          status: CheckInStatus.CHECKED_OUT,
+          method: CheckInMethod.MANUAL,
+          notes: 'Tập gym buổi sáng',
+        },
+        {
+          memberId: member.id,
+          branchId: branch.id,
+          checkInTime: daysAgo(1),
+          checkOutTime: new Date(daysAgo(1).getTime() + 90 * 60 * 1000),
+          status: CheckInStatus.CHECKED_OUT,
+          method: CheckInMethod.QR_CODE,
+          notes: 'Tập gym cá nhân',
+        },
+        {
+          memberId: member.id,
+          branchId: branch.id,
+          checkInTime: daysAgo(3),
+          checkOutTime: new Date(daysAgo(3).getTime() + 75 * 60 * 1000),
+          status: CheckInStatus.CHECKED_OUT,
+          method: CheckInMethod.STAFF,
+          notes: 'Lớp Yoga',
+        },
+        {
+          memberId: member.id,
+          branchId: branch.id,
+          checkInTime: daysAgo(5),
+          checkOutTime: new Date(daysAgo(5).getTime() + 120 * 60 * 1000),
+          status: CheckInStatus.CHECKED_OUT,
+          method: CheckInMethod.MANUAL,
+          notes: 'Buổi tập với PT',
+        },
+      ]),
+    );
+    console.log('✅ Created check-in history for member');
+  }
+
+  // 13. Thông báo mẫu cho member
+  // GHỊ CHÚ (port TypeORM): Prisma seed từng ghi referenceId dạng marker chữ
+  // ('seed-inv-0001') — cột notifications.referenceId trên SQL Server là
+  // uniqueidentifier (TypeORM service luôn ghi UUID thật) nên marker đó không
+  // lưu được; giữ nguyên referenceType, bỏ referenceId.
+  const memberNotifCount = await notificationRepo.count({
+    where: { memberId: member.id },
+  });
+  if (memberNotifCount === 0) {
+    await notificationRepo.save(
+      notificationRepo.create([
+        {
+          memberId: member.id,
+          title: 'Thanh toán thành công 💳',
+          content: 'Hóa đơn INV-2026-0001 (gói VIP 6 Tháng) đã được thanh toán thành công qua chuyển khoản ngân hàng.',
+          type: 'PAYMENT',
+          link: '/member/payments',
+          isRead: true,
+          readAt: new Date(),
+          referenceType: 'PAYMENT_CONFIRMED',
+        },
+        {
+          memberId: member.id,
+          title: 'Nhắc lịch tập 📅',
+          content: 'Bạn có buổi tập PT "Tăng cơ toàn thân" vào ngày mai. Đừng quên đến đúng giờ nhé!',
+          type: 'SCHEDULE',
+          link: '/member/schedule',
+          isRead: false,
+        },
+        {
+          memberId: member.id,
+          title: 'Chào mừng đến với GymMaster Pro 💪',
+          content: 'Cảm ơn bạn đã đăng ký làm hội viên. Chúc bạn có những buổi tập hiệu quả!',
+          type: 'SYSTEM',
+          link: '/member/dashboard',
+          isRead: false,
+        },
+      ]),
+    );
+    console.log('✅ Created notifications for member');
+  }
+
+  // 14. Phân công HLV ↔ hội viên + lịch sử buổi PT (chỉ tạo lần đầu)
+  const assignmentCount = await trainerMemberRepo.count({
+    where: { memberId: member.id },
+  });
+  if (assignmentCount === 0) {
+    const trainer1 = await trainerRepo.findOne({ where: { userId: trainerUser.id } });
+    await trainerMemberRepo.save(
+      trainerMemberRepo.create({
+        trainerId: trainer1.id,
+        memberId: member.id,
+        status: TrainerMemberStatus.ACTIVE,
+        note: 'Phân công mặc định khi seed dữ liệu mẫu',
+      }),
+    );
+    console.log('✅ Created trainer-member assignment');
+  }
+
+  // Cập nhật loại buổi tập + chi nhánh cho lịch mẫu (không xóa dữ liệu)
+  await scheduleRepo.update(
+    { memberId: Not(IsNull()) },
+    { type: SessionType.PERSONAL_TRAINING, branchId: branch.id },
+  );
+  await scheduleRepo.update(
+    { memberId: IsNull() },
+    { type: SessionType.GROUP_CLASS, branchId: branch.id },
+  );
+
+  // Lịch sử buổi tập đã hoàn thành + ghi chú tiến trình (chỉ tạo lần đầu)
+  const completedCount = await scheduleRepo.count({
+    where: { memberId: member.id, status: ScheduleStatus.COMPLETED },
+  });
+  if (completedCount === 0) {
+    const daysAgo = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
+    const atTime = (d: Date, hour: number, minute = 0) => {
+      const copy = new Date(d);
+      copy.setHours(hour, minute, 0, 0);
+      return copy;
+    };
+    const trainer1 = await trainerRepo.findOne({ where: { userId: trainerUser.id } });
+
+    const past1 = await scheduleRepo.save(
+      scheduleRepo.create({
+        title: 'PT - Kỹ thuật Squat & Deadlift',
+        trainerId: trainer1.id,
+        memberId: member.id,
+        branchId: branch.id,
+        roomId: weightRoom.id,
+        type: SessionType.PERSONAL_TRAINING,
+        startTime: atTime(daysAgo(4), 17),
+        endTime: atTime(daysAgo(4), 18),
+        status: ScheduleStatus.COMPLETED,
+        completedAt: atTime(daysAgo(4), 18),
+        description: 'Tập trung kỹ thuật squat sâu và deadlift an toàn.',
+      }),
+    );
+
+    await scheduleRepo.save(
+      scheduleRepo.create({
+        title: 'PT - Cardio cường độ trung bình',
+        trainerId: trainer1.id,
+        memberId: member.id,
+        branchId: branch.id,
+        roomId: cardioRoom.id,
+        type: SessionType.PERSONAL_TRAINING,
+        startTime: atTime(daysAgo(7), 18),
+        endTime: atTime(daysAgo(7), 19),
+        status: ScheduleStatus.COMPLETED,
+        completedAt: atTime(daysAgo(7), 19),
+        description: 'Rèn luyện sức bền tim mạch, giữ nhịp 130-140 bpm.',
+      }),
+    );
+
+    await progressRepo.save(
+      progressRepo.create({
+        sessionId: past1.id,
+        memberId: member.id,
+        trainerId: trainer1.id,
+        note: 'Buổi tập trọng tâm: kỹ thuật squat & deadlift.',
+        performance:
+          'Member hoàn thành tốt bài tập chân. Squat 4 hiệp × 8 reps với 80% sức tối đa, kỹ thuật giữ lưng thẳng tốt.',
+        recommendation:
+          'Cần tăng dần mức tạ 5kg trong các buổi tiếp theo và giãn cơ đùi sau 10 phút sau buổi tập.',
+      }),
+    );
+    console.log('✅ Created completed PT history + training progress');
+  }
+
+  // 15. Backfill STEP 7 (idempotent, KHÔNG xóa dữ liệu cũ)
+  // - Gán code cho phòng chưa có code (VD: BR-BH01-R01) — unique trong branch
+  const allBranches = await branchRepo.find({ relations: { rooms: true } });
+  for (const b of allBranches) {
+    let idx = 1;
+    for (const r of b.rooms) {
+      if (!r.code || r.code.trim() === '') {
+        const newCode = `${b.code}-R${String(idx).padStart(2, '0')}`;
+        await roomRepo.update({ id: r.id }, { code: newCode });
+      }
+      idx += 1;
+    }
+  }
+  // - Đổi status equipment legacy sang chuẩn STEP 7 (giữ nguyên bản ghi)
+  await equipmentRepo.update(
+    { status: EquipmentStatus.OPERATIONAL },
+    { status: EquipmentStatus.AVAILABLE },
+  );
+  await equipmentRepo.update(
+    { status: EquipmentStatus.UNDER_MAINTENANCE },
+    { status: EquipmentStatus.MAINTENANCE },
+  );
+  console.log('✅ Backfill STEP 7 (room codes + equipment status)');
+
+  // -------------------------------------------------------------
+  // 16. STEP 9 — Làm phong phú dữ liệu demo (graduation demo)
+  //     Thêm ~10 hội viên + membership đa trạng thái + payment/invoice
+  //     + check-in + lịch tập + phân công HLV + bảo trì + mã KM hết hạn.
+  //     Idempotent: upsert / đếm trước khi create, KHÔNG xóa dữ liệu cũ.
+  // -------------------------------------------------------------
+  const dayMs = 24 * 60 * 60 * 1000;
+  // Marker cho dữ liệu do block STEP 9 sinh ra. Đặt ở field KHÔNG hiển thị ra
+  // giao diện (notes/description) để seed idempotent mà tiêu đề/URL demo vẫn sạch.
+  const SEED9_MARKER = 'seed-step9';
+  const daysAgo9 = (n: number) => new Date(Date.now() - n * dayMs);
+  const daysFromNow9 = (n: number) => new Date(Date.now() + n * dayMs);
+  const atHour9 = (d: Date, hour: number, minute = 0) => {
+    const c = new Date(d);
+    c.setHours(hour, minute, 0, 0);
+    return c;
+  };
+
+  // -------------------------------------------------------------
+  // 16.0b THƯ VIỆN THỰC PHẨM — 26 món ăn Việt Nam phổ biến
+  //      (nguyên liệu cho HLV soạn thực đơn). Idempotent: findFirst
+  //      rồi update/create; KHÔNG đụng isActive nếu món đã bị ẩn.
+  // -------------------------------------------------------------
+  const foodSeeds: Array<{
+    name: string;
+    category: FoodCategory;
+    servingSize: number;
+    servingUnit: string;
+    caloriesPer100g: number;
+    proteinPer100g: number;
+    carbsPer100g: number;
+    fatPer100g: number;
+    description: string;
+  }> = [
+    // --- Đạm ---
+    { name: 'Ức gà luộc', category: FoodCategory.PROTEIN, servingSize: 100, servingUnit: 'g', caloriesPer100g: 165, proteinPer100g: 31, carbsPer100g: 0, fatPer100g: 3.6, description: 'Ức gà bỏ da luộc chín — nguồn đạm nạc chủ lực, ít béo.' },
+    { name: 'Trứng gà luộc', category: FoodCategory.PROTEIN, servingSize: 50, servingUnit: 'quả', caloriesPer100g: 155, proteinPer100g: 13, carbsPer100g: 1.1, fatPer100g: 11, description: 'Trứng gà luộc chín (1 quả ~50 g) — đạm hoàn chỉnh, tiện lợi.' },
+    { name: 'Thịt bò áp chảo', category: FoodCategory.PROTEIN, servingSize: 100, servingUnit: 'g', caloriesPer100g: 250, proteinPer100g: 26, carbsPer100g: 0, fatPer100g: 15, description: 'Thịt bò thăn áp chảo ít dầu — giàu đạm và sắt.' },
+    { name: 'Cá hồi áp chảo', category: FoodCategory.PROTEIN, servingSize: 100, servingUnit: 'g', caloriesPer100g: 208, proteinPer100g: 20, carbsPer100g: 0, fatPer100g: 13, description: 'Cá hồi phi lê áp chảo — đạm cao, giàu omega-3.' },
+    { name: 'Tôm luộc', category: FoodCategory.PROTEIN, servingSize: 100, servingUnit: 'g', caloriesPer100g: 99, proteinPer100g: 24, carbsPer100g: 0.2, fatPer100g: 0.3, description: 'Tôm sú luộc chín — đạm cao, rất ít béo.' },
+    { name: 'Đậu hũ trắng', category: FoodCategory.PROTEIN, servingSize: 100, servingUnit: 'g', caloriesPer100g: 76, proteinPer100g: 8, carbsPer100g: 1.9, fatPer100g: 4.8, description: 'Đậu hũ (tàu hũ) hấp — đạm thực vật, phù hợp chay.' },
+    { name: 'Thịt lợn nạc áp chảo', category: FoodCategory.PROTEIN, servingSize: 100, servingUnit: 'g', caloriesPer100g: 143, proteinPer100g: 21, carbsPer100g: 0, fatPer100g: 6.2, description: 'Thịt lợn thăn áp chảo ít dầu.' },
+    { name: 'Đùi gà nướng không da', category: FoodCategory.PROTEIN, servingSize: 100, servingUnit: 'g', caloriesPer100g: 178, proteinPer100g: 19, carbsPer100g: 0, fatPer100g: 11, description: 'Đùi gà bỏ da ướp nướng — mềm, dễ ăn.' },
+    // --- Tinh bột ---
+    { name: 'Cơm trắng', category: FoodCategory.CARBOHYDRATE, servingSize: 180, servingUnit: 'chén', caloriesPer100g: 130, proteinPer100g: 2.7, carbsPer100g: 28, fatPer100g: 0.3, description: 'Cơm gạo tám trắng nấu chín (1 chén ~180 g).' },
+    { name: 'Khoai lang hấp', category: FoodCategory.CARBOHYDRATE, servingSize: 100, servingUnit: 'g', caloriesPer100g: 86, proteinPer100g: 1.6, carbsPer100g: 20, fatPer100g: 0.1, description: 'Khoai lang hấp chín — tinh bột tốt, nhiều chất xơ.' },
+    { name: 'Yến mạch nấu', category: FoodCategory.CARBOHYDRATE, servingSize: 100, servingUnit: 'g', caloriesPer100g: 71, proteinPer100g: 2.5, carbsPer100g: 12, fatPer100g: 1.5, description: 'Yến mạch nguyên hạt nấu chín với nước.' },
+    { name: 'Bánh mì nguyên cám', category: FoodCategory.CARBOHYDRATE, servingSize: 40, servingUnit: 'lát', caloriesPer100g: 247, proteinPer100g: 13, carbsPer100g: 41, fatPer100g: 3.4, description: 'Bánh mì nguyên cám (1 lát ~40 g).' },
+    { name: 'Mì ống nấu chín', category: FoodCategory.CARBOHYDRATE, servingSize: 100, servingUnit: 'g', caloriesPer100g: 158, proteinPer100g: 5.8, carbsPer100g: 31, fatPer100g: 0.9, description: 'Pasta mì ống nấu chín, không sốt.' },
+    { name: 'Ngô luộc', category: FoodCategory.CARBOHYDRATE, servingSize: 100, servingUnit: 'g', caloriesPer100g: 96, proteinPer100g: 3.4, carbsPer100g: 21, fatPer100g: 1.5, description: 'Bắp ngọt luộc chín.' },
+    // --- Rau củ ---
+    { name: 'Rau cải xanh luộc', category: FoodCategory.VEGETABLE, servingSize: 100, servingUnit: 'g', caloriesPer100g: 35, proteinPer100g: 2.6, carbsPer100g: 4, fatPer100g: 0.5, description: 'Cải thìa luộc chín, ít dầu.' },
+    { name: 'Bông cải xanh hấp', category: FoodCategory.VEGETABLE, servingSize: 100, servingUnit: 'g', caloriesPer100g: 34, proteinPer100g: 2.8, carbsPer100g: 7, fatPer100g: 0.4, description: 'Bông cải (súp lơ xanh) hấp chín.' },
+    { name: 'Cà rốt hấp', category: FoodCategory.VEGETABLE, servingSize: 100, servingUnit: 'g', caloriesPer100g: 35, proteinPer100g: 1.3, carbsPer100g: 8, fatPer100g: 0.2, description: 'Cà rốt hấp chín, giàu beta-carotene.' },
+    // --- Trái cây ---
+    { name: 'Chuối chín', category: FoodCategory.FRUIT, servingSize: 120, servingUnit: 'quả', caloriesPer100g: 89, proteinPer100g: 1.1, carbsPer100g: 23, fatPer100g: 0.3, description: 'Chuối sứ chín (1 quả ~120 g) — bổ sung năng lượng nhanh trước tập.' },
+    { name: 'Táo xanh', category: FoodCategory.FRUIT, servingSize: 180, servingUnit: 'quả', caloriesPer100g: 52, proteinPer100g: 0.3, carbsPer100g: 14, fatPer100g: 0.2, description: 'Táo xanh tươi (1 quả ~180 g).' },
+    // --- Sữa & sản phẩm từ sữa ---
+    { name: 'Sữa tươi không đường', category: FoodCategory.DAIRY, servingSize: 240, servingUnit: 'ly', caloriesPer100g: 61, proteinPer100g: 3.2, carbsPer100g: 4.8, fatPer100g: 3.3, description: 'Sữa bò tươi không đường (1 ly ~240 ml).' },
+    { name: 'Sữa chua Hy Lạp', category: FoodCategory.DAIRY, servingSize: 170, servingUnit: 'hũ', caloriesPer100g: 59, proteinPer100g: 10, carbsPer100g: 3.6, fatPer100g: 0.4, description: 'Sữa chua Hy Lạp ít béo (1 hũ ~170 g) — đạm cao, tốt cho tiêu hoá.' },
+    // --- Chất béo ---
+    { name: 'Bơ đậu phộng', category: FoodCategory.FAT, servingSize: 16, servingUnit: 'muỗng canh', caloriesPer100g: 588, proteinPer100g: 25, carbsPer100g: 20, fatPer100g: 50, description: 'Bơ đậu phộng nguyên chất, không đường (1 muỗng canh ~16 g).' },
+    { name: 'Dầu ô liu', category: FoodCategory.FAT, servingSize: 14, servingUnit: 'muỗng canh', caloriesPer100g: 884, proteinPer100g: 0, carbsPer100g: 0, fatPer100g: 100, description: 'Dầu ô liu extra virgin để trộn salad, ướp món (1 muỗng canh ~14 g).' },
+    // --- Đồ uống ---
+    { name: 'Nước ép cam vắt', category: FoodCategory.DRINK, servingSize: 240, servingUnit: 'ly', caloriesPer100g: 45, proteinPer100g: 0.7, carbsPer100g: 10, fatPer100g: 0.2, description: 'Nước ép cam vắt nguyên chất, không thêm đường (1 ly ~240 ml).' },
+    // --- Đồ ăn vặt ---
+    { name: 'Hạnh nhân rang', category: FoodCategory.SNACK, servingSize: 30, servingUnit: 'nắm', caloriesPer100g: 579, proteinPer100g: 21, carbsPer100g: 22, fatPer100g: 50, description: 'Hạnh nhân rang không muối (1 nắm ~30 g) — snack giàu đạm và chất béo tốt.' },
+    { name: 'Granola yến mạch', category: FoodCategory.SNACK, servingSize: 40, servingUnit: 'gói', caloriesPer100g: 471, proteinPer100g: 10, carbsPer100g: 64, fatPer100g: 20, description: 'Granola yến mạch ăn liền (1 gói ~40 g).' },
+  ];
+  let foodCreated = 0;
+  let foodUpdated = 0;
+  for (const f of foodSeeds) {
+    const existingFood = await foodRepo.findOne({ where: { name: f.name } });
+    if (existingFood) {
+      foodRepo.merge(existingFood, { ...f });
+      await foodRepo.save(existingFood);
+      foodUpdated += 1;
+    } else {
+      await foodRepo.save(foodRepo.create({ ...f, createdById: adminUser.id }));
+      foodCreated += 1;
+    }
+  }
+  console.log(`. Foods library: +${foodCreated} moi, ${foodUpdated} cap nhat (${foodSeeds.length} mon)`);
+
+  const pkg9_1m = await pkgRepo.findOne({ where: { code: 'PKG-1M' } });
+  const pkg9_6m = await pkgRepo.findOne({ where: { code: 'PKG-6M-VIP' } });
+  const pkg9_12m = await pkgRepo.findOne({ where: { code: 'PKG-12M-DIAMOND' } });
+
+  // 16.1 Hội viên demo
+  const demoMembers = [
+    { code: 'MEM-0002', name: 'Lê Hoàng Anh', branchRef: branch, email: 'member2@gym.com', phone: '0912000002', gender: Gender.MALE, dob: '1996-03-12' },
+    { code: 'MEM-0003', name: 'Phạm Thị Ngọc', branchRef: branch, email: 'member3@gym.com', phone: '0912000003', gender: Gender.FEMALE, dob: '1999-07-25' },
+    { code: 'MEM-0004', name: 'Võ Đức Thịnh', branchRef: branch, email: 'member4@gym.com', phone: '0912000004', gender: Gender.MALE, dob: '1994-11-02' },
+    { code: 'MEM-0005', name: 'Đặng Quốc Huy', branchRef: branch, email: 'member5@gym.com', phone: '0912000005', gender: Gender.MALE, dob: '1997-01-19' },
+    { code: 'MEM-0006', name: 'Bùi Thanh Tâm', branchRef: branch, email: 'member6@gym.com', phone: '0912000006', gender: Gender.FEMALE, dob: '2000-09-08' },
+    { code: 'MEM-0007', name: 'Hoàng Văn Dũng', branchRef: branch, email: 'member7@gym.com', phone: '0912000007', gender: Gender.MALE, dob: '1992-05-30' },
+    { code: 'MEM-0008', name: 'Trương Thị Hồng', branchRef: branch, email: 'member8@gym.com', phone: '0912000008', gender: Gender.FEMALE, dob: '1998-12-14' },
+    { code: 'MEM-0009', name: 'Nguyễn Phương Linh', branchRef: branch, email: 'member9@gym.com', phone: '0912000009', gender: Gender.FEMALE, dob: '2001-02-23' },
+    { code: 'MEM-0010', name: 'Đỗ Minh Khôi', branchRef: branch2, email: 'member10@gym.com', phone: '0912000010', gender: Gender.MALE, dob: '1995-08-17' },
+    { code: 'MEM-0011', name: 'Hà Thị Bích', branchRef: branch3, email: 'member11@gym.com', phone: '0912000011', gender: Gender.FEMALE, dob: '1993-04-05' },
+  ];
+
+  const memberRecords9: Record<string, Member> = {};
+  for (const dm of demoMembers) {
+    const u = await upsertByKey(
+      userRepo,
+      { email: dm.email },
+      {
+        email: dm.email,
+        passwordHash: memberPassword,
+        fullName: dm.name,
+        phone: dm.phone,
+        role: UserRole.MEMBER,
+        branchId: dm.branchRef.id,
+      },
+    );
+    const mRec = await upsertByKey(
+      memberRepo,
+      { code: dm.code },
+      {
+        code: dm.code,
+        userId: u.id,
+        fullName: dm.name,
+        email: dm.email,
+        phone: dm.phone,
+        gender: dm.gender,
+        dateOfBirth: new Date(dm.dob),
+        status: MemberStatus.ACTIVE,
+        branchId: dm.branchRef.id,
+      },
+      { userId: u.id },
+    );
+    memberRecords9[dm.code] = mRec;
+  }
+  console.log('✅ Created demo members (STEP 9):', demoMembers.length);
+
+  // 16.2 Membership đa trạng thái + Payment + Invoice
+  // Mã hoá đơn sinh tự động ở DẢI 1xxx (INV-2026-1001…1010) — cố tình KHÔNG dùng
+  // INV-2026-0001…0006 vì block gốc (mục 8) đã chiếm dải đó cho MEM-0001; nếu dùng
+  // trùng, `findUnique` sẽ thấy payment có sẵn và âm thầm bỏ qua (thiếu dữ liệu).
+  const membershipSeeds = [
+    { code: 'MEM-0002', pkg: pkg9_12m, status: 'ACTIVE', startOffset: -90, payStatus: PaymentStatus.PAID, method: PaymentMethod.BANK_TRANSFER, ref: 'VCB-8812002', paidOffset: -88 },
+    { code: 'MEM-0003', pkg: pkg9_6m, status: 'ACTIVE', startOffset: -45, payStatus: PaymentStatus.PAID, method: PaymentMethod.CASH, ref: null, paidOffset: -45 },
+    { code: 'MEM-0004', pkg: pkg9_1m, status: 'ACTIVE', startOffset: -12, payStatus: PaymentStatus.PAID, method: PaymentMethod.MOMO, ref: 'MOMO-55210', paidOffset: -12 },
+    { code: 'MEM-0005', pkg: pkg9_1m, status: 'EXPIRED', startOffset: -50, payStatus: PaymentStatus.PAID, method: PaymentMethod.CASH, ref: null, paidOffset: -50 },
+    { code: 'MEM-0006', pkg: pkg9_6m, status: 'PENDING', startOffset: 0, payStatus: PaymentStatus.PENDING, method: PaymentMethod.BANK_TRANSFER, ref: null, paidOffset: 0 },
+    { code: 'MEM-0007', pkg: pkg9_12m, status: 'ACTIVE', startOffset: -120, payStatus: PaymentStatus.PAID, method: PaymentMethod.VNPAY, ref: 'VNP-77112', paidOffset: -118 },
+    { code: 'MEM-0008', pkg: pkg9_6m, status: 'EXPIRED', startOffset: -200, payStatus: PaymentStatus.PAID, method: PaymentMethod.CASH, ref: null, paidOffset: -200 },
+    { code: 'MEM-0009', pkg: pkg9_1m, status: 'CANCELLED', startOffset: -60, payStatus: PaymentStatus.REFUNDED, method: PaymentMethod.CASH, ref: null, paidOffset: -58 },
+    { code: 'MEM-0010', pkg: pkg9_6m, status: 'ACTIVE', startOffset: -30, payStatus: PaymentStatus.PAID, method: PaymentMethod.BANK_TRANSFER, ref: 'VCB-99331', paidOffset: -30 },
+    { code: 'MEM-0011', pkg: pkg9_1m, status: 'ACTIVE', startOffset: -5, payStatus: PaymentStatus.PAID, method: PaymentMethod.CASH, ref: null, paidOffset: -5 },
+  ];
+
+  for (const [i, s] of membershipSeeds.entries()) {
+    if (!s.pkg) continue;
+    const memberRec = memberRecords9[s.code];
+    const start = daysFromNow9(s.startOffset);
+    const end = daysFromNow9(s.startOffset + s.pkg.durationDays);
+
+    // Membership chỉ tạo nếu member chưa có
+    const msCount = await membershipRepo.count({ where: { memberId: memberRec.id } });
+    let msId: string | null = null;
+    if (msCount === 0) {
+      const ms = await membershipRepo.save(
+        membershipRepo.create({
+          memberId: memberRec.id,
+          packageId: s.pkg.id,
+          startDate: start,
+          endDate: end,
+          price: s.pkg.price,
+          finalAmount: s.pkg.price,
+          status: s.status as any,
+        }),
+      );
+      msId = ms.id;
+    } else {
+      const ms = await membershipRepo.findOne({
+        where: { memberId: memberRec.id },
+        order: { createdAt: 'ASC' },
+      });
+      msId = ms?.id ?? null;
+    }
+
+    // Payment — số tiền lấy từ THẺ THỰC TẾ đang gắn (không phải `s.pkg.price`),
+    // vì khi tái chạy seed thẻ cũ có thể thuộc gói khác → nếu hardcode sẽ lệch với hoá đơn.
+    // Quy tắc: 1 thẻ = 1 đơn thanh toán (nếu thẻ đã có payment thì không tạo thêm).
+    const payCode = `INV-2026-1${String(i + 1).padStart(3, '0')}`;
+    const linked = msId
+      ? await membershipRepo.findOne({
+          where: { id: msId },
+          select: { finalAmount: true, price: true },
+        })
+      : null;
+    const amount = linked?.finalAmount ?? linked?.price ?? s.pkg?.price ?? 0;
+
+    let payment = await paymentRepo.findOne({
+      where: msId ? { membershipId: msId } : { code: payCode },
+      order: { createdAt: 'ASC' },
+    });
+    if (!payment && msId) {
+      const paidAt = s.payStatus === PaymentStatus.PAID ? daysFromNow9(s.paidOffset) : null;
+      payment = await paymentRepo.save(
+        paymentRepo.create({
+          code: payCode,
+          memberId: memberRec.id,
+          membershipId: msId,
+          amount,
+          method: s.method,
+          status: s.payStatus,
+          transactionRef: s.ref ?? null,
+          notes: 'Thanh toán gói tập (dữ liệu mẫu)',
+          paidAt,
+          confirmedById: s.payStatus === PaymentStatus.PAID ? adminUser.id : null,
+          confirmedAt: paidAt,
+        }),
+      );
+    }
+
+    // Invoice tương ứng (quan hệ 1-1 với Payment)
+    const existingInv = await invoiceRepo.findOne({
+      where: payment ? { paymentId: payment.id } : { invoiceNumber: payCode },
+    });
+    if (!existingInv && payment) {
+      await invoiceRepo.save(
+        invoiceRepo.create({
+          invoiceNumber: payCode,
+          memberId: memberRec.id,
+          membershipId: msId,
+          paymentId: payment.id,
+          subtotal: amount,
+          discount: 0,
+          total: amount,
+          status:
+            s.payStatus === PaymentStatus.PAID
+              ? InvoiceStatus.PAID
+              : s.payStatus === PaymentStatus.PENDING
+                ? InvoiceStatus.ISSUED
+                : InvoiceStatus.CANCELLED,
+          issuedAt: daysFromNow9(s.paidOffset),
+          dueDate: daysFromNow9(s.paidOffset + 7),
+        }),
+      );
+    }
+  }
+
+  // Giao dịch thất bại (demo status FAILED — không kèm membership)
+  const failedPay = await paymentRepo.findOne({ where: { code: 'INV-2026-0099' } });
+  if (!failedPay) {
+    await paymentRepo.save(
+      paymentRepo.create({
+        code: 'INV-2026-0099',
+        memberId: memberRecords9['MEM-0006'].id,
+        amount: pkg9_6m?.price ?? 0,
+        method: PaymentMethod.VNPAY,
+        status: PaymentStatus.FAILED,
+        transactionRef: 'VNP-FAIL-01',
+        notes: 'Giao dịch thất bại (người dùng hủy thanh toán cổng VNPAY) - demo STEP 9',
+      }),
+    );
+  }
+  console.log('✅ Created demo memberships + payments + invoices (STEP 9)');
+
+  // 16.3 Check-in lịch sử cho các hội viên ACTIVE
+  const checkinMembers = ['MEM-0002', 'MEM-0003', 'MEM-0004', 'MEM-0007', 'MEM-0010', 'MEM-0011'];
+  const dayPattern = [1, 2, 3, 5, 6, 7, 8, 9, 10, 12, 13];
+  const hourPattern = [7, 8, 17, 18, 19];
+  for (const code of checkinMembers) {
+    const memberRec = memberRecords9[code];
+    const cnt = await checkInRepo.count({ where: { memberId: memberRec.id } });
+    if (cnt > 0) continue;
+    const rows: DeepPartial<CheckIn>[] = [];
+    dayPattern.forEach((day, i) => {
+      const hour = hourPattern[i % hourPattern.length];
+      rows.push({
+        memberId: memberRec.id,
+        branchId: memberRec.branchId,
+        checkInTime: atHour9(daysAgo9(day), hour, 10),
+        checkOutTime: atHour9(daysAgo9(day), hour + 1 + (i % 2), 25),
+        status: CheckInStatus.CHECKED_OUT,
+        method: i % 3 === 0 ? CheckInMethod.QR_CODE : i % 3 === 1 ? CheckInMethod.MANUAL : CheckInMethod.STAFF,
+        notes: 'Buổi tập demo STEP 9',
+      });
+    });
+    await checkInRepo.save(checkInRepo.create(rows));
+  }
+  console.log('✅ Created check-in history for demo members (STEP 9)');
+
+  // 16.4 Phân công HLV + lịch tập (upcoming/completed) + tiến trình
+  const trainer1Rec = await trainerRepo.findOne({ where: { userId: trainerUser.id } });
+  const trainer2Rec = await trainerRepo.findOne({ where: { userId: trainerUser2.id } });
+  const trainer3Rec = await trainerRepo.findOne({ where: { userId: trainerUser3.id } });
+
+  const assignSeeds = [
+    { trainer: trainer1Rec, memberCode: 'MEM-0002', note: 'Chương trình tăng cơ - demo STEP 9' },
+    { trainer: trainer3Rec, memberCode: 'MEM-0003', note: 'Chương trình giảm mỡ cấp thân' },
+    { trainer: trainer2Rec, memberCode: 'MEM-0010', note: 'Yoga & linh hoạt' },
+  ];
+  for (const a of assignSeeds) {
+    if (!a.trainer) continue;
+    const memberRec = memberRecords9[a.memberCode];
+    const ex = await trainerMemberRepo.findOne({
+      where: { trainerId: a.trainer.id, memberId: memberRec.id },
+    });
+    if (!ex) {
+      await trainerMemberRepo.save(
+        trainerMemberRepo.create({
+          trainerId: a.trainer.id,
+          memberId: memberRec.id,
+          status: TrainerMemberStatus.ACTIVE,
+          note: a.note,
+        }),
+      );
+    }
+  }
+
+  // Idempotent: marker đặt ở `notes` (KHÔNG nhúng vào title) để dữ liệu demo
+  // hiển thị sạch cho khách/giảng viên, nhưng vẫn không tạo trùng khi chạy lại seed.
+  const sched9Count = await scheduleRepo.count({
+    where: { notes: SEED9_MARKER },
+  });
+  if (sched9Count === 0 && trainer1Rec && trainer2Rec && trainer3Rec) {
+    const m2 = memberRecords9['MEM-0002'];
+    const m3 = memberRecords9['MEM-0003'];
+    const weight = await roomRepo.findOne({ where: { id: roomId('room-weight-01') } });
+    const cardio = await roomRepo.findOne({ where: { id: roomId('room-cardio-01') } });
+    const tdClass = await roomRepo.findOne({ where: { id: roomId('room-td-class-01') } });
+
+    await scheduleRepo.save(
+      scheduleRepo.create([
+        {
+          title: 'PT - Tăng cơ toàn thân',
+          trainerId: trainer1Rec.id,
+          memberId: m2.id,
+          branchId: branch.id,
+          roomId: weight?.id,
+          type: SessionType.PERSONAL_TRAINING,
+          startTime: daysFromNow9(1),
+          endTime: new Date(daysFromNow9(1).getTime() + 3600000),
+          status: ScheduleStatus.SCHEDULED,
+          notes: SEED9_MARKER,
+        },
+        {
+          title: 'PT - Kỹ thuật Deadlift',
+          trainerId: trainer1Rec.id,
+          memberId: m2.id,
+          branchId: branch.id,
+          roomId: weight?.id,
+          type: SessionType.PERSONAL_TRAINING,
+          startTime: daysFromNow9(4),
+          endTime: new Date(daysFromNow9(4).getTime() + 3600000),
+          status: ScheduleStatus.SCHEDULED,
+          notes: SEED9_MARKER,
+        },
+        {
+          title: 'PT - Giảm mỡ toàn thân',
+          trainerId: trainer3Rec.id,
+          memberId: m3.id,
+          branchId: branch.id,
+          roomId: cardio?.id,
+          type: SessionType.PERSONAL_TRAINING,
+          startTime: daysFromNow9(2),
+          endTime: new Date(daysFromNow9(2).getTime() + 3600000),
+          status: ScheduleStatus.SCHEDULED,
+          notes: SEED9_MARKER,
+        },
+        {
+          title: 'Yoga Năng Lượng Buổi Sáng',
+          trainerId: trainer2Rec.id,
+          branchId: branch2.id,
+          roomId: tdClass?.id,
+          type: SessionType.GROUP_CLASS,
+          startTime: daysFromNow9(3),
+          endTime: new Date(daysFromNow9(3).getTime() + 3600000),
+          status: ScheduleStatus.SCHEDULED,
+          notes: SEED9_MARKER,
+        },
+      ]),
+    );
+
+    const pastDemo = await scheduleRepo.save(
+      scheduleRepo.create({
+        title: 'PT - Buổi đánh giá thể lực',
+        trainerId: trainer1Rec.id,
+        memberId: m2.id,
+        branchId: branch.id,
+        roomId: weight?.id,
+        type: SessionType.PERSONAL_TRAINING,
+        startTime: daysAgo9(5),
+        endTime: new Date(daysAgo9(5).getTime() + 3600000),
+        status: ScheduleStatus.COMPLETED,
+        completedAt: new Date(daysAgo9(5).getTime() + 3600000),
+        notes: SEED9_MARKER,
+      }),
+    );
+
+    await progressRepo.save(
+      progressRepo.create({
+        sessionId: pastDemo.id,
+        memberId: m2.id,
+        trainerId: trainer1Rec.id,
+        note: 'Đánh giá thể lực đầu khóa.',
+        performance: 'Sức bền tốt, kỹ thuật bench press cần chỉnh tư thế vai.',
+        recommendation: 'Tập trung các bài vai sau và tăng dần khối lượng theo giáo án.',
+      }),
+    );
+    console.log('✅ Created trainer assignments + schedules (STEP 9)');
+  }
+
+  // 16.5 Mã khuyến mãi đã hết hạn (demo)
+  await upsertByKey(
+    promotionRepo,
+    { code: 'LUNAR2025' },
+    {
+      code: 'LUNAR2025',
+      name: 'Ưu đãi Tết Nguyên Đán 2025',
+      description: 'Chương trình khuyến mãi Tết 2025 đã kết thúc (hiển thị ở mục thống kê EXPIRED).',
+      discountType: DiscountType.PERCENTAGE,
+      discountValue: 10,
+      startDate: new Date('2025-01-01'),
+      endDate: new Date('2025-02-28'),
+      usageLimit: 200,
+      perMemberLimit: 1,
+      usedCount: 150,
+      status: 'EXPIRED',
+    },
+  );
+
+  // 16.6 Bảo trì thiết bị (demo: completed / scheduled / in-progress)
+  const eqRun = await equipmentRepo.findOne({ where: { code: 'EQ-RUN-01' } });
+  const eqBench = await equipmentRepo.findOne({ where: { code: 'EQ-BENCH-01' } });
+  const eqSquat = await equipmentRepo.findOne({ where: { code: 'EQ-SQUAT-01' } });
+  // Idempotent: khoá theo (equipmentId, description) — mô tả đã viết sạch và
+  // duy nhất nên không cần marker ẩn.
+  const maintSeeds: Array<{
+    equipmentId?: string | null;
+    type: MaintenanceType;
+    maintenanceDate: Date;
+    cost: number;
+    description: string;
+    status: MaintenanceStatus;
+  }> = [
+    { equipmentId: eqRun?.id, type: MaintenanceType.REPAIR, maintenanceDate: daysAgo9(25), cost: 1150000, description: 'Thay băng tải và siết khung máy chạy.', status: MaintenanceStatus.COMPLETED },
+    { equipmentId: eqBench?.id, type: MaintenanceType.ROUTINE, maintenanceDate: daysFromNow9(10), cost: 450000, description: 'Bảo dưỡng định kỳ 6 tháng.', status: MaintenanceStatus.SCHEDULED },
+    { equipmentId: eqSquat?.id, type: MaintenanceType.INSPECTION, maintenanceDate: daysAgo9(1), cost: 300000, description: 'Kiểm tra khung squat rack sau phản hồi tiếng kêu.', status: MaintenanceStatus.IN_PROGRESS },
+  ];
+  for (const m of maintSeeds) {
+    if (!m.equipmentId) continue;
+    const ex = await maintenanceRepo.findOne({
+      where: { equipmentId: m.equipmentId, description: m.description },
+    });
+    if (!ex) {
+      await maintenanceRepo.save(maintenanceRepo.create({ ...m }));
+    }
+  }
+
+  // 16.7 Thông báo mẫu cho hội viên demo
+  // GHỊ CHÚ (port TypeORM): như mục 13 — referenceId marker chữ không vừa cột
+  // uniqueidentifier nên bỏ, chỉ giữ referenceType.
+  const notifSeeds = [
+    {
+      memberId: memberRecords9['MEM-0002'].id,
+      title: 'Thanh toán thành công 💳',
+      content: 'Hóa đơn INV-2026-0002 (Gói Kim Cương 12 Tháng) đã được thanh toán thành công qua chuyển khoản.',
+      type: 'PAYMENT',
+      link: '/member/payments',
+      isRead: true,
+      readAt: new Date(),
+      referenceType: 'PAYMENT_CONFIRMED',
+    },
+    {
+      memberId: memberRecords9['MEM-0002'].id,
+      title: 'Buổi PT sắp diễn ra 📅',
+      content: 'Bạn có buổi "PT - Tăng cơ toàn thân" vào ngày mai. Đừng quên đến đúng giờ nhé!',
+      type: 'SCHEDULE',
+      link: '/member/schedule',
+      isRead: false,
+      referenceType: 'SCHEDULE_REMINDER',
+    },
+    {
+      memberId: memberRecords9['MEM-0003'].id,
+      title: 'Chào mừng hội viên mới 💪',
+      content: 'Chào mừng Phạm Thị Ngọc đến với GymMaster Pro! Hãy bắt đầu hành trình fitness nào.',
+      type: 'SYSTEM',
+      link: '/member/dashboard',
+      isRead: false,
+    },
+  ];
+  for (const n of notifSeeds) {
+    const ex = await notificationRepo.findOne({
+      where: { memberId: n.memberId, title: n.title },
+    });
+    if (!ex) {
+      const { memberId, title, ...rest } = n;
+      await notificationRepo.save(notificationRepo.create({ ...rest, memberId, title }));
+    }
+  }
+  console.log('✅ Created promotions expired + maintenance + notifications (STEP 9)');
+
+  // 16.8 Nhật ký hệ thống (AuditLog) — để trang /admin/audit-logs có dữ liệu demo ngay sau khi seed.
+  // Idempotent: chỉ tạo khi bảng còn trống.
+  const auditCount = await auditLogRepo.count();
+  if (auditCount === 0) {
+    const m2 = memberRecords9['MEM-0002'];
+    const m3 = memberRecords9['MEM-0003'];
+    const m6 = memberRecords9['MEM-0006'];
+    const pay2 = await paymentRepo.findOne({ where: { memberId: m2.id, status: PaymentStatus.PAID }, order: { createdAt: 'ASC' } });
+    const pay6 = await paymentRepo.findOne({ where: { memberId: m6.id }, order: { createdAt: 'ASC' } });
+    const payFail = await paymentRepo.findOne({ where: { code: 'INV-2026-0099' } });
+    const ms2 = await membershipRepo.findOne({ where: { memberId: m2.id }, order: { createdAt: 'ASC' } });
+    const sched1 = await scheduleRepo.findOne({ where: { memberId: m2.id } });
+    const eqSquatAudit = await equipmentRepo.findOne({ where: { code: Like('%SQ%') } });
+    // thiết bị lâu đời nhất -> dùng cho log EQUIPMENT_RETIRE
+    // (findOne bắt buộc có where — dùng find + take 1 thay vì findOne không điều kiện)
+    const eqOldest = (await equipmentRepo.find({ order: { purchaseDate: 'ASC' }, take: 1 }))[0];
+
+    type AuditSeed = {
+      userId: string | null;
+      action: string;
+      entity: string;
+      entityId?: string | null;
+      metadata?: Record<string, unknown>;
+      ip: string;
+      at: Date;
+    };
+
+    const auditSeeds: AuditSeed[] = [
+      // --- Đăng nhập (đầu/cuối ngày) ---
+      { userId: adminUser.id, action: 'AUTH_LOGIN', entity: 'Auth', metadata: { method: 'password' }, ip: '127.0.0.1', at: daysAgo9(1) },
+      { userId: managerUser.id, action: 'AUTH_LOGIN', entity: 'Auth', metadata: { method: 'password' }, ip: '127.0.0.1', at: daysAgo9(1) },
+      { userId: staffUser.id, action: 'AUTH_LOGIN', entity: 'Auth', metadata: { method: 'password' }, ip: '127.0.0.1', at: daysAgo9(0) },
+      { userId: trainerUser.id, action: 'AUTH_LOGIN', entity: 'Auth', metadata: { method: 'password' }, ip: '127.0.0.1', at: daysAgo9(0) },
+      { userId: memberUser.id, action: 'AUTH_LOGIN', entity: 'Auth', metadata: { method: 'password' }, ip: '127.0.0.1', at: daysAgo9(0) },
+
+      // --- Tài khoản ---
+      { userId: adminUser.id, action: 'USER_CREATE', entity: 'User', metadata: { email: 'staff@gym.com', role: 'STAFF' }, ip: '127.0.0.1', at: daysAgo9(120) },
+      { userId: memberUser.id, action: 'PASSWORD_CHANGE', entity: 'User', metadata: { method: 'self-service' }, ip: '127.0.0.1', at: daysAgo9(70) },
+
+      // --- Hồ sơ hội viên ---
+      { userId: staffUser.id, action: 'MEMBER_REGISTER', entity: 'Member', entityId: m2.id, metadata: { code: 'MEM-0002', fullName: 'Lê Hoàng Anh' }, ip: '127.0.0.1', at: daysAgo9(88) },
+      { userId: staffUser.id, action: 'MEMBER_REGISTER', entity: 'Member', entityId: m3.id, metadata: { code: 'MEM-0003', fullName: 'Phạm Thị Ngọc' }, ip: '127.0.0.1', at: daysAgo9(45) },
+      { userId: m3.userId, action: 'MEMBER_PROFILE_UPDATE', entity: 'Member', entityId: m3.id, metadata: { fields: ['phone', 'address'] }, ip: '127.0.0.1', at: daysAgo9(30) },
+      { userId: managerUser.id, action: 'MEMBER_UPDATE', entity: 'Member', entityId: m2.id, metadata: { fields: ['emergencyContact'] }, ip: '127.0.0.1', at: daysAgo9(12) },
+
+      // --- Gói tập & thanh toán ---
+      { userId: m2.userId, action: 'MEMBERSHIP_REGISTER', entity: 'Membership', entityId: ms2?.id, metadata: { packageName: pkg9_12m?.name, amount: Number(pkg9_12m?.price ?? 0) }, ip: '127.0.0.1', at: daysAgo9(90) },
+      { userId: adminUser.id, action: 'PAYMENT_CONFIRM', entity: 'Payment', entityId: pay2?.id, metadata: { code: 'INV-2026-0002', method: 'BANK_TRANSFER', transactionRef: 'VCB-8812002' }, ip: '127.0.0.1', at: daysAgo9(88) },
+      { userId: m2.userId, action: 'MEMBERSHIP_RENEW', entity: 'Membership', entityId: ms2?.id, metadata: { packageName: pkg9_6m?.name, extraDays: 180 }, ip: '127.0.0.1', at: daysAgo9(0) },
+      { userId: m6.userId, action: 'MEMBERSHIP_REGISTER', entity: 'Membership', entityId: null, metadata: { packageName: pkg9_6m?.name, amount: Number(pkg9_6m?.price ?? 0) }, ip: '127.0.0.1', at: daysAgo9(0) },
+      { userId: adminUser.id, action: 'PAYMENT_REJECT', entity: 'Payment', entityId: payFail?.id, metadata: { code: 'INV-2026-0099', reason: 'Giao dịch thất bại từ cổng VNPAY' }, ip: '127.0.0.1', at: daysAgo9(0) },
+      { userId: adminUser.id, action: 'MEMBERSHIP_STATUS_CHANGE', entity: 'Membership', entityId: ms2?.id, metadata: { from: 'PENDING', to: 'ACTIVE' }, ip: '127.0.0.1', at: daysAgo9(88) },
+      { userId: managerUser.id, action: 'MEMBERSHIP_EXTEND', entity: 'Membership', entityId: ms2?.id, metadata: { extraDays: 7, reason: 'Bù buổi tập do thiết bị bảo trì' }, ip: '127.0.0.1', at: daysAgo9(6) },
+      { userId: adminUser.id, action: 'PAYMENT_REFUND', entity: 'Payment', entityId: pay6?.id, metadata: { code: 'INV-2026-0006', reason: 'Hội viên hủy trong 7 ngày' }, ip: '127.0.0.1', at: daysAgo9(58) },
+
+      // --- Check-in / check-out ---
+      { userId: memberUser.id, action: 'CHECK_IN', entity: 'CheckIn', entityId: null, metadata: { method: 'QR_CODE' }, ip: '127.0.0.1', at: atHour9(daysAgo9(0), 7, 12) },
+      { userId: memberUser.id, action: 'CHECK_OUT', entity: 'CheckIn', entityId: null, metadata: { durationMinutes: 65 }, ip: '127.0.0.1', at: atHour9(daysAgo9(0), 8, 17) },
+      { userId: staffUser.id, action: 'CHECK_IN', entity: 'CheckIn', entityId: null, metadata: { method: 'MANUAL', memberCode: 'MEM-0002' }, ip: '127.0.0.1', at: atHour9(daysAgo9(0), 18, 5) },
+
+      // --- HLV & lịch tập ---
+      { userId: adminUser.id, action: 'TRAINER_CREATE', entity: 'Trainer', entityId: trainer1Rec?.id, metadata: { fullName: trainerUser.fullName, specialization: trainer1Rec?.specialization }, ip: '127.0.0.1', at: daysAgo9(150) },
+      { userId: adminUser.id, action: 'TRAINER_UPDATE', entity: 'Trainer', entityId: trainer2Rec?.id, metadata: { fields: ['experienceYears'] }, ip: '127.0.0.1', at: daysAgo9(20) },
+      { userId: adminUser.id, action: 'TRAINER_REMOVE', entity: 'Trainer', entityId: trainer3Rec?.id, metadata: { fullName: trainerUser3.fullName, reason: 'Nghỉ việc (chuyển công ty)' }, ip: '127.0.0.1', at: daysAgo9(15) },
+      { userId: managerUser.id, action: 'SCHEDULE_CREATE', entity: 'TrainingSchedule', entityId: sched1?.id, metadata: { title: sched1?.title, type: sched1?.type }, ip: '127.0.0.1', at: daysAgo9(7) },
+      { userId: managerUser.id, action: 'SCHEDULE_UPDATE', entity: 'TrainingSchedule', entityId: sched1?.id, metadata: { fields: ['startTime', 'roomId'] }, ip: '127.0.0.1', at: daysAgo9(5) },
+      { userId: managerUser.id, action: 'SCHEDULE_CANCEL', entity: 'TrainingSchedule', entityId: sched1?.id, metadata: { reason: 'HLV bận việc đột xuất' }, ip: '127.0.0.1', at: daysAgo9(2) },
+      { userId: trainerUser.id, action: 'SCHEDULE_COMPLETE', entity: 'TrainingSchedule', entityId: sched1?.id, metadata: { attendance: 1 }, ip: '127.0.0.1', at: daysAgo9(1) },
+      { userId: managerUser.id, action: 'SCHEDULE_DELETE', entity: 'TrainingSchedule', entityId: sched1?.id, metadata: { reason: 'Xoá lịch trùng do nhập liệu sai' }, ip: '127.0.0.1', at: daysAgo9(4) },
+
+      // --- Thiết bị & bảo trì ---
+      { userId: adminUser.id, action: 'EQUIPMENT_CREATE', entity: 'Equipment', entityId: eqSquatAudit?.id, metadata: { code: eqSquatAudit?.code, name: eqSquatAudit?.name }, ip: '127.0.0.1', at: daysAgo9(200) },
+      { userId: staffUser.id, action: 'EQUIPMENT_UPDATE', entity: 'Equipment', entityId: eqSquatAudit?.id, metadata: { fields: ['location', 'condition'] }, ip: '127.0.0.1', at: daysAgo9(100) },
+      { userId: staffUser.id, action: 'EQUIPMENT_STATUS_CHANGE', entity: 'Equipment', entityId: eqSquatAudit?.id, metadata: { from: 'AVAILABLE', to: 'BROKEN', reason: 'Tiếng kêu bất thường khi nâng tạ' }, ip: '127.0.0.1', at: daysAgo9(2) },
+      { userId: adminUser.id, action: 'MAINTENANCE_CREATE', entity: 'EquipmentMaintenance', entityId: null, metadata: { equipmentCode: eqSquatAudit?.code, type: 'INSPECTION' }, ip: '127.0.0.1', at: daysAgo9(1) },
+      { userId: adminUser.id, action: 'MAINTENANCE_COMPLETE', entity: 'EquipmentMaintenance', entityId: null, metadata: { cost: 300000, note: 'Vặn lại bulong khung, đã kiểm tra tải trọng' }, ip: '127.0.0.1', at: daysAgo9(0) },
+      { userId: managerUser.id, action: 'MAINTENANCE_CANCEL', entity: 'EquipmentMaintenance', entityId: null, metadata: { equipmentCode: eqSquatAudit?.code, reason: 'Dời lịch sang tuần sau' }, ip: '127.0.0.1', at: daysAgo9(0) },
+      { userId: adminUser.id, action: 'EQUIPMENT_RETIRE', entity: 'Equipment', entityId: eqOldest?.id, metadata: { code: eqOldest?.code, name: eqOldest?.name, reason: 'Hết hạn sử dụng (>8 năm)' }, ip: '127.0.0.1', at: daysAgo9(40) },
+
+      // --- Khuyến mãi ---
+      { userId: adminUser.id, action: 'PROMOTION_CREATE', entity: 'Promotion', entityId: null, metadata: { code: 'LUNAR2025', name: 'Khuyến mãi đầu năm' }, ip: '127.0.0.1', at: daysAgo9(60) },
+      { userId: adminUser.id, action: 'PROMOTION_UPDATE', entity: 'Promotion', entityId: null, metadata: { code: 'LUNAR2025', fields: ['discountValue'] }, ip: '127.0.0.1', at: daysAgo9(50) },
+      { userId: adminUser.id, action: 'PROMOTION_ACTIVATE', entity: 'Promotion', entityId: null, metadata: { code: 'LUNAR2025' }, ip: '127.0.0.1', at: daysAgo9(45) },
+      { userId: adminUser.id, action: 'PROMOTION_DEACTIVATE', entity: 'Promotion', entityId: null, metadata: { code: 'LUNAR2025', reason: 'Đã hết hạn' }, ip: '127.0.0.1', at: daysAgo9(3) },
+    ];
+
+    await auditLogRepo.save(
+      auditSeeds.map((a) =>
+        auditLogRepo.create({
+          userId: a.userId,
+          action: a.action,
+          entity: a.entity,
+          entityId: a.entityId ?? null,
+          metadata: a.metadata as any,
+          ip: a.ip,
+          createdAt: a.at,
+        }),
+      ),
+    );
+    console.log(`✅ Created ${auditSeeds.length} demo audit logs (STEP 9)`);
+  } else {
+    console.log(`⏭️  Skipped audit logs — bảng đã có ${auditCount} bản ghi (idempotent)`);
+  }
+
+  console.log('🚀 Seed completed successfully!');
+}
+
+main()
+  .catch((e) => {
+    console.error('❌ Error during seeding:', e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    if (AppDataSource.isInitialized) {
+      await AppDataSource.destroy();
+    }
+  });
