@@ -346,12 +346,12 @@ export class NotificationsService {
 
   /**
    * POST /notifications/announce — ADMIN/MANAGER tạo thông báo hàng loạt.
-   * Target: ALL / MEMBERS / TRAINERS / STAFF / MANAGERS / SPECIFIC_BRANCH.
+   * Target: ALL / MEMBERS / TRAINERS / ADMIN / SPECIFIC_BRANCH.
    */
   async announce(dto: {
     title: string;
     message: string;
-    target: 'ALL' | 'MEMBERS' | 'TRAINERS' | 'STAFF' | 'MANAGERS' | 'SPECIFIC_BRANCH';
+    target: 'ALL' | 'MEMBERS' | 'TRAINERS' | 'ADMIN' | 'SPECIFIC_BRANCH';
     branchId?: string;
     startAt?: string;
     endAt?: string;

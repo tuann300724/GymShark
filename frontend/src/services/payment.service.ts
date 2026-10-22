@@ -89,6 +89,11 @@ export const paymentApi = {
     return res.data;
   },
 
+  checkCasso: async (id: string) => {
+    const res = await apiClient.post(`/payments/${id}/check-casso`);
+    return res.data;
+  },
+
   getBankInfo: async (): Promise<BankInfo> => {
     const res = await apiClient.get<BankInfo>('/payments/bank-info');
     return res.data;

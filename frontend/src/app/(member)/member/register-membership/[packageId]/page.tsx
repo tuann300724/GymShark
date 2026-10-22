@@ -27,6 +27,7 @@ import {
   Package,
   ArrowLeft,
   ArrowRight,
+  RefreshCw,
   Tag,
   Sparkles,
   Copy,
@@ -159,6 +160,28 @@ export default function RegisterMembershipPage() {
     }
     validateMutation.mutate();
   };
+
+  // ---- Tự động kiểm tra CASSO cho chuyển khoản (poll mỗi 6s, dừng khi PAID) ----
+  React.useEffect(() => {
+    if (method !== 'BANK_TRANSFER' || !successPayment?.payment?.id) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await paymentApi.checkCasso(successPayment.payment.id);
+        if (res.status === 'PAID' || res.status === 'CONFIRMED') {
+          toast.success('Thanh toán đã được xác nhận!', 'Gói tập sẽ tự kích hoạt ngay.');
+          queryClient.invalidateQueries({ queryKey: ['member-payments'] });
+          queryClient.invalidateQueries({ queryKey: ['member-memberships'] });
+        } else if (res.status === 'PENDING') {
+          // vẫn chờ — không hiển thị toast liên tục để tránh nhiễu
+        } else {
+          toast.success('CASSO', res.message || 'Chưa khớp — đang chờ.');
+        }
+      } catch {
+        // im lặng — tránh spam
+      }
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [method, successPayment?.payment?.id]);
 
   if (pkgLoading) {
     return (
@@ -321,6 +344,17 @@ export default function RegisterMembershipPage() {
                       </button>
                       <span className="ml-2">· {bankInfo.accountName}</span>
                     </p>
+                    <div className="mt-3 rounded-lg border border-dashed border-neon/50 bg-ink p-3 text-center">
+                      <p className="text-[11px] text-muted mb-1">Quét mã QR để chuyển khoản nhanh</p>
+                      <img
+                        src={`https://img.vietqr.io/image/MB-0799951104-compact2.svg?amount=${Math.round(finalPrice)}&addInfo=${encodeURIComponent(pkg.name)}&accountName=GYM+SHARK`}
+                        alt="Mã VietQR chuyển khoản MB Bank"
+                        className="mx-auto h-32 w-auto rounded-lg border border-line shadow-md"
+                      />
+                      <p className="mt-1 text-[10px] text-muted">
+                        MB Bank · 0799951104 · {bankInfo.accountName}
+                      </p>
+                    </div>
                     {me && (
                       <div className="mt-2 rounded-lg border border-line bg-ink px-3 py-2">
                         <p className="text-muted">Nội dung chuyển khoản (bắt buộc ghi đúng):</p>
@@ -343,6 +377,24 @@ export default function RegisterMembershipPage() {
                           Chuyển khoản KHÔNG tự động kích hoạt — lễ tân đối soát sao kê rồi xác
                           nhận, gói tập sẽ kích hoạt ngay sau đó.
                         </p>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="mt-2 text-xs"
+                          onClick={() => {
+                            if (!successPayment?.payment?.id) return;
+                            paymentApi.checkCasso(successPayment.payment.id)
+                              .then((res: any) => {
+                                toast.success('Kiểm tra CASSO', res.message || 'Đã khớp!');
+                                queryClient.invalidateQueries({ queryKey: ['member-payments'] });
+                              })
+                              .catch((err: any) => {
+                                toast.error('CASSO', err.response?.data?.message || 'Chưa khớp / lỗi');
+                              });
+                          }}
+                        >
+                          <RefreshCw className="size-3 mr-1" /> Kiểm tra CASSO
+                        </Button>
                       </div>
                     )}
                   </div>
