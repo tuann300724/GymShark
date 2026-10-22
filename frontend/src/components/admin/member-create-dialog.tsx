@@ -96,7 +96,6 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
   const [faceImage, setFaceImage] = useState<string | null>(null);
   const [consent, setConsent] = useState(false);
   const [faceError, setFaceError] = useState('');
-  const [pollActive, setPollActive] = useState(false);
 
   // Thu tiền tại quầy chỉ áp dụng cho phương thức xác nhận thủ công
   const isManualMethod = paymentMethod === 'CASH' || paymentMethod === 'BANK_TRANSFER';
@@ -430,18 +429,12 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
           )}
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <label className="text-xs font-semibold uppercase tracking-wider text-muted">Phương thức thanh toán</label>
-            <div className="grid grid-cols-3 gap-2">
-              <button type="button" onClick={() => setPaymentMethod('CASH')} className={cn('rounded-lg border p-2 text-xs font-bold transition-colors', paymentMethod==='CASH' ? 'border-neon bg-neon/10 text-chalk' : 'border-line bg-ink text-muted hover:border-neon/40')}>
-                <Wallet className="size-3.5 mx-auto mb-0.5" /> Tiền mặt
-              </button>
-              <button type="button" onClick={() => setPaymentMethod('BANK_TRANSFER')} className={cn('rounded-lg border p-2 text-xs font-bold transition-colors', paymentMethod==='BANK_TRANSFER' ? 'border-neon bg-neon/10 text-chalk' : 'border-line bg-ink text-muted hover:border-neon/40')}>
-                <Landmark className="size-3.5 mx-auto mb-0.5" /> Chuyển khoản
-              </button>
-              <button type="button" onClick={() => setPaymentMethod('MOMO')} className={cn('rounded-lg border p-2 text-xs font-bold transition-colors', paymentMethod==='MOMO' ? 'border-neon bg-neon/10 text-chalk' : 'border-line bg-ink text-muted hover:border-neon/40')}>
-                <CreditCard className="size-3.5 mx-auto mb-0.5" /> MoMo
-              </button>
-            </div>            />
+            <Select
+              label="Phương thức thanh toán"
+              value={paymentMethod}
+              options={PAYMENT_METHODS}
+              onChange={(e) => setPaymentMethod(e.target.value)}
+            />
             <Input
               label="Mã khuyến mãi (tuỳ chọn)"
               placeholder="GYM10..."
@@ -473,14 +466,17 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
               </button>
               <button
                 type="button"
-                onClick={() => { setPayNow(true); setPollActive(true); }}
-                className="w-full rounded-[10px] border-2 border-neon bg-gradient-to-r from-ink via-ink to-surface p-4 text-left transition-all hover:scale-[1.01] shadow-[0_0_20px_-5px_#B7FF00]"
+                onClick={() => setPayNow(false)}
+                className={cn(
+                  'rounded-[10px] border p-3 text-left transition-colors',
+                  !payNow ? 'border-neon/70 bg-neon/10' : 'border-line hover:border-neon/40',
+                )}
               >
-                <span className="flex items-center gap-2 text-sm font-extrabold text-chalk">
-                  <CreditCard className="size-5 text-neon" /> Thanh toán ngay — hiện QR
+                <span className="flex items-center gap-1.5 text-xs font-bold text-chalk">
+                  <CreditCard className="size-3.5 text-neon" /> Chờ xác nhận
                 </span>
                 <span className="mt-1 block text-[11px] text-muted">
-                  Bấm để hiện mã QR + tự kiểm tra CASSO mỗi 5 giây
+                  Thẻ PENDING + hoá đơn chờ thu, xác nhận sau ở Hoá đơn
                 </span>
               </button>
             </div>
