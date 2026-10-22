@@ -89,7 +89,6 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
   // Kết quả từng bước
   const [created, setCreated] = useState<CreateMemberResult | null>(null);
   const [card, setCard] = useState<RegisterCardResult | null>(null);
-  const [pollActive, setPollActive] = useState(false); // chờ CASSO cho BANK_TRANSFER
   const [faceDone, setFaceDone] = useState(false);
 
   // Quét mặt
@@ -181,16 +180,11 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
       adminMemberApi.registerCard(created!.member.id, payload),
     onSuccess: (res) => {
       setCard(res);
-      if (res.activated || paymentMethod !== 'BANK_TRANSFER' || (paymentMethod === 'BANK_TRANSFER' && payNow)) {
-        setStep(3);
-        toast.success(
-          res.activated ? 'Đã kích hoạt thẻ' : 'Đã tạo thẻ — chờ thanh toán',
-          `Hoá đơn ${res.payment.code} · ${formatCurrency(String(res.payment.amount ?? 0))}`,
-        );
-      } else {
-        setPollActive(true);
-        toast.success('Chờ xác nhận CASSO', 'Quét QR → chuyển khoản → hệ thống tự đối soát.');
-      }
+      setStep(3);
+      toast.success(
+        res.activated ? 'Đã kích hoạt thẻ' : 'Đã tạo thẻ — chờ thanh toán',
+        `Hoá đơn ${res.payment.code} · ${formatCurrency(String(res.payment.amount ?? 0))}`,
+      );
     },
     onError: (err: any) => {
       const msg = err.response?.data?.message;
@@ -305,23 +299,6 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
       })}
     </div>
   );
-
-  useEffect(() => {
-    if (!pollActive || !card?.payment?.id) return;
-    const iv = setInterval(async () => {
-      try {
-        const { paymentApi } = await import('@/services/payment.service');
-        const res = await paymentApi.checkCasso(card.payment.id);
-        if (res.matched || res.status === 'PAID') {
-          toast.success('CASSO khớp!', 'Thanh toán đã xác nhận — tiếp tục bước 3');
-          setPollActive(false);
-          setStep(3);
-          clearInterval(iv);
-        }
-      } catch { /* im lặng */ }
-    }, 5000);
-    return () => clearInterval(iv);
-  }, [pollActive, card?.payment?.id, toast]);
 
   const stepBody = () => {
     // ---------------- Bước 1 ----------------
@@ -467,7 +444,7 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
           </div>
 
           {/* Ô chọn trạng thái thẻ sau khi tạo */}
-          <div className={cn("space-y-2", pollActive ? "opacity-40 blur-[1px] transition-all duration-300 pointer-events-none" : "transition-all duration-300")}>
+          <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted">
               Thanh toán tại quầy
             </p>
@@ -508,7 +485,138 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
                 Ví điện tử không thể thu tiền tại quầy — đã tự chuyển sang chế độ chờ xác nhận.
               </p>
             )}
-                        <Button
+            {payNow && paymentMethod === 'BANK_TRANSFER' && (
+              <Input
+                label="Mã giao dịch chuyển khoản (tuỳ chọn)"
+                placeholder="FT20260929..."
+                value={transactionRef}
+                onChange={(e) => setTransactionRef(e.target.value)}
+              />
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ---------------- Bước 3: quét mặt (tuỳ chọn) ----------------
+    if (step === 3) {
+      return (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2.5">
+            <ScanFace className="size-4 shrink-0 text-neon" />
+            <p className="text-[11px] leading-relaxed text-muted">
+              Bước này là tuỳ chọn. Quét khuôn mặt giúp hội viên check-in nhanh bằng nhận diện tại
+              quầy. Có thể bỏ qua và quét lại sau trong hồ sơ hội viên.
+            </p>
+          </div>
+
+          <FaceScanner
+            key={`face-${created?.member.id ?? 'new'}`}
+            mode="enroll"
+            target={5}
+            withImage
+            onSamples={(samples, image) => {
+              setFaceSamples(samples);
+              setFaceImage(image);
+            }}
+            onError={(msg) => setFaceError(msg)}
+          />
+
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-line bg-surface px-3 py-2.5">
+            <input
+              type="checkbox"
+              checked={consent}
+              onChange={(e) => setConsent(e.target.checked)}
+              className="mt-0.5 size-4 shrink-0 accent-neon"
+            />
+            <span className="text-[11px] leading-relaxed text-muted">
+              Hội viên đã được thông báo và <span className="text-chalk">đồng ý</span> cho hệ thống
+              lưu dữ liệu sinh trắc học khuôn mặt phục vụ nhận diện tại quầy (Nghị định 13/2023). Hệ
+              thống lưu vector đặc trưng và 1 ảnh tham chiếu, không lưu video.{' '}
+              <span className="text-amber-400">
+                Lưu ý: một ảnh chụp sẽ được gửi tới dịch vụ phân tích khuôn mặt của Microsoft Azure
+                để kiểm tra hội viên có đeo kính không — ảnh này không lưu trong hệ thống, chỉ dùng
+                để trả kết quả.
+              </span>
+            </span>
+          </label>
+
+          {faceError && (
+            <p className="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2.5 text-[11px] text-danger">
+              {faceError}
+            </p>
+          )}
+        </div>
+      );
+    }
+
+    // ---------------- Bước 4: xong ----------------
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-col items-center gap-2 rounded-lg border border-neon/40 bg-neon/5 px-4 py-5 text-center">
+          <CheckCircle2 className="size-9 text-neon" />
+          <p className="text-sm font-bold text-chalk">Đăng ký hội viên hoàn tất</p>
+          <p className="text-[11px] text-muted">
+            {created?.member.fullName} · Mã{' '}
+            <span className="font-mono text-chalk">{created?.member.code}</span>
+          </p>
+        </div>
+
+        {created?.tempPassword && (
+          <div className="rounded-lg border border-neon/50 bg-surface px-3.5 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-neon">
+              Mật khẩu tạm (chỉ hiện 1 lần)
+            </p>
+            <p className="mt-1.5 font-mono text-lg font-bold tracking-wider text-chalk">
+              {created.tempPassword}
+            </p>
+            <p className="mt-1 text-[11px] text-muted">
+              Đưa hội viên đổi mật khẩu ở trang Hồ sơ cá nhân sau lần đăng nhập đầu.
+            </p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div className="rounded-lg border border-line bg-surface px-3.5 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">Thẻ tập</p>
+            <p className="mt-1 text-xs font-semibold text-chalk">
+              {card?.activated ? 'Đã kích hoạt (ACTIVE)' : 'Chờ xác nhận thanh toán (PENDING)'}
+            </p>
+            {card?.payment && (
+              <p className="mt-0.5 text-[11px] text-muted">
+                Hoá đơn {card.payment.code} · {formatCurrency(String(card.payment.amount ?? 0))}
+              </p>
+            )}
+          </div>
+          <div className="rounded-lg border border-line bg-surface px-3.5 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">
+              Khuôn mặt
+            </p>
+            <p className="mt-1 text-xs font-semibold text-chalk">
+              {faceDone ? 'Đã đăng ký nhận diện' : 'Chưa đăng ký (có thể quét sau)'}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title="Đăng ký hội viên mới"
+      description="Làm thẻ tại quầy: tạo hồ sơ → chọn gói tập → quét khuôn mặt"
+      className="max-w-2xl"
+    >
+      <div className="space-y-5">
+        {step < 4 && stepIndicator}
+        {stepBody()}
+
+        {/* Thanh điều hướng bước */}
+        {step < 4 && (
+          <div className="flex items-center justify-between gap-2 border-t border-line pt-4">
+            <Button
               variant="ghost"
               onClick={step === 1 ? onClose : () => setStep((step - 1) as Step)}
               disabled={createMutation.isPending || cardMutation.isPending}
@@ -529,7 +637,7 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
             )}
 
             {step === 2 && (
-              <Button isLoading={cardMutation.isPending} onClick={submitStep2}>
+              <>{paymentMethod==='BANK_TRANSFER'&&payNow&&!pollActive&&!card?.payment?.id&&(<button type="button" onClick={()=>setPollActive(true)} className="w-full font-extrabold mb-2 rounded-lg border-2 border-neon bg-ink text-neon py-2 shadow-[0_0_20px_-5px_#B7FF00] hover:scale-[1.01] transition-transform">Thanh toán ngay — hiện QR</button>)}<Button isLoading={cardMutation.isPending} onClick={submitStep2}>
                 <CreditCard className="size-4" /> Tạo thẻ & tiếp tục
               </Button>
             )}
