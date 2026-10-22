@@ -27,6 +27,7 @@ import { MailModule } from './modules/mail/mail.module';
 import { FoodsModule } from './modules/foods/foods.module';
 import { MealPlansModule } from './modules/meal-plans/meal-plans.module';
 import { ChatModule } from './modules/chat/chat.module';
+import { CassoModule } from './modules/casso/casso.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 @Module({
@@ -68,6 +69,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     FoodsModule,
     ChatModule,
     MealPlansModule,
+    CassoModule,
   ],
   providers: [
     // Rate limiting: áp dụng cho mọi request

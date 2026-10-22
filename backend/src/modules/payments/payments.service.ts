@@ -14,6 +14,7 @@ import { ConfirmPaymentDto } from './dto/confirm-payment.dto';
 import { RejectPaymentDto } from './dto/reject-payment.dto';
 import { RefundPaymentDto } from './dto/refund-payment.dto';
 import { PaymentListQueryDto } from './dto/payment-list-query.dto';
+import { CassoService } from '../casso/casso.service';
 import { BANK_INFO } from './bank-info';
 
 interface Actor {
@@ -28,6 +29,7 @@ export class PaymentsService {
     private prisma: PrismaService,
     private gatewayService: PaymentGatewayService,
     private auditService: AuditService,
+    private cassoService: CassoService,
   ) {}
 
   private endOfDay(d: Date): Date {
@@ -258,6 +260,76 @@ export class PaymentsService {
     });
 
     return { message: 'Xác nhận thanh toán thành công', ...result };
+  }
+
+  /**
+   * Đối soát tự động với CASSO (Google Apps Script → Google Sheet):
+   * - Poll sheet lấy giao dịch mới nhất
+   * - Khớp nội dung chuyển khoản `GYM {MEMBER_CODE} {PAYMENT_CODE}` + số tiền
+   * - Nếu khớp → gọi confirm() để PENDING → PAID (transaction + hoá đơn + thông báo)
+   *
+   * Chỉ áp dụng cho BANK_TRANSFER / MOMO (thanh toán qua ví / ngân hàng).
+   */
+  async verifyCasso(id: string, actor: Actor) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id },
+      include: {
+        membership: { include: { package: true } },
+        member: { select: { id: true, code: true, fullName: true } },
+      },
+    });
+    if (!payment) throw new NotFoundException('Không tìm thấy giao dịch thanh toán');
+
+    if (payment.status !== 'PENDING') {
+      return {
+        matched: true,
+        alreadyPaid: true,
+        status: payment.status,
+        message:
+          payment.status === 'PAID'
+            ? 'Giao dịch đã được xác nhận thành công trước đó'
+            : `Giao dịch hiện ở trạng thái ${payment.status}`,
+      };
+    }
+
+    if (payment.method !== 'BANK_TRANSFER' && payment.method !== 'MOMO') {
+      throw new BadRequestException(
+        'Đối soát tự động chỉ hỗ trợ phương thức Chuyển khoản / MoMo',
+      );
+    }
+
+    const rows = await this.cassoService.poll();
+    if (!rows.length) {
+      return { matched: false, status: payment.status, message: 'Chưa đọc được dữ liệu từ CASSO' };
+    }
+
+    const match = this.cassoService.findMatch(
+      rows,
+      payment.member.code,
+      payment.code,
+      Number(payment.amount),
+    );
+    if (!match) {
+      return {
+        matched: false,
+        status: payment.status,
+        message: 'Chưa thấy giao dịch tương ứng trên CASSO. Vui lòng thử lại sau vài giây.',
+      };
+    }
+
+    const transactionRef = match.maGd ? String(match.maGd) : undefined;
+    const note = `Đối soát tự động qua CASSO (${match.ngayDienRa || ''})`.trim();
+
+    const confirmed = await this.confirm(id, actor, { transactionRef, note });
+
+    return {
+      matched: true,
+      status: 'PAID',
+      message: 'Thanh toán thành công — đã xác nhận giao dịch từ CASSO',
+      transactionRef: transactionRef ?? null,
+      amount: match.amount ?? null,
+      confirmed,
+    };
   }
 
   /**

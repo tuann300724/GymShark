@@ -7,9 +7,10 @@ import { BankTransferGateway } from './gateway/bank-transfer.gateway';
 import { MomoGateway } from './gateway/momo.gateway';
 import { VnpayGateway } from './gateway/vnpay.gateway';
 import { MemberModule } from '../member/member.module';
+import { CassoModule } from '../casso/casso.module';
 
 @Module({
-  imports: [MemberModule],
+  imports: [MemberModule, CassoModule],
   controllers: [PaymentsController],
   providers: [
     PaymentsService,

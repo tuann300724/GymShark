@@ -99,6 +99,18 @@ export class PaymentsController {
     return this.paymentsService.confirm(id, user, dto);
   }
 
+  @Post(':id/check-casso')
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.MEMBER)
+  @ApiOperation({ summary: 'Đối soát tự động CASSO: poll Google Sheet → khớp GYM ... → xác nhận PAID' })
+  @ApiParam({ name: 'id', description: 'ID thanh toán' })
+  @ApiResponse({ status: 200, description: 'Khớp CASSO → PAID / Chưa khớp → PENDING' })
+  checkCasso(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string; role: string; fullName?: string },
+  ) {
+    return this.paymentsService.verifyCasso(id, user);
+  }
+
   @Post(':id/reject')
   @Roles(Role.ADMIN, Role.MANAGER)
   @ApiOperation({ summary: 'Từ chối/hủy thanh toán đang chờ: Payment → CANCELLED, Membership → CANCELLED' })
