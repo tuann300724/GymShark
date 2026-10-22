@@ -12,7 +12,6 @@ import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/components/ui/toast';
 import { formatCurrency, formatDateTime, formatDate } from '@/lib/utils';
 import { PAYMENT_STATUS_META, PAYMENT_METHOD_LABEL } from '@/lib/status';
-import { PaymentQrBlock } from '@/components/ui/payment-qr';
 import {
   ArrowLeft,
   Printer,
@@ -220,16 +219,13 @@ export default function MemberPaymentDetailPage() {
             </div>
           </div>
 
-          {/* QR VietQR cho chuyển khoản — tự động kiểm tra CASSO */}
-          {payment.method === 'BANK_TRANSFER' && payment.status === 'PENDING' && (
-            <div className="mt-4">
-              <PaymentQrBlock
-                paymentId={payment.id}
-                amount={Number(payment.amount ?? 0)}
-                content={`GYM ${payment.member?.code || ''} ${payment.code}`}
-              />
-            </div>
-          )}
+          {/* Bank chưa xác nhận: hướng dẫn chuyển khoản */}
+          {payment.method === 'BANK_TRANSFER' &&
+            payment.status === 'PENDING' &&
+            payment.bankInfo && (
+              <div className="mt-5 rounded-xl border border-neon/30 bg-neon/5 p-4 text-xs">
+                <p className="flex items-center gap-1.5 font-semibold text-neon">
+                  <Landmark className="size-4" /> Thanh toán chuyển khoản — chưa xác nhận
                 </p>
                 <p className="mt-2 text-muted">
                   Ngân hàng: <b className="text-chalk">{payment.bankInfo.bankName}</b>

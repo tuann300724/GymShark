@@ -89,6 +89,7 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
   // Kết quả từng bước
   const [created, setCreated] = useState<CreateMemberResult | null>(null);
   const [card, setCard] = useState<RegisterCardResult | null>(null);
+  const [pollActive, setPollActive] = useState(false); // chờ CASSO cho BANK_TRANSFER
   const [faceDone, setFaceDone] = useState(false);
 
   // Quét mặt
@@ -180,11 +181,16 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
       adminMemberApi.registerCard(created!.member.id, payload),
     onSuccess: (res) => {
       setCard(res);
-      setStep(3);
-      toast.success(
-        res.activated ? 'Đã kích hoạt thẻ' : 'Đã tạo thẻ — chờ thanh toán',
-        `Hoá đơn ${res.payment.code} · ${formatCurrency(String(res.payment.amount ?? 0))}`,
-      );
+      if (res.activated || paymentMethod !== 'BANK_TRANSFER' || (paymentMethod === 'BANK_TRANSFER' && payNow)) {
+        setStep(3);
+        toast.success(
+          res.activated ? 'Đã kích hoạt thẻ' : 'Đã tạo thẻ — chờ thanh toán',
+          `Hoá đơn ${res.payment.code} · ${formatCurrency(String(res.payment.amount ?? 0))}`,
+        );
+      } else {
+        setPollActive(true);
+        toast.success('Chờ xác nhận CASSO', 'Quét QR → chuyển khoản → hệ thống tự đối soát.');
+      }
     },
     onError: (err: any) => {
       const msg = err.response?.data?.message;
@@ -299,6 +305,23 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
       })}
     </div>
   );
+
+  useEffect(() => {
+    if (!pollActive || !card?.payment?.id) return;
+    const iv = setInterval(async () => {
+      try {
+        const { paymentApi } = await import('@/services/payment.service');
+        const res = await paymentApi.checkCasso(card.payment.id);
+        if (res.matched || res.status === 'PAID') {
+          toast.success('CASSO khớp!', 'Thanh toán đã xác nhận — tiếp tục bước 3');
+          setPollActive(false);
+          setStep(3);
+          clearInterval(iv);
+        }
+      } catch { /* im lặng */ }
+    }, 6000);
+    return () => clearInterval(iv);
+  }, [pollActive, card?.payment?.id, toast]);
 
   const stepBody = () => {
     // ---------------- Bước 1 ----------------
@@ -492,6 +515,37 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
                 value={transactionRef}
                 onChange={(e) => setTransactionRef(e.target.value)}
               />
+            )}
+            {/* VietQR cho chuyển khoản — hiện khi BANK_TRANSFER */}
+            {(paymentMethod === 'BANK_TRANSFER' || pollActive || (card && paymentMethod === 'BANK_TRANSFER')) && (
+              <div className="rounded-lg border border-dashed border-neon/50 bg-ink p-3 text-center">
+                <p className="text-[11px] text-muted mb-1">Quét mã QR để chuyển khoản nhanh</p>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={`https://img.vietqr.io/image/MB-0799951104-compact2.svg?amount=${Math.round(Number(selectedPackage?.price || 0))}&addInfo=${encodeURIComponent(selectedPackage?.name || '')}&accountName=GYM+SHARK`}
+                  alt="VietQR MB Bank"
+                  className="mx-auto h-32 w-auto rounded-lg border border-line shadow-md"
+                />
+                <p className="mt-1 text-[10px] text-muted">MB Bank · 0799951104 · GYM SHARK</p>
+                {pollActive && (
+                  <div className="mt-2 flex items-center justify-center gap-1.5 text-xs text-neon font-semibold">
+                    <span className="inline-block size-2 animate-pulse rounded-full bg-neon" />
+                    Đang tự động kiểm tra CASSO mỗi 6 giây...
+                  </div>
+                )}
+                {card?.payment?.id && !pollActive && card?.activated === false && (
+                  <button
+                    type="button"
+                    className="mt-2 text-xs font-semibold text-neon hover:underline"
+                    onClick={() => setPollActive(true)}
+                  >
+                    Kiểm tra thanh toán CASSO
+                  </button>
+                )}
+                {card?.activated === true && (
+                  <p className="mt-2 text-xs font-bold text-neon">✅ Thanh toán đã xác nhận — tiếp tục bước 3</p>
+                )}
+              </div>
             )}
           </div>
         </div>
