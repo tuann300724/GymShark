@@ -319,7 +319,7 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
           clearInterval(iv);
         }
       } catch { /* im lặng */ }
-    }, 6000);
+    }, 5000);
     return () => clearInterval(iv);
   }, [pollActive, card?.payment?.id, toast]);
 
@@ -467,7 +467,7 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
           </div>
 
           {/* Ô chọn trạng thái thẻ sau khi tạo */}
-          <div className="space-y-2">
+          <div className={cn("space-y-2", pollActive ? "opacity-40 blur-[1px] transition-all duration-300 pointer-events-none" : "transition-all duration-300")}>
             <p className="text-xs font-semibold uppercase tracking-wider text-muted">
               Thanh toán tại quầy
             </p>
