@@ -16,6 +16,7 @@ import { useToast } from '@/components/ui/toast';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils';
 import { PAYMENT_STATUS_META, PAYMENT_METHOD_LABEL } from '@/lib/status';
 import { getStoredUser } from '@/lib/auth';
+import { PaymentQrBlock } from '@/components/ui/payment-qr';
 import {
   ArrowLeft,
   Receipt,
@@ -305,6 +306,15 @@ export default function PaymentDetailPage() {
       </div>
 
       {/* Thông tin chuyển khoản */}
+      {payment.method === 'BANK_TRANSFER' && (
+        <div className="mt-4">
+          <PaymentQrBlock
+            paymentId={payment.id}
+            amount={Number(payment.amount ?? 0)}
+            content={`GYM ${payment.member?.code || ''} ${payment.code}`}
+          />
+        </div>
+      )}
       {payment.method === 'BANK_TRANSFER' && (
         <Card>
           <CardHeader>

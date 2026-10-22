@@ -308,6 +308,7 @@ export class PaymentsService {
       payment.member.code,
       payment.code,
       Number(payment.amount),
+      payment.membership?.package?.name || undefined,
     );
     if (!match) {
       return {

@@ -60,10 +60,11 @@ export class CassoService {
     }
   }
 
-  findMatch(rows: CassoRow[], memberCode: string, paymentCode: string, amountExpected: number): CassoMatch | null {
+  findMatch(rows: CassoRow[], memberCode: string, paymentCode: string, amountExpected: number, packageName?: string): CassoMatch | null {
     const codeNorm = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, '');
     const targetCode = codeNorm(paymentCode);
     const targetMember = codeNorm(memberCode);
+    const targetPackage = packageName ? codeNorm(packageName) : '';
 
     for (const row of rows) {
       const moTa = String(row['Mô tả'] ?? row['Mo ta'] ?? row['Mô Tả'] ?? row['Mo Ta'] ?? '');
@@ -77,15 +78,16 @@ export class CassoService {
       const amount = typeof giaTriRaw === 'number' ? giaTriRaw : Number(String(giaTriRaw).replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
 
       const moTaNorm = codeNorm(moTa);
-      // Khớp khi mô tả chứa cả member code + payment code (chuẩn hóa)
+      // Khớp: member + (mã đơn HOẶC tên gói — nội dung QR VietQR)
       const hasMember = targetMember.length > 0 ? moTaNorm.includes(targetMember) : true;
-      const hasPayment = moTaNorm.includes(targetCode);
-      const hasAmount = Math.abs(amount - amountExpected) < 100; // sai số 100 đ (phí chuyển)
+      const hasPayment = targetCode.length > 0 ? moTaNorm.includes(targetCode) : false;
+      const hasPackage = targetPackage.length > 0 ? moTaNorm.includes(targetPackage) : false;
+      const hasContent = hasPayment || hasPackage;
+      const hasAmount = Math.abs(amount - amountExpected) < 100;
 
-      // Nếu khớp mô tả + mã giao dịch gần đúng (tùy chọn) hoặc chỉ khớp nội dung
-      if ((hasMember || targetMember.length === 0) && hasPayment && hasAmount) {
+      if ((hasMember || targetMember.length === 0) && (hasContent || !targetCode) && hasAmount) {
         return {
-          matchedPaymentCode: paymentCode,
+          matchedPaymentCode: hasPayment ? paymentCode : undefined,
           matchedMemberCode: memberCode,
           row,
           amount,
