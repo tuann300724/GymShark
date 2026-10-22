@@ -528,9 +528,18 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
                 />
                 <p className="mt-1 text-[10px] text-muted">MB Bank · 0799951104 · GYM SHARK</p>
                 {pollActive && (
-                  <div className="mt-2 flex items-center justify-center gap-1.5 text-xs text-neon font-semibold">
-                    <span className="inline-block size-2 animate-pulse rounded-full bg-neon" />
-                    Đang tự động kiểm tra CASSO mỗi 6 giây...
+                  <div className="mt-3 rounded-lg border border-neon bg-neon/10 p-3">
+                    <div className="flex items-center justify-center gap-2 text-sm font-extrabold text-neon">
+                      <span className="inline-block size-3 animate-pulse rounded-full bg-neon shadow-[0_0_8px_#B7FF00]" />
+                      Đang tự động kiểm tra CASSO mỗi 6 giây...
+                    </div>
+                    <p className="mt-1 text-xs text-muted">Sau khi chuyển khoản thành công — hệ thống tự xác nhận và tắt màn hình QR.</p>
+                  </div>
+                )}
+                {card?.activated === true && (
+                  <div className="mt-4 rounded-xl border-2 border-neon bg-neon/15 p-4 text-center shadow-[0_0_30px_-10px_#B7FF00]">
+                    <p className="text-lg font-extrabold text-neon">✅ Thanh toán đã xác nhận</p>
+                    <p className="text-xs text-muted mt-1">CASSO đã khớp — QR tự tắt và chuyển bước tiếp theo.</p>
                   </div>
                 )}
                 {card?.payment?.id && !pollActive && card?.activated === false && (
