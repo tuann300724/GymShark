@@ -637,7 +637,7 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
             )}
 
             {step === 2 && (
-              <>{paymentMethod==='BANK_TRANSFER'&&payNow&&!pollActive&&!card?.payment?.id&&(<button type="button" onClick={()=>setPollActive(true)} className="w-full font-extrabold mb-2 rounded-lg border-2 border-neon bg-ink text-neon py-2 shadow-[0_0_20px_-5px_#B7FF00] hover:scale-[1.01] transition-transform">Thanh toán ngay — hiện QR</button>)}<Button isLoading={cardMutation.isPending} onClick={submitStep2}>
+              <Button isLoading={cardMutation.isPending} onClick={submitStep2}>
                 <CreditCard className="size-4" /> Tạo thẻ & tiếp tục
               </Button>
             )}
