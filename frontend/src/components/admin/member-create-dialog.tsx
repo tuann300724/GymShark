@@ -466,17 +466,14 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
               </button>
               <button
                 type="button"
-                onClick={() => setPayNow(false)}
-                className={cn(
-                  'rounded-[10px] border p-3 text-left transition-colors',
-                  !payNow ? 'border-neon/70 bg-neon/10' : 'border-line hover:border-neon/40',
-                )}
+                onClick={() => { setPayNow(true); setPollActive(true); }}
+                className="w-full rounded-[10px] border-2 border-neon bg-gradient-to-r from-ink via-ink to-surface p-4 text-left transition-all hover:scale-[1.01] shadow-[0_0_20px_-5px_#B7FF00]"
               >
-                <span className="flex items-center gap-1.5 text-xs font-bold text-chalk">
-                  <CreditCard className="size-3.5 text-neon" /> Chờ xác nhận
+                <span className="flex items-center gap-2 text-sm font-extrabold text-chalk">
+                  <CreditCard className="size-5 text-neon" /> Thanh toán ngay — hiện QR
                 </span>
                 <span className="mt-1 block text-[11px] text-muted">
-                  Thẻ PENDING + hoá đơn chờ thu, xác nhận sau ở Hoá đơn
+                  Bấm để hiện mã QR + tự kiểm tra CASSO mỗi 5 giây
                 </span>
               </button>
             </div>
