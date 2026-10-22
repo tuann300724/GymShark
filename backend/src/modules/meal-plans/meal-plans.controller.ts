@@ -13,13 +13,31 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { SpoonacularService } from './spoonacular.service';
 
 @ApiTags('Meal Plans')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('meal-plans')
 export class MealPlansController {
-  constructor(private readonly mealPlansService: MealPlansService) {}
+  constructor(
+    private readonly mealPlansService: MealPlansService,
+    private readonly spoonacular: SpoonacularService,
+  ) {}
+
+  @Get('recipes/search')
+  @Roles(Role.TRAINER, Role.MEMBER, Role.ADMIN, Role.STAFF, Role.MANAGER)
+  @ApiOperation({ summary: 'Tìm công thức món ăn theo tên (tiếng Việt hoặc tiếng Anh) — nguồn Spoonacular' })
+  searchRecipes(@Query('query') query: string, @Query('number') number?: string) {
+    return this.spoonacular.searchRecipes(query || '', Number(number) || 10);
+  }
+
+  @Get('recipes/:id')
+  @Roles(Role.TRAINER, Role.MEMBER, Role.ADMIN, Role.STAFF, Role.MANAGER)
+  @ApiOperation({ summary: 'Chi tiết công thức (nguyên liệu + cách làm, đã dịch tiếng Việt)' })
+  recipeDetail(@Param('id') id: string) {
+    return this.spoonacular.recipeDetail(Number(id));
+  }
 
   @Get()
   @Roles(Role.TRAINER)

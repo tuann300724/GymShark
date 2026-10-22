@@ -21,6 +21,7 @@ const nextConfig = {
       { protocol: 'https', hostname: 'images.unsplash.com' },
       { protocol: 'https', hostname: 'avatar.vercel.sh' },
       { protocol: 'https', hostname: 'ui-avatars.com' },
+      { protocol: 'https', hostname: 'img.spoonacular.com' },
     ],
   },
   webpack: (config) => {

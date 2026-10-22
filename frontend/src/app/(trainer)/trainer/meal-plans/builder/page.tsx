@@ -36,6 +36,18 @@ const MEAL_TYPES: { value: MealType; label: string }[] = [
 
 const DAY_LABELS = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'CN'];
 
+const CATEGORY_LABELS: Record<string, string> = {
+  PROTEIN: 'Đạm',
+  CARBOHYDRATE: 'Tinh bột',
+  VEGETABLE: 'Rau củ',
+  FRUIT: 'Trái cây',
+  DAIRY: 'Sữa',
+  FAT: 'Chất béo',
+  DRINK: 'Đồ uống',
+  SNACK: 'Ăn vặt',
+  OTHER: 'Khác',
+};
+
 interface MealItemDraft {
   foodId: string | null;
   name: string;
@@ -476,9 +488,11 @@ function FoodItemRow({
 
   const { data: foods, isLoading } = useQuery({
     queryKey: ['foods-search', search],
-    queryFn: () => foodApi.list({ search, limit: 20 }),
+    queryFn: () => foodApi.list({ search, limit: 50 }),
     enabled: showSearch,
   });
+
+
 
   const pickFood = (f: FoodItem) => {
     onChange({
@@ -546,24 +560,35 @@ function FoodItemRow({
           {isLoading ? (
             <Skeleton className="h-8 w-full" />
           ) : (
-            <div className="max-h-48 space-y-1 overflow-auto">
+            <div className="max-h-64 space-y-1 overflow-auto">
               {(foods?.data ?? []).map((f) => (
                 <button
                   key={f.id}
                   onClick={() => pickFood(f)}
-                  className="flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left text-sm transition hover:bg-line/30"
+                  className="flex w-full items-center justify-between gap-3 rounded-sm px-2 py-1.5 text-left text-sm transition hover:bg-line/30"
                 >
-                  <span className="text-chalk">{f.name}</span>
-                  <span className="text-xs text-muted">{f.caloriesPer100g} kcal</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-chalk">{f.name}</span>
+                    <span className="block text-[10px] text-muted">
+                      {CATEGORY_LABELS[f.category] ?? f.category} • P {f.proteinPer100g}g • C{' '}
+                      {f.carbsPer100g}g • F {f.fatPer100g}g
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-xs font-semibold text-neon">
+                    {f.caloriesPer100g} kcal
+                  </span>
                 </button>
               ))}
               {(foods?.data ?? []).length === 0 && (
-                <p className="py-2 text-center text-xs text-muted">Không tìm thấy món nào</p>
+                <p className="py-2 text-center text-xs text-muted">
+                  Không tìm thấy món nào — thử từ khoá khác (gà, cá, cơm, chuối...)
+                </p>
               )}
             </div>
           )}
         </div>
       )}
+
     </div>
   );
 }

@@ -25,7 +25,6 @@ import {
   LogOut,
   ChevronDown,
   MessageSquare,
-  Utensils,
   ScanLine,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -34,7 +33,6 @@ const NAV_ITEMS = [
   { name: 'Dashboard', href: '/member', icon: LayoutDashboard },
   { name: 'Thẻ QR', href: '/member/qr', icon: ScanLine },
   { name: 'Lịch tập', href: '/member/schedule', icon: CalendarDays },
-  { name: 'Thực đơn', href: '/member/meal-plans', icon: Utensils },
   { name: 'Tin nhắn', href: '/member/messages', icon: MessageSquare },
   { name: 'Gói tập của tôi', href: '/member/membership', icon: CreditCard },
   { name: 'Lịch sử check-in', href: '/member/checkins', icon: LogIn },
