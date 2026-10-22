@@ -467,7 +467,7 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
           </div>
 
           {/* Ô chọn trạng thái thẻ sau khi tạo */}
-          <div className={cn("space-y-2", pollActive ? "opacity-25 pointer-events-none blur-[1px] transition-all duration-500" : "transition-all")}>
+          <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted">
               Thanh toán tại quầy
             </p>
