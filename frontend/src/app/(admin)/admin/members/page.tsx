@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
 import { MemberCreateDialog } from '@/components/admin/member-create-dialog';
+import { MemberPackageDialog } from '@/components/admin/member-package-dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { Spinner } from '@/components/ui/spinner';
@@ -29,6 +30,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ShieldCheck,
+  Package,
 } from 'lucide-react';
 
 const DEFAULT_STATUS = 'ALL';
@@ -49,6 +51,9 @@ export default function MembersPage() {
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState<any>({});
   const [showCreate, setShowCreate] = useState(false);
+
+  // Đăng ký gói cho hội viên có sẵn tại quầy
+  const [cardTarget, setCardTarget] = useState<any>(null);
 
   useEffect(() => {
     setPage(1);
@@ -286,16 +291,30 @@ export default function MembersPage() {
                         </td>
                         <td className="py-3 px-4 text-muted">{m.phone}</td>
                         <td className="py-3 px-4">
-                          <span className="font-semibold text-chalk">{activePkg}</span>
-                          {latestMs && (
-                            <Badge
-                              variant={
-                                MEMBERSHIP_STATUS_META[latestMs.status]?.variant || 'outline'
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-chalk">{activePkg}</span>
+                            {latestMs && (
+                              <Badge
+                                variant={
+                                  MEMBERSHIP_STATUS_META[latestMs.status]?.variant || 'outline'
+                                }
+                                className="ml-1"
+                              >
+                                {MEMBERSHIP_STATUS_META[latestMs.status]?.label || latestMs.status}
+                              </Badge>
+                            )}
+                          </div>
+                          {!latestMs && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="mt-1.5 text-[10px] h-6 px-2 font-medium"
+                              onClick={() =>
+                                setCardTarget({ id: m.id, code: m.code, fullName: m.fullName })
                               }
-                              className="ml-2"
                             >
-                              {MEMBERSHIP_STATUS_META[latestMs.status]?.label || latestMs.status}
-                            </Badge>
+                              <Package className="size-3 mr-1" /> Đăng ký gói
+                            </Button>
                           )}
                         </td>
                         <td className="py-3 px-4 text-muted">{formatDate(m.joinedAt)}</td>
@@ -489,6 +508,14 @@ export default function MembersPage() {
         open={showCreate}
         onClose={() => setShowCreate(false)}
         onCreated={() => queryClient.invalidateQueries({ queryKey: ['admin-members'] })}
+      />
+
+      {/* Đăng ký gói tập cho hội viên đã có sẵn (A — tại quầy) */}
+      <MemberPackageDialog
+        open={!!cardTarget}
+        onClose={() => setCardTarget(null)}
+        member={cardTarget}
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ['admin-members'] })}
       />
     </div>
   );

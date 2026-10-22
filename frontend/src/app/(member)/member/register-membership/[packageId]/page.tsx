@@ -181,7 +181,7 @@ export default function RegisterMembershipPage() {
       }
     }, 6000);
     return () => clearInterval(interval);
-  }, [method, successPayment?.payment?.id]);
+  }, [method, successPayment?.payment?.id, queryClient, toast]);
 
   if (pkgLoading) {
     return (
@@ -346,6 +346,8 @@ export default function RegisterMembershipPage() {
                     </p>
                     <div className="mt-3 rounded-lg border border-dashed border-neon/50 bg-ink p-3 text-center">
                       <p className="text-[11px] text-muted mb-1">Quét mã QR để chuyển khoản nhanh</p>
+                      {/* QR VietQR là SVG sinh động từ dịch vụ ngoài → không tối ưu hoá, dùng <img> */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={`https://img.vietqr.io/image/MB-0799951104-compact2.svg?amount=${Math.round(finalPrice)}&addInfo=${encodeURIComponent(pkg.name)}&accountName=GYM+SHARK`}
                         alt="Mã VietQR chuyển khoản MB Bank"

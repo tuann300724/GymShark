@@ -52,7 +52,6 @@ const PAYMENT_METHODS = [
   { value: 'CASH', label: 'Tiền mặt' },
   { value: 'BANK_TRANSFER', label: 'Chuyển khoản' },
   { value: 'MOMO', label: 'MoMo' },
-  { value: 'VNPAY', label: 'VNPay' },
 ];
 
 const EMPTY_FORM = {
