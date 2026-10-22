@@ -7,7 +7,6 @@ import {
   ChevronLeft,
   ChevronRight,
   CreditCard,
-  Landmark,
   ScanFace,
   UserPlus,
   Wallet,
