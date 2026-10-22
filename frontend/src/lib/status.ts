@@ -145,8 +145,7 @@ export const ANNOUNCEMENT_TARGET_LABEL: Record<string, string> = {
   ALL: 'Tất cả mọi người',
   MEMBERS: 'Hội viên',
   TRAINERS: 'Huấn luyện viên',
-  STAFF: 'Nhân viên lễ tân',
-  MANAGERS: 'Quản lý',
+  ADMIN: 'Quản trị viên',
   SPECIFIC_BRANCH: 'Theo chi nhánh',
 };
 
@@ -238,8 +237,6 @@ export const AUDIT_ENTITY_LABEL: Record<string, string> = {
 /** Nhãn vai trò người thực hiện (hiển thị trong nhật ký) */
 export const AUDIT_ROLE_LABEL: Record<string, string> = {
   ADMIN: 'Quản trị viên',
-  MANAGER: 'Quản lý',
-  STAFF: 'Lễ tân',
   TRAINER: 'Huấn luyện viên',
   MEMBER: 'Hội viên',
 };

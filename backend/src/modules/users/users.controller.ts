@@ -14,14 +14,14 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  @Roles(Role.ADMIN, Role.MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Lấy danh sách tất cả tài khoản người dùng (ADMIN, MANAGER)' })
   findAll() {
     return this.usersService.findAll();
   }
 
   @Get(':id')
-  @Roles(Role.ADMIN, Role.MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Lấy chi tiết một tài khoản người dùng theo ID' })
   findOne(@Param('id') id: string) {
     return this.usersService.findOne(id);

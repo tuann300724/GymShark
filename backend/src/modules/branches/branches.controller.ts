@@ -33,7 +33,7 @@ export class BranchesController {
   constructor(private readonly branchesService: BranchesService) {}
 
   @Get()
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
+  @Roles(Role.ADMIN, Role.TRAINER)
   @ApiOperation({ summary: 'Lấy danh sách chi nhánh (STAFF/TRAINER chỉ thấy chi nhánh của mình)' })
   findAll(
     @CurrentUser('role') role: string,
@@ -43,7 +43,7 @@ export class BranchesController {
   }
 
   @Get(':id')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
+  @Roles(Role.ADMIN, Role.TRAINER)
   @ApiOperation({ summary: 'Lấy chi tiết chi nhánh, phòng tập và thiết bị' })
   findOne(
     @Param('id') id: string,
@@ -54,21 +54,21 @@ export class BranchesController {
   }
 
   @Get(':id/stats')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
+  @Roles(Role.ADMIN, Role.TRAINER)
   @ApiOperation({ summary: 'Số liệu tổng hợp của một chi nhánh (hội viên, doanh thu, thiết bị...)' })
   getStats(@Param('id') id: string) {
     return this.branchesService.getStats(id);
   }
 
   @Post()
-  @Roles(Role.ADMIN, Role.MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Tạo chi nhánh mới (ADMIN/MANAGER)' })
   create(@Body() dto: CreateBranchDto, @CurrentUser('role') role: string) {
     return this.branchesService.create(dto, role);
   }
 
   @Patch(':id')
-  @Roles(Role.ADMIN, Role.MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Cập nhật thông tin chi nhánh' })
   update(
     @Param('id') id: string,
@@ -79,7 +79,7 @@ export class BranchesController {
   }
 
   @Patch(':id/status')
-  @Roles(Role.ADMIN, Role.MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({
     summary:
       'Kích hoạt / ngừng hoạt động chi nhánh (INACTIVE chặn tạo buổi tập & check-in mới)',
@@ -93,7 +93,7 @@ export class BranchesController {
   }
 
   @Delete(':id')
-  @Roles(Role.ADMIN, Role.MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Xóa chi nhánh — chỉ khi không còn dữ liệu liên quan (nên dùng INACTIVE)' })
   remove(@Param('id') id: string, @CurrentUser('role') role: string) {
     return this.branchesService.remove(id, role);
@@ -112,7 +112,7 @@ export class RoomsController {
   constructor(private readonly branchesService: BranchesService) {}
 
   @Get()
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
+  @Roles(Role.ADMIN, Role.TRAINER)
   @ApiOperation({ summary: 'Danh sách phòng của chi nhánh' })
   getRooms(
     @Param('branchId') branchId: string,
@@ -123,7 +123,7 @@ export class RoomsController {
   }
 
   @Get(':id')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
+  @Roles(Role.ADMIN, Role.TRAINER)
   @ApiOperation({ summary: 'Chi tiết một phòng trong chi nhánh' })
   async getRoom(@Param('id') id: string, @Param('branchId') branchId: string) {
     const rooms = await this.branchesService.getRooms(branchId, 'ADMIN', null);
@@ -133,7 +133,7 @@ export class RoomsController {
   }
 
   @Post()
-  @Roles(Role.ADMIN, Role.MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Tạo phòng mới trong chi nhánh (mã phòng unique trong branch)' })
   createRoom(
     @Param('branchId') branchId: string,
@@ -144,7 +144,7 @@ export class RoomsController {
   }
 
   @Patch(':id')
-  @Roles(Role.ADMIN, Role.MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Cập nhật phòng' })
   updateRoom(
     @Param('branchId') branchId: string,
@@ -156,7 +156,7 @@ export class RoomsController {
   }
 
   @Patch(':id/status')
-  @Roles(Role.ADMIN, Role.MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Đổi trạng thái phòng (chỉ phòng AVAILABLE mới đặt lịch được)' })
   setRoomStatus(
     @Param('branchId') branchId: string,
@@ -168,7 +168,7 @@ export class RoomsController {
   }
 
   @Delete(':id')
-  @Roles(Role.ADMIN, Role.MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Xóa phòng — chỉ khi không còn thiết bị / buổi tập liên quan' })
   removeRoom(
     @Param('branchId') branchId: string,

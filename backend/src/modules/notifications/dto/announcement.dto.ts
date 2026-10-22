@@ -5,8 +5,7 @@ export const ANNOUNCEMENT_TARGETS = [
   'ALL',
   'MEMBERS',
   'TRAINERS',
-  'STAFF',
-  'MANAGERS',
+
   'SPECIFIC_BRANCH',
 ] as const;
 

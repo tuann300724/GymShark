@@ -22,7 +22,7 @@ export class PromotionsController {
   constructor(private readonly promotionsService: PromotionsService) {}
 
   @Get()
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN)
   @ApiOperation({
     summary:
       'Danh sách mã khuyến mãi (tìm kiếm theo code/name, lọc status/type/ngày) + thống kê Active / Sắp hết hạn / Hết hạn / Tổng lượt dùng',
@@ -32,21 +32,21 @@ export class PromotionsController {
   }
 
   @Get('stats')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Thống kê nhanh mã khuyến mãi cho Dashboard admin' })
   getStats() {
     return this.promotionsService.getStats();
   }
 
   @Get(':id')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Chi tiết mã khuyến mãi (usage, remaining, unique members)' })
   findOne(@Param('id') id: string) {
     return this.promotionsService.findOne(id);
   }
 
   @Get(':id/usages')
-  @Roles(Role.ADMIN, Role.MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({
     summary: 'Lịch sử dùng mã: Member + Payment + Discount amount + thời điểm',
   })
@@ -55,7 +55,7 @@ export class PromotionsController {
   }
 
   @Post('validate')
-  @Roles(Role.MEMBER, Role.STAFF, Role.ADMIN, Role.MANAGER)
+  @Roles(Role.MEMBER, Role.ADMIN)
   @ApiOperation({
     summary:
       'Member kiểm tra mã khuyến mãi trước khi đăng ký: tính subtotal/discount/total. Backend tự kiểm tra mọi ràng buộc.',
@@ -65,28 +65,28 @@ export class PromotionsController {
   }
 
   @Post()
-  @Roles(Role.ADMIN, Role.MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Tạo mã khuyến mãi mới' })
   create(@Body() dto: CreatePromotionDto, @CurrentUser('id') actorId: string) {
     return this.promotionsService.create(dto, actorId);
   }
 
   @Patch(':id')
-  @Roles(Role.ADMIN, Role.MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Cập nhật mã khuyến mãi (không sửa code nếu đã được dùng)' })
   update(@Param('id') id: string, @Body() dto: UpdatePromotionDto, @CurrentUser('id') actorId: string) {
     return this.promotionsService.update(id, dto, actorId);
   }
 
   @Post(':id/activate')
-  @Roles(Role.ADMIN, Role.MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Kích hoạt mã khuyến mãi (chặn nếu đã hết hạn)' })
   activate(@Param('id') id: string, @CurrentUser('id') actorId: string) {
     return this.promotionsService.activate(id, actorId);
   }
 
   @Post(':id/deactivate')
-  @Roles(Role.ADMIN, Role.MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Ngừng kích hoạt mã khuyến mãi' })
   deactivate(@Param('id') id: string, @CurrentUser('id') actorId: string) {
     return this.promotionsService.deactivate(id, actorId);

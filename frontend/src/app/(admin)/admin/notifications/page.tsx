@@ -39,8 +39,6 @@ const ROLE_OPTIONS = [
   { value: '', label: 'Mọi vai trò' },
   { value: 'MEMBER', label: 'Hội viên' },
   { value: 'TRAINER', label: 'Huấn luyện viên' },
-  { value: 'STAFF', label: 'Nhân viên lễ tân' },
-  { value: 'MANAGER', label: 'Quản lý' },
   { value: 'ADMIN', label: 'Quản trị viên' },
 ];
 

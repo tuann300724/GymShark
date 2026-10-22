@@ -30,7 +30,7 @@ export class PaymentsController {
   ) {}
 
   @Get()
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN)
   @ApiOperation({
     summary: 'Danh sách giao dịch thanh toán (admin) — filter, search, phân trang kèm thống kê doanh thu',
   })
@@ -39,7 +39,7 @@ export class PaymentsController {
   }
 
   @Get('bank-info')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.MEMBER)
+  @Roles(Role.ADMIN, Role.MEMBER)
   @ApiOperation({ summary: 'Thông tin tài khoản nhận tiền (chuyển khoản) + danh sách cổng thanh toán' })
   getBankInfo() {
     return this.paymentsService.getBankInfo();
@@ -75,14 +75,14 @@ export class PaymentsController {
   }
 
   @Get(':id')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Chi tiết một giao dịch thanh toán (admin)' })
   findOne(@Param('id') id: string) {
     return this.paymentsService.findOne(id);
   }
 
   @Post(':id/confirm')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN)
   @ApiOperation({
     summary: 'Xác nhận thanh toán: Payment PENDING → PAID, Membership → ACTIVE, Invoice → PAID (transaction)',
   })
@@ -100,7 +100,7 @@ export class PaymentsController {
   }
 
   @Post(':id/check-casso')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.MEMBER)
+  @Roles(Role.ADMIN, Role.MEMBER)
   @ApiOperation({ summary: 'Đối soát tự động CASSO: poll Google Sheet → khớp GYM ... → xác nhận PAID' })
   @ApiParam({ name: 'id', description: 'ID thanh toán' })
   @ApiResponse({ status: 200, description: 'Khớp CASSO → PAID / Chưa khớp → PENDING' })
@@ -112,7 +112,7 @@ export class PaymentsController {
   }
 
   @Post(':id/reject')
-  @Roles(Role.ADMIN, Role.MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Từ chối/hủy thanh toán đang chờ: Payment → CANCELLED, Membership → CANCELLED' })
   reject(
     @Param('id') id: string,
@@ -136,14 +136,14 @@ export class PaymentsController {
   // ---------- Back-compat (STEP 4) ----------
 
   @Patch(':id/approve')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: '[Back-compat] Xác nhận thanh toán (alias của POST /:id/confirm)' })
   approve(@Param('id') id: string, @CurrentUser() user: { id: string; role: string }) {
     return this.paymentsService.confirm(id, user, {});
   }
 
   @Patch(':id/cancel')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: '[Back-compat] Hủy hóa đơn đang chờ (alias của POST /:id/reject)' })
   cancel(@Param('id') id: string, @CurrentUser() user: { id: string; role: string }) {
     return this.paymentsService.cancel(id, user);

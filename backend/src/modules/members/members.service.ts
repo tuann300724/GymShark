@@ -425,7 +425,7 @@ export class MembersService {
         email,
         phone,
         branchId,
-        via: 'staff',
+        via: 'admin',
         tempPassword: isTempPassword,
       },
     });

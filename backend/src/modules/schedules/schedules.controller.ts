@@ -37,14 +37,14 @@ export class SchedulesController {
   constructor(private readonly schedulesService: SchedulesService) {}
 
   @Get()
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
+  @Roles(Role.ADMIN, Role.TRAINER)
   @ApiOperation({ summary: '[Cũ] Lấy danh sách lịch tập luyện & lớp học PT' })
   findAll() {
     return this.schedulesService.findAll();
   }
 
   @Get(':id')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
+  @Roles(Role.ADMIN, Role.TRAINER)
   @ApiOperation({ summary: '[Cũ] Lấy chi tiết một lịch tập' })
   findOne(@Param('id') id: string) {
     return this.schedulesService.findOne(id);
@@ -84,7 +84,7 @@ export class TrainingSessionsController {
   }
 
   @Get()
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
+  @Roles(Role.ADMIN, Role.TRAINER)
   @ApiOperation({ summary: 'Danh sách buổi tập (lọc theo trainer/member/branch/status/type/time)' })
   findAllSessions(
     @Query() query: SessionQueryDto,
@@ -95,7 +95,7 @@ export class TrainingSessionsController {
   }
 
   @Get(':id/progress')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER, Role.MEMBER)
+  @Roles(Role.ADMIN, Role.TRAINER, Role.MEMBER)
   @ApiOperation({ summary: 'Ghi chú tiến trình của một buổi tập' })
   getProgress(
     @Param('id') id: string,
@@ -106,7 +106,7 @@ export class TrainingSessionsController {
   }
 
   @Get(':id')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER, Role.MEMBER)
+  @Roles(Role.ADMIN, Role.TRAINER, Role.MEMBER)
   @ApiOperation({ summary: 'Chi tiết buổi tập (backend tự kiểm tra quyền sở hữu)' })
   findOneSession(
     @Param('id') id: string,
@@ -117,7 +117,7 @@ export class TrainingSessionsController {
   }
 
   @Post()
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Tạo buổi tập (kiểm tra trùng lịch HLV/member, không tạo quá khứ nếu không phải Admin)' })
   createSession(
     @Body() dto: CreateSessionDto,
@@ -128,7 +128,7 @@ export class TrainingSessionsController {
   }
 
   @Patch(':id')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Chỉnh sửa buổi tập (chỉ khi SCHEDULED, tự kiểm tra lại trùng lịch)' })
   updateSession(
     @Param('id') id: string,
@@ -140,7 +140,7 @@ export class TrainingSessionsController {
   }
 
   @Post(':id/cancel')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
+  @Roles(Role.ADMIN, Role.TRAINER)
   @ApiOperation({ summary: 'Hủy buổi tập (giữ lịch sử + lưu lý do hủy)' })
   cancelSession(
     @Param('id') id: string,
@@ -152,7 +152,7 @@ export class TrainingSessionsController {
   }
 
   @Post(':id/complete')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
+  @Roles(Role.ADMIN, Role.TRAINER)
   @ApiOperation({ summary: 'Đánh dấu buổi tập hoàn thành' })
   completeSession(
     @Param('id') id: string,
@@ -163,7 +163,7 @@ export class TrainingSessionsController {
   }
 
   @Post(':id/progress')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
+  @Roles(Role.ADMIN, Role.TRAINER)
   @ApiOperation({ summary: 'Thêm ghi chú tiến trình cho buổi tập (HLV/truy cập quản trị)' })
   addProgress(
     @Param('id') id: string,
@@ -194,7 +194,7 @@ export class TrainingProgressController {
   constructor(private readonly schedulesService: SchedulesService) {}
 
   @Patch(':id')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.TRAINER)
+  @Roles(Role.ADMIN, Role.TRAINER)
   @ApiOperation({ summary: 'Chỉnh sửa ghi chú tiến trình (HLV chỉ sửa ghi chú của mình)' })
   updateProgress(
     @Param('id') id: string,

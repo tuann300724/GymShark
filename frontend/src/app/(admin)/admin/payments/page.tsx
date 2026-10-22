@@ -57,7 +57,7 @@ export default function PaymentsPage() {
   const toast = useToast();
   const queryClient = useQueryClient();
   const user = getStoredUser();
-  const canReject = user?.role === 'ADMIN' || user?.role === 'MANAGER';
+  const canReject = user?.role === 'ADMIN';
   const canRefund = user?.role === 'ADMIN';
 
   const [page, setPage] = useState(1);

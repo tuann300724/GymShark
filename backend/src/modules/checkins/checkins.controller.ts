@@ -37,7 +37,7 @@ export class CheckinsController {
   // ---------------------------------------------------------------------------
 
   @Get()
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
+  @Roles(Role.ADMIN, Role.TRAINER)
   @ApiOperation({
     summary: 'Lịch sử check-in toàn hệ thống (tìm kiếm, lọc, sắp xếp, phân trang)',
   })
@@ -46,14 +46,14 @@ export class CheckinsController {
   }
 
   @Get('currently-inside')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Danh sách hội viên đang có mặt trong phòng gym' })
   currentlyInside() {
     return this.checkinsService.currentlyInside();
   }
 
   @Post('staff')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN)
   @ApiOperation({
     summary:
       'Lễ tân check-in giúp hội viên (theo memberId, không tin client). STAFF buộc ở chi nhánh của mình',
@@ -68,7 +68,7 @@ export class CheckinsController {
   }
 
   @Post('face-scan')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN)
   @ApiOperation({
     summary:
       'Lễ tân quét khuôn mặt 1:N tại quầy — server tự nhận diện hội viên (vector) rồi check-in',
@@ -83,7 +83,7 @@ export class CheckinsController {
   }
 
   @Get('qr/lookup')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN)
   @ApiOperation({
     summary: 'Lễ tân nhập/dán mã QR hội viên để đối chiếu hồ sơ trước khi check-in',
   })
@@ -92,7 +92,7 @@ export class CheckinsController {
   }
 
   @Post('qr')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN)
   @ApiOperation({
     summary: 'Check-in cho hội viên bằng mã QR (ghi method = QR_CODE, đi qua cùng kiểm tra thẻ tập)',
   })
@@ -116,7 +116,7 @@ export class CheckinsController {
   }
 
   @Post(':id/checkout')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Admin/Staff chủ động check-out cho một phiên tập đang mở' })
   checkoutById(@Param('id') id: string, @CurrentUser('id') actorId: string) {
     return this.checkinsService.checkoutById(id, actorId);

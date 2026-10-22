@@ -16,7 +16,7 @@ export class InvoicesController {
   constructor(private readonly invoicesService: InvoicesService) {}
 
   @Get()
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Danh sách hóa đơn (admin) — filter, search, phân trang' })
   findAll(@Query() query: InvoiceListQueryDto) {
     return this.invoicesService.findAll(query);
@@ -37,7 +37,7 @@ export class InvoicesController {
   }
 
   @Get(':id')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Chi tiết một hóa đơn (admin)' })
   findOne(@Param('id') id: string) {
     return this.invoicesService.findOne(id);

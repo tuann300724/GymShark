@@ -35,14 +35,14 @@ export class EquipmentController {
   constructor(private readonly equipmentService: EquipmentService) {}
 
   @Get('stats')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Tổng quan thiết bị: số lượng theo trạng thái/tình trạng + cảnh báo bảo trì' })
   getStats() {
     return this.equipmentService.getStats();
   }
 
   @Get('alerts')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
+  @Roles(Role.ADMIN, Role.TRAINER)
   @ApiOperation({
     summary: 'Cảnh báo: bảo trì quá hạn / sắp tới (14 ngày) / thiết bị hỏng / sắp hết bảo hành (30 ngày)',
   })
@@ -54,7 +54,7 @@ export class EquipmentController {
   }
 
   @Get()
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
+  @Roles(Role.ADMIN, Role.TRAINER)
   @ApiOperation({
     summary: 'Danh sách thiết bị (tìm kiếm, lọc). STAFF/TRAINER chỉ thấy thiết bị chi nhánh của mình',
   })
@@ -67,7 +67,7 @@ export class EquipmentController {
   }
 
   @Get(':id')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
+  @Roles(Role.ADMIN, Role.TRAINER)
   @ApiOperation({ summary: 'Chi tiết thiết bị + lịch sử bảo trì đầy đủ' })
   findOne(
     @Param('id') id: string,
@@ -78,7 +78,7 @@ export class EquipmentController {
   }
 
   @Post()
-  @Roles(Role.ADMIN, Role.MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Thêm thiết bị mới (mã unique, serial unique nếu có, room thuộc branch)' })
   create(
     @Body() dto: CreateEquipmentDto,
@@ -89,7 +89,7 @@ export class EquipmentController {
   }
 
   @Patch(':id')
-  @Roles(Role.ADMIN, Role.MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Cập nhật thông tin thiết bị' })
   update(
     @Param('id') id: string,
@@ -101,7 +101,7 @@ export class EquipmentController {
   }
 
   @Patch(':id/status')
-  @Roles(Role.ADMIN, Role.MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Đổi trạng thái thiết bị (AVAILABLE/IN_USE/MAINTENANCE/BROKEN/RETIRED)' })
   setStatus(
     @Param('id') id: string,
@@ -114,7 +114,7 @@ export class EquipmentController {
   }
 
   @Delete(':id')
-  @Roles(Role.ADMIN, Role.MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Thanh lý (retire) thiết bị — giữ lịch sử' })
   remove(
     @Param('id') id: string,
@@ -138,7 +138,7 @@ export class EquipmentMaintenanceController {
   constructor(private readonly equipmentService: EquipmentService) {}
 
   @Get()
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
+  @Roles(Role.ADMIN, Role.TRAINER)
   @ApiOperation({ summary: 'Danh sách yêu cầu / lịch sử bảo trì (lọc theo thiết bị, branch, trạng thái)' })
   findAll(
     @Query() query: MaintenanceQueryDto,
@@ -149,7 +149,7 @@ export class EquipmentMaintenanceController {
   }
 
   @Post()
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN)
   @ApiOperation({
     summary: 'Tạo yêu cầu bảo trì (STAFF chỉ tạo cho thiết bị chi nhánh mình). Thiết bị → MAINTENANCE',
   })
@@ -163,7 +163,7 @@ export class EquipmentMaintenanceController {
   }
 
   @Patch(':id/complete')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Hoàn tất bảo trì — thiết bị → AVAILABLE (hoặc BROKEN nếu đánh dấu hỏng)' })
   complete(
     @Param('id') id: string,
@@ -176,7 +176,7 @@ export class EquipmentMaintenanceController {
   }
 
   @Post(':id/cancel')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Hủy yêu cầu bảo trì — mở lại thiết bị nếu không còn bảo trì khác' })
   cancel(
     @Param('id') id: string,

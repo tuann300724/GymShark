@@ -19,9 +19,9 @@ import {
 } from './dto/equipment.dto';
 
 /** Vai trò được phép quản lý thiết bị (tạo/sửa/xóa/đổi trạng thái) */
-const MANAGE_ROLES = ['ADMIN', 'MANAGER'];
+const MANAGE_ROLES = ['ADMIN', 'TRAINER'];
 /** STAFF chỉ được tạo/hoàn tất bảo trì thiết bị của chi nhánh mình */
-const MAINTENANCE_ROLES = ['ADMIN', 'MANAGER', 'STAFF'];
+const MAINTENANCE_ROLES = ['ADMIN', 'TRAINER'];
 
 @Injectable()
 export class EquipmentService {
@@ -49,7 +49,7 @@ export class EquipmentService {
 
   /** STAFF/TRAINER chỉ nhìn/móc thiết bị thuộc chi nhánh của mình */
   private assertBranchScope(branchId: string, role: string, userBranchId?: string | null) {
-    if ((role === 'STAFF' || role === 'TRAINER') && userBranchId) {
+    if ((role === 'TRAINER') && userBranchId) {
       if (branchId !== userBranchId) {
         throw new ForbiddenException('Bạn chỉ được thao tác thiết bị thuộc chi nhánh của mình.');
       }
@@ -57,7 +57,7 @@ export class EquipmentService {
   }
 
   private scopedWhere(role: string, userBranchId?: string | null): Prisma.EquipmentWhereInput {
-    if ((role === 'STAFF' || role === 'TRAINER') && userBranchId) {
+    if ((role === 'TRAINER') && userBranchId) {
       return { branchId: userBranchId };
     }
     return {};
@@ -409,7 +409,7 @@ export class EquipmentService {
 
     // STEP 8 — thiết bị hỏng → cảnh báo ADMIN/MANAGER/STAFF (dedupe theo ref)
     if (status === EquipmentStatus.BROKEN) {
-      await this.notificationsService.fanoutToStaff({
+      await this.notificationsService.fanoutToAdmin({
         type: 'EQUIPMENT',
         title: 'Thiết bị hỏng 🚨',
         content: `${equipment.name} (${equipment.code}) tại ${equipment.branch?.name ?? ''} vừa được đánh dấu HỎNG. Kiểm tra và lên lịch sửa chữa.`,
@@ -488,7 +488,7 @@ export class EquipmentService {
     if (status) where.status = status;
     if (type) where.type = type;
     if (branchId) where.equipment = { is: { branchId } };
-    if ((role === 'STAFF' || role === 'TRAINER') && userBranchId) {
+    if ((role === 'TRAINER') && userBranchId) {
       where.equipment = { is: { branchId: userBranchId } };
     }
 
@@ -635,7 +635,7 @@ export class EquipmentService {
 
     // STEP 8 — hoàn tất bảo trì nhưng thiết bị hỏng → cảnh báo
     if (dto.markBroken) {
-      await this.notificationsService.fanoutToStaff({
+      await this.notificationsService.fanoutToAdmin({
         type: 'EQUIPMENT',
         title: 'Thiết bị hỏng 🚨',
         content: `${equipment.name} (${equipment.code}) tại ${equipment.branch?.name ?? ''} được xác định HỎNG sau bảo trì. Lên kế hoạch sửa chữa / thay thế.`,

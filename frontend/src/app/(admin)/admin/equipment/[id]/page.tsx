@@ -45,12 +45,12 @@ import type { EquipmentMaintenance } from '@/services/types';
 
 const canManage = () => {
   const user = getStoredUser();
-  return user?.role === 'ADMIN' || user?.role === 'MANAGER';
+  return user?.role === 'ADMIN';
 };
 
 const canRequestMaintenance = () => {
   const user = getStoredUser();
-  return canManage() || user?.role === 'STAFF';
+  return canManage();
 };
 
 const MAINTENANCE_TYPE_OPTIONS = Object.entries(MAINTENANCE_TYPE_META).map(([value, label]) => ({

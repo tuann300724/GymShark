@@ -13,8 +13,6 @@ generator client {
 
 enum UserRole {
   ADMIN
-  MANAGER
-  STAFF
   TRAINER
   MEMBER
 }
@@ -217,7 +215,7 @@ model User {
   /// Số điện thoại là định danh liên hệ của hội viên — 1 số chỉ 1 tài khoản.
   /// NULL vẫn cho phép nhiều tài khoản (nhân viên không bắt buộc khai số).
   phone        String?    @unique
-  role         UserRole   @default(STAFF)
+  role         UserRole   @default(MEMBER)
   status       UserStatus @default(ACTIVE)
   avatarUrl    String?
   /// Kênh đăng nhập: LOCAL (email + mật khẩu) hoặc GOOGLE (OAuth 2.0).

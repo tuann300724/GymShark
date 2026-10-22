@@ -33,7 +33,7 @@ export class MembersController {
   constructor(private readonly membersService: MembersService) {}
 
   @Get()
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
+  @Roles(Role.ADMIN, Role.TRAINER)
   @ApiOperation({ summary: 'Danh sách hội viên (tìm kiếm, lọc, sắp xếp, phân trang)' })
   @ApiQuery({ name: 'search', required: false, description: 'Tìm theo tên/email/SĐT/mã hội viên' })
   @ApiQuery({ name: 'status', required: false, enum: ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'EXPIRED'] })
@@ -66,22 +66,22 @@ export class MembersController {
   }
 
   @Get(':id/trainers')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
+  @Roles(Role.ADMIN, Role.TRAINER)
   @ApiOperation({ summary: 'Lịch sử HLV phụ trách của hội viên (TrainerMember)' })
   getTrainers(@Param('id') id: string) {
     return this.membersService.getTrainers(id);
   }
 
   @Get(':id')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
+  @Roles(Role.ADMIN, Role.TRAINER)
   @ApiOperation({ summary: 'Chi tiết hồ sơ hội viên: gói tập, hoá đơn, check-in, lịch PT' })
   findOne(@Param('id') id: string) {
     return this.membersService.findOne(id);
   }
 
   @Patch(':id')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
-  @ApiOperation({ summary: 'Cập nhật hồ sơ / trạng thái hội viên (khóa, kích hoạt...)' })
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Cập nhật hồ sơ / trạng thái hội viên (khóa, kích hoạt, hết hạn...) — admin toàn quyền' })
   update(
     @Param('id') id: string,
     @Body() dto: UpdateMemberDto,
@@ -91,7 +91,7 @@ export class MembersController {
   }
 
   @Post()
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN)
   @ApiOperation({
     summary: 'Tạo hội viên mới tại quầy (tạo tài khoản + hồ sơ hội viên)',
     description:
@@ -104,9 +104,9 @@ export class MembersController {
   }
 
   @Post(':id/memberships')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN)
   @ApiOperation({
-    summary: 'Lễ tân tạo thẻ tập cho hội viên tại quầy',
+    summary: 'Lễ tân tạo thẻ tập cho hội viên tại quầy (admin toàn quyền)',
     description:
       'payNow=false → thẻ PENDING + hoá đơn chờ xác nhận. payNow=true → thu tiền ngay và kích hoạt thẻ (chỉ Tiền mặt / Chuyển khoản).',
   })

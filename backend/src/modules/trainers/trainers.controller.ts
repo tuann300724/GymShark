@@ -55,14 +55,14 @@ export class TrainersController {
   // ---------------------------------------------------------------------------
 
   @Get()
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
+  @Roles(Role.ADMIN, Role.TRAINER)
   @ApiOperation({ summary: 'Danh sách huấn luyện viên (tìm kiếm, lọc, phân trang)' })
   findAll(@Query() query: TrainerQueryDto) {
     return this.trainersService.findAll(query);
   }
 
   @Get(':id')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
+  @Roles(Role.ADMIN, Role.TRAINER)
   @ApiOperation({ summary: 'Chi tiết huấn luyện viên + thống kê + hội viên phụ trách + lịch' })
   findOne(@Param('id') id: string) {
     return this.trainersService.findOne(id);
@@ -73,7 +73,7 @@ export class TrainersController {
   // ---------------------------------------------------------------------------
 
   @Post()
-  @Roles(Role.ADMIN, Role.MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Tạo huấn luyện viên mới (kèm tài khoản đăng nhập TRAINER)' })
   @ApiResponse({ status: 201, description: 'Tạo thành công, trả về tempPassword để cấp cho HLV' })
   create(@Body() dto: CreateTrainerDto, @CurrentUser('id') actorId: string) {
@@ -81,7 +81,7 @@ export class TrainersController {
   }
 
   @Patch(':id')
-  @Roles(Role.ADMIN, Role.MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Cập nhật hồ sơ / trạng thái huấn luyện viên' })
   update(@Param('id') id: string, @Body() dto: UpdateTrainerDto, @CurrentUser('id') actorId: string) {
     return this.trainersService.update(id, dto, actorId);
@@ -99,14 +99,14 @@ export class TrainersController {
   // ---------------------------------------------------------------------------
 
   @Get(':id/members')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Danh sách phân công (lịch sử) của một HLV' })
   getMembers(@Param('id') id: string) {
     return this.trainersService.getMembers(id);
   }
 
   @Post(':id/members/:memberId')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Gán HLV cho hội viên (kiểm tra trùng lặp ACTIVE)' })
   @ApiParam({ name: 'id', description: 'ID huấn luyện viên' })
   @ApiParam({ name: 'memberId', description: 'ID hội viên' })
@@ -115,7 +115,7 @@ export class TrainersController {
   }
 
   @Delete(':id/members/:memberId')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Kết thúc phân công HLV cho hội viên (giữ lịch sử)' })
   @ApiParam({ name: 'id', description: 'ID huấn luyện viên' })
   @ApiParam({ name: 'memberId', description: 'ID hội viên' })

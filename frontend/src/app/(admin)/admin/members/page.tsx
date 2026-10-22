@@ -16,7 +16,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { Spinner } from '@/components/ui/spinner';
 import { formatDate } from '@/lib/utils';
-import { MEMBER_STATUS_META, MEMBERSHIP_STATUS_META } from '@/lib/status';
+import { MEMBERSHIP_STATUS_META } from '@/lib/status';
 import {
   Users,
   Search,
@@ -84,7 +84,6 @@ export default function MembersPage() {
       return res.data;
     },
     onSuccess: (res: any, vars) => {
-      const meta = MEMBER_STATUS_META[vars.status];
       toast.success(
         'Cập nhật trạng thái thành công',
         `Hội viên ${vars.status === 'SUSPENDED' ? 'đã bị khóa' : 'đã được kích hoạt'}.`,
@@ -278,10 +277,6 @@ export default function MembersPage() {
                   {data.data.map((m: any) => {
                     const latestMs = m.memberships?.[0];
                     const activePkg = latestMs?.package?.name || 'Chưa đăng ký gói';
-                    const statusMeta = MEMBER_STATUS_META[m.status] || {
-                      label: m.status,
-                      variant: 'outline',
-                    };
                     return (
                       <tr key={m.id} className="hover:bg-line/30 transition-colors">
                         <td className="py-3 px-4 font-mono font-bold text-neon">{m.code}</td>
@@ -305,7 +300,18 @@ export default function MembersPage() {
                         </td>
                         <td className="py-3 px-4 text-muted">{formatDate(m.joinedAt)}</td>
                         <td className="py-3 px-4">
-                          <Badge variant={statusMeta.variant}>{statusMeta.label}</Badge>
+                          <Select
+                            value={m.status}
+                            options={[
+                              { value: 'ACTIVE', label: 'Hoạt động' },
+                              { value: 'INACTIVE', label: 'Ngừng hoạt động' },
+                              { value: 'SUSPENDED', label: 'Bị khóa' },
+                              { value: 'EXPIRED', label: 'Hết hạn' },
+                            ]}
+                            className="text-xs min-w-[120px] bg-ink border-none text-chalk focus:ring-0"
+                            disabled={statusMutation.isPending}
+                            onChange={(e) => statusMutation.mutate({ id: m.id, status: e.target.value })}
+                          />
                         </td>
                         <td className="py-3 px-4">
                           <div className="flex items-center justify-end gap-1.5">
@@ -443,6 +449,7 @@ export default function MembersPage() {
                 { value: 'ACTIVE', label: 'Hoạt động' },
                 { value: 'INACTIVE', label: 'Ngừng hoạt động' },
                 { value: 'SUSPENDED', label: 'Bị khóa' },
+                { value: 'EXPIRED', label: 'Hết hạn' },
               ]}
               onChange={(e) => setForm({ ...form, status: e.target.value })}
             />

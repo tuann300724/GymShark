@@ -15,7 +15,7 @@ export class AuditLogsController {
   constructor(private readonly auditService: AuditService) {}
 
   @Get()
-  @Roles(Role.ADMIN, Role.MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({
     summary:
       'Nhật ký hoạt động toàn hệ thống (lọc theo user/action/entity/ngày, phân trang) — chỉ ADMIN & MANAGER',

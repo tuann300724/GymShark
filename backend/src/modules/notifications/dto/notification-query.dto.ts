@@ -32,7 +32,7 @@ export class NotificationListQueryDto {
   unread?: string;
 
   @ApiPropertyOptional({
-    enum: ['ADMIN', 'MANAGER', 'STAFF', 'TRAINER', 'MEMBER'],
+    enum: ['ADMIN', 'TRAINER', 'MEMBER'],
     description: 'Lọc theo role người nhận (admin)',
   })
   @IsOptional()

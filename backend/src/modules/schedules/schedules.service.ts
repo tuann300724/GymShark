@@ -18,9 +18,9 @@ import {
 } from './dto/session.dto';
 
 /** Các vai trò được quản lý lịch (create/edit/cancel/complete) */
-const MANAGE_ROLES = ['ADMIN', 'MANAGER', 'STAFF'];
+const MANAGE_ROLES = ['ADMIN', 'TRAINER'];
 /** Chỉ ADMIN/MANAGER mới được tạo lịch trong quá khứ */
-const PAST_ALLOWED_ROLES = ['ADMIN', 'MANAGER'];
+const PAST_ALLOWED_ROLES = ['ADMIN', 'TRAINER'];
 
 @Injectable()
 export class SchedulesService {
@@ -777,7 +777,7 @@ export class SchedulesService {
       if (progress.trainerId !== trainer.id) {
         throw new ForbiddenException('Bạn chỉ được chỉnh sửa ghi chú của chính mình.');
       }
-    } else if (role !== 'ADMIN' && role !== 'MANAGER') {
+    } else if (role !== 'ADMIN' && role !== 'TRAINER') {
       throw new ForbiddenException('Không có quyền chỉnh sửa ghi chú buổi tập.');
     }
 

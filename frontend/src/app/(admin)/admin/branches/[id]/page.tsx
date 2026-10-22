@@ -56,7 +56,7 @@ import type { Branch, Room } from '@/services/types';
 
 const canManage = () => {
   const user = getStoredUser();
-  return user?.role === 'ADMIN' || user?.role === 'MANAGER';
+  return user?.role === 'ADMIN';
 };
 
 type TabKey = 'overview' | 'rooms' | 'equipment' | 'schedules' | 'members';

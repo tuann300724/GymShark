@@ -133,7 +133,7 @@ export class NotificationTickerService implements OnModuleInit, OnModuleDestroy 
       select: { id: true, code: true, name: true, nextMaintenanceAt: true, branch: { select: { name: true } } },
     });
     for (const e of due) {
-      await this.notificationsService.fanoutToStaff({
+      await this.notificationsService.fanoutToAdmin({
         type: 'EQUIPMENT',
         title: 'Thiết bị cần bảo trì 🛠️',
         content: `${e.name} (${e.code}) tại ${e.branch?.name ?? ''} ${
@@ -152,7 +152,7 @@ export class NotificationTickerService implements OnModuleInit, OnModuleDestroy 
       select: { id: true, code: true, name: true, branch: { select: { name: true } } },
     });
     for (const e of broken) {
-      await this.notificationsService.fanoutToStaff({
+      await this.notificationsService.fanoutToAdmin({
         type: 'EQUIPMENT',
         title: 'Thiết bị hỏng 🚨',
         content: `${e.name} (${e.code}) tại ${e.branch?.name ?? ''} đang trong tình trạng HỎNG. Kiểm tra và lên lịch sửa chữa.`,

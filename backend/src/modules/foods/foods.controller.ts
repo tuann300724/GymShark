@@ -27,14 +27,14 @@ export class FoodsController {
   constructor(private readonly foodsService: FoodsService) {}
 
   @Get()
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
+  @Roles(Role.ADMIN, Role.TRAINER)
   @ApiOperation({ summary: 'Danh sách thực phẩm (lọc theo tên/nhóm, phân trang)' })
   findAll(@Query() query: FoodQueryDto) {
     return this.foodsService.findAll(query);
   }
 
   @Get(':id')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
+  @Roles(Role.ADMIN, Role.TRAINER)
   @ApiOperation({ summary: 'Chi tiết thực phẩm' })
   @ApiParam({ name: 'id' })
   findOne(@Param('id') id: string) {
@@ -42,14 +42,14 @@ export class FoodsController {
   }
 
   @Post()
-  @Roles(Role.ADMIN, Role.MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Thêm thực phẩm vào thư viện' })
   create(@Body() dto: CreateFoodDto, @CurrentUser('id') userId: string, @Ip() ip: string) {
     return this.foodsService.create(dto, { userId, ip });
   }
 
   @Patch(':id')
-  @Roles(Role.ADMIN, Role.MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Cập nhật thực phẩm' })
   update(
     @Param('id') id: string,
@@ -61,7 +61,7 @@ export class FoodsController {
   }
 
   @Delete(':id')
-  @Roles(Role.ADMIN, Role.MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Ẩn thực phẩm khỏi thư viện (xoá mềm)' })
   remove(@Param('id') id: string, @CurrentUser('id') userId: string, @Ip() ip: string) {
     return this.foodsService.remove(id, { userId, ip });

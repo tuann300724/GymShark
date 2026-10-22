@@ -26,14 +26,14 @@ export class MealPlansController {
   ) {}
 
   @Get('recipes/search')
-  @Roles(Role.TRAINER, Role.MEMBER, Role.ADMIN, Role.STAFF, Role.MANAGER)
+  @Roles(Role.TRAINER, Role.MEMBER, Role.ADMIN)
   @ApiOperation({ summary: 'Tìm công thức món ăn theo tên (tiếng Việt hoặc tiếng Anh) — nguồn Spoonacular' })
   searchRecipes(@Query('query') query: string, @Query('number') number?: string) {
     return this.spoonacular.searchRecipes(query || '', Number(number) || 10);
   }
 
   @Get('recipes/:id')
-  @Roles(Role.TRAINER, Role.MEMBER, Role.ADMIN, Role.STAFF, Role.MANAGER)
+  @Roles(Role.TRAINER, Role.MEMBER, Role.ADMIN)
   @ApiOperation({ summary: 'Chi tiết công thức (nguyên liệu + cách làm, đã dịch tiếng Việt)' })
   recipeDetail(@Param('id') id: string) {
     return this.spoonacular.recipeDetail(Number(id));

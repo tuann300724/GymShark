@@ -50,12 +50,12 @@ import type {
 
 const canManage = () => {
   const user = getStoredUser();
-  return user?.role === 'ADMIN' || user?.role === 'MANAGER';
+  return user?.role === 'ADMIN';
 };
 
 const canRequestMaintenance = () => {
   const user = getStoredUser();
-  return canManage() || user?.role === 'STAFF';
+  return canManage();
 };
 
 const CATEGORY_OPTIONS = Object.entries(EQUIPMENT_CATEGORY_META).map(([value, label]) => ({

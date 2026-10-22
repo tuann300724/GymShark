@@ -463,7 +463,7 @@ export class CheckinsService {
   // ---------------------------------------------------------------------------
 
   /** POST /checkins/staff — lễ tân check-in hội viên theo memberId (không tin member, chọn branch) */
-  async staffCheckIn(dto: StaffCheckInInput, role = 'STAFF', userBranchId?: string | null, actorId?: string) {
+  async staffCheckIn(dto: StaffCheckInInput, role = 'ADMIN', userBranchId?: string | null, actorId?: string) {
     const member = await this.prisma.member.findUnique({
       where: { id: dto.memberId },
       include: { branch: { select: { id: true, name: true, code: true } } },
@@ -474,7 +474,7 @@ export class CheckinsService {
 
     // STEP 7 — STAFF chỉ check-in tại chi nhánh của chính mình
     const targetBranchId = dto.branchId ?? member.branchId;
-    if ((role === 'STAFF' || role === 'TRAINER') && userBranchId) {
+    if ((role === 'TRAINER') && userBranchId) {
       if (targetBranchId !== userBranchId) {
         throw new ForbiddenException('Bạn chỉ được check-in hội viên tại chi nhánh của mình.');
       }
@@ -603,7 +603,7 @@ export class CheckinsService {
    * Mã QR chỉ là cách *tìm ra* memberId; toàn bộ kiểm tra thẻ tập, nhánh chi nhánh
    * và quyền hạn vẫn đi qua `staffCheckIn` như check-in tay, không có đường tắt.
    */
-  async checkInByQr(dto: QrCheckInDto, role = 'STAFF', userBranchId?: string | null, actorId?: string) {
+  async checkInByQr(dto: QrCheckInDto, role = 'ADMIN', userBranchId?: string | null, actorId?: string) {
     const payload = this.qrService.verify(dto.token);
     if (!payload) throw new BadRequestException('Mã QR không hợp lệ hoặc đã bị chỉnh sửa.');
 

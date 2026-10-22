@@ -11,8 +11,7 @@ export type NotificationTarget =
   | 'ALL'
   | 'MEMBERS'
   | 'TRAINERS'
-  | 'STAFF'
-  | 'MANAGERS'
+  | 'ADMIN'
   | { branchId: string };
 
 /** Các loại thông báo (STEP 8) — lưu dạng string trong cột type */
@@ -98,7 +97,7 @@ export class NotificationsService {
   }
 
   /** Fan-out tới tất cả ADMIN/MANAGER/STAFF (dedupe global theo ref) — dùng cho cảnh báo vận hành */
-  async fanoutToStaff(input: {
+  async fanoutToAdmin(input: {
     type: NotificationType;
     title: string;
     content: string;
@@ -113,7 +112,7 @@ export class NotificationsService {
     if (dup) return { created: 0, skipped: true };
 
     const staffUsers = await this.prisma.user.findMany({
-      where: { role: { in: [UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF] }, status: 'ACTIVE' },
+      where: { role: { in: [UserRole.ADMIN] }, status: 'ACTIVE' },
       select: { id: true },
     });
     if (!staffUsers.length) return { created: 0, skipped: false };
@@ -187,8 +186,7 @@ export class NotificationsService {
     const roleToUserRole: Partial<Record<Exclude<NotificationTarget, object>, UserRole>> = {
       MEMBERS: UserRole.MEMBER,
       TRAINERS: UserRole.TRAINER,
-      STAFF: UserRole.STAFF,
-      MANAGERS: UserRole.MANAGER,
+      ADMIN: UserRole.ADMIN,
     };
 
     if (target === 'ALL') {

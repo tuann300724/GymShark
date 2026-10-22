@@ -114,7 +114,7 @@ function MetadataList({ item }: { item: AuditLogItem }) {
 
 export default function AuditLogsPage() {
   const user = getStoredUser();
-  const canView = user?.role === 'ADMIN' || user?.role === 'MANAGER';
+  const canView = user?.role === 'ADMIN';
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');

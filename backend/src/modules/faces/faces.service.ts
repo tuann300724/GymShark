@@ -268,7 +268,7 @@ export class FacesService {
       action: 'FACE_DELETE',
       entity: 'Face',
       entityId: memberId,
-      metadata: { memberCode: member.code, sampleCount: count, via: 'admin' },
+      metadata: { memberCode: member.code, sampleCount: count, via: 'staff' },
     });
 
     return {

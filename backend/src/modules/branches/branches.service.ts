@@ -17,7 +17,7 @@ import {
 } from './dto/branch.dto';
 
 /** Vai trò quản lý chi nhánh (create/update/status) */
-const MANAGE_ROLES = ['ADMIN', 'MANAGER'];
+const MANAGE_ROLES = ['ADMIN'];
 
 @Injectable()
 export class BranchesService {
@@ -41,7 +41,7 @@ export class BranchesService {
 
   /** STAFF/TRAINER chỉ nhìn thấy chi nhánh của chính mình */
   private scopedWhere(role: string, userBranchId?: string | null): Prisma.BranchWhereInput {
-    if ((role === 'STAFF' || role === 'TRAINER') && userBranchId) {
+    if ((role === 'TRAINER') && userBranchId) {
       return { id: userBranchId };
     }
     return {};
@@ -93,7 +93,7 @@ export class BranchesService {
       },
     });
     if (!branch) throw new NotFoundException('Không tìm thấy chi nhánh.');
-    if ((role === 'STAFF' || role === 'TRAINER') && userBranchId && branch.id !== userBranchId) {
+    if ((role === 'TRAINER') && userBranchId && branch.id !== userBranchId) {
       throw new ForbiddenException('Bạn không có quyền xem chi nhánh khác.');
     }
     return branch;
@@ -300,7 +300,7 @@ export class BranchesService {
 
   async getRooms(branchId: string, role: string, userBranchId?: string | null) {
     const branch = await this.getBranch(branchId);
-    if ((role === 'STAFF' || role === 'TRAINER') && userBranchId && branch.id !== userBranchId) {
+    if ((role === 'TRAINER') && userBranchId && branch.id !== userBranchId) {
       throw new ForbiddenException('Bạn không có quyền xem phòng của chi nhánh khác.');
     }
     return this.prisma.room.findMany({

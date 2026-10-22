@@ -35,7 +35,7 @@ import type { Branch } from '@/services/types';
 
 const canManage = () => {
   const user = getStoredUser();
-  return user?.role === 'ADMIN' || user?.role === 'MANAGER';
+  return user?.role === 'ADMIN';
 };
 
 interface BranchFormState {

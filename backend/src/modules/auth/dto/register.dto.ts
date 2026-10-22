@@ -21,7 +21,7 @@ export class RegisterDto {
   @IsOptional()
   phone?: string;
 
-  @ApiPropertyOptional({ enum: Role, default: Role.STAFF, description: 'Vai trò trong hệ thống' })
+  @ApiPropertyOptional({ enum: Role, default: Role.MEMBER, description: 'Vai trò trong hệ thống' })
   @IsOptional()
   @IsEnum(Role, { message: 'Vai trò không hợp lệ' })
   role?: Role;

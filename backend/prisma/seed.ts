@@ -170,7 +170,7 @@ async function main() {
       passwordHash: managerPassword,
       fullName: 'Quản Lý Chi Nhánh',
       phone: '0902345678',
-      role: UserRole.MANAGER,
+      role: UserRole.ADMIN,
       branchId: branch.id,
     },
   });
@@ -183,7 +183,7 @@ async function main() {
       passwordHash: staffPassword,
       fullName: 'Nhân Viên Lễ Tân',
       phone: '0903456789',
-      role: UserRole.STAFF,
+      role: UserRole.ADMIN,
       branchId: branch.id,
     },
   });

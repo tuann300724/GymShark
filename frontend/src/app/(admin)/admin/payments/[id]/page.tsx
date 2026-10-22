@@ -40,7 +40,7 @@ export default function PaymentDetailPage() {
   const params = useParams();
   const id = params?.id as string;
   const user = getStoredUser();
-  const canReject = user?.role === 'ADMIN' || user?.role === 'MANAGER';
+  const canReject = user?.role === 'ADMIN';
   const canRefund = user?.role === 'ADMIN';
 
   const [confirmOpen, setConfirmOpen] = useState(false);

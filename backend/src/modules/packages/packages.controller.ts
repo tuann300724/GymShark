@@ -16,21 +16,21 @@ export class PackagesController {
   constructor(private readonly packagesService: PackagesService) {}
 
   @Get()
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
+  @Roles(Role.ADMIN, Role.TRAINER)
   @ApiOperation({ summary: 'Lấy danh sách các gói tập gym (Membership Packages)' })
   findAll() {
     return this.packagesService.findAll();
   }
 
   @Get(':id')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
+  @Roles(Role.ADMIN, Role.TRAINER)
   @ApiOperation({ summary: 'Lấy chi tiết một gói tập' })
   findOne(@Param('id') id: string) {
     return this.packagesService.findOne(id);
   }
 
   @Post()
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Tạo gói tập mới (backend tự sinh mã gói)' })
   @ApiResponse({ status: 201, description: 'Tạo gói thành công' })
   @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
@@ -39,7 +39,7 @@ export class PackagesController {
   }
 
   @Patch(':id')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Cập nhật gói tập (giá, thời hạn, tính năng, trạng thái...)' })
   @ApiResponse({ status: 200, description: 'Cập nhật thành công' })
   update(@Param('id') id: string, @Body() dto: UpdatePackageDto) {
@@ -47,7 +47,7 @@ export class PackagesController {
   }
 
   @Delete(':id')
-  @Roles(Role.ADMIN, Role.MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Xoá gói tập (chỉ khi chưa được hội viên nào đăng ký)' })
   @ApiResponse({ status: 200, description: 'Đã xoá gói tập' })
   @ApiResponse({ status: 409, description: 'Gói đã được sử dụng, không thể xoá' })

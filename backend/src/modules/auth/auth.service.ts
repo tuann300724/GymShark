@@ -755,7 +755,7 @@ export class AuthService {
         passwordHash,
         fullName: registerDto.fullName,
         phone: registerDto.phone,
-        role: (registerDto.role as UserRole) || UserRole.STAFF,
+        role: (registerDto.role as UserRole) || UserRole.MEMBER,
         branchId: registerDto.branchId,
       },
       select: {

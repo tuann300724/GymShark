@@ -52,7 +52,7 @@ export class FacesController {
   // ---------------------------------------------------------------------------
 
   @Post('check-glasses')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.MEMBER, Role.TRAINER)
+  @Roles(Role.ADMIN, Role.MEMBER, Role.TRAINER)
   @ApiOperation({
     summary:
       'Kiểm tra ảnh có đeo kính không (Azure AI Vision). Ảnh được chuyển tiếp lên dịch vụ bên thứ ba và không lưu lại. Trả available=false nếu dịch vụ chưa cấu hình/lỗi — client KHÔNG chặn người dùng khi đó.',
@@ -66,14 +66,14 @@ export class FacesController {
   // ---------------------------------------------------------------------------
 
   @Get('member/:memberId')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Xem trạng thái + ảnh đăng ký khuôn mặt của một hội viên' })
   getMemberFace(@Param('memberId') memberId: string) {
     return this.facesService.getMemberFace(memberId);
   }
 
   @Post('member/:memberId/enroll')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN)
   @ApiOperation({
     summary:
       'Nhân viên đăng ký khuôn mặt THAY hội viên tại quầy (kèm ảnh chụp để đối chiếu, cần xác nhận đồng ý)',
@@ -87,7 +87,7 @@ export class FacesController {
   }
 
   @Delete('member/:memberId')
-  @Roles(Role.ADMIN, Role.MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Xoá đăng ký khuôn mặt của một hội viên (khi hội viên yêu cầu)' })
   adminWithdraw(@Param('memberId') memberId: string, @CurrentUser('id') actorId: string) {
     return this.facesService.adminWithdraw(memberId, actorId);
