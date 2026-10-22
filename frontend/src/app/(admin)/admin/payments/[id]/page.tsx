@@ -184,16 +184,7 @@ export default function PaymentDetailPage() {
               )}
             </>
           )}
-          {payment.status === 'PAID' && canRefund && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-danger"
-              onClick={() => setRefundOpen(true)}
-            >
-              <RotateCcw className="size-4" /> Hoàn tiền
-            </Button>
-          )}
+          {/* Đã bỏ nút hoàn tiền theo yêu cầu */}
         </div>
       </div>
 

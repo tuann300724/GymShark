@@ -44,8 +44,21 @@ export class MemberService {
 
   private async genPaymentCode(): Promise<string> {
     const year = new Date().getFullYear();
-    const count = await this.prisma.payment.count();
-    return `INV-${year}-${String(count + 1).padStart(4, '0')}`;
+    const prefix = `INV-${year}-`;
+    const last = await this.prisma.payment.findFirst({
+      where: { code: { startsWith: prefix } },
+      orderBy: { code: 'desc' },
+      select: { code: true },
+    });
+    let seq = last ? parseInt(last.code.slice(prefix.length), 10) || 0 : 0;
+    for (let i = 0; i < 500; i++) {
+      seq += 1;
+      const code = `${prefix}${String(seq).padStart(4, '0')}`;
+      const pay = await this.prisma.payment.findUnique({ where: { code }, select: { id: true } });
+      const inv = await this.prisma.invoice.findUnique({ where: { invoiceNumber: code }, select: { id: true } });
+      if (!pay && !inv) return code;
+    }
+    return `${prefix}${Date.now()}`;
   }
 
   // ---------------------------------------------------------------------------

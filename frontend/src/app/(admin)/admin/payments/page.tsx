@@ -422,17 +422,7 @@ export default function PaymentsPage() {
                                 )}
                               </>
                             )}
-                            {p.status === 'PAID' && canRefund && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-xs"
-                                isLoading={actionMutation.isPending}
-                                onClick={() => setRefundTarget(p)}
-                              >
-                                <RotateCcw className="size-3.5 mr-1" /> Hoàn tiền
-                              </Button>
-                            )}
+                            {/* Đã bỏ nút hoàn tiền theo yêu cầu */}
                           </div>
                         </td>
                       </tr>

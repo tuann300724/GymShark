@@ -191,6 +191,22 @@ export function MemberPackageDialog({ open, onClose, member, onSuccess }: Props)
           />
         </div>
 
+        {/* VietQR khi chọn chuyển khoản */}
+        {paymentMethod === 'BANK_TRANSFER' && selectedPackage && (
+          <div className="rounded-lg border border-dashed border-neon/50 bg-ink p-3 text-center">
+            <p className="text-[11px] text-muted mb-1">Quét mã QR để chuyển khoản nhanh</p>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`https://img.vietqr.io/image/MB-0799951104-compact2.svg?amount=${Math.round(Number(selectedPackage.price) || 0)}&addInfo=${encodeURIComponent(selectedPackage.name)}&accountName=GYM+SHARK`}
+              alt="Mã VietQR chuyển khoản MB Bank"
+              className="mx-auto h-32 w-auto rounded-lg border border-line shadow-md"
+            />
+            <p className="mt-1 text-[10px] text-muted">
+              MB Bank · 0799951104 · GYM SHARK
+            </p>
+          </div>
+        )}
+
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted">
             Thanh toán tại quầy
