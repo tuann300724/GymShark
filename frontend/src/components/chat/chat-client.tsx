@@ -255,16 +255,7 @@ export default function ChatClient({ myRole, emptyHint }: ChatClientProps) {
                             />
                           ) : null}
                           {m.mealPlan && (
-                            <div className="mb-1 flex items-center gap-2 rounded-sm border border-line/60 bg-ink/50 p-2">
-                              <Utensils className="size-4 text-neon" />
-                              <div>
-                                <p className="font-semibold text-chalk">{m.mealPlan.title}</p>
-                                <p className="text-xs text-muted">
-                                  {m.mealPlan.scope === 'WEEK' ? 'Thực đơn tuần' : 'Thực đơn ngày'}{' '}
-                                  • {m.mealPlan.totalCalories} kcal
-                                </p>
-                              </div>
-                            </div>
+                            <MealPlanCard message={m} />
                           )}
                           {m.content && (
                             <p className="whitespace-pre-wrap break-words">{m.content}</p>
@@ -337,6 +328,58 @@ export default function ChatClient({ myRole, emptyHint }: ChatClientProps) {
           </CardContent>
         </Card>
       </div>
+    </div>
+  );
+}
+
+function MealPlanCard({ message }: { message: MessageItem }) {
+  const [expanded, setExpanded] = useState(false);
+  const plan = message.mealPlan;
+  if (!plan) return null;
+  const meals = (plan.meals || []) as any[];
+  return (
+    <div className="mb-2 overflow-hidden rounded-sm border border-line/60 bg-ink/50">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex w-full items-center gap-2 p-2 text-left transition hover:bg-ink"
+      >
+        <Utensils className="size-4 shrink-0 text-neon" />
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold text-chalk">{plan.title}</p>
+          <p className="text-xs text-muted">
+            {plan.scope === 'WEEK' ? 'Thực đơn tuần' : 'Thực đơn ngày'}
+            • {plan.totalCalories ?? 0} kcal • {meals.length} bữa
+          </p>
+        </div>
+        <span className="text-xs text-muted">{expanded ? 'Thu gọn' : 'Xem món'}</span>
+      </button>
+      {expanded && (
+        <div className="border-t border-line/40 bg-surface/60 p-2">
+          <div className="space-y-2">
+            {meals.map((meal: any, i: number) => (
+              <div key={i} className="rounded-sm border border-line/30 bg-ink p-2">
+                <div className="mb-1 flex items-center gap-2 text-xs font-bold text-neon">
+                  <span className="uppercase tracking-wide">
+                    {(meal.type || '').replace('BREAKFAST', 'Sáng').replace('LUNCH', 'Trưa').replace('DINNER', 'Tối').replace('SNACK', 'Phụ')}
+                  </span>
+                  {meal.time && <span className="text-muted">{meal.time}</span>}
+                  <span className="ml-auto text-[10px] text-muted">{meal.note || ''}</span>
+                </div>
+                <div className="space-y-1">
+                  {(meal.items || []).map((it: any, j: number) => (
+                    <div key={j} className="flex items-center justify-between gap-2 rounded-sm px-2 py-1 text-xs hover:bg-line/20">
+                      <span className="text-chalk">{it.name}</span>
+                      <span className="text-muted">
+                        {it.quantity} {it.unit || 'g'} • {Math.round(it.calories || 0)} kcal
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

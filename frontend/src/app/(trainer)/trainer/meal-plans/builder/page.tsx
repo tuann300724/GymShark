@@ -492,8 +492,6 @@ function FoodItemRow({
     enabled: showSearch,
   });
 
-
-
   const pickFood = (f: FoodItem) => {
     onChange({
       foodId: f.id,
@@ -588,7 +586,6 @@ function FoodItemRow({
           )}
         </div>
       )}
-
     </div>
   );
 }
