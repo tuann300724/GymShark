@@ -508,7 +508,6 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
                 Ví điện tử không thể thu tiền tại quầy — đã tự chuyển sang chế độ chờ xác nhận.
               </p>
             )}
-            )}
                         <Button
               variant="ghost"
               onClick={step === 1 ? onClose : () => setStep((step - 1) as Step)}
