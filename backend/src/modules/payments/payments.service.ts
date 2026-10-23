@@ -3,8 +3,12 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
+  OnModuleDestroy,
+  OnModuleInit,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InvoiceStatus, PaymentMethod, PaymentStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit-logs/audit-logs.service';
@@ -24,13 +28,80 @@ interface Actor {
 }
 
 @Injectable()
-export class PaymentsService {
+export class PaymentsService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(PaymentsService.name);
+  private readonly cassoAutoReconcile: boolean;
+  private readonly cassoPollIntervalMs: number;
+  private cassoPollTimer?: NodeJS.Timeout;
+  private cassoReconcileRunning = false;
+
   constructor(
     private prisma: PrismaService,
     private gatewayService: PaymentGatewayService,
     private auditService: AuditService,
     private cassoService: CassoService,
-  ) {}
+    private configService: ConfigService,
+  ) {
+    this.cassoAutoReconcile =
+      this.configService.get<string>('CASSO_AUTO_RECONCILE')?.trim().toLowerCase() === 'true';
+    const configuredInterval = Number(this.configService.get<string>('CASSO_POLL_INTERVAL_MS'));
+    this.cassoPollIntervalMs =
+      Number.isFinite(configuredInterval) && configuredInterval >= 1_000
+        ? configuredInterval
+        : 2_000;
+  }
+
+  onModuleInit() {
+    if (!this.cassoAutoReconcile) return;
+    if (!this.configService.get<string>('CASSO_SHEET_URL')?.trim()) {
+      this.logger.warn('CASSO_AUTO_RECONCILE is enabled but CASSO_SHEET_URL is missing');
+      return;
+    }
+
+    this.logger.log(`CASSO auto-reconcile enabled every ${this.cassoPollIntervalMs}ms`);
+    void this.reconcilePendingCassoPayments();
+    this.cassoPollTimer = setInterval(
+      () => void this.reconcilePendingCassoPayments(),
+      this.cassoPollIntervalMs,
+    );
+  }
+
+  onModuleDestroy() {
+    if (this.cassoPollTimer) clearInterval(this.cassoPollTimer);
+  }
+
+  private async reconcilePendingCassoPayments() {
+    if (this.cassoReconcileRunning) return;
+    this.cassoReconcileRunning = true;
+
+    try {
+      const pendingPayments = await this.prisma.payment.findMany({
+        where: { status: PaymentStatus.PENDING, method: PaymentMethod.BANK_TRANSFER },
+        select: { id: true },
+      });
+
+      for (const payment of pendingPayments) {
+        try {
+          const result = await this.verifyCasso(payment.id, null);
+          if (result.matched && result.status === 'PAID') {
+            this.logger.log(`CASSO automatically confirmed payment ${payment.id}`);
+          }
+        } catch (error) {
+          this.logger.error(
+            `CASSO reconciliation failed for payment ${payment.id}`,
+            error instanceof Error ? error.stack : String(error),
+          );
+        }
+      }
+    } catch (error) {
+      this.logger.error(
+        'Unable to load pending CASSO payments',
+        error instanceof Error ? error.stack : String(error),
+      );
+    } finally {
+      this.cassoReconcileRunning = false;
+    }
+  }
 
   private endOfDay(d: Date): Date {
     const copy = new Date(d);
@@ -158,7 +229,7 @@ export class PaymentsService {
    * - tăng lượt dùng promotion, gửi thông báo
    * Toàn bộ trong transaction — lỗi 1 bước là rollback.
    */
-  async confirm(id: string, actor: Actor, dto: ConfirmPaymentDto) {
+  async confirm(id: string, actor: Actor | null, dto: ConfirmPaymentDto) {
     const payment = await this.prisma.payment.findUnique({
       where: { id },
       include: {
@@ -173,7 +244,11 @@ export class PaymentsService {
 
     // STAFF chỉ xác nhận được phương thức xác nhận thủ công (CASH / BANK_TRANSFER)
     const gateway = this.gatewayService.getGateway(payment.method as Exclude<PaymentMethod, 'CREDIT_CARD'>);
+<<<<<<< HEAD
     if (actor.role === Role.STAFF && !gateway.manualConfirmation) {
+=======
+    if (actor?.role === Role.ADMIN && !gateway.manualConfirmation) {
+>>>>>>> b3eb8239001cde60ee95bdca57891a6c0199b579
       throw new ForbiddenException('Nhân viên chỉ xác nhận được thanh toán Tiền mặt / Chuyển khoản');
     }
 
@@ -198,7 +273,7 @@ export class PaymentsService {
         data: {
           status: PaymentStatus.PAID,
           paidAt: now,
-          confirmedById: actor.id,
+          confirmedById: actor?.id ?? null,
           confirmedAt: now,
           ...(transactionRef ? { transactionRef } : {}),
           ...(dto.note ? { notes: [payment.notes, dto.note].filter(Boolean).join(' | ') } : {}),
@@ -245,7 +320,7 @@ export class PaymentsService {
     });
 
     await this.auditService.log({
-      userId: actor.id,
+      userId: actor?.id ?? null,
       action: 'PAYMENT_CONFIRM',
       entity: 'Payment',
       entityId: id,
@@ -255,6 +330,7 @@ export class PaymentsService {
         method: payment.method,
         memberName: payment.member.fullName,
         transactionRef: transactionRef ?? null,
+        source: actor ? 'MANUAL' : 'CASSO_AUTO',
       },
     });
 
@@ -269,17 +345,15 @@ export class PaymentsService {
    *
    * Chỉ áp dụng cho BANK_TRANSFER / MOMO (thanh toán qua ví / ngân hàng).
    */
-  async verifyCasso(id: string, actor: Actor) {
+  async verifyCasso(id: string, actor: Actor | null, forceRefresh = false) {
     const payment = await this.prisma.payment.findUnique({
       where: { id },
-      include: {
-        membership: { include: { package: true } },
-        member: { select: { id: true, code: true, fullName: true } },
-      },
+      include: { member: { select: { id: true, code: true, fullName: true } } },
     });
     if (!payment) throw new NotFoundException('Không tìm thấy giao dịch thanh toán');
 
     if (payment.status !== 'PENDING') {
+      if (forceRefresh) await this.cassoService.poll(true);
       return {
         matched: true,
         alreadyPaid: true,
@@ -297,7 +371,7 @@ export class PaymentsService {
       );
     }
 
-    const rows = await this.cassoService.poll();
+    const rows = await this.cassoService.poll(forceRefresh);
     if (!rows.length) {
       return { matched: false, status: payment.status, message: 'Chưa đọc được dữ liệu từ CASSO' };
     }
@@ -307,7 +381,6 @@ export class PaymentsService {
       payment.member.code,
       payment.code,
       Number(payment.amount),
-      payment.membership?.package?.name || undefined,
     );
     if (!match) {
       return {

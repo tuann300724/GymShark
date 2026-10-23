@@ -12,7 +12,6 @@ import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/components/ui/toast';
 import { formatCurrency, formatDateTime, formatDate } from '@/lib/utils';
 import { PAYMENT_STATUS_META, PAYMENT_METHOD_LABEL } from '@/lib/status';
-import { PaymentQrBlock } from '@/components/ui/payment-qr';
 import {
   ArrowLeft,
   Printer,
@@ -220,6 +219,7 @@ export default function MemberPaymentDetailPage() {
             </div>
           </div>
 
+<<<<<<< HEAD
           {/* QR VietQR cho chuyển khoản — tự động kiểm tra CASSO */}
           {payment.method === 'BANK_TRANSFER' && payment.status === 'PENDING' && (
             <div className="mt-4">
@@ -254,6 +254,42 @@ export default function MemberPaymentDetailPage() {
                 >
                   {payment.bankInfo.transferContent} <Copy className="inline size-3" />
                 </button>
+=======
+          {/* Bank chưa xác nhận: hướng dẫn chuyển khoản */}
+          {payment.method === 'BANK_TRANSFER' &&
+            payment.status === 'PENDING' &&
+            payment.bankInfo && (
+              <div className="mt-5 rounded-xl border border-neon/30 bg-neon/5 p-4 text-xs">
+                <p className="flex items-center gap-1.5 font-semibold text-neon">
+                  <Landmark className="size-4" /> Thanh toán chuyển khoản — chưa xác nhận
+                </p>
+                <p className="mt-2 text-muted">
+                  Ngân hàng: <b className="text-chalk">{payment.bankInfo.bankName}</b>
+                </p>
+                <p className="mt-1 text-muted">
+                  Số tài khoản:{' '}
+                  <button
+                    onClick={() => copy(payment.bankInfo!.accountNumber)}
+                    className="font-mono font-bold text-neon hover:underline"
+                  >
+                    {payment.bankInfo.accountNumber} <Copy className="inline size-3" />
+                  </button>
+                  <span className="ml-1 text-chalk">· {payment.bankInfo.accountName}</span>
+                </p>
+                <div className="mt-2 rounded-lg bg-ink border border-line px-3 py-2">
+                  <p className="text-muted mb-1">Nội dung chuyển khoản:</p>
+                  <button
+                    onClick={() => copy(payment.bankInfo!.transferContent)}
+                    className="font-mono font-extrabold text-neon hover:underline"
+                  >
+                    {payment.bankInfo.transferContent} <Copy className="inline size-3" />
+                  </button>
+                </div>
+                <p className="mt-2 text-[11px] text-muted">
+                  Sau khi chuyển, mang sao kê lên quầy hoặc chờ lễ tân đối soát rồi xác nhận. Ghi
+                  đúng nội dung để xác nhận nhanh nhất.
+                </p>
+>>>>>>> b3eb8239001cde60ee95bdca57891a6c0199b579
               </div>
               <p className="mt-2 text-[11px] text-muted">
                 Sau khi chuyển, mang sao kê lên quầy hoặc chờ lễ tân đối soát rồi xác nhận. Ghi đúng

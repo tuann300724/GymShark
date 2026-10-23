@@ -97,6 +97,20 @@ export default function RegisterMembershipPage() {
   });
 
   const selectedPackage = packages?.find((p) => p.id === packageId);
+  const paymentId = successPayment?.payment?.id;
+
+  const { data: checkedPayment } = useQuery({
+    queryKey: ['member-payment-detail', paymentId],
+    queryFn: async () => {
+      await paymentApi.checkCasso(paymentId);
+      return paymentApi.getPaymentDetail(paymentId);
+    },
+    enabled: method === 'BANK_TRANSFER' && !!paymentId,
+    refetchInterval: (query) => (query.state.data?.status === 'PENDING' ? 2000 : false),
+    refetchIntervalInBackground: true,
+    retry: 1,
+  });
+  const paymentConfirmed = checkedPayment?.status === 'PAID';
 
   const registerMutation = useMutation({
     mutationFn: () =>
@@ -109,7 +123,7 @@ export default function RegisterMembershipPage() {
     onSuccess: (res: any) => {
       toast.success(
         'Đã gửi yêu cầu đăng ký!',
-        `Hóa đơn ${res.payment?.code || ''} đang chờ xác nhận thanh toán. Sau khi lễ tân xác nhận, gói sẽ tự động kích hoạt.`,
+        `Hóa đơn ${res.payment?.code || ''} đang chờ xác nhận thanh toán. Gói tập sẽ tự động kích hoạt sau khi thanh toán được xác nhận.`,
       );
       queryClient.invalidateQueries({ queryKey: ['member-memberships'] });
       queryClient.invalidateQueries({ queryKey: ['member-stats'] });
@@ -127,7 +141,23 @@ export default function RegisterMembershipPage() {
     },
   });
 
+  React.useEffect(() => {
+    if (!paymentConfirmed) return;
+
+    toast.success('Thanh toán thành công!', 'Đang chuyển đến hóa đơn đã thanh toán.');
+    queryClient.invalidateQueries({ queryKey: ['member-payments'] });
+    queryClient.invalidateQueries({ queryKey: ['member-memberships'] });
+    queryClient.invalidateQueries({ queryKey: ['member-stats'] });
+    queryClient.invalidateQueries({ queryKey: ['member-notif-badge'] });
+    const redirectTimeout = window.setTimeout(
+      () => router.replace(`/member/payments/${paymentId}`),
+      900,
+    );
+    return () => window.clearTimeout(redirectTimeout);
+  }, [paymentConfirmed, paymentId, queryClient, router, toast]);
+
   const memberCode = me?.member?.code || '';
+  const transferContent = `GYM ${memberCode} ${successPayment?.payment?.code || ''}`.trim();
 
   // ---- Kiểm tra mã khuyến mãi trước khi đăng ký (backend tự tính giá) ----
   const validateMutation = useMutation({
@@ -161,28 +191,6 @@ export default function RegisterMembershipPage() {
     validateMutation.mutate();
   };
 
-  // ---- Tự động kiểm tra CASSO cho chuyển khoản (poll mỗi 6s, dừng khi PAID) ----
-  React.useEffect(() => {
-    if (method !== 'BANK_TRANSFER' || !successPayment?.payment?.id) return;
-    const interval = setInterval(async () => {
-      try {
-        const res = await paymentApi.checkCasso(successPayment.payment.id);
-        if (res.status === 'PAID' || res.status === 'CONFIRMED') {
-          toast.success('Thanh toán đã được xác nhận!', 'Gói tập sẽ tự kích hoạt ngay.');
-          queryClient.invalidateQueries({ queryKey: ['member-payments'] });
-          queryClient.invalidateQueries({ queryKey: ['member-memberships'] });
-        } else if (res.status === 'PENDING') {
-          // vẫn chờ — không hiển thị toast liên tục để tránh nhiễu
-        } else {
-          toast.success('CASSO', res.message || 'Chưa khớp — đang chờ.');
-        }
-      } catch {
-        // im lặng — tránh spam
-      }
-    }, 6000);
-    return () => clearInterval(interval);
-  }, [method, successPayment?.payment?.id, queryClient, toast]);
-
   if (pkgLoading) {
     return (
       <div className="mx-auto max-w-3xl space-y-4">
@@ -209,6 +217,10 @@ export default function RegisterMembershipPage() {
   const originalPrice = parseFloat(pkg.price) || 0;
   const finalPrice =
     promoResult?.valid && promoResult.total != null ? Number(promoResult.total) : originalPrice;
+  const qrUrl =
+    bankInfo && successPayment?.payment
+      ? `https://img.vietqr.io/image/${encodeURIComponent(bankInfo.shortName)}-${encodeURIComponent(bankInfo.accountNumber)}-qr_only.svg?amount=${Math.round(Number(successPayment.payment.amount || finalPrice))}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent(bankInfo.accountName)}`
+      : null;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -223,7 +235,7 @@ export default function RegisterMembershipPage() {
           Đăng ký gói tập
         </h1>
         <p className="mt-1 text-sm text-muted">
-          Gửi yêu cầu đăng ký — gói tập sẽ kích hoạt ngay sau khi lễ tân xác nhận thanh toán.
+          Gửi yêu cầu đăng ký — gói tập sẽ kích hoạt ngay sau khi thanh toán được xác nhận.
         </p>
       </div>
 
@@ -344,6 +356,7 @@ export default function RegisterMembershipPage() {
                       </button>
                       <span className="ml-2">· {bankInfo.accountName}</span>
                     </p>
+<<<<<<< HEAD
                     <div className="mt-3 rounded-lg border border-dashed border-neon/50 bg-ink p-3 text-center">
                       <p className="text-[11px] text-muted mb-1">
                         Quét mã QR để chuyển khoản nhanh
@@ -405,95 +418,11 @@ export default function RegisterMembershipPage() {
                         </Button>
                       </div>
                     )}
+=======
+>>>>>>> b3eb8239001cde60ee95bdca57891a6c0199b579
                   </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Tag className="size-4 text-neon" />
-                Mã khuyến mãi (tùy chọn)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Nhập mã giảm giá (ví dụ: GYM10)"
-                  value={promotionCode}
-                  disabled={validateMutation.isPending}
-                  onChange={(e) => {
-                    setPromotionCode(e.target.value);
-                    setPromoError('');
-                    setPromoResult(null);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleApplyPromo();
-                    }
-                  }}
-                />
-                <Button
-                  variant={promoResult?.valid ? 'secondary' : 'primary'}
-                  className="shrink-0 px-4"
-                  isLoading={validateMutation.isPending}
-                  onClick={handleApplyPromo}
-                >
-                  {promoResult?.valid ? 'Đã áp dụng' : 'Áp dụng'}
-                </Button>
-              </div>
-
-              {promoError && (
-                <p className="mt-2 flex items-start gap-1.5 rounded-lg border border-danger/30 bg-danger/5 px-3 py-2 text-[11px] text-danger">
-                  <XCircle className="mt-0.5 size-3.5 shrink-0" /> {promoError}
-                </p>
-              )}
-
-              {promoResult?.valid && promoResult.promotion && (
-                <div className="mt-3 space-y-2 rounded-xl border border-neon/30 bg-neon/5 p-3.5 text-xs">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="flex min-w-0 items-center gap-1.5 text-muted">
-                      <BadgePercent className="size-4 shrink-0 text-neon" />
-                      <span className="truncate">{promoResult.promotion.name}</span>
-                    </span>
-                    <span className="shrink-0 font-mono font-bold text-neon">
-                      {promoResult.promotion.code}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between border-t border-line/60 pt-2">
-                    <span className="text-muted">Giá gốc</span>
-                    <span className="font-semibold text-chalk">
-                      {formatCurrency(promoResult.subtotal || 0)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted">
-                      Giảm (
-                      {promoResult.promotion.discountType === 'PERCENTAGE'
-                        ? `-${String(promoResult.promotion.discountValue)}%`
-                        : 'cố định'}
-                      )
-                    </span>
-                    <span className="font-semibold text-neon">
-                      -{formatCurrency(promoResult.discount || 0)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between border-t border-line/60 pt-2">
-                    <span className="font-bold text-chalk">Thành tiền</span>
-                    <span className="font-display text-lg font-extrabold text-neon">
-                      {formatCurrency(promoResult.total || 0)}
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              <p className="mt-2 text-[11px] text-muted">
-                Hệ thống tự kiểm tra mã (hiệu lực, giới hạn lượt, giá trị đơn tối thiểu) và tính
-                chiết khấu ngay tại đây.
-              </p>
             </CardContent>
           </Card>
 
@@ -530,7 +459,7 @@ export default function RegisterMembershipPage() {
             onClick={() => registerMutation.mutate()}
           >
             <Sparkles className="size-4" />
-            Gửi yêu cầu đăng ký
+            {method === 'BANK_TRANSFER' ? 'Thanh toán ngay — hiện QR' : 'Gửi yêu cầu đăng ký'}
             <ArrowRight className="size-4" />
           </Button>
           <p className="text-center text-[11px] text-muted">
@@ -586,13 +515,59 @@ export default function RegisterMembershipPage() {
                     }}
                     className="mt-1 font-mono font-extrabold text-neon hover:underline"
                   >
-                    GYM {memberCode} {successPayment.payment?.code || ''}{' '}
-                    <Copy className="inline size-3" />
+                    {transferContent} <Copy className="inline size-3" />
                   </button>
                 </div>
+                {qrUrl && (
+                  <div className="mt-3 rounded-xl border border-dashed border-line p-4 text-center sm:p-5">
+                    <p className="mb-3 text-xs font-semibold text-chalk">
+                      Quét mã QR để chuyển khoản nhanh
+                    </p>
+                    <div
+                      data-qr-frame={!paymentConfirmed ? '' : undefined}
+                      className={`relative mx-auto w-fit overflow-hidden rounded-2xl border border-line bg-surface p-2 transition-all duration-700 sm:p-3 ${
+                        paymentConfirmed ? 'opacity-35' : 'opacity-100'
+                      }`}
+                    >
+                      {/* VietQR được sinh động từ dịch vụ ngoài nên dùng img thay vì next/image. */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={qrUrl}
+                        alt={`Mã VietQR chuyển khoản ${bankInfo?.bankName}`}
+                        className="mx-auto size-64 rounded-xl bg-surface object-contain sm:size-72"
+                      />
+                      {!paymentConfirmed && <span data-qr-scan-beam aria-hidden="true" />}
+                      {paymentConfirmed && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-ink/55 text-neon animate-fade-in">
+                          <CheckCircle2 className="size-9" />
+                          <span className="text-xs font-bold">Đã nhận thanh toán</span>
+                        </div>
+                      )}
+                    </div>
+                    <p className="mt-2 text-[11px] text-muted">
+                      {bankInfo?.bankName} · {bankInfo?.accountNumber}
+                    </p>
+                    <p
+                      className="mt-3 inline-flex items-center justify-center gap-2 text-[11px] text-muted"
+                      aria-live="polite"
+                    >
+                      {paymentConfirmed ? (
+                        <>
+                          <CheckCircle2 className="size-3.5 text-neon" />
+                          Đã xác nhận thanh toán, đang chuyển đến hóa đơn...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="size-3 animate-spin text-neon" />
+                          Đang chờ ngân hàng xác nhận giao dịch...
+                        </>
+                      )}
+                    </p>
+                  </div>
+                )}
                 <p className="mt-2 text-[11px] text-muted">
-                  Ghi đúng nội dung để lễ tân xác nhận nhanh nhất. Gói tập kích hoạt sau khi thanh
-                  toán được xác nhận.
+                  Đảm bảo đúng số tiền và nội dung. Hệ thống sẽ tự kiểm tra và chuyển đến hóa đơn
+                  ngay khi giao dịch được xác nhận.
                 </p>
               </div>
             )}

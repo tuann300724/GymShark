@@ -290,7 +290,7 @@ async function main() {
 
   const member = await prisma.member.upsert({
     where: { code: 'MEM-0001' },
-    update: { userId: memberUser.id },
+    update: {},
     create: {
       code: 'MEM-0001',
       userId: memberUser.id,

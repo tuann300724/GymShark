@@ -21,20 +21,20 @@ export class CassoService {
   private readonly url: string;
   private readonly logger = new Logger(CassoService.name);
   private cache = new Map<string, { ts: number; rows: CassoRow[] }>();
-  private readonly TTL_MS = 15_000;
+  private readonly TTL_MS = 2_000;
 
   constructor(private config: ConfigService) {
     this.url = this.config.get<string>('CASSO_SHEET_URL') || '';
   }
 
-  async poll(): Promise<CassoRow[]> {
+  async poll(forceRefresh = false): Promise<CassoRow[]> {
     if (!this.url) {
       this.logger.warn('CASSO_SHEET_URL chưa cấu hình');
       return [];
     }
     const key = 'poll';
     const cached = this.cache.get(key);
-    if (cached && Date.now() - cached.ts < this.TTL_MS) {
+    if (!forceRefresh && cached && Date.now() - cached.ts < this.TTL_MS) {
       return cached.rows;
     }
     try {
@@ -48,8 +48,9 @@ export class CassoService {
       // Bỏ dòng header (dòng có "Ma GD" bằng chữ "Ma GD") và giữ dòng thực
       const clean = rows.filter(
         (r) => {
-          const ma = r['Ma GD'] ?? r['Ma GD'] ?? '';
-          return typeof ma === 'string' && ma !== 'Ma GD' && ma.trim().length > 0;
+          const ma = r['Ma GD'] ?? r['Mã GD'] ?? '';
+          const transactionId = String(ma).trim();
+          return transactionId.length > 0 && transactionId !== 'Ma GD' && transactionId !== 'Mã GD';
         },
       );
       this.cache.set(key, { ts: Date.now(), rows: clean });
@@ -60,16 +61,15 @@ export class CassoService {
     }
   }
 
-  findMatch(rows: CassoRow[], memberCode: string, paymentCode: string, amountExpected: number, packageName?: string): CassoMatch | null {
+  findMatch(rows: CassoRow[], memberCode: string, paymentCode: string, amountExpected: number): CassoMatch | null {
     const codeNorm = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, '');
     const targetCode = codeNorm(paymentCode);
     const targetMember = codeNorm(memberCode);
-    const targetPackage = packageName ? codeNorm(packageName) : '';
 
     for (const row of rows) {
       const moTa = String(row['Mô tả'] ?? row['Mo ta'] ?? row['Mô Tả'] ?? row['Mo Ta'] ?? '');
       const giaTriRaw = row['Giá trị'] ?? row['Gia tri'] ?? row['Gia Tri'] ?? 0;
-      const maGd = String(row['Ma GD'] ?? row['Ma GD'] ?? row['Mã GD'] ?? '');
+      const maGd = String(row['Ma GD'] ?? row['Mã GD'] ?? '');
       const ngay = String(row['Ngày diễn ra'] ?? row['Ngay dien ra'] ?? row['Ngày Diễn Ra'] ?? '');
       const tk = String(row['Số tài khoản'] ?? row['So tai khoan'] ?? row['Số Tài Khoản'] ?? '');
 
@@ -77,17 +77,14 @@ export class CassoService {
       if (typeof giaTriRaw === 'string' && giaTriRaw.trim() === 'Giá trị') continue;
       const amount = typeof giaTriRaw === 'number' ? giaTriRaw : Number(String(giaTriRaw).replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
 
-      const moTaNorm = codeNorm(moTa);
-      // Khớp: member + (mã đơn HOẶC tên gói — nội dung QR VietQR)
-      const hasMember = targetMember.length > 0 ? moTaNorm.includes(targetMember) : true;
-      const hasPayment = targetCode.length > 0 ? moTaNorm.includes(targetCode) : false;
-      const hasPackage = targetPackage.length > 0 ? moTaNorm.includes(targetPackage) : false;
-      const hasContent = hasPayment || hasPackage;
-      const hasAmount = Math.abs(amount - amountExpected) < 100;
+      const memoCodes = moTa.split(/\s+/).map(codeNorm);
+      const hasMember = targetMember.length > 0 && memoCodes.includes(targetMember);
+      const hasPayment = targetCode.length > 0 && memoCodes.includes(targetCode);
+      const hasAmount = Math.abs(amount - amountExpected) < 0.01;
 
-      if ((hasMember || targetMember.length === 0) && (hasContent || !targetCode) && hasAmount) {
+      if (hasMember && hasPayment && hasAmount) {
         return {
-          matchedPaymentCode: hasPayment ? paymentCode : undefined,
+          matchedPaymentCode: paymentCode,
           matchedMemberCode: memberCode,
           row,
           amount,

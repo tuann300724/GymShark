@@ -142,6 +142,35 @@ html.theme-transition *::after {
     transform: translateY(0);
   }
 }
+@keyframes qr-scan-sweep {
+  0% {
+    top: -35%;
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.75;
+  }
+  85% {
+    opacity: 0.65;
+  }
+  100% {
+    top: 100%;
+    opacity: 0;
+  }
+}
+@keyframes qr-frame-breathe {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgb(var(--neon) / 0.08),
+      0 8px 24px -18px rgb(var(--neon) / 0.35);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgb(var(--neon) / 0.2),
+      0 10px 28px -16px rgb(var(--neon) / 0.5);
+  }
+}
 .animate-fade-in {
   animation: fade-in 0.2s ease-out;
 }
@@ -150,6 +179,27 @@ html.theme-transition *::after {
 }
 .animate-slide-up {
   animation: slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+[data-qr-scan-beam] {
+  position: absolute;
+  right: 0;
+  left: 0;
+  top: -35%;
+  height: 35%;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgb(var(--neon) / 0.08) 35%,
+    rgb(var(--neon) / 0.3) 50%,
+    rgb(var(--neon) / 0.08) 65%,
+    transparent
+  );
+  filter: drop-shadow(0 0 8px rgb(var(--neon) / 0.25));
+  animation: qr-scan-sweep 2.8s ease-in-out infinite;
+}
+[data-qr-frame] {
+  animation: qr-frame-breathe 3.2s ease-in-out infinite;
 }
 
 /* ===== Scroll reveal (toggled bởi <Reveal/>) ===== */
@@ -187,7 +237,9 @@ html.theme-transition *::after {
   }
   .animate-fade-in,
   .animate-zoom-in,
-  .animate-slide-up {
+  .animate-slide-up,
+  [data-qr-scan-beam],
+  [data-qr-frame] {
     animation: none;
   }
 }
