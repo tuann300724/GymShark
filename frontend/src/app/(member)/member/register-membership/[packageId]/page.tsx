@@ -72,6 +72,7 @@ export default function RegisterMembershipPage() {
   const queryClient = useQueryClient();
 
   const [method, setMethod] = useState('CASH');
+const [pollActive, setPollActive] = useState(false);
   const [promotionCode, setPromotionCode] = useState('');
   const [promoResult, setPromoResult] = useState<PromotionValidateResult | null>(null);
   const [promoError, setPromoError] = useState('');
