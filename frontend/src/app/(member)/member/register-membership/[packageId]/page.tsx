@@ -72,7 +72,6 @@ export default function RegisterMembershipPage() {
   const queryClient = useQueryClient();
 
   const [method, setMethod] = useState('CASH');
-const [pollActive, setPollActive] = useState(false);
   const [promotionCode, setPromotionCode] = useState('');
   const [promoResult, setPromoResult] = useState<PromotionValidateResult | null>(null);
   const [promoError, setPromoError] = useState('');
@@ -98,6 +97,17 @@ const [pollActive, setPollActive] = useState(false);
   });
 
   const selectedPackage = packages?.find((p) => p.id === packageId);
+  const paymentId = successPayment?.payment?.id;
+
+  const { data: checkedPayment } = useQuery({
+    queryKey: ['member-payment-detail', paymentId],
+    queryFn: () => paymentApi.getPaymentDetail(paymentId),
+    enabled: method === 'BANK_TRANSFER' && !!paymentId,
+    refetchInterval: (query) => (query.state.data?.status === 'PENDING' ? 2000 : false),
+    refetchIntervalInBackground: true,
+    retry: 1,
+  });
+  const paymentConfirmed = checkedPayment?.status === 'PAID';
 
   const registerMutation = useMutation({
     mutationFn: () =>
@@ -110,7 +120,7 @@ const [pollActive, setPollActive] = useState(false);
     onSuccess: (res: any) => {
       toast.success(
         'Đã gửi yêu cầu đăng ký!',
-        `Hóa đơn ${res.payment?.code || ''} đang chờ xác nhận thanh toán. Sau khi lễ tân xác nhận, gói sẽ tự động kích hoạt.`,
+        `Hóa đơn ${res.payment?.code || ''} đang chờ xác nhận thanh toán. Gói tập sẽ tự động kích hoạt sau khi thanh toán được xác nhận.`,
       );
       queryClient.invalidateQueries({ queryKey: ['member-memberships'] });
       queryClient.invalidateQueries({ queryKey: ['member-stats'] });
@@ -128,7 +138,23 @@ const [pollActive, setPollActive] = useState(false);
     },
   });
 
+  React.useEffect(() => {
+    if (!paymentConfirmed) return;
+
+    toast.success('Thanh toán thành công!', 'Đang chuyển đến hóa đơn đã thanh toán.');
+    queryClient.invalidateQueries({ queryKey: ['member-payments'] });
+    queryClient.invalidateQueries({ queryKey: ['member-memberships'] });
+    queryClient.invalidateQueries({ queryKey: ['member-stats'] });
+    queryClient.invalidateQueries({ queryKey: ['member-notif-badge'] });
+    const redirectTimeout = window.setTimeout(
+      () => router.replace(`/member/payments/${paymentId}`),
+      900,
+    );
+    return () => window.clearTimeout(redirectTimeout);
+  }, [paymentConfirmed, paymentId, queryClient, router, toast]);
+
   const memberCode = me?.member?.code || '';
+  const transferContent = `GYM ${memberCode} ${successPayment?.payment?.code || ''}`.trim();
 
   // ---- Kiểm tra mã khuyến mãi trước khi đăng ký (backend tự tính giá) ----
   const validateMutation = useMutation({
@@ -162,28 +188,6 @@ const [pollActive, setPollActive] = useState(false);
     validateMutation.mutate();
   };
 
-  // ---- Tự động kiểm tra CASSO cho chuyển khoản (poll mỗi 6s, dừng khi PAID) ----
-  React.useEffect(() => {
-    if (method !== 'BANK_TRANSFER' || !successPayment?.payment?.id) return;
-    const interval = setInterval(async () => {
-      try {
-        const res = await paymentApi.checkCasso(successPayment.payment.id);
-        if (res.status === 'PAID' || res.status === 'CONFIRMED') {
-          toast.success('Thanh toán đã được xác nhận!', 'Gói tập sẽ tự kích hoạt ngay.');
-          queryClient.invalidateQueries({ queryKey: ['member-payments'] });
-          queryClient.invalidateQueries({ queryKey: ['member-memberships'] });
-        } else if (res.status === 'PENDING') {
-          // vẫn chờ — không hiển thị toast liên tục để tránh nhiễu
-        } else {
-          toast.success('CASSO', res.message || 'Chưa khớp — đang chờ.');
-        }
-      } catch {
-        // im lặng — tránh spam
-      }
-    }, 6000);
-    return () => clearInterval(interval);
-  }, [method, successPayment?.payment?.id, queryClient, toast]);
-
   if (pkgLoading) {
     return (
       <div className="mx-auto max-w-3xl space-y-4">
@@ -210,6 +214,10 @@ const [pollActive, setPollActive] = useState(false);
   const originalPrice = parseFloat(pkg.price) || 0;
   const finalPrice =
     promoResult?.valid && promoResult.total != null ? Number(promoResult.total) : originalPrice;
+  const qrUrl =
+    bankInfo && successPayment?.payment
+      ? `https://img.vietqr.io/image/${encodeURIComponent(bankInfo.shortName)}-${encodeURIComponent(bankInfo.accountNumber)}-qr_only.svg?amount=${Math.round(Number(successPayment.payment.amount || finalPrice))}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent(bankInfo.accountName)}`
+      : null;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -224,7 +232,7 @@ const [pollActive, setPollActive] = useState(false);
           Đăng ký gói tập
         </h1>
         <p className="mt-1 text-sm text-muted">
-          Gửi yêu cầu đăng ký — gói tập sẽ kích hoạt ngay sau khi lễ tân xác nhận thanh toán.
+          Gửi yêu cầu đăng ký — gói tập sẽ kích hoạt ngay sau khi thanh toán được xác nhận.
         </p>
       </div>
 
@@ -345,69 +353,11 @@ const [pollActive, setPollActive] = useState(false);
                       </button>
                       <span className="ml-2">· {bankInfo.accountName}</span>
                     </p>
-                    {pollActive && (
-                  <div className="mt-3 rounded-lg border border-dashed border-neon/50 bg-ink p-3 text-center">
-                      <p className="text-[11px] text-muted mb-1">Quét mã QR để chuyển khoản nhanh</p>
-                      {/* QR VietQR là SVG sinh động từ dịch vụ ngoài → không tối ưu hoá, dùng <img> */}
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={`https://img.vietqr.io/image/MB-0799951104-compact2.svg?amount=${Math.round(finalPrice)}&addInfo=${encodeURIComponent(pkg.name)}&accountName=GYM+SHARK`}
-                        alt="Mã VietQR chuyển khoản MB Bank"
-                        className="mx-auto h-64 w-auto rounded-2xl border-2 border-neon shadow-[0_0_30px_-8px_#B7FF00] hover:scale-[1.02] transition-transform"
-                      />
-                      <p className="mt-1 text-[10px] text-muted">
-                        MB Bank · 0799951104 · {bankInfo.accountName}
-                      </p>
-                    </div>
-                    {me && (
-                      <div className="mt-2 rounded-lg border border-line bg-ink px-3 py-2">
-                        <p className="text-muted">Nội dung chuyển khoản (bắt buộc ghi đúng):</p>
-                        <button
-                          onClick={() => {
-                            const content = `GYM ${memberCode} ${successPayment?.payment?.code || ''}`;
-                            navigator.clipboard?.writeText(content.trim());
-                            setCopied('content');
-                            toast.success('Đã sao chép nội dung chuyển khoản');
-                          }}
-                          className="mt-1 font-mono font-extrabold text-neon hover:underline"
-                        >
-                          GYM {memberCode}
-                          {successPayment?.payment?.code
-                            ? ` ${successPayment.payment.code}`
-                            : ' [mã hóa đơn]'}
-                          <Copy className="inline size-3" />
-                        </button>
-                        <p className="mt-1.5 text-[11px] text-muted">
-                          Chuyển khoản KHÔNG tự động kích hoạt — lễ tân đối soát sao kê rồi xác
-                          nhận, gói tập sẽ kích hoạt ngay sau đó.
-                        </p>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="mt-2 text-xs"
-                          onClick={() => {
-                            if (!successPayment?.payment?.id) return;
-                            paymentApi.checkCasso(successPayment.payment.id)
-                              .then((res: any) => {
-                                toast.success('Kiểm tra CASSO', res.message || 'Đã khớp!');
-                                queryClient.invalidateQueries({ queryKey: ['member-payments'] });
-                              })
-                              .catch((err: any) => {
-                                toast.error('CASSO', err.response?.data?.message || 'Chưa khớp / lỗi');
-                              });
-                          }}
-                        >
-                          <RefreshCw className="size-3 mr-1" /> Kiểm tra CASSO
-                        </Button>
-                      </div>
-                    )}
                   </div>
                 </div>
               )}
             </CardContent>
           </Card>
-
-          
 
           <div className="flex items-center justify-between rounded-xl border border-neon/30 bg-neon/5 p-4">
             <div>
@@ -498,13 +448,59 @@ const [pollActive, setPollActive] = useState(false);
                     }}
                     className="mt-1 font-mono font-extrabold text-neon hover:underline"
                   >
-                    GYM {memberCode} {successPayment.payment?.code || ''}{' '}
-                    <Copy className="inline size-3" />
+                    {transferContent} <Copy className="inline size-3" />
                   </button>
                 </div>
+                {qrUrl && (
+                  <div className="mt-3 rounded-xl border border-dashed border-line p-4 text-center sm:p-5">
+                    <p className="mb-3 text-xs font-semibold text-chalk">
+                      Quét mã QR để chuyển khoản nhanh
+                    </p>
+                    <div
+                      data-qr-frame={!paymentConfirmed ? '' : undefined}
+                      className={`relative mx-auto w-fit overflow-hidden rounded-2xl border border-line bg-surface p-2 transition-all duration-700 sm:p-3 ${
+                        paymentConfirmed ? 'opacity-35' : 'opacity-100'
+                      }`}
+                    >
+                      {/* VietQR được sinh động từ dịch vụ ngoài nên dùng img thay vì next/image. */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={qrUrl}
+                        alt={`Mã VietQR chuyển khoản ${bankInfo?.bankName}`}
+                        className="mx-auto size-64 rounded-xl bg-surface object-contain sm:size-72"
+                      />
+                      {!paymentConfirmed && <span data-qr-scan-beam aria-hidden="true" />}
+                      {paymentConfirmed && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-ink/55 text-neon animate-fade-in">
+                          <CheckCircle2 className="size-9" />
+                          <span className="text-xs font-bold">Đã nhận thanh toán</span>
+                        </div>
+                      )}
+                    </div>
+                    <p className="mt-2 text-[11px] text-muted">
+                      {bankInfo?.bankName} · {bankInfo?.accountNumber}
+                    </p>
+                    <p
+                      className="mt-3 inline-flex items-center justify-center gap-2 text-[11px] text-muted"
+                      aria-live="polite"
+                    >
+                      {paymentConfirmed ? (
+                        <>
+                          <CheckCircle2 className="size-3.5 text-neon" />
+                          Đã xác nhận thanh toán, đang chuyển đến hóa đơn...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="size-3 animate-spin text-neon" />
+                          Đang chờ ngân hàng xác nhận giao dịch...
+                        </>
+                      )}
+                    </p>
+                  </div>
+                )}
                 <p className="mt-2 text-[11px] text-muted">
-                  Ghi đúng nội dung để lễ tân xác nhận nhanh nhất. Gói tập kích hoạt sau khi thanh
-                  toán được xác nhận.
+                  Đảm bảo đúng số tiền và nội dung. Hệ thống sẽ tự kiểm tra và chuyển đến hóa đơn
+                  ngay khi giao dịch được xác nhận.
                 </p>
               </div>
             )}

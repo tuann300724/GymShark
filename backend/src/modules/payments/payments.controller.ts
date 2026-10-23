@@ -108,7 +108,7 @@ export class PaymentsController {
     @Param('id') id: string,
     @CurrentUser() user: { id: string; role: string; fullName?: string },
   ) {
-    return this.paymentsService.verifyCasso(id, user);
+    return this.paymentsService.verifyCasso(id, user, true);
   }
 
   @Post(':id/reject')
