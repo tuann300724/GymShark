@@ -244,11 +244,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
 
     // STAFF chỉ xác nhận được phương thức xác nhận thủ công (CASH / BANK_TRANSFER)
     const gateway = this.gatewayService.getGateway(payment.method as Exclude<PaymentMethod, 'CREDIT_CARD'>);
-<<<<<<< HEAD
     if (actor.role === Role.STAFF && !gateway.manualConfirmation) {
-=======
-    if (actor?.role === Role.ADMIN && !gateway.manualConfirmation) {
->>>>>>> b3eb8239001cde60ee95bdca57891a6c0199b579
       throw new ForbiddenException('Nhân viên chỉ xác nhận được thanh toán Tiền mặt / Chuyển khoản');
     }
 
