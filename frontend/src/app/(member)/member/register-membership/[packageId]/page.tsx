@@ -351,7 +351,7 @@ export default function RegisterMembershipPage() {
                       <img
                         src={`https://img.vietqr.io/image/MB-0799951104-compact2.svg?amount=${Math.round(finalPrice)}&addInfo=${encodeURIComponent(pkg.name)}&accountName=GYM+SHARK`}
                         alt="Mã VietQR chuyển khoản MB Bank"
-                        className="mx-auto h-32 w-auto rounded-lg border border-line shadow-md"
+                        className="mx-auto h-64 w-auto rounded-2xl border-2 border-neon shadow-[0_0_30px_-8px_#B7FF00] hover:scale-[1.02] transition-transform"
                       />
                       <p className="mt-1 text-[10px] text-muted">
                         MB Bank · 0799951104 · {bankInfo.accountName}
@@ -405,91 +405,7 @@ export default function RegisterMembershipPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Tag className="size-4 text-neon" />
-                Mã khuyến mãi (tùy chọn)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Nhập mã giảm giá (ví dụ: GYM10)"
-                  value={promotionCode}
-                  disabled={validateMutation.isPending}
-                  onChange={(e) => {
-                    setPromotionCode(e.target.value);
-                    setPromoError('');
-                    setPromoResult(null);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleApplyPromo();
-                    }
-                  }}
-                />
-                <Button
-                  variant={promoResult?.valid ? 'secondary' : 'primary'}
-                  className="shrink-0 px-4"
-                  isLoading={validateMutation.isPending}
-                  onClick={handleApplyPromo}
-                >
-                  {promoResult?.valid ? 'Đã áp dụng' : 'Áp dụng'}
-                </Button>
-              </div>
-
-              {promoError && (
-                <p className="mt-2 flex items-start gap-1.5 rounded-lg border border-danger/30 bg-danger/5 px-3 py-2 text-[11px] text-danger">
-                  <XCircle className="mt-0.5 size-3.5 shrink-0" /> {promoError}
-                </p>
-              )}
-
-              {promoResult?.valid && promoResult.promotion && (
-                <div className="mt-3 space-y-2 rounded-xl border border-neon/30 bg-neon/5 p-3.5 text-xs">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="flex min-w-0 items-center gap-1.5 text-muted">
-                      <BadgePercent className="size-4 shrink-0 text-neon" />
-                      <span className="truncate">{promoResult.promotion.name}</span>
-                    </span>
-                    <span className="shrink-0 font-mono font-bold text-neon">
-                      {promoResult.promotion.code}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between border-t border-line/60 pt-2">
-                    <span className="text-muted">Giá gốc</span>
-                    <span className="font-semibold text-chalk">
-                      {formatCurrency(promoResult.subtotal || 0)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted">
-                      Giảm (
-                      {promoResult.promotion.discountType === 'PERCENTAGE'
-                        ? `-${String(promoResult.promotion.discountValue)}%`
-                        : 'cố định'}
-                      )
-                    </span>
-                    <span className="font-semibold text-neon">
-                      -{formatCurrency(promoResult.discount || 0)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between border-t border-line/60 pt-2">
-                    <span className="font-bold text-chalk">Thành tiền</span>
-                    <span className="font-display text-lg font-extrabold text-neon">
-                      {formatCurrency(promoResult.total || 0)}
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              <p className="mt-2 text-[11px] text-muted">
-                Hệ thống tự kiểm tra mã (hiệu lực, giới hạn lượt, giá trị đơn tối thiểu) và tính
-                chiết khấu ngay tại đây.
-              </p>
-            </CardContent>
-          </Card>
+          
 
           <div className="flex items-center justify-between rounded-xl border border-neon/30 bg-neon/5 p-4">
             <div>
@@ -524,7 +440,7 @@ export default function RegisterMembershipPage() {
             onClick={() => registerMutation.mutate()}
           >
             <Sparkles className="size-4" />
-            Gửi yêu cầu đăng ký
+            {paymentMethod === 'BANK_TRANSFER' ? 'Thanh toán ngay — hiện QR' : 'Gửi yêu cầu đăng ký'}
             <ArrowRight className="size-4" />
           </Button>
           <p className="text-center text-[11px] text-muted">
