@@ -275,40 +275,48 @@ async function main() {
   console.log('✅ Created membership packages');
 
   // 6. Sample Member (+ tài khoản đăng nhập MEMBER để test member portal)
+  // CỜ DỮ LIỆU MẪU: đặt lại `true` nếu muốn seed khôi phục hội viên mẫu
+  // member*@gym.com (MEM-0001 + MEM-0004…0011). Mặc định `false` — các block
+  // dữ liệu mẫu phụ thuộc (7/8/11–14, 16.x) sẽ tự bỏ qua khi cờ tắt.
+  const DEMO_MEMBERS = false;
   const memberPassword = await bcrypt.hash('Member@123456', salt);
-  const memberUser = await prisma.user.upsert({
-    where: { email: 'member@gym.com' },
-    update: {},
-    create: {
-      email: 'member@gym.com',
-      passwordHash: memberPassword,
-      fullName: 'Trần Minh Quân',
-      phone: '0987654321',
-      role: UserRole.MEMBER,
-    },
-  });
+  const memberUser = DEMO_MEMBERS
+    ? await prisma.user.upsert({
+        where: { email: 'member@gym.com' },
+        update: {},
+        create: {
+          email: 'member@gym.com',
+          passwordHash: memberPassword,
+          fullName: 'Trần Minh Quân',
+          phone: '0987654321',
+          role: UserRole.MEMBER,
+        },
+      })
+    : await prisma.user.findUnique({ where: { email: 'member@gym.com' } });
 
-  const member = await prisma.member.upsert({
-    where: { code: 'MEM-0001' },
-    update: {},
-    create: {
-      code: 'MEM-0001',
-      userId: memberUser.id,
-      fullName: 'Trần Minh Quân',
-      email: 'member@gym.com',
-      phone: '0987654321',
-      gender: Gender.MALE,
-      dateOfBirth: new Date('1998-05-15'),
-      address: 'Phường Tân Tiến, TP. Biên Hòa, Đồng Nai',
-      emergencyContact: 'Nguyễn Văn Ba - 0911222333',
-      status: MemberStatus.ACTIVE,
-    },
-  });
+  const member = DEMO_MEMBERS
+    ? await prisma.member.upsert({
+        where: { code: 'MEM-0001' },
+        update: {},
+        create: {
+          code: 'MEM-0001',
+          userId: memberUser!.id,
+          fullName: 'Trần Minh Quân',
+          email: 'member@gym.com',
+          phone: '0987654321',
+          gender: Gender.MALE,
+          dateOfBirth: new Date('1998-05-15'),
+          address: 'Phường Tân Tiến, TP. Biên Hòa, Đồng Nai',
+          emergencyContact: 'Nguyễn Văn Ba - 0911222333',
+          status: MemberStatus.ACTIVE,
+        },
+      })
+    : await prisma.member.findUnique({ where: { code: 'MEM-0001' } });
 
   // 7. Active Membership (chỉ tạo nếu chưa có để tránh trùng lặp khi seed lại)
-  const existingMembershipCount = await prisma.membership.count({
-    where: { memberId: member.id },
-  });
+  const existingMembershipCount = member
+    ? await prisma.membership.count({ where: { memberId: member.id } })
+    : 1;
 
   let membership: any = null;
   if (existingMembershipCount === 0) {
@@ -327,7 +335,7 @@ async function main() {
         status: 'ACTIVE',
       },
     });
-  } else {
+  } else if (member) {
     membership = await prisma.membership.findFirst({
       where: { memberId: member.id },
       orderBy: { createdAt: 'asc' },
@@ -338,7 +346,7 @@ async function main() {
   const existingPayment = await prisma.payment.findUnique({
     where: { code: 'INV-2026-0001' },
   });
-  if (!existingPayment) {
+  if (member && !existingPayment) {
     await prisma.payment.create({
       data: {
         code: 'INV-2026-0001',
@@ -357,7 +365,7 @@ async function main() {
   const existingInvoice = await prisma.invoice.findUnique({
     where: { invoiceNumber: 'INV-2026-0001' },
   });
-  if (!existingInvoice) {
+  if (member && !existingInvoice) {
     const seedPayment = await prisma.payment.findUnique({
       where: { code: 'INV-2026-0001' },
     });
@@ -568,30 +576,32 @@ async function main() {
       where: { userId: trainerUser.id },
     });
 
-    // Buổi PT riêng cho member
-    await prisma.trainingSchedule.create({
-      data: {
-        title: 'PT - Tăng cơ toàn thân',
-        trainerId: trainer1.id,
-        memberId: member.id,
-        roomId: weightRoom.id,
-        startTime: new Date(now.getTime() + 1 * dayMs),
-        endTime: new Date(now.getTime() + 1 * dayMs + 60 * 60 * 1000),
-        status: 'SCHEDULED',
-      },
-    });
+    // Buổi PT riêng cho member (bỏ qua khi không có hồ sơ MEM-0001)
+    if (member) {
+      await prisma.trainingSchedule.create({
+        data: {
+          title: 'PT - Tăng cơ toàn thân',
+          trainerId: trainer1.id,
+          memberId: member.id,
+          roomId: weightRoom.id,
+          startTime: new Date(now.getTime() + 1 * dayMs),
+          endTime: new Date(now.getTime() + 1 * dayMs + 60 * 60 * 1000),
+          status: 'SCHEDULED',
+        },
+      });
 
-    await prisma.trainingSchedule.create({
-      data: {
-        title: 'PT - Cardio & Đốt mỡ',
-        trainerId: trainer1.id,
-        memberId: member.id,
-        roomId: cardioRoom.id,
-        startTime: new Date(now.getTime() + 3 * dayMs),
-        endTime: new Date(now.getTime() + 3 * dayMs + 60 * 60 * 1000),
-        status: 'SCHEDULED',
-      },
-    });
+      await prisma.trainingSchedule.create({
+        data: {
+          title: 'PT - Cardio & Đốt mỡ',
+          trainerId: trainer1.id,
+          memberId: member.id,
+          roomId: cardioRoom.id,
+          startTime: new Date(now.getTime() + 3 * dayMs),
+          endTime: new Date(now.getTime() + 3 * dayMs + 60 * 60 * 1000),
+          status: 'SCHEDULED',
+        },
+      });
+    }
 
     // Lớp học công khai (không gắn member)
     const trainer2 = await prisma.trainer.findUnique({
@@ -646,9 +656,9 @@ async function main() {
   }
 
   // 12. Check-in lịch sử cho member (chỉ tạo lần đầu)
-  const memberCheckInCount = await prisma.checkIn.count({
-    where: { memberId: member.id },
-  });
+  const memberCheckInCount = member
+    ? await prisma.checkIn.count({ where: { memberId: member.id } })
+    : 1;
   if (memberCheckInCount === 0) {
     const daysAgo = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
     const atTime = (d: Date, hour: number, minute = 0) => {
@@ -697,9 +707,9 @@ async function main() {
   }
 
   // 13. Thông báo mẫu cho member
-  const memberNotifCount = await prisma.notification.count({
-    where: { memberId: member.id },
-  });
+  const memberNotifCount = member
+    ? await prisma.notification.count({ where: { memberId: member.id } })
+    : 1;
   if (memberNotifCount === 0) {
     await prisma.notification.createMany({
       data: [
@@ -736,9 +746,9 @@ async function main() {
   }
 
   // 14. Phân công HLV ↔ hội viên + lịch sử buổi PT (chỉ tạo lần đầu)
-  const assignmentCount = await prisma.trainerMember.count({
-    where: { memberId: member.id },
-  });
+  const assignmentCount = member
+    ? await prisma.trainerMember.count({ where: { memberId: member.id } })
+    : 1;
   if (assignmentCount === 0) {
     const trainer1 = await prisma.trainer.findUnique({ where: { userId: trainerUser.id } });
     await prisma.trainerMember.create({
@@ -763,9 +773,9 @@ async function main() {
   });
 
   // Lịch sử buổi tập đã hoàn thành + ghi chú tiến trình (chỉ tạo lần đầu)
-  const completedCount = await prisma.trainingSchedule.count({
-    where: { memberId: member.id, status: 'COMPLETED' },
-  });
+  const completedCount = member
+    ? await prisma.trainingSchedule.count({ where: { memberId: member.id, status: 'COMPLETED' } })
+    : 1;
   if (completedCount === 0) {
     const daysAgo = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
     const atTime = (d: Date, hour: number, minute = 0) => {
@@ -941,7 +951,7 @@ async function main() {
   ];
 
   const memberRecords9: Record<string, any> = {};
-  for (const dm of demoMembers) {
+  for (const dm of DEMO_MEMBERS ? demoMembers : []) {
     const u = await prisma.user.upsert({
       where: { email: dm.email },
       update: {},
@@ -969,7 +979,11 @@ async function main() {
     });
     memberRecords9[dm.code] = mRec;
   }
-  console.log('✅ Created demo members (STEP 9):', demoMembers.length);
+  console.log(
+    DEMO_MEMBERS
+      ? `✅ Created demo members (STEP 9): ${demoMembers.length}`
+      : '⏭️  Skipped demo members (DEMO_MEMBERS = false)',
+  );
 
   // 16.2 Membership đa trạng thái + Payment + Invoice
   // Mã hoá đơn sinh tự động ở DẢI 1xxx (INV-2026-1001…1010) — cố tình KHÔNG dùng
@@ -988,7 +1002,7 @@ async function main() {
     { code: 'MEM-0011', pkg: pkg9_1m, status: 'ACTIVE', startOffset: -5, payStatus: PaymentStatus.PAID, method: PaymentMethod.CASH, ref: null, paidOffset: -5 },
   ];
 
-  for (const [i, s] of membershipSeeds.entries()) {
+  for (const [i, s] of (DEMO_MEMBERS ? membershipSeeds : []).entries()) {
     if (!s.pkg) continue;
     const memberRec = memberRecords9[s.code];
     const start = daysFromNow9(s.startOffset);
@@ -1082,7 +1096,7 @@ async function main() {
 
   // Giao dịch thất bại (demo status FAILED — không kèm membership)
   const failedPay = await prisma.payment.findUnique({ where: { code: 'INV-2026-0099' } });
-  if (!failedPay) {
+  if (DEMO_MEMBERS && !failedPay) {
     await prisma.payment.create({
       data: {
         code: 'INV-2026-0099',
@@ -1095,13 +1109,17 @@ async function main() {
       },
     });
   }
-  console.log('✅ Created demo memberships + payments + invoices (STEP 9)');
+  console.log(
+    DEMO_MEMBERS
+      ? '✅ Created demo memberships + payments + invoices (STEP 9)'
+      : '⏭️  Skipped demo memberships + payments + invoices (DEMO_MEMBERS = false)',
+  );
 
   // 16.3 Check-in lịch sử cho các hội viên ACTIVE
   const checkinMembers = ['MEM-0002', 'MEM-0003', 'MEM-0004', 'MEM-0007', 'MEM-0010', 'MEM-0011'];
   const dayPattern = [1, 2, 3, 5, 6, 7, 8, 9, 10, 12, 13];
   const hourPattern = [7, 8, 17, 18, 19];
-  for (const code of checkinMembers) {
+  for (const code of DEMO_MEMBERS ? checkinMembers : []) {
     const memberRec = memberRecords9[code];
     const cnt = await prisma.checkIn.count({ where: { memberId: memberRec.id } });
     if (cnt > 0) continue;
@@ -1119,7 +1137,11 @@ async function main() {
     });
     await prisma.checkIn.createMany({ data: rows });
   }
-  console.log('✅ Created check-in history for demo members (STEP 9)');
+  console.log(
+    DEMO_MEMBERS
+      ? '✅ Created check-in history for demo members (STEP 9)'
+      : '⏭️  Skipped demo check-in history (DEMO_MEMBERS = false)',
+  );
 
   // 16.4 Phân công HLV + lịch tập (upcoming/completed) + tiến trình
   const trainer1Rec = await prisma.trainer.findUnique({ where: { userId: trainerUser.id } });
@@ -1131,7 +1153,7 @@ async function main() {
     { trainer: trainer3Rec, memberCode: 'MEM-0003', note: 'Chương trình giảm mỡ cấp thân' },
     { trainer: trainer2Rec, memberCode: 'MEM-0010', note: 'Yoga & linh hoạt' },
   ];
-  for (const a of assignSeeds) {
+  for (const a of DEMO_MEMBERS ? assignSeeds : []) {
     if (!a.trainer) continue;
     const memberRec = memberRecords9[a.memberCode];
     const ex = await prisma.trainerMember.findFirst({
@@ -1149,7 +1171,7 @@ async function main() {
   const sched9Count = await prisma.trainingSchedule.count({
     where: { notes: SEED9_MARKER },
   });
-  if (sched9Count === 0 && trainer1Rec && trainer2Rec && trainer3Rec) {
+  if (DEMO_MEMBERS && sched9Count === 0 && trainer1Rec && trainer2Rec && trainer3Rec) {
     const m2 = memberRecords9['MEM-0002'];
     const m3 = memberRecords9['MEM-0003'];
     const weight = await prisma.room.findUnique({ where: { id: 'room-weight-01' } });
@@ -1272,8 +1294,9 @@ async function main() {
     }
   }
 
-  // 16.7 Thông báo mẫu cho hội viên demo
-  const notifSeeds = [
+  // 16.7 Thông báo mẫu cho hội viên demo (chỉ tạo khi DEMO_MEMBERS = true)
+  const notifSeeds = DEMO_MEMBERS
+    ? [
     {
       memberId: memberRecords9['MEM-0002'].id,
       title: 'Thanh toán thành công 💳',
@@ -1302,8 +1325,9 @@ async function main() {
       type: 'SYSTEM',
       link: '/member/dashboard',
       isRead: false,
-    },
-  ];
+      },
+      ]
+    : [];
   for (const n of notifSeeds) {
     const ex = await prisma.notification.findFirst({
       where: { memberId: n.memberId as string, title: n.title as string },
@@ -1313,20 +1337,16 @@ async function main() {
       await prisma.notification.create({ data: { memberId: memberId as string, title: title as string, ...rest } });
     }
   }
-  console.log('✅ Created promotions expired + maintenance + notifications (STEP 9)');
+  console.log(
+    DEMO_MEMBERS
+      ? '✅ Created promotions expired + maintenance + notifications (STEP 9)'
+      : '✅ Created promotions expired + maintenance (STEP 9) — bỏ qua thông báo hội viên mẫu (DEMO_MEMBERS = false)',
+  );
 
   // 16.8 Nhật ký hệ thống (AuditLog) — để trang /admin/audit-logs có dữ liệu demo ngay sau khi seed.
   // Idempotent: chỉ tạo khi bảng còn trống.
   const auditCount = await prisma.auditLog.count();
   if (auditCount === 0) {
-    const m2 = memberRecords9['MEM-0002'];
-    const m3 = memberRecords9['MEM-0003'];
-    const m6 = memberRecords9['MEM-0006'];
-    const pay2 = await prisma.payment.findFirst({ where: { memberId: m2.id, status: 'PAID' }, orderBy: { createdAt: 'asc' } });
-    const pay6 = await prisma.payment.findFirst({ where: { memberId: m6.id }, orderBy: { createdAt: 'asc' } });
-    const payFail = await prisma.payment.findUnique({ where: { code: 'INV-2026-0099' } });
-    const ms2 = await prisma.membership.findFirst({ where: { memberId: m2.id }, orderBy: { createdAt: 'asc' } });
-    const sched1 = await prisma.trainingSchedule.findFirst({ where: { memberId: m2.id } });
     const eqSquat = await prisma.equipment.findFirst({ where: { code: { contains: 'SQ' } } });
     // thiết bị lâu đời nhất -> dùng cho log EQUIPMENT_RETIRE
     const eqOldest = await prisma.equipment.findFirst({ orderBy: { purchaseDate: 'asc' } });
@@ -1347,42 +1367,14 @@ async function main() {
       { userId: managerUser.id, action: 'AUTH_LOGIN', entity: 'Auth', metadata: { method: 'password' }, ip: '127.0.0.1', at: daysAgo9(1) },
       { userId: staffUser.id, action: 'AUTH_LOGIN', entity: 'Auth', metadata: { method: 'password' }, ip: '127.0.0.1', at: daysAgo9(0) },
       { userId: trainerUser.id, action: 'AUTH_LOGIN', entity: 'Auth', metadata: { method: 'password' }, ip: '127.0.0.1', at: daysAgo9(0) },
-      { userId: memberUser.id, action: 'AUTH_LOGIN', entity: 'Auth', metadata: { method: 'password' }, ip: '127.0.0.1', at: daysAgo9(0) },
 
       // --- Tài khoản ---
       { userId: adminUser.id, action: 'USER_CREATE', entity: 'User', metadata: { email: 'staff@gym.com', role: 'STAFF' }, ip: '127.0.0.1', at: daysAgo9(120) },
-      { userId: memberUser.id, action: 'PASSWORD_CHANGE', entity: 'User', metadata: { method: 'self-service' }, ip: '127.0.0.1', at: daysAgo9(70) },
-
-      // --- Hồ sơ hội viên ---
-      { userId: staffUser.id, action: 'MEMBER_REGISTER', entity: 'Member', entityId: m2.id, metadata: { code: 'MEM-0002', fullName: 'Lê Hoàng Anh' }, ip: '127.0.0.1', at: daysAgo9(88) },
-      { userId: staffUser.id, action: 'MEMBER_REGISTER', entity: 'Member', entityId: m3.id, metadata: { code: 'MEM-0003', fullName: 'Phạm Thị Ngọc' }, ip: '127.0.0.1', at: daysAgo9(45) },
-      { userId: m3.userId, action: 'MEMBER_PROFILE_UPDATE', entity: 'Member', entityId: m3.id, metadata: { fields: ['phone', 'address'] }, ip: '127.0.0.1', at: daysAgo9(30) },
-      { userId: managerUser.id, action: 'MEMBER_UPDATE', entity: 'Member', entityId: m2.id, metadata: { fields: ['emergencyContact'] }, ip: '127.0.0.1', at: daysAgo9(12) },
-
-      // --- Gói tập & thanh toán ---
-      { userId: m2.userId, action: 'MEMBERSHIP_REGISTER', entity: 'Membership', entityId: ms2?.id, metadata: { packageName: pkg9_12m?.name, amount: Number(pkg9_12m?.price ?? 0) }, ip: '127.0.0.1', at: daysAgo9(90) },
-      { userId: adminUser.id, action: 'PAYMENT_CONFIRM', entity: 'Payment', entityId: pay2?.id, metadata: { code: 'INV-2026-0002', method: 'BANK_TRANSFER', transactionRef: 'VCB-8812002' }, ip: '127.0.0.1', at: daysAgo9(88) },
-      { userId: m2.userId, action: 'MEMBERSHIP_RENEW', entity: 'Membership', entityId: ms2?.id, metadata: { packageName: pkg9_6m?.name, extraDays: 180 }, ip: '127.0.0.1', at: daysAgo9(0) },
-      { userId: m6.userId, action: 'MEMBERSHIP_REGISTER', entity: 'Membership', entityId: null, metadata: { packageName: pkg9_6m?.name, amount: Number(pkg9_6m?.price ?? 0) }, ip: '127.0.0.1', at: daysAgo9(0) },
-      { userId: adminUser.id, action: 'PAYMENT_REJECT', entity: 'Payment', entityId: payFail?.id, metadata: { code: 'INV-2026-0099', reason: 'Giao dịch thất bại từ cổng VNPAY' }, ip: '127.0.0.1', at: daysAgo9(0) },
-      { userId: adminUser.id, action: 'MEMBERSHIP_STATUS_CHANGE', entity: 'Membership', entityId: ms2?.id, metadata: { from: 'PENDING', to: 'ACTIVE' }, ip: '127.0.0.1', at: daysAgo9(88) },
-      { userId: managerUser.id, action: 'MEMBERSHIP_EXTEND', entity: 'Membership', entityId: ms2?.id, metadata: { extraDays: 7, reason: 'Bù buổi tập do thiết bị bảo trì' }, ip: '127.0.0.1', at: daysAgo9(6) },
-      { userId: adminUser.id, action: 'PAYMENT_REFUND', entity: 'Payment', entityId: pay6?.id, metadata: { code: 'INV-2026-0006', reason: 'Hội viên hủy trong 7 ngày' }, ip: '127.0.0.1', at: daysAgo9(58) },
-
-      // --- Check-in / check-out ---
-      { userId: memberUser.id, action: 'CHECK_IN', entity: 'CheckIn', entityId: null, metadata: { method: 'QR_CODE' }, ip: '127.0.0.1', at: atHour9(daysAgo9(0), 7, 12) },
-      { userId: memberUser.id, action: 'CHECK_OUT', entity: 'CheckIn', entityId: null, metadata: { durationMinutes: 65 }, ip: '127.0.0.1', at: atHour9(daysAgo9(0), 8, 17) },
-      { userId: staffUser.id, action: 'CHECK_IN', entity: 'CheckIn', entityId: null, metadata: { method: 'MANUAL', memberCode: 'MEM-0002' }, ip: '127.0.0.1', at: atHour9(daysAgo9(0), 18, 5) },
 
       // --- HLV & lịch tập ---
       { userId: adminUser.id, action: 'TRAINER_CREATE', entity: 'Trainer', entityId: trainer1Rec?.id, metadata: { fullName: trainerUser.fullName, specialization: trainer1Rec?.specialization }, ip: '127.0.0.1', at: daysAgo9(150) },
       { userId: adminUser.id, action: 'TRAINER_UPDATE', entity: 'Trainer', entityId: trainer2Rec?.id, metadata: { fields: ['experienceYears'] }, ip: '127.0.0.1', at: daysAgo9(20) },
       { userId: adminUser.id, action: 'TRAINER_REMOVE', entity: 'Trainer', entityId: trainer3Rec?.id, metadata: { fullName: trainerUser3.fullName, reason: 'Nghỉ việc (chuyển công ty)' }, ip: '127.0.0.1', at: daysAgo9(15) },
-      { userId: managerUser.id, action: 'SCHEDULE_CREATE', entity: 'TrainingSchedule', entityId: sched1?.id, metadata: { title: sched1?.title, type: sched1?.type }, ip: '127.0.0.1', at: daysAgo9(7) },
-      { userId: managerUser.id, action: 'SCHEDULE_UPDATE', entity: 'TrainingSchedule', entityId: sched1?.id, metadata: { fields: ['startTime', 'roomId'] }, ip: '127.0.0.1', at: daysAgo9(5) },
-      { userId: managerUser.id, action: 'SCHEDULE_CANCEL', entity: 'TrainingSchedule', entityId: sched1?.id, metadata: { reason: 'HLV bận việc đột xuất' }, ip: '127.0.0.1', at: daysAgo9(2) },
-      { userId: trainerUser.id, action: 'SCHEDULE_COMPLETE', entity: 'TrainingSchedule', entityId: sched1?.id, metadata: { attendance: 1 }, ip: '127.0.0.1', at: daysAgo9(1) },
-      { userId: managerUser.id, action: 'SCHEDULE_DELETE', entity: 'TrainingSchedule', entityId: sched1?.id, metadata: { reason: 'Xoá lịch trùng do nhập liệu sai' }, ip: '127.0.0.1', at: daysAgo9(4) },
 
       // --- Thiết bị & bảo trì ---
       { userId: adminUser.id, action: 'EQUIPMENT_CREATE', entity: 'Equipment', entityId: eqSquat?.id, metadata: { code: eqSquat?.code, name: eqSquat?.name }, ip: '127.0.0.1', at: daysAgo9(200) },
@@ -1399,6 +1391,44 @@ async function main() {
       { userId: adminUser.id, action: 'PROMOTION_ACTIVATE', entity: 'Promotion', entityId: null, metadata: { code: 'LUNAR2025' }, ip: '127.0.0.1', at: daysAgo9(45) },
       { userId: adminUser.id, action: 'PROMOTION_DEACTIVATE', entity: 'Promotion', entityId: null, metadata: { code: 'LUNAR2025', reason: 'Đã hết hạn' }, ip: '127.0.0.1', at: daysAgo9(3) },
     ];
+
+    // --- Dữ liệu audit gắn với hội viên mẫu (member*@gym.com, MEM-0002/0003 demo) ---
+    // Chỉ tạo khi DEMO_MEMBERS = true; cờ tắt thì memberUser/m2… không tồn tại.
+    if (DEMO_MEMBERS && memberUser) {
+      const m2 = memberRecords9['MEM-0002'];
+      const m3 = memberRecords9['MEM-0003'];
+      const m6 = memberRecords9['MEM-0006'];
+      const pay2 = await prisma.payment.findFirst({ where: { memberId: m2.id, status: 'PAID' }, orderBy: { createdAt: 'asc' } });
+      const pay6 = await prisma.payment.findFirst({ where: { memberId: m6.id }, orderBy: { createdAt: 'asc' } });
+      const payFail = await prisma.payment.findUnique({ where: { code: 'INV-2026-0099' } });
+      const ms2 = await prisma.membership.findFirst({ where: { memberId: m2.id }, orderBy: { createdAt: 'asc' } });
+      const sched1 = await prisma.trainingSchedule.findFirst({ where: { memberId: m2.id } });
+
+      auditSeeds.push(
+        { userId: memberUser.id, action: 'AUTH_LOGIN', entity: 'Auth', metadata: { method: 'password' }, ip: '127.0.0.1', at: daysAgo9(0) },
+        { userId: memberUser.id, action: 'PASSWORD_CHANGE', entity: 'User', metadata: { method: 'self-service' }, ip: '127.0.0.1', at: daysAgo9(70) },
+        { userId: staffUser.id, action: 'MEMBER_REGISTER', entity: 'Member', entityId: m2.id, metadata: { code: 'MEM-0002', fullName: 'Lê Hoàng Anh' }, ip: '127.0.0.1', at: daysAgo9(88) },
+        { userId: staffUser.id, action: 'MEMBER_REGISTER', entity: 'Member', entityId: m3.id, metadata: { code: 'MEM-0003', fullName: 'Phạm Thị Ngọc' }, ip: '127.0.0.1', at: daysAgo9(45) },
+        { userId: m3.userId, action: 'MEMBER_PROFILE_UPDATE', entity: 'Member', entityId: m3.id, metadata: { fields: ['phone', 'address'] }, ip: '127.0.0.1', at: daysAgo9(30) },
+        { userId: managerUser.id, action: 'MEMBER_UPDATE', entity: 'Member', entityId: m2.id, metadata: { fields: ['emergencyContact'] }, ip: '127.0.0.1', at: daysAgo9(12) },
+        { userId: m2.userId, action: 'MEMBERSHIP_REGISTER', entity: 'Membership', entityId: ms2?.id, metadata: { packageName: pkg9_12m?.name, amount: Number(pkg9_12m?.price ?? 0) }, ip: '127.0.0.1', at: daysAgo9(90) },
+        { userId: adminUser.id, action: 'PAYMENT_CONFIRM', entity: 'Payment', entityId: pay2?.id, metadata: { code: 'INV-2026-0002', method: 'BANK_TRANSFER', transactionRef: 'VCB-8812002' }, ip: '127.0.0.1', at: daysAgo9(88) },
+        { userId: m2.userId, action: 'MEMBERSHIP_RENEW', entity: 'Membership', entityId: ms2?.id, metadata: { packageName: pkg9_6m?.name, extraDays: 180 }, ip: '127.0.0.1', at: daysAgo9(0) },
+        { userId: m6.userId, action: 'MEMBERSHIP_REGISTER', entity: 'Membership', entityId: null, metadata: { packageName: pkg9_6m?.name, amount: Number(pkg9_6m?.price ?? 0) }, ip: '127.0.0.1', at: daysAgo9(0) },
+        { userId: adminUser.id, action: 'PAYMENT_REJECT', entity: 'Payment', entityId: payFail?.id, metadata: { code: 'INV-2026-0099', reason: 'Giao dịch thất bại từ cổng VNPAY' }, ip: '127.0.0.1', at: daysAgo9(0) },
+        { userId: adminUser.id, action: 'MEMBERSHIP_STATUS_CHANGE', entity: 'Membership', entityId: ms2?.id, metadata: { from: 'PENDING', to: 'ACTIVE' }, ip: '127.0.0.1', at: daysAgo9(88) },
+        { userId: managerUser.id, action: 'MEMBERSHIP_EXTEND', entity: 'Membership', entityId: ms2?.id, metadata: { extraDays: 7, reason: 'Bù buổi tập do thiết bị bảo trì' }, ip: '127.0.0.1', at: daysAgo9(6) },
+        { userId: adminUser.id, action: 'PAYMENT_REFUND', entity: 'Payment', entityId: pay6?.id, metadata: { code: 'INV-2026-0006', reason: 'Hội viên hủy trong 7 ngày' }, ip: '127.0.0.1', at: daysAgo9(58) },
+        { userId: memberUser.id, action: 'CHECK_IN', entity: 'CheckIn', entityId: null, metadata: { method: 'QR_CODE' }, ip: '127.0.0.1', at: atHour9(daysAgo9(0), 7, 12) },
+        { userId: memberUser.id, action: 'CHECK_OUT', entity: 'CheckIn', entityId: null, metadata: { durationMinutes: 65 }, ip: '127.0.0.1', at: atHour9(daysAgo9(0), 8, 17) },
+        { userId: staffUser.id, action: 'CHECK_IN', entity: 'CheckIn', entityId: null, metadata: { method: 'MANUAL', memberCode: 'MEM-0002' }, ip: '127.0.0.1', at: atHour9(daysAgo9(0), 18, 5) },
+        { userId: managerUser.id, action: 'SCHEDULE_CREATE', entity: 'TrainingSchedule', entityId: sched1?.id, metadata: { title: sched1?.title, type: sched1?.type }, ip: '127.0.0.1', at: daysAgo9(7) },
+        { userId: managerUser.id, action: 'SCHEDULE_UPDATE', entity: 'TrainingSchedule', entityId: sched1?.id, metadata: { fields: ['startTime', 'roomId'] }, ip: '127.0.0.1', at: daysAgo9(5) },
+        { userId: managerUser.id, action: 'SCHEDULE_CANCEL', entity: 'TrainingSchedule', entityId: sched1?.id, metadata: { reason: 'HLV bận việc đột xuất' }, ip: '127.0.0.1', at: daysAgo9(2) },
+        { userId: trainerUser.id, action: 'SCHEDULE_COMPLETE', entity: 'TrainingSchedule', entityId: sched1?.id, metadata: { attendance: 1 }, ip: '127.0.0.1', at: daysAgo9(1) },
+        { userId: managerUser.id, action: 'SCHEDULE_DELETE', entity: 'TrainingSchedule', entityId: sched1?.id, metadata: { reason: 'Xoá lịch trùng do nhập liệu sai' }, ip: '127.0.0.1', at: daysAgo9(4) },
+      );
+    }
 
     await prisma.auditLog.createMany({
       data: auditSeeds.map((a) => ({
