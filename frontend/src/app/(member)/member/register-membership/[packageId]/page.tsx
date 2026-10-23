@@ -345,7 +345,8 @@ const [pollActive, setPollActive] = useState(false);
                       </button>
                       <span className="ml-2">· {bankInfo.accountName}</span>
                     </p>
-                    <div className="mt-3 rounded-lg border border-dashed border-neon/50 bg-ink p-3 text-center">
+                    {pollActive && (
+                  <div className="mt-3 rounded-lg border border-dashed border-neon/50 bg-ink p-3 text-center">
                       <p className="text-[11px] text-muted mb-1">Quét mã QR để chuyển khoản nhanh</p>
                       {/* QR VietQR là SVG sinh động từ dịch vụ ngoài → không tối ưu hoá, dùng <img> */}
                       {/* eslint-disable-next-line @next/next/no-img-element */}
