@@ -110,7 +110,6 @@ export const paymentApi = {
     params: {
       from?: string;
       to?: string;
-      branchId?: string;
       packageId?: string;
       method?: string;
     } = {},

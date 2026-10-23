@@ -1,5 +1,5 @@
 import apiClient from '@/lib/axios';
-import type { Branch, MembershipPackage, PublicSchedule, PublicTrainer } from './types';
+import type { MembershipPackage, PublicSchedule, PublicTrainer } from './types';
 
 /** API công khai (public website) - không cần đăng nhập */
 export const packageApi = {
@@ -22,15 +22,9 @@ export const publicApi = {
     return res.data;
   },
 
-  getBranches: async (): Promise<Branch[]> => {
-    const res = await apiClient.get<Branch[]>('/public/branches');
-    return res.data;
-  },
-
   getHomeStats: async (): Promise<{
     totalMembers: number;
     totalTrainers: number;
-    totalBranches: number;
   }> => {
     const res = await apiClient.get('/public/home-stats');
     return res.data;

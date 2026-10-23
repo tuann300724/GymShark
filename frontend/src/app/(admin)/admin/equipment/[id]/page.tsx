@@ -1,11 +1,10 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { equipmentApi } from '@/services/equipment.service';
-import { branchApi } from '@/services/branch.service';
 import { getStoredUser } from '@/lib/auth';
 import {
   EQUIPMENT_STATUS_META,
@@ -36,7 +35,6 @@ import {
   PackageX,
   ShieldCheck,
   CalendarClock,
-  Building2,
   MapPin,
   Hourglass,
   Hash,
@@ -45,12 +43,12 @@ import type { EquipmentMaintenance } from '@/services/types';
 
 const canManage = () => {
   const user = getStoredUser();
-  return user?.role === 'ADMIN';
+  return user?.role === 'ADMIN' || user?.role === 'MANAGER';
 };
 
 const canRequestMaintenance = () => {
   const user = getStoredUser();
-  return canManage();
+  return canManage() || user?.role === 'STAFF';
 };
 
 const MAINTENANCE_TYPE_OPTIONS = Object.entries(MAINTENANCE_TYPE_META).map(([value, label]) => ({
@@ -101,25 +99,12 @@ export default function EquipmentDetailPage() {
     enabled: !!id,
   });
 
-  const { data: branches } = useQuery({ queryKey: ['branches-list'], queryFn: branchApi.list });
-  const { data: branchRooms, refetch: refetchRooms } = useQuery({
-    queryKey: ['detail-rooms', eq?.branchId],
-    queryFn: () => branchApi.rooms(eq?.branchId || ''),
-    enabled: false,
-  });
-
-  useEffect(() => {
-    if (eq?.branchId) refetchRooms();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eq?.branchId]);
-
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['equipment-detail', id] });
     queryClient.invalidateQueries({ queryKey: ['equipment-list'] });
     queryClient.invalidateQueries({ queryKey: ['equipment-stats'] });
     queryClient.invalidateQueries({ queryKey: ['equipment-alerts'] });
     queryClient.invalidateQueries({ queryKey: ['equipment-maintenance'] });
-    queryClient.invalidateQueries({ queryKey: ['branch-stats'] });
   };
 
   const statusMutation = useMutation({
@@ -273,9 +258,6 @@ export default function EquipmentDetailPage() {
                 </div>
                 <p className="mt-1 font-mono text-xs text-neon">{eq.code}</p>
                 <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
-                  <span className="flex items-center gap-1.5">
-                    <Building2 className="size-3.5" /> {eq.branch?.name || '—'}
-                  </span>
                   <span className="flex items-center gap-1.5">
                     <MapPin className="size-3.5" /> {eq.room?.name || 'Chưa gán phòng'}
                   </span>

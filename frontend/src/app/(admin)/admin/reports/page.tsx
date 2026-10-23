@@ -3,14 +3,12 @@
 import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { reportApi } from '@/services/report.service';
-import { branchApi } from '@/services/branch.service';
-import type { BranchOverviewReport, EquipmentStatsReport } from '@/services/types';
+import type { EquipmentStatsReport } from '@/services/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatCard } from '@/components/ui/stat-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
@@ -18,7 +16,6 @@ import { Tabs } from '@/components/ui/tabs';
 import { BarChart, MethodBars } from '@/components/charts/bar-chart';
 import { useToast } from '@/components/ui/toast';
 import {
-  BRANCH_STATUS_META,
   EQUIPMENT_CONDITION_META,
   EQUIPMENT_STATUS_META,
   MEMBERSHIP_STATUS_META,
@@ -28,7 +25,6 @@ import { cn, formatCurrency, formatDate } from '@/lib/utils';
 import {
   Activity,
   BarChart3,
-  Building2,
   CalendarCheck2,
   Download,
   Dumbbell,
@@ -48,7 +44,6 @@ const TABS = [
   { value: 'memberships', label: 'Gói tập' },
   { value: 'trainers', label: 'HLV' },
   { value: 'equipment', label: 'Thiết bị' },
-  { value: 'branches', label: 'Chi nhánh' },
 ];
 
 const CSV_TYPES: Record<string, 'revenue' | 'members' | 'attendance' | 'memberships'> = {
@@ -77,10 +72,10 @@ function LoadingState({ rows = 3 }: { rows?: number }) {
 }
 
 /* ------------------------------ Tổng quan ------------------------------ */
-function OverviewTab({ branchId }: { branchId: string }) {
+function OverviewTab() {
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['report-overview', branchId],
-    queryFn: () => reportApi.overview(branchId || undefined),
+    queryKey: ['report-overview'],
+    queryFn: () => reportApi.overview(),
     retry: 1,
   });
 
@@ -123,8 +118,8 @@ function OverviewTab({ branchId }: { branchId: string }) {
           colorScheme="amber"
         />
         <StatCard
-          title="HLV / Chi nhánh"
-          value={`${s.totalTrainers} / ${s.totalBranches}`}
+          title="Huấn luyện viên"
+          value={s.totalTrainers}
           subtitle={`${s.pendingMemberships} gói chờ duyệt`}
           icon={UserCheck}
           colorScheme="purple"
@@ -217,7 +212,7 @@ function OverviewTab({ branchId }: { branchId: string }) {
 }
 
 /* ------------------------------ Doanh thu ------------------------------ */
-function RevenueTab({ branchId }: { branchId: string }) {
+function RevenueTab() {
   const toast = useToast();
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -225,10 +220,9 @@ function RevenueTab({ branchId }: { branchId: string }) {
   const [exporting, setExporting] = useState(false);
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['report-revenue', branchId, applied],
+    queryKey: ['report-revenue', applied],
     queryFn: () =>
       reportApi.revenue({
-        branchId: branchId || undefined,
         from: applied.from || undefined,
         to: applied.to || undefined,
       }),
@@ -262,7 +256,6 @@ function RevenueTab({ branchId }: { branchId: string }) {
     setExporting(true);
     try {
       const filename = await reportApi.downloadCsv('revenue', {
-        branchId: branchId || undefined,
         from: applied.from || undefined,
         to: applied.to || undefined,
       });
@@ -430,10 +423,10 @@ function RevenueTab({ branchId }: { branchId: string }) {
 }
 
 /* ------------------------------ Chuyên cần ------------------------------ */
-function AttendanceTab({ branchId }: { branchId: string }) {
+function AttendanceTab() {
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['report-attendance', branchId],
-    queryFn: () => reportApi.attendance({ branchId: branchId || undefined }),
+    queryKey: ['report-attendance'],
+    queryFn: () => reportApi.attendance(),
     retry: 1,
   });
 
@@ -507,7 +500,7 @@ function AttendanceTab({ branchId }: { branchId: string }) {
       </div>
 
       {!isLoading && data && data.byWeekday.length > 0 && (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Card>
             <CardHeader>
               <CardTitle className="text-sm">Theo thứ trong tuần</CardTitle>
@@ -521,25 +514,6 @@ function AttendanceTab({ branchId }: { branchId: string }) {
                   </span>
                 </div>
               ))}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Theo chi nhánh</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {data.byBranch.length === 0 ? (
-                <EmptyState
-                  icon={Building2}
-                  title="Chưa có dữ liệu"
-                  description="Chưa có lượt check-in theo chi nhánh."
-                />
-              ) : (
-                <MethodBars
-                  data={data.byBranch.map((b) => ({ label: b.branchName, value: b.count }))}
-                  unit=" lượt"
-                />
-              )}
             </CardContent>
           </Card>
           <Card>
@@ -571,10 +545,10 @@ function AttendanceTab({ branchId }: { branchId: string }) {
 }
 
 /* ------------------------------ Hội viên ------------------------------ */
-function MembersTab({ branchId }: { branchId: string }) {
+function MembersTab() {
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['report-members', branchId],
-    queryFn: () => reportApi.members({ branchId: branchId || undefined }),
+    queryKey: ['report-members'],
+    queryFn: () => reportApi.members(),
     retry: 1,
   });
 
@@ -641,7 +615,6 @@ function MembersTab({ branchId }: { branchId: string }) {
                   <tr>
                     <th className="px-4 py-3 font-semibold">Mã HV</th>
                     <th className="px-4 py-3 font-semibold">Họ tên</th>
-                    <th className="px-4 py-3 font-semibold">Chi nhánh</th>
                     <th className="px-4 py-3 font-semibold">Ngày tham gia</th>
                     <th className="px-4 py-3 text-right font-semibold">Thanh toán</th>
                     <th className="px-4 py-3 text-right font-semibold">Check-in</th>
@@ -652,7 +625,6 @@ function MembersTab({ branchId }: { branchId: string }) {
                     <tr key={m.id} className="transition-colors hover:bg-line/30">
                       <td className="px-4 py-3 font-mono font-bold text-neon">{m.code}</td>
                       <td className="px-4 py-3 font-semibold text-chalk">{m.fullName}</td>
-                      <td className="px-4 py-3 text-muted">{m.branch?.name || '—'}</td>
                       <td className="px-4 py-3 font-mono text-muted">{formatDate(m.joinedAt)}</td>
                       <td className="px-4 py-3 text-right text-muted">{m._count.payments}</td>
                       <td className="px-4 py-3 text-right text-muted">{m._count.checkIns}</td>
@@ -669,10 +641,10 @@ function MembersTab({ branchId }: { branchId: string }) {
 }
 
 /* ------------------------------ Gói tập ------------------------------ */
-function MembershipsTab({ branchId }: { branchId: string }) {
+function MembershipsTab() {
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['report-memberships', branchId],
-    queryFn: () => reportApi.memberships({ branchId: branchId || undefined }),
+    queryKey: ['report-memberships'],
+    queryFn: () => reportApi.memberships(),
     retry: 1,
   });
 
@@ -775,10 +747,10 @@ function MembershipsTab({ branchId }: { branchId: string }) {
 }
 
 /* ------------------------------ HLV ------------------------------ */
-function TrainersTab({ branchId }: { branchId: string }) {
+function TrainersTab() {
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['report-trainers', branchId],
-    queryFn: () => reportApi.trainers({ branchId: branchId || undefined }),
+    queryKey: ['report-trainers'],
+    queryFn: () => reportApi.trainers(),
     retry: 1,
   });
 
@@ -832,7 +804,6 @@ function TrainersTab({ branchId }: { branchId: string }) {
                 <thead className="border-b border-line bg-ink text-[11px] uppercase tracking-wider text-muted">
                   <tr>
                     <th className="px-4 py-3 font-semibold">HLV</th>
-                    <th className="px-4 py-3 font-semibold">Chi nhánh</th>
                     <th className="px-4 py-3 font-semibold">Trạng thái</th>
                     <th className="px-4 py-3 text-right font-semibold">Hội viên phụ trách</th>
                     <th className="px-4 py-3 text-right font-semibold">Lịch dạy</th>
@@ -846,7 +817,6 @@ function TrainersTab({ branchId }: { branchId: string }) {
                         <p className="font-semibold text-chalk">{t.fullName}</p>
                         <p className="text-[10px] font-mono text-muted">{t.email}</p>
                       </td>
-                      <td className="px-4 py-3 text-muted">{t.branch?.name || '—'}</td>
                       <td className="px-4 py-3">
                         <Badge variant={t.status === 'ACTIVE' ? 'success' : 'outline'}>
                           {t.status === 'ACTIVE' ? 'Hoạt động' : 'Tạm ngưng'}
@@ -994,104 +964,18 @@ function EquipmentTab() {
   );
 }
 
-/* ------------------------------ Chi nhánh ------------------------------ */
-function BranchesTab() {
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['report-branches'],
-    queryFn: () => reportApi.branches(),
-    retry: 1,
-  });
-
-  if (isError)
-    return (
-      <ErrorState
-        title="Không tải được báo cáo"
-        description="Không tải được báo cáo chi nhánh."
-        onRetry={() => refetch()}
-      />
-    );
-
-  const rows = (data as BranchOverviewReport | undefined)?.data || [];
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {isLoading ? (
-          Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-52 w-full" />)
-        ) : rows.length === 0 ? (
-          <div className="lg:col-span-2">
-            <EmptyState
-              icon={Building2}
-              title="Chưa có chi nhánh"
-              description="Hệ thống chưa có chi nhánh nào để tổng hợp."
-            />
-          </div>
-        ) : (
-          rows.map((b) => {
-            const meta = BRANCH_STATUS_META[b.status] || {
-              label: b.status,
-              variant: 'outline' as const,
-            };
-            return (
-              <Card key={b.id} className="border-l-2 border-l-neon">
-                <CardContent className="space-y-3 p-5">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <h4 className="flex items-center gap-2 font-display text-base font-bold text-chalk">
-                        <Building2 className="size-4 text-neon" /> {b.name}
-                      </h4>
-                      <p className="mt-0.5 truncate text-[11px] text-muted">{b.address}</p>
-                      {b.openingHours && (
-                        <p className="text-[11px] text-muted">Giờ mở: {b.openingHours}</p>
-                      )}
-                    </div>
-                    <Badge variant={meta.variant as any}>{meta.label}</Badge>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2 border-t border-line pt-3 text-center">
-                    {[
-                      ['Hội viên', `${b.activeMembers}/${b.members}`, 'đang tập'],
-                      ['Check-in tháng', String(b.checkInsThisMonth), `${b.checkInsToday} hôm nay`],
-                      ['Doanh thu tháng', formatCurrency(b.revenueThisMonth), 'PAID'],
-                      ['Thiết bị', String(b.equipment), `${b.rooms} phòng`],
-                      ['HLV', String(b.trainers), 'đang hoạt động'],
-                      ['Lịch sắp tới', String(b.upcomingSessions), 'buổi SCHEDULED'],
-                    ].map(([label, val, note]) => (
-                      <div key={String(label)} className="rounded-lg bg-ink p-2">
-                        <p className="text-[10px] uppercase tracking-wide text-muted">{label}</p>
-                        <p className="font-display text-base font-black text-neon">{String(val)}</p>
-                        <p className="text-[9px] text-muted">{note}</p>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })
-        )}
-      </div>
-    </div>
-  );
-}
-
 /* ------------------------------ Trang chính ------------------------------ */
 export default function ReportsPage() {
   const toast = useToast();
   const [tab, setTab] = useState('overview');
-  const [branchId, setBranchId] = useState('');
   const [exporting, setExporting] = useState(false);
-
-  const { data: branches } = useQuery({
-    queryKey: ['branches-list'],
-    queryFn: branchApi.list,
-    retry: 1,
-  });
 
   const exportCsv = async () => {
     const type = CSV_TYPES[tab];
     if (!type) return;
     setExporting(true);
     try {
-      const filename = await reportApi.downloadCsv(type, { branchId: branchId || undefined });
+      const filename = await reportApi.downloadCsv(type);
       toast.success('Đã xuất CSV', filename);
     } catch {
       toast.error('Xuất CSV thất bại', 'Có lỗi khi tạo file.');
@@ -1108,21 +992,11 @@ export default function ReportsPage() {
             <BarChart3 className="size-6 text-neon" /> Báo cáo &amp; phân tích
           </h1>
           <p className="mt-1 text-xs text-muted">
-            Tổng hợp hoạt động phòng tập theo chi nhánh — doanh thu chỉ tính giao dịch PAID, hoàn
-            tiền hạch toán riêng.
+            Tổng hợp hoạt động phòng tập — doanh thu chỉ tính giao dịch PAID, hoàn tiền hạch toán
+            riêng.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="w-full sm:w-64">
-            <Select
-              value={branchId}
-              onChange={(e) => setBranchId(e.target.value)}
-              options={[
-                { value: '', label: 'Tất cả chi nhánh' },
-                ...(branches || []).map((b) => ({ value: b.id, label: `${b.name} (${b.code})` })),
-              ]}
-            />
-          </div>
           {CSV_TYPES[tab] && (
             <Button variant="outline" size="md" onClick={exportCsv} disabled={exporting}>
               <Download className="mr-1.5 size-4" /> {exporting ? 'Đang xuất...' : 'Xuất CSV'}
@@ -1133,14 +1007,13 @@ export default function ReportsPage() {
 
       <Tabs tabs={TABS} value={tab} onChange={setTab} />
 
-      {tab === 'overview' && <OverviewTab branchId={branchId} />}
-      {tab === 'revenue' && <RevenueTab branchId={branchId} />}
-      {tab === 'attendance' && <AttendanceTab branchId={branchId} />}
-      {tab === 'members' && <MembersTab branchId={branchId} />}
-      {tab === 'memberships' && <MembershipsTab branchId={branchId} />}
-      {tab === 'trainers' && <TrainersTab branchId={branchId} />}
+      {tab === 'overview' && <OverviewTab />}
+      {tab === 'revenue' && <RevenueTab />}
+      {tab === 'attendance' && <AttendanceTab />}
+      {tab === 'members' && <MembersTab />}
+      {tab === 'memberships' && <MembershipsTab />}
+      {tab === 'trainers' && <TrainersTab />}
       {tab === 'equipment' && <EquipmentTab />}
-      {tab === 'branches' && <BranchesTab />}
     </div>
   );
 }

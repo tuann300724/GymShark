@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
 import { MEMBER_STATUS_META } from '@/lib/status';
-import { ArrowLeft, Copy, MapPin, Printer, ScanLine, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Copy, Printer, ScanLine, ShieldCheck } from 'lucide-react';
 
 export default function MemberQrPage() {
   const toast = useToast();
@@ -106,13 +106,6 @@ export default function MemberQrPage() {
               </p>
 
               <p className="mt-4 truncate text-lg font-bold text-chalk">{data.member.fullName}</p>
-
-              {data.member.branch && (
-                <p className="mt-1 flex items-center justify-center gap-1.5 text-xs text-muted sm:justify-start">
-                  <MapPin className="size-3.5 shrink-0" />
-                  {data.member.branch.name}
-                </p>
-              )}
 
               {statusMeta && (
                 <Badge variant={statusMeta.variant} className="mt-3">

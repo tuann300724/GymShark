@@ -7,12 +7,7 @@ import {
 import { Prisma, UserRole } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
-export type NotificationTarget =
-  | 'ALL'
-  | 'MEMBERS'
-  | 'TRAINERS'
-  | 'ADMIN'
-  | { branchId: string };
+export type NotificationTarget = 'ALL' | 'MEMBERS' | 'TRAINERS' | 'STAFF' | 'MANAGERS' | 'ADMIN';
 
 /** Các loại thông báo (STEP 8) — lưu dạng string trong cột type */
 export const NOTIFICATION_TYPES = [
@@ -97,7 +92,7 @@ export class NotificationsService {
   }
 
   /** Fan-out tới tất cả ADMIN/MANAGER/STAFF (dedupe global theo ref) — dùng cho cảnh báo vận hành */
-  async fanoutToAdmin(input: {
+  async fanoutToStaff(input: {
     type: NotificationType;
     title: string;
     content: string;
@@ -112,7 +107,7 @@ export class NotificationsService {
     if (dup) return { created: 0, skipped: true };
 
     const staffUsers = await this.prisma.user.findMany({
-      where: { role: { in: [UserRole.ADMIN] }, status: 'ACTIVE' },
+      where: { role: { in: [UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF] }, status: 'ACTIVE' },
       select: { id: true },
     });
     if (!staffUsers.length) return { created: 0, skipped: false };
@@ -175,17 +170,11 @@ export class NotificationsService {
   }
 
   private async resolveTargets(target: NotificationTarget) {
-    if (typeof target === 'object' && 'branchId' in target) {
-      const users = await this.prisma.user.findMany({
-        where: { branchId: target.branchId, status: 'ACTIVE' },
-        select: { id: true, role: true, member: { select: { id: true } } },
-      });
-      return users.map((u) => ({ userId: u.id, memberId: u.member?.id ?? null }));
-    }
-
-    const roleToUserRole: Partial<Record<Exclude<NotificationTarget, object>, UserRole>> = {
+    const roleToUserRole: Partial<Record<NotificationTarget, UserRole>> = {
       MEMBERS: UserRole.MEMBER,
       TRAINERS: UserRole.TRAINER,
+      STAFF: UserRole.STAFF,
+      MANAGERS: UserRole.MANAGER,
       ADMIN: UserRole.ADMIN,
     };
 
@@ -346,32 +335,24 @@ export class NotificationsService {
 
   /**
    * POST /notifications/announce — ADMIN/MANAGER tạo thông báo hàng loạt.
-   * Target: ALL / MEMBERS / TRAINERS / ADMIN / SPECIFIC_BRANCH.
+   * Target: ALL / MEMBERS / TRAINERS / ADMIN.
    */
   async announce(dto: {
     title: string;
     message: string;
-    target: 'ALL' | 'MEMBERS' | 'TRAINERS' | 'ADMIN' | 'SPECIFIC_BRANCH';
-    branchId?: string;
+    target: 'ALL' | 'MEMBERS' | 'TRAINERS' | 'STAFF' | 'MANAGERS' | 'ADMIN';
     startAt?: string;
     endAt?: string;
   }) {
     if (!dto.title?.trim() || !dto.message?.trim()) {
       throw new BadRequestException('Tiêu đề và nội dung không được bỏ trống');
     }
-    if (dto.target === 'SPECIFIC_BRANCH' && !dto.branchId) {
-      throw new BadRequestException('Vui lòng chọn chi nhánh cho thông báo theo chi nhánh');
-    }
 
     const refType = 'ANNOUNCEMENT';
     const refId = `ann-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 
-    const target: NotificationTarget =
-      dto.target === 'SPECIFIC_BRANCH' ? { branchId: dto.branchId! } : dto.target;
-
     const data: Prisma.InputJsonValue = {
       target: dto.target,
-      branchId: dto.branchId ?? null,
       startAt: dto.startAt ?? null,
       endAt: dto.endAt ?? null,
       isAnnouncement: true,
@@ -387,7 +368,7 @@ export class NotificationsService {
         referenceId: refId,
         data,
       },
-      target,
+      dto.target,
     );
 
     return { message: 'Đã gửi thông báo', ...result };

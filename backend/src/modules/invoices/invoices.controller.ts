@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+﻿import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { InvoicesService } from './invoices.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -16,29 +16,29 @@ export class InvoicesController {
   constructor(private readonly invoicesService: InvoicesService) {}
 
   @Get()
-  @Roles(Role.ADMIN)
-  @ApiOperation({ summary: 'Danh sách hóa đơn (admin) — filter, search, phân trang' })
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @ApiOperation({ summary: 'Danh sÃ¡ch hÃ³a Ä‘Æ¡n (admin) â€” filter, search, phÃ¢n trang' })
   findAll(@Query() query: InvoiceListQueryDto) {
     return this.invoicesService.findAll(query);
   }
 
   @Get('me')
   @Roles(Role.MEMBER)
-  @ApiOperation({ summary: 'Lịch sử hóa đơn của hội viên đang đăng nhập' })
+  @ApiOperation({ summary: 'Lá»‹ch sá»­ hÃ³a Ä‘Æ¡n cá»§a há»™i viÃªn Ä‘ang Ä‘Äƒng nháº­p' })
   getMyInvoices(@CurrentUser('id') userId: string, @Query() query: InvoiceListQueryDto) {
     return this.invoicesService.getMemberInvoices(userId, query);
   }
 
   @Get('me/:id')
   @Roles(Role.MEMBER)
-  @ApiOperation({ summary: 'Chi tiết hóa đơn của hội viên (chỉ xem được của chính mình)' })
+  @ApiOperation({ summary: 'Chi tiáº¿t hÃ³a Ä‘Æ¡n cá»§a há»™i viÃªn (chá»‰ xem Ä‘Æ°á»£c cá»§a chÃ­nh mÃ¬nh)' })
   getMyInvoice(@CurrentUser('id') userId: string, @Param('id') id: string) {
     return this.invoicesService.getMemberInvoice(userId, id);
   }
 
   @Get(':id')
-  @Roles(Role.ADMIN)
-  @ApiOperation({ summary: 'Chi tiết một hóa đơn (admin)' })
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @ApiOperation({ summary: 'Chi tiáº¿t má»™t hÃ³a Ä‘Æ¡n (admin)' })
   findOne(@Param('id') id: string) {
     return this.invoicesService.findOne(id);
   }

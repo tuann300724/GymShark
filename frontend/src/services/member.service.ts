@@ -15,7 +15,6 @@ export const memberApi = {
       code: string;
       fullName: string;
       status: string;
-      branch: { id: string; name: string; code: string };
     };
   }> => {
     const res = await apiClient.get('/member/qr');

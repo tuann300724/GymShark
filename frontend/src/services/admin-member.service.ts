@@ -10,7 +10,6 @@ export interface CreateMemberPayload {
   gender?: 'MALE' | 'FEMALE' | 'OTHER';
   dateOfBirth?: string;
   address?: string;
-  branchId?: string;
   emergencyContact?: string;
 }
 

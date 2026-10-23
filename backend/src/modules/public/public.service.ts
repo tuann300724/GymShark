@@ -54,14 +54,6 @@ export class PublicService {
     });
   }
 
-  /** Danh sách chi nhánh hoạt động (trang liên hệ) */
-  async getBranches() {
-    return this.prisma.branch.findMany({
-      where: { status: 'ACTIVE' },
-      orderBy: { createdAt: 'asc' },
-    });
-  }
-
   /** Mã khuyến mãi đang hiệu lực cho trang gói tập công khai (STEP 8) */
   async getPromotions() {
     const now = new Date();
@@ -89,11 +81,10 @@ export class PublicService {
 
   /** Thống kê nhanh cho hero / giới thiệu */
   async getHomeStats() {
-    const [memberCount, trainerCount, branchCount] = await Promise.all([
+    const [memberCount, trainerCount] = await Promise.all([
       this.prisma.member.count(),
       this.prisma.trainer.count({ where: { status: 'ACTIVE' } }),
-      this.prisma.branch.count({ where: { status: 'ACTIVE' } }),
     ]);
-    return { totalMembers: memberCount, totalTrainers: trainerCount, totalBranches: branchCount };
+    return { totalMembers: memberCount, totalTrainers: trainerCount };
   }
 }

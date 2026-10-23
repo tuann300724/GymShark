@@ -343,7 +343,7 @@ export default function MembershipPackagesPage() {
               label="Mô tả ngắn"
               className="sm:col-span-2"
               value={form.description}
-              placeholder="Tập luyện không giới hạn tại 1 chi nhánh"
+              placeholder="Tập luyện không giới hạn"
               onChange={(e) => setForm({ ...form, description: e.target.value })}
             />
           </div>

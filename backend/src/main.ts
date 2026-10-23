@@ -71,7 +71,7 @@ async function bootstrap() {
     .addTag('Users', 'Quản lý tài khoản người dùng và vai trò')
     .addTag('Members', 'Quản lý hồ sơ và thẻ hội viên phòng gym')
     .addTag('Trainers', 'Quản lý huấn luyện viên cá nhân (PT)')
-    .addTag('Branches', 'Quản lý các chi nhánh phòng tập')
+    .addTag('Rooms', 'Quản lý phòng tập')
     .addTag('Membership Packages', 'Quản lý các gói tập gym')
     .addTag('Memberships', 'Quản lý các hợp đồng thẻ hội viên')
     .addTag('Check-ins', 'Quản lý lượt ra vào & quét thẻ check-in')

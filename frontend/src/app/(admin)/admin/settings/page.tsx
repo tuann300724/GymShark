@@ -57,12 +57,6 @@ export default function SettingsPage() {
                   {profile?.role || 'Chưa xác định'}
                 </Badge>
               </div>
-              <div className="flex justify-between items-center py-1 border-b border-line gap-3">
-                <span className="text-muted">Chi nhánh trực thuộc:</span>
-                <span className="font-semibold text-chalk text-right">
-                  {profile?.branch?.name || 'Tất cả chi nhánh'}
-                </span>
-              </div>
               <div className="flex justify-between items-center py-1 gap-3">
                 <span className="text-muted">Trạng thái tài khoản:</span>
                 <Badge variant="success">{profile?.status || 'ACTIVE'}</Badge>

@@ -23,13 +23,6 @@ export class CheckInDto {
   @IsOptional()
   @IsEnum(CheckInMethod)
   method?: CheckInMethod;
-
-  @ApiPropertyOptional({
-    description: 'Chi nhánh check-in (mặc định chi nhánh của hội viên; gói giới hạn branch sẽ được kiểm tra)',
-  })
-  @IsOptional()
-  @IsString()
-  branchId?: string;
 }
 
 export class StaffCheckInDto {
@@ -52,13 +45,6 @@ export class StaffCheckInDto {
   @IsString()
   @MaxLength(255)
   note?: string;
-
-  @ApiPropertyOptional({
-    description: 'Chi nhánh check-in (mặc định chi nhánh của hội viên; STAFF buộc phải ở chi nhánh mình)',
-  })
-  @IsOptional()
-  @IsString()
-  branchId?: string;
 }
 
 export class GetCheckinsQueryDto {
@@ -84,11 +70,6 @@ export class GetCheckinsQueryDto {
   @IsOptional()
   @IsEnum(CheckInStatus)
   status?: CheckInStatus;
-
-  @ApiPropertyOptional({ description: 'Lọc theo chi nhánh (branchId)' })
-  @IsOptional()
-  @IsString()
-  branchId?: string;
 
   @ApiPropertyOptional({ description: 'Từ ngày (YYYY-MM-DD)' })
   @IsOptional()
@@ -186,13 +167,6 @@ export class FaceCheckInDto {
   })
   @IsArray()
   embedding: number[];
-
-  @ApiPropertyOptional({
-    description: 'Chi nhánh check-in (mặc định chi nhánh của hội viên; gói giới hạn branch sẽ được kiểm tra)',
-  })
-  @IsOptional()
-  @IsString()
-  branchId?: string;
 }
 
 export class FaceScanDto {
@@ -211,13 +185,6 @@ export class QrCheckInDto {
   @IsString()
   @IsNotEmpty()
   token: string;
-
-  @ApiPropertyOptional({
-    description: 'Chi nhánh check-in (mặc định chi nhánh của hội viên; STAFF buộc phải ở chi nhánh mình)',
-  })
-  @IsOptional()
-  @IsString()
-  branchId?: string;
 
   @ApiPropertyOptional({ description: 'Ghi chú ngắn (ví dụ: quét thẻ tại quầy)' })
   @IsOptional()

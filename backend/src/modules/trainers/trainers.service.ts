@@ -48,7 +48,7 @@ export class TrainersService {
   // ---------------------------------------------------------------------------
 
   async findAll(query: TrainerQueryDto = {}) {
-    const { page = 1, limit = 20, search, status, specialization, branchId } = query;
+    const { page = 1, limit = 20, search, status, specialization } = query;
     const skip = (page - 1) * limit;
 
     const where: any = {};
@@ -61,7 +61,6 @@ export class TrainersService {
     }
     if (status) where.status = status;
     if (specialization) where.specialization = { contains: specialization, mode: 'insensitive' };
-    if (branchId) where.user = { is: { branchId } };
 
     const [data, total] = await Promise.all([
       this.prisma.trainer.findMany({
@@ -135,7 +134,6 @@ export class TrainersService {
           include: {
             member: { select: { id: true, code: true, fullName: true, phone: true } },
             room: { select: { id: true, name: true } },
-            branch: { select: { id: true, name: true } },
           },
           orderBy: { startTime: 'desc' },
           take: 50,
@@ -190,7 +188,6 @@ export class TrainersService {
           role: UserRole.TRAINER,
           status: dto.status === TrainerStatus.INACTIVE ? UserStatus.INACTIVE : UserStatus.ACTIVE,
           avatarUrl: dto.avatarUrl ?? null,
-          branchId: dto.branchId ?? null,
         },
       });
 
@@ -250,7 +247,6 @@ export class TrainersService {
     if (dto.fullName !== undefined) userData.fullName = dto.fullName;
     if (dto.phone !== undefined) userData.phone = dto.phone;
     if (dto.avatarUrl !== undefined) userData.avatarUrl = dto.avatarUrl;
-    if (dto.branchId !== undefined) userData.branchId = dto.branchId;
     // Đồng bộ trạng thái khóa tài khoản theo trạng thái HLV
     if (dto.status !== undefined) {
       userData.status =

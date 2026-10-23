@@ -35,7 +35,6 @@ import {
   ArrowRight,
   Phone,
   Mail,
-  MapPin,
   CreditCard,
   QrCode,
   Receipt,
@@ -332,9 +331,6 @@ export default function MemberDetailPage() {
                   </span>
                   <span className="flex items-center gap-1">
                     <Mail className="size-3.5 text-muted" /> {member.email || 'Chưa cung cấp email'}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <MapPin className="size-3.5 text-muted" /> {member.branch?.name}
                   </span>
                 </div>
               </div>

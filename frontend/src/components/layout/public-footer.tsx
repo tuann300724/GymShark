@@ -2,8 +2,6 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
-import { publicApi } from '@/services/package.service';
 import { Dumbbell, MapPin, Phone, Mail, Facebook, Instagram, Youtube } from 'lucide-react';
 
 const QUICK_LINKS = [
@@ -22,17 +20,9 @@ const SERVICE_LINKS = [
 ];
 
 export function PublicFooter() {
-  const { data: branches } = useQuery({
-    queryKey: ['public-branches'],
-    queryFn: publicApi.getBranches,
-    staleTime: 10 * 60 * 1000,
-    retry: 1,
-  });
-
-  const branch = branches?.[0];
-  const address = branch?.address || 'Khu Công nghệ Phần mềm, Đồng Nai';
-  const phone = branch?.phone || '1900 1009';
-  const email = branch?.email || 'lienhe@gymmaster.vn';
+  const address = 'Khu Công nghệ Phần mềm, Đồng Nai';
+  const phone = '1900 1009';
+  const email = 'lienhe@gymmaster.vn';
 
   return (
     <footer className="border-t border-line bg-ink">
@@ -128,10 +118,7 @@ export function PublicFooter() {
             <ul className="space-y-3.5 text-sm">
               <li className="flex items-start gap-3">
                 <MapPin className="mt-0.5 size-4 shrink-0 text-neon" />
-                <span className="text-muted">
-                  {address}
-                  {branch?.name ? ` (${branch.name})` : ''}
-                </span>
+                <span className="text-muted">{address}</span>
               </li>
               <li className="flex items-center gap-3">
                 <Phone className="size-4 shrink-0 text-neon" />

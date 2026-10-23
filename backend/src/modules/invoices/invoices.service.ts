@@ -57,7 +57,7 @@ export class InvoicesService {
     const invoice = await this.prisma.invoice.findUnique({
       where: { id },
       include: {
-        member: { include: { branch: { select: { id: true, name: true, code: true } } } },
+        member: true,
         membership: { include: { package: true } },
         payment: { include: { confirmedBy: { select: { id: true, fullName: true, role: true } } } },
       },

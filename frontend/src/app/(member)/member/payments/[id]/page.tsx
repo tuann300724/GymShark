@@ -230,35 +230,37 @@ export default function MemberPaymentDetailPage() {
               />
             </div>
           )}
-                </p>
-                <p className="mt-2 text-muted">
-                  Ngân hàng: <b className="text-chalk">{payment.bankInfo.bankName}</b>
-                </p>
-                <p className="mt-1 text-muted">
-                  Số tài khoản:{' '}
-                  <button
-                    onClick={() => copy(payment.bankInfo!.accountNumber)}
-                    className="font-mono font-bold text-neon hover:underline"
-                  >
-                    {payment.bankInfo.accountNumber} <Copy className="inline size-3" />
-                  </button>
-                  <span className="ml-1 text-chalk">· {payment.bankInfo.accountName}</span>
-                </p>
-                <div className="mt-2 rounded-lg bg-ink border border-line px-3 py-2">
-                  <p className="text-muted mb-1">Nội dung chuyển khoản:</p>
-                  <button
-                    onClick={() => copy(payment.bankInfo!.transferContent)}
-                    className="font-mono font-extrabold text-neon hover:underline"
-                  >
-                    {payment.bankInfo.transferContent} <Copy className="inline size-3" />
-                  </button>
-                </div>
-                <p className="mt-2 text-[11px] text-muted">
-                  Sau khi chuyển, mang sao kê lên quầy hoặc chờ lễ tân đối soát rồi xác nhận. Ghi
-                  đúng nội dung để xác nhận nhanh nhất.
-                </p>
+          {payment.bankInfo && (
+            <div className="mt-4 rounded-xl border border-line bg-ink/50 p-4">
+              <p className="text-sm font-semibold text-chalk">Thông tin tài khoản nhận tiền</p>
+              <p className="mt-2 text-muted">
+                Ngân hàng: <b className="text-chalk">{payment.bankInfo.bankName}</b>
+              </p>
+              <p className="mt-1 text-muted">
+                Số tài khoản:{' '}
+                <button
+                  onClick={() => copy(payment.bankInfo!.accountNumber)}
+                  className="font-mono font-bold text-neon hover:underline"
+                >
+                  {payment.bankInfo.accountNumber} <Copy className="inline size-3" />
+                </button>
+                <span className="ml-1 text-chalk">· {payment.bankInfo.accountName}</span>
+              </p>
+              <div className="mt-2 rounded-lg bg-ink border border-line px-3 py-2">
+                <p className="text-muted mb-1">Nội dung chuyển khoản:</p>
+                <button
+                  onClick={() => copy(payment.bankInfo!.transferContent)}
+                  className="font-mono font-extrabold text-neon hover:underline"
+                >
+                  {payment.bankInfo.transferContent} <Copy className="inline size-3" />
+                </button>
               </div>
-            )}
+              <p className="mt-2 text-[11px] text-muted">
+                Sau khi chuyển, mang sao kê lên quầy hoặc chờ lễ tân đối soát rồi xác nhận. Ghi đúng
+                nội dung để xác nhận nhanh nhất.
+              </p>
+            </div>
+          )}
 
           {payment.notes && (
             <p className="mt-4 rounded-lg bg-ink border border-line px-3 py-2 text-[11px] text-muted">

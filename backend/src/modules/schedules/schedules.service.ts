@@ -18,9 +18,9 @@ import {
 } from './dto/session.dto';
 
 /** Các vai trò được quản lý lịch (create/edit/cancel/complete) */
-const MANAGE_ROLES = ['ADMIN', 'TRAINER'];
+const MANAGE_ROLES = ['ADMIN', 'MANAGER', 'STAFF'];
 /** Chỉ ADMIN/MANAGER mới được tạo lịch trong quá khứ */
-const PAST_ALLOWED_ROLES = ['ADMIN', 'TRAINER'];
+const PAST_ALLOWED_ROLES = ['ADMIN', 'MANAGER'];
 
 @Injectable()
 export class SchedulesService {
@@ -109,38 +109,16 @@ export class SchedulesService {
     }
   }
 
-  /** STEP 7 — chi nhánh phải tồn tại + ACTIVE thì mới tạo buổi tập mới */
-  private async validateBranchActive(branchId: string) {
-    const branch = await this.prisma.branch.findUnique({ where: { id: branchId } });
-    if (!branch) throw new NotFoundException('Không tìm thấy chi nhánh.');
-    if (branch.status !== 'ACTIVE') {
-      throw new BadRequestException('Chi nhánh đang ngừng hoạt động, không thể tạo buổi tập mới.');
-    }
-    return branch;
-  }
-
-  /** STEP 7 — phòng phải tồn tại, thuộc chi nhánh và ở trạng thái AVAILABLE */
-  private async validateRoomAvailable(roomId: string, branchId?: string | null) {
+  /** Phòng phải tồn tại và ở trạng thái AVAILABLE */
+  private async validateRoomAvailable(roomId: string) {
     const room = await this.prisma.room.findUnique({ where: { id: roomId } });
     if (!room) throw new NotFoundException('Không tìm thấy phòng tập.');
-    if (branchId && room.branchId !== branchId) {
-      throw new BadRequestException('Phòng được chọn không thuộc chi nhánh của buổi tập.');
-    }
     if (room.status !== 'AVAILABLE') {
       throw new BadRequestException(
         'Phòng tập đang không ở trạng thái sẵn sàng (AVAILABLE), không thể đặt lịch.',
       );
     }
     return room;
-  }
-
-  /** STEP 7 — HLV thuộc chi nhánh khác thì không được lên lịch ở chi nhánh này */
-  private assertTrainerBranch(trainerBranchId: string | null | undefined, branchId: string | null) {
-    if (trainerBranchId && branchId && trainerBranchId !== branchId) {
-      throw new BadRequestException(
-        'Huấn luyện viên thuộc chi nhánh khác, không thể đặt lịch tại chi nhánh này.',
-      );
-    }
   }
 
   private validateStatusTransition(current: string, target: 'cancel' | 'complete') {
@@ -160,7 +138,7 @@ export class SchedulesService {
   private async getEligibleTrainer(trainerId: string) {
     const trainer = await this.prisma.trainer.findUnique({
       where: { id: trainerId },
-      include: { user: { select: { branchId: true, branch: { select: { id: true, name: true } } } } },
+      include: { user: { select: { fullName: true } } },
     });
     if (!trainer) throw new NotFoundException('Không tìm thấy huấn luyện viên.');
     if (trainer.status !== TrainerStatus.ACTIVE) {
@@ -200,7 +178,6 @@ export class SchedulesService {
         trainer: { include: { user: { select: { fullName: true, phone: true, avatarUrl: true } } } },
         member: { select: { id: true, code: true, fullName: true, phone: true } },
         room: { select: { id: true, name: true } },
-        branch: { select: { id: true, name: true } },
       },
       orderBy: { startTime: 'asc' },
     });
@@ -213,7 +190,6 @@ export class SchedulesService {
         trainer: { include: { user: true } },
         member: true,
         room: true,
-        branch: true,
       },
     });
     if (!session) throw new NotFoundException('Không tìm thấy buổi tập.');
@@ -225,8 +201,7 @@ export class SchedulesService {
   // ---------------------------------------------------------------------------
 
   async findAllSessions(query: SessionQueryDto = {}, role?: string, userId?: string) {
-    const { page = 1, limit = 100, search, from, to, trainerId, memberId, branchId, status, type } =
-      query;
+    const { page = 1, limit = 100, search, from, to, trainerId, memberId, status, type } = query;
     const skip = (page - 1) * limit;
 
     const where: Prisma.TrainingScheduleWhereInput = {};
@@ -240,7 +215,6 @@ export class SchedulesService {
     }
 
     if (memberId) where.memberId = memberId;
-    if (branchId) where.branchId = branchId;
     if (status) where.status = status;
     if (type) where.type = type;
 
@@ -291,7 +265,6 @@ export class SchedulesService {
       member: {
         select: { id: true, code: true, fullName: true, phone: true, avatarUrl: true },
       },
-      branch: { select: { id: true, name: true } },
       room: { select: { id: true, name: true, capacity: true } },
     } satisfies Prisma.TrainingScheduleInclude;
   }
@@ -356,23 +329,10 @@ export class SchedulesService {
     if (member) await this.checkMemberConflict(member.id, start, end);
     await this.checkTrainerConflict(dto.trainerId, start, end);
 
-    // STEP 7 — xác định chi nhánh: ưu tiên DTO → HLV → hội viên
-    let branchId = dto.branchId ?? trainer.user?.branchId ?? member?.branchId ?? null;
-    let roomId = dto.roomId ?? null;
-
-    if (branchId) await this.validateBranchActive(branchId);
-    this.assertTrainerBranch(trainer.user?.branchId ?? null, branchId);
+    const roomId = dto.roomId ?? null;
 
     if (roomId) {
-      if (!branchId) {
-        const roomInfo = await this.prisma.room.findUnique({
-          where: { id: roomId },
-          select: { branchId: true },
-        });
-        branchId = roomInfo?.branchId ?? null;
-        if (branchId) await this.validateBranchActive(branchId);
-      }
-      await this.validateRoomAvailable(roomId, branchId);
+      await this.validateRoomAvailable(roomId);
       await this.checkRoomConflict(roomId, start, end);
     }
 
@@ -381,7 +341,6 @@ export class SchedulesService {
         title: dto.title,
         trainerId: dto.trainerId,
         memberId: member?.id ?? null,
-        branchId,
         roomId,
         type,
         startTime: start,
@@ -399,7 +358,7 @@ export class SchedulesService {
         data: {
           memberId: member.id,
           title: 'Buổi tập mới đã được đặt 📅',
-          content: `${dto.title} cùng ${trainer.user?.branch?.name ?? ''} lúc ${start.toLocaleString('vi-VN')}.`,
+          content: `${dto.title} cùng ${trainer.user?.fullName ?? 'huấn luyện viên'} lúc ${start.toLocaleString('vi-VN')}.`,
           type: 'SCHEDULE',
           link: '/member/schedule',
         },
@@ -443,7 +402,7 @@ export class SchedulesService {
     if (trainerId !== existing.trainerId) {
       await this.getEligibleTrainer(trainerId);
     }
-    const trainer = await this.getEligibleTrainer(trainerId);
+    await this.getEligibleTrainer(trainerId);
 
     const memberId = dto.memberId !== undefined ? dto.memberId : existing.memberId;
     const member = await this.getEligibleMember(memberId ?? undefined);
@@ -459,16 +418,11 @@ export class SchedulesService {
     if (member) await this.checkMemberConflict(member.id, start, end, id);
     await this.checkTrainerConflict(trainerId, start, end, id);
 
-    // STEP 7 — validate chi nhánh / phòng / trùng phòng khi cập nhật
-    const branchId =
-      dto.branchId !== undefined ? dto.branchId : (trainer.user?.branchId ?? existing.branchId);
+    // Validate phòng / trùng phòng khi cập nhật
     const roomId = dto.roomId !== undefined ? dto.roomId : existing.roomId;
 
-    if (branchId) await this.validateBranchActive(branchId);
-    this.assertTrainerBranch(trainer.user?.branchId ?? null, branchId);
-
     if (roomId) {
-      await this.validateRoomAvailable(roomId, branchId);
+      await this.validateRoomAvailable(roomId);
       await this.checkRoomConflict(roomId, start, end, id);
     }
 
@@ -477,7 +431,6 @@ export class SchedulesService {
       data: {
         trainerId,
         memberId: member?.id ?? null,
-        branchId,
         roomId,
         type,
         title: dto.title ?? existing.title,

@@ -15,11 +15,9 @@ import {
   Receipt,
   Tag,
   Dumbbell,
-  Building2,
   BarChart3,
   Bell,
   Settings,
-  ChevronRight,
   ClipboardCheck,
   ScrollText,
   UtensilsCrossed,
@@ -52,10 +50,7 @@ export const navigationSections = [
   },
   {
     title: 'Cơ sở & Thiết bị',
-    items: [
-      { name: 'Thiết bị máy móc', href: '/admin/equipment', icon: Dumbbell },
-      { name: 'Chi nhánh phòng tập', href: '/admin/branches', icon: Building2 },
-    ],
+    items: [{ name: 'Thiết bị máy móc', href: '/admin/equipment', icon: Dumbbell }],
   },
   {
     title: 'Hệ thống',
@@ -133,18 +128,6 @@ export function AdminSidebar() {
             </div>
           </div>
         ))}
-      </div>
-
-      {/* Branch & User Footer */}
-      <div className="p-3 border-t border-line bg-ink/50">
-        <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-sm bg-ink border border-line text-xs">
-          <div className="size-2 rounded-full bg-neon shrink-0" />
-          <div className="truncate flex-1">
-            <p className="font-semibold text-chalk truncate">CN Biên Hòa - Đồng Nai</p>
-            <p className="text-[10px] text-muted">Chi nhánh hoạt động</p>
-          </div>
-          <ChevronRight className="size-3.5 text-muted" />
-        </div>
       </div>
     </aside>
   );

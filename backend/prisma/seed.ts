@@ -6,73 +6,18 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Starting database seed...');
 
-  // 1. Branch
-  const branch = await prisma.branch.upsert({
-    where: { code: 'BR-BH01' },
-    update: {},
-    create: {
-      code: 'BR-BH01',
-      name: 'LHU Fitness & Gym Center - Biên Hòa',
-      address: 'Số 10 Huỳnh Văn Nghệ, Phường Bửu Long, TP. Biên Hòa, Đồng Nai',
-      phone: '0251.3952.778',
-      email: 'contact@lhugym.vn',
-      description: 'Cơ sở chính trực thuộc Trường Đại Học Lạc Hồng - khu vực tập luyện hiện đại 3 tầng.',
-      openingTime: '05:30',
-      closingTime: '21:30',
-      openingHours: '05:30 - 21:30 (Tất cả các ngày)',
-      status: 'ACTIVE',
-    },
-  });
-  console.log('✅ Created branch:', branch.name);
-
-  // Branch phụ phục vụ demo Branch Selector / lọc đa chi nhánh
-  const branch2 = await prisma.branch.upsert({
-    where: { code: 'BR-TD01' },
-    update: {},
-    create: {
-      code: 'BR-TD01',
-      name: 'GymMaster - Thủ Đức',
-      address: '52 Võ Văn Ngân, Phường Linh Chiểu, TP. Thủ Đức, TP. Hồ Chí Minh',
-      phone: '028.3727.1886',
-      email: 'thuduc@gymmaster.vn',
-      description: 'Cơ sở phía Đông TP.HCM, nổi bật khu Group Class và phòng Yoga riêng.',
-      openingTime: '05:00',
-      closingTime: '22:00',
-      openingHours: '05:00 - 22:00 (Thứ 2 - CN)',
-      status: 'ACTIVE',
-    },
-  });
-
-  const branch3 = await prisma.branch.upsert({
-    where: { code: 'BR-Q101' },
-    update: {},
-    create: {
-      code: 'BR-Q101',
-      name: 'GymMaster - Quận 1',
-      address: '7 Nguyễn Bỉnh Khiêm, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh',
-      phone: '028.3829.2080',
-      email: 'q1@gymmaster.vn',
-      description: 'Cơ sở trung tâm thành phố - trọng tâm đào tạo cá nhân (PT Studio).',
-      openingTime: '06:00',
-      closingTime: '22:30',
-      openingHours: '06:00 - 22:30 (Tất cả các ngày)',
-      status: 'ACTIVE',
-    },
-  });
-
-  // 2. Rooms
+  // 2. Rooms — phòng tập độc lập, `code` unique toàn hệ thống
   const cardioRoom = await prisma.room.upsert({
     where: { id: 'room-cardio-01' },
     update: {},
     create: {
       id: 'room-cardio-01',
-      code: 'BR-BH01-R01',
+      code: 'R-CARDIO-01',
       name: 'Phòng Cardio & Máy Chạy',
       type: 'CARDIO',
       capacity: 30,
       floor: '1',
       description: 'Khu máy chạy bộ, xe đạp và máy tập cardio đa năng.',
-      branchId: branch.id,
       status: 'AVAILABLE',
     },
   });
@@ -82,30 +27,27 @@ async function main() {
     update: {},
     create: {
       id: 'room-weight-01',
-      code: 'BR-BH01-R02',
+      code: 'R-WEIGHT-01',
       name: 'Phòng Tạ Tự Do (Free Weight)',
       type: 'WEIGHT_AREA',
       capacity: 40,
       floor: '2',
       description: 'Khu tạ đơn, tạ đòn và khu vực bench press chuyên dụng.',
-      branchId: branch.id,
       status: 'AVAILABLE',
     },
   });
 
-  // Rooms cho branch phụ
   const tdClassRoom = await prisma.room.upsert({
     where: { id: 'room-td-class-01' },
     update: {},
     create: {
       id: 'room-td-class-01',
-      code: 'BR-TD01-R01',
+      code: 'R-TD-CLASS-01',
       name: 'Studio Group Class',
       type: 'GROUP_CLASS',
       capacity: 25,
       floor: '1',
       description: 'Phòng tập lớp nhóm: HIIT, Zumba, Body Combat.',
-      branchId: branch2.id,
       status: 'AVAILABLE',
     },
   });
@@ -115,13 +57,12 @@ async function main() {
     update: {},
     create: {
       id: 'room-td-yoga-01',
-      code: 'BR-TD01-R02',
+      code: 'R-TD-YOGA-01',
       name: 'Phòng Yoga & Pilates',
       type: 'YOGA',
       capacity: 18,
       floor: '2',
       description: 'Không gian yên tĩnh, thảm tập và dụng cụ hỗ trợ yoga.',
-      branchId: branch2.id,
       status: 'AVAILABLE',
     },
   });
@@ -131,13 +72,12 @@ async function main() {
     update: {},
     create: {
       id: 'room-q1-pt-01',
-      code: 'BR-Q101-R01',
+      code: 'R-Q1-PT-01',
       name: 'PT Studio',
       type: 'PERSONAL_TRAINING',
       capacity: 6,
       floor: '1',
       description: 'Studio huấn luyện cá nhân 1-1 với HLV.',
-      branchId: branch3.id,
       status: 'AVAILABLE',
     },
   });
@@ -158,33 +98,30 @@ async function main() {
       fullName: 'Tổng Quản Trị Hệ Thống',
       phone: '0901234567',
       role: UserRole.ADMIN,
-      branchId: branch.id,
     },
   });
 
   const managerUser = await prisma.user.upsert({
     where: { email: 'manager@gym.com' },
-    update: {},
+    update: { role: UserRole.MANAGER, fullName: 'Quản Lý Vận Hành' },
     create: {
       email: 'manager@gym.com',
       passwordHash: managerPassword,
-      fullName: 'Quản Lý Chi Nhánh',
+      fullName: 'Quản Lý Vận Hành',
       phone: '0902345678',
-      role: UserRole.ADMIN,
-      branchId: branch.id,
+      role: UserRole.MANAGER,
     },
   });
 
   const staffUser = await prisma.user.upsert({
     where: { email: 'staff@gym.com' },
-    update: {},
+    update: { role: UserRole.STAFF, fullName: 'Nhân Viên Lễ Tân' },
     create: {
       email: 'staff@gym.com',
       passwordHash: staffPassword,
       fullName: 'Nhân Viên Lễ Tân',
       phone: '0903456789',
-      role: UserRole.ADMIN,
-      branchId: branch.id,
+      role: UserRole.STAFF,
     },
   });
 
@@ -197,7 +134,6 @@ async function main() {
       fullName: 'HLV Nguyễn Văn Thể',
       phone: '0904567890',
       role: UserRole.TRAINER,
-      branchId: branch.id,
     },
   });
 
@@ -211,7 +147,6 @@ async function main() {
       fullName: 'HLV Trần Thị Mai',
       phone: '0905567890',
       role: UserRole.TRAINER,
-      branchId: branch.id,
     },
   });
 
@@ -224,7 +159,6 @@ async function main() {
       fullName: 'HLV Lê Minh Hoàng',
       phone: '0906567890',
       role: UserRole.TRAINER,
-      branchId: branch.id,
     },
   });
 
@@ -351,7 +285,6 @@ async function main() {
       fullName: 'Trần Minh Quân',
       phone: '0987654321',
       role: UserRole.MEMBER,
-      branchId: branch.id,
     },
   });
 
@@ -369,7 +302,6 @@ async function main() {
       address: 'Phường Tân Tiến, TP. Biên Hòa, Đồng Nai',
       emergencyContact: 'Nguyễn Văn Ba - 0911222333',
       status: MemberStatus.ACTIVE,
-      branchId: branch.id,
     },
   });
 
@@ -452,7 +384,6 @@ async function main() {
       code: 'EQ-RUN-01',
       name: 'Máy Chạy Bộ Điện Cao Cấp Matrix T70',
       category: 'CARDIO',
-      branchId: branch.id,
       roomId: cardioRoom.id,
       brand: 'Matrix',
       model: 'T70-XR',
@@ -474,7 +405,6 @@ async function main() {
       code: 'EQ-BENCH-01',
       name: 'Ghế Đẩy Tạ Đa Năng Olympic Bench Press',
       category: 'FREE_WEIGHT',
-      branchId: branch.id,
       roomId: weightRoom.id,
       brand: 'Inspire',
       model: 'BENCH-PRO',
@@ -496,7 +426,6 @@ async function main() {
       code: 'EQ-SQUAT-01',
       name: 'Khung Squat Rack An Toàn',
       category: 'FREE_WEIGHT',
-      branchId: branch.id,
       roomId: weightRoom.id,
       brand: 'Rogue',
       model: 'RM-6',
@@ -511,7 +440,7 @@ async function main() {
     },
   });
 
-  // Equipment cho branch phụ (Thủ Đức)
+  // Equipment khu Group Class / Yoga
   await prisma.equipment.upsert({
     where: { code: 'EQ-TD-CYCLE-01' },
     update: {},
@@ -519,7 +448,6 @@ async function main() {
       code: 'EQ-TD-CYCLE-01',
       name: 'Xe Đạp Trong Nhà Keiser M3i',
       category: 'CARDIO',
-      branchId: branch2.id,
       roomId: tdClassRoom.id,
       brand: 'Keiser',
       model: 'M3i',
@@ -541,7 +469,6 @@ async function main() {
       code: 'EQ-TD-MAT-01',
       name: 'Bộ Thảm Tập Yoga Cao Su TPE',
       category: 'ACCESSORY',
-      branchId: branch2.id,
       roomId: tdYogaRoom.id,
       brand: 'Manduka',
       model: 'PRO 6mm',
@@ -734,7 +661,6 @@ async function main() {
       data: [
         {
           memberId: member.id,
-          branchId: branch.id,
           checkInTime: atTime(today, 8, 15),
           checkOutTime: atTime(today, 9, 55),
           status: 'CHECKED_OUT',
@@ -743,7 +669,6 @@ async function main() {
         },
         {
           memberId: member.id,
-          branchId: branch.id,
           checkInTime: daysAgo(1),
           checkOutTime: new Date(daysAgo(1).getTime() + 90 * 60 * 1000),
           status: 'CHECKED_OUT',
@@ -752,7 +677,6 @@ async function main() {
         },
         {
           memberId: member.id,
-          branchId: branch.id,
           checkInTime: daysAgo(3),
           checkOutTime: new Date(daysAgo(3).getTime() + 75 * 60 * 1000),
           status: 'CHECKED_OUT',
@@ -761,7 +685,6 @@ async function main() {
         },
         {
           memberId: member.id,
-          branchId: branch.id,
           checkInTime: daysAgo(5),
           checkOutTime: new Date(daysAgo(5).getTime() + 120 * 60 * 1000),
           status: 'CHECKED_OUT',
@@ -829,14 +752,14 @@ async function main() {
     console.log('✅ Created trainer-member assignment');
   }
 
-  // Cập nhật loại buổi tập + chi nhánh cho lịch mẫu (không xóa dữ liệu)
+  // Cập nhật loại buổi tập cho lịch mẫu (không xóa dữ liệu)
   await prisma.trainingSchedule.updateMany({
     where: { memberId: { not: null } },
-    data: { type: SessionType.PERSONAL_TRAINING, branchId: branch.id },
+    data: { type: SessionType.PERSONAL_TRAINING },
   });
   await prisma.trainingSchedule.updateMany({
     where: { memberId: null },
-    data: { type: SessionType.GROUP_CLASS, branchId: branch.id },
+    data: { type: SessionType.GROUP_CLASS },
   });
 
   // Lịch sử buổi tập đã hoàn thành + ghi chú tiến trình (chỉ tạo lần đầu)
@@ -857,7 +780,6 @@ async function main() {
         title: 'PT - Kỹ thuật Squat & Deadlift',
         trainerId: trainer1.id,
         memberId: member.id,
-        branchId: branch.id,
         roomId: weightRoom.id,
         type: SessionType.PERSONAL_TRAINING,
         startTime: atTime(daysAgo(4), 17),
@@ -873,7 +795,6 @@ async function main() {
         title: 'PT - Cardio cường độ trung bình',
         trainerId: trainer1.id,
         memberId: member.id,
-        branchId: branch.id,
         roomId: cardioRoom.id,
         type: SessionType.PERSONAL_TRAINING,
         startTime: atTime(daysAgo(7), 18),
@@ -900,20 +821,22 @@ async function main() {
   }
 
   // 15. Backfill STEP 7 (idempotent, KHÔNG xóa dữ liệu cũ)
-  // - Gán code cho phòng chưa có code (VD: BR-BH01-R01) — unique trong branch
-  const allBranches = await prisma.branch.findMany({ include: { rooms: true } });
-  for (const b of allBranches) {
-    let idx = 1;
-    for (const r of b.rooms) {
-      if (!r.code || r.code.trim() === '') {
-        const newCode = `${b.code}-R${String(idx).padStart(2, '0')}`;
-        await prisma.room.update({
-          where: { id: r.id },
-          data: { code: newCode },
-        });
-      }
-      idx += 1;
+  // - Gán code cho phòng chưa có code — unique toàn hệ thống
+  const roomsWithoutCode = await prisma.room.findMany({
+    where: { OR: [{ code: null }, { code: '' }] },
+    orderBy: { createdAt: 'asc' },
+  });
+  let roomCodeIdx = 1;
+  for (const r of roomsWithoutCode) {
+    const newCode = `R-${String(roomCodeIdx).padStart(3, '0')}`;
+    const exists = await prisma.room.findUnique({ where: { code: newCode } });
+    if (!exists) {
+      await prisma.room.update({
+        where: { id: r.id },
+        data: { code: newCode },
+      });
     }
+    roomCodeIdx += 1;
   }
   // - Đổi status equipment legacy sang chuẩn STEP 7 (giữ nguyên bản ghi)
   await prisma.equipment.updateMany({
@@ -1005,16 +928,16 @@ async function main() {
 
   // 16.1 Hội viên demo
   const demoMembers = [
-    { code: 'MEM-0002', name: 'Lê Hoàng Anh', branchRef: branch, email: 'member2@gym.com', phone: '0912000002', gender: Gender.MALE, dob: '1996-03-12' },
-    { code: 'MEM-0003', name: 'Phạm Thị Ngọc', branchRef: branch, email: 'member3@gym.com', phone: '0912000003', gender: Gender.FEMALE, dob: '1999-07-25' },
-    { code: 'MEM-0004', name: 'Võ Đức Thịnh', branchRef: branch, email: 'member4@gym.com', phone: '0912000004', gender: Gender.MALE, dob: '1994-11-02' },
-    { code: 'MEM-0005', name: 'Đặng Quốc Huy', branchRef: branch, email: 'member5@gym.com', phone: '0912000005', gender: Gender.MALE, dob: '1997-01-19' },
-    { code: 'MEM-0006', name: 'Bùi Thanh Tâm', branchRef: branch, email: 'member6@gym.com', phone: '0912000006', gender: Gender.FEMALE, dob: '2000-09-08' },
-    { code: 'MEM-0007', name: 'Hoàng Văn Dũng', branchRef: branch, email: 'member7@gym.com', phone: '0912000007', gender: Gender.MALE, dob: '1992-05-30' },
-    { code: 'MEM-0008', name: 'Trương Thị Hồng', branchRef: branch, email: 'member8@gym.com', phone: '0912000008', gender: Gender.FEMALE, dob: '1998-12-14' },
-    { code: 'MEM-0009', name: 'Nguyễn Phương Linh', branchRef: branch, email: 'member9@gym.com', phone: '0912000009', gender: Gender.FEMALE, dob: '2001-02-23' },
-    { code: 'MEM-0010', name: 'Đỗ Minh Khôi', branchRef: branch2, email: 'member10@gym.com', phone: '0912000010', gender: Gender.MALE, dob: '1995-08-17' },
-    { code: 'MEM-0011', name: 'Hà Thị Bích', branchRef: branch3, email: 'member11@gym.com', phone: '0912000011', gender: Gender.FEMALE, dob: '1993-04-05' },
+    { code: 'MEM-0002', name: 'Lê Hoàng Anh', email: 'member2@gym.com', phone: '0912000002', gender: Gender.MALE, dob: '1996-03-12' },
+    { code: 'MEM-0003', name: 'Phạm Thị Ngọc', email: 'member3@gym.com', phone: '0912000003', gender: Gender.FEMALE, dob: '1999-07-25' },
+    { code: 'MEM-0004', name: 'Võ Đức Thịnh', email: 'member4@gym.com', phone: '0912000004', gender: Gender.MALE, dob: '1994-11-02' },
+    { code: 'MEM-0005', name: 'Đặng Quốc Huy', email: 'member5@gym.com', phone: '0912000005', gender: Gender.MALE, dob: '1997-01-19' },
+    { code: 'MEM-0006', name: 'Bùi Thanh Tâm', email: 'member6@gym.com', phone: '0912000006', gender: Gender.FEMALE, dob: '2000-09-08' },
+    { code: 'MEM-0007', name: 'Hoàng Văn Dũng', email: 'member7@gym.com', phone: '0912000007', gender: Gender.MALE, dob: '1992-05-30' },
+    { code: 'MEM-0008', name: 'Trương Thị Hồng', email: 'member8@gym.com', phone: '0912000008', gender: Gender.FEMALE, dob: '1998-12-14' },
+    { code: 'MEM-0009', name: 'Nguyễn Phương Linh', email: 'member9@gym.com', phone: '0912000009', gender: Gender.FEMALE, dob: '2001-02-23' },
+    { code: 'MEM-0010', name: 'Đỗ Minh Khôi', email: 'member10@gym.com', phone: '0912000010', gender: Gender.MALE, dob: '1995-08-17' },
+    { code: 'MEM-0011', name: 'Hà Thị Bích', email: 'member11@gym.com', phone: '0912000011', gender: Gender.FEMALE, dob: '1993-04-05' },
   ];
 
   const memberRecords9: Record<string, any> = {};
@@ -1028,12 +951,11 @@ async function main() {
         fullName: dm.name,
         phone: dm.phone,
         role: UserRole.MEMBER,
-        branchId: dm.branchRef.id,
       },
     });
     const mRec = await prisma.member.upsert({
       where: { code: dm.code },
-      update: { userId: u.id },
+      update: {},
       create: {
         code: dm.code,
         userId: u.id,
@@ -1043,7 +965,6 @@ async function main() {
         gender: dm.gender,
         dateOfBirth: new Date(dm.dob),
         status: MemberStatus.ACTIVE,
-        branchId: dm.branchRef.id,
       },
     });
     memberRecords9[dm.code] = mRec;
@@ -1189,7 +1110,6 @@ async function main() {
       const hour = hourPattern[i % hourPattern.length];
       rows.push({
         memberId: memberRec.id,
-        branchId: memberRec.branchId,
         checkInTime: atHour9(daysAgo9(day), hour, 10),
         checkOutTime: atHour9(daysAgo9(day), hour + 1 + (i % 2), 25),
         status: 'CHECKED_OUT',
@@ -1242,7 +1162,6 @@ async function main() {
           title: 'PT - Tăng cơ toàn thân',
           trainerId: trainer1Rec.id,
           memberId: m2.id,
-          branchId: branch.id,
           roomId: weight?.id,
           type: SessionType.PERSONAL_TRAINING,
           startTime: daysFromNow9(1),
@@ -1254,7 +1173,6 @@ async function main() {
           title: 'PT - Kỹ thuật Deadlift',
           trainerId: trainer1Rec.id,
           memberId: m2.id,
-          branchId: branch.id,
           roomId: weight?.id,
           type: SessionType.PERSONAL_TRAINING,
           startTime: daysFromNow9(4),
@@ -1266,7 +1184,6 @@ async function main() {
           title: 'PT - Giảm mỡ toàn thân',
           trainerId: trainer3Rec.id,
           memberId: m3.id,
-          branchId: branch.id,
           roomId: cardio?.id,
           type: SessionType.PERSONAL_TRAINING,
           startTime: daysFromNow9(2),
@@ -1277,7 +1194,6 @@ async function main() {
         {
           title: 'Yoga Năng Lượng Buổi Sáng',
           trainerId: trainer2Rec.id,
-          branchId: branch2.id,
           roomId: tdClass?.id,
           type: SessionType.GROUP_CLASS,
           startTime: daysFromNow9(3),
@@ -1293,7 +1209,6 @@ async function main() {
         title: 'PT - Buổi đánh giá thể lực',
         trainerId: trainer1Rec.id,
         memberId: m2.id,
-        branchId: branch.id,
         roomId: weight?.id,
         type: SessionType.PERSONAL_TRAINING,
         startTime: daysAgo9(5),

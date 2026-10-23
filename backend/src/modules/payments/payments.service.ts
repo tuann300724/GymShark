@@ -138,7 +138,6 @@ export class PaymentsService {
             address: true,
             gender: true,
             joinedAt: true,
-            branch: { select: { id: true, name: true, code: true } },
           },
         },
         membership: { include: { package: true } },
@@ -174,7 +173,7 @@ export class PaymentsService {
 
     // STAFF chỉ xác nhận được phương thức xác nhận thủ công (CASH / BANK_TRANSFER)
     const gateway = this.gatewayService.getGateway(payment.method as Exclude<PaymentMethod, 'CREDIT_CARD'>);
-    if (actor.role === Role.ADMIN && !gateway.manualConfirmation) {
+    if (actor.role === Role.STAFF && !gateway.manualConfirmation) {
       throw new ForbiddenException('Nhân viên chỉ xác nhận được thanh toán Tiền mặt / Chuyển khoản');
     }
 

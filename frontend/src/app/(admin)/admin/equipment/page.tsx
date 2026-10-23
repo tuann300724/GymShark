@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { equipmentApi } from '@/services/equipment.service';
-import { branchApi } from '@/services/branch.service';
+import { roomApi } from '@/services/room.service';
 import { getStoredUser } from '@/lib/auth';
 import {
   EQUIPMENT_STATUS_META,
@@ -50,12 +50,12 @@ import type {
 
 const canManage = () => {
   const user = getStoredUser();
-  return user?.role === 'ADMIN';
+  return user?.role === 'ADMIN' || user?.role === 'MANAGER';
 };
 
 const canRequestMaintenance = () => {
   const user = getStoredUser();
-  return canManage();
+  return canManage() || user?.role === 'STAFF';
 };
 
 const CATEGORY_OPTIONS = Object.entries(EQUIPMENT_CATEGORY_META).map(([value, label]) => ({
@@ -85,7 +85,6 @@ interface EquipmentFormState {
   code: string;
   name: string;
   category: string;
-  branchId: string;
   roomId: string;
   brand: string;
   model: string;
@@ -103,7 +102,6 @@ const emptyForm: EquipmentFormState = {
   code: '',
   name: '',
   category: 'CARDIO',
-  branchId: '',
   roomId: '',
   brand: '',
   model: '',
@@ -147,7 +145,6 @@ export default function EquipmentPage() {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('ALL');
   const [status, setStatus] = useState('ALL');
-  const [branchFilter, setBranchFilter] = useState('ALL');
   const [page, setPage] = useState(1);
 
   // CRUD dialog
@@ -166,10 +163,9 @@ export default function EquipmentPage() {
     queryKey: ['equipment-alerts'],
     queryFn: equipmentApi.alerts,
   });
-  const { data: branches } = useQuery({ queryKey: ['branches-list'], queryFn: branchApi.list });
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['equipment-list', page, search, category, status, branchFilter],
+    queryKey: ['equipment-list', page, search, category, status],
     queryFn: () =>
       equipmentApi.list({
         page,
@@ -177,25 +173,18 @@ export default function EquipmentPage() {
         search: search || undefined,
         category: category === 'ALL' ? undefined : category,
         status: status === 'ALL' ? undefined : status,
-        branchId: branchFilter === 'ALL' ? undefined : branchFilter,
       }),
   });
 
   const items = data?.data || [];
   const totalPages = data?.totalPages || 1;
 
-  // Rooms để chọn theo branch
-  const { data: branchRooms, refetch: refetchRooms } = useQuery({
-    queryKey: ['dialog-rooms', form.branchId],
-    queryFn: () => branchApi.rooms(form.branchId),
-    enabled: false,
+  // Rooms để chọn phòng
+  const { data: rooms } = useQuery({
+    queryKey: ['dialog-rooms'],
+    queryFn: roomApi.rooms,
+    enabled: dialogOpen,
   });
-
-  useEffect(() => {
-    if (form.branchId) refetchRooms();
-    else setForm((f) => ({ ...f, roomId: '' }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.branchId]);
 
   useEffect(() => {
     if (!dialogOpen) return;
@@ -204,7 +193,6 @@ export default function EquipmentPage() {
         code: editing.code,
         name: editing.name,
         category: editing.category,
-        branchId: editing.branchId,
         roomId: editing.roomId || '',
         brand: editing.brand || '',
         model: editing.model || '',
@@ -218,31 +206,28 @@ export default function EquipmentPage() {
         description: editing.description || '',
       });
     } else {
-      setForm({ ...emptyForm, branchId: branches?.[0]?.id || '' });
+      setForm({ ...emptyForm });
     }
     setFormError('');
-  }, [dialogOpen, editing, branches]);
+  }, [dialogOpen, editing]);
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['equipment-list'] });
     queryClient.invalidateQueries({ queryKey: ['equipment-stats'] });
     queryClient.invalidateQueries({ queryKey: ['equipment-alerts'] });
     queryClient.invalidateQueries({ queryKey: ['equipment-maintenance'] });
-    queryClient.invalidateQueries({ queryKey: ['branch-equipment'] });
     queryClient.invalidateQueries({ queryKey: ['reports-equipment'] });
-    queryClient.invalidateQueries({ queryKey: ['branch-stats'] });
   };
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (!form.code.trim() || !form.name.trim() || !form.branchId) {
-        throw new Error('Điền đủ mã thiết bị, tên và chi nhánh.');
+      if (!form.code.trim() || !form.name.trim()) {
+        throw new Error('Điền đủ mã thiết bị và tên thiết bị.');
       }
       const payload: any = {
         code: form.code.trim(),
         name: form.name.trim(),
         category: form.category,
-        branchId: form.branchId,
         roomId: form.roomId || undefined,
         brand: form.brand.trim() || undefined,
         model: form.model.trim() || undefined,
@@ -487,19 +472,6 @@ export default function EquipmentPage() {
               options={[{ value: 'ALL', label: 'Tất cả trạng thái' }, ...STATUS_OPTIONS]}
               className="h-10"
             />
-            <Select
-              label="Chi nhánh"
-              value={branchFilter}
-              onChange={(e) => {
-                setBranchFilter(e.target.value);
-                setPage(1);
-              }}
-              options={[
-                { value: 'ALL', label: 'Tất cả chi nhánh' },
-                ...(branches || []).map((b) => ({ value: b.id, label: b.name })),
-              ]}
-              className="h-10"
-            />
           </div>
         </CardContent>
       </Card>
@@ -535,7 +507,6 @@ export default function EquipmentPage() {
                 <thead className="text-[11px] uppercase tracking-wider text-muted bg-ink border-b border-line">
                   <tr>
                     <th className="py-3 px-4 font-semibold">Thiết bị</th>
-                    <th className="py-3 px-4 font-semibold">Chi nhánh</th>
                     <th className="py-3 px-4 font-semibold">Phòng</th>
                     <th className="py-3 px-4 font-semibold">Trạng thái</th>
                     <th className="py-3 px-4 font-semibold">Tình trạng</th>
@@ -567,7 +538,6 @@ export default function EquipmentPage() {
                             </p>
                           </Link>
                         </td>
-                        <td className="py-3 px-4 text-muted">{eq.branch?.name || '—'}</td>
                         <td className="py-3 px-4 text-muted">{eq.room?.name || '—'}</td>
                         <td className="py-3 px-4">
                           <Badge variant={sMeta.variant as any}>{sMeta.label}</Badge>
@@ -701,18 +671,12 @@ export default function EquipmentPage() {
             options={CATEGORY_OPTIONS}
           />
           <Select
-            label="Chi nhánh *"
-            value={form.branchId}
-            onChange={(e) => setForm((f) => ({ ...f, branchId: e.target.value, roomId: '' }))}
-            options={(branches || []).map((b) => ({ value: b.id, label: `${b.name} (${b.code})` }))}
-          />
-          <Select
             label="Phòng"
             value={form.roomId}
             onChange={(e) => setForm((f) => ({ ...f, roomId: e.target.value }))}
             options={[
               { value: '', label: '— Không gán phòng —' },
-              ...(branchRooms || []).map((r) => ({
+              ...(rooms || []).map((r) => ({
                 value: r.id,
                 label: `${r.name} (${r.code || 'no-code'})`,
               })),

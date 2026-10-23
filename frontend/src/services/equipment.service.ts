@@ -17,7 +17,6 @@ export interface EquipmentQuery {
   category?: string;
   status?: string;
   condition?: string;
-  branchId?: string;
   roomId?: string;
 }
 
@@ -46,7 +45,6 @@ export const equipmentApi = {
     code: string;
     name: string;
     category: string;
-    branchId: string;
     roomId?: string;
     brand?: string;
     model?: string;
@@ -101,7 +99,6 @@ export const equipmentApi = {
     page?: number;
     limit?: number;
     equipmentId?: string;
-    branchId?: string;
     status?: string;
     type?: string;
   }): Promise<MaintenanceListResponse> => {

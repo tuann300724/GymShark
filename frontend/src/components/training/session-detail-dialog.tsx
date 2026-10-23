@@ -17,7 +17,6 @@ import {
   MapPin,
   User,
   Users,
-  Dumbbell,
   CheckCircle2,
   XCircle,
   Pencil,
@@ -142,7 +141,6 @@ export function SessionDetailDialog({
             <InfoRow icon={CalendarDays} label="Ngày" value={formatDateTime(session.startTime)} />
             <InfoRow icon={Clock} label="Thời lượng" value={`${formatDateTime(session.endTime)}`} />
             <InfoRow icon={MapPin} label="Phòng" value={session.room?.name || '--'} />
-            <InfoRow icon={Dumbbell} label="Chi nhánh" value={session.branch?.name || '--'} />
           </div>
 
           <div className="flex flex-wrap items-center gap-2">

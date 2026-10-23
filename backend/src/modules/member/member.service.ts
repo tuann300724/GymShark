@@ -31,7 +31,6 @@ export class MemberService {
   private async resolveMember(userId: string) {
     return this.prisma.member.findUnique({
       where: { userId },
-      include: { branch: { select: { id: true, name: true, code: true } } },
     });
   }
 
@@ -107,7 +106,6 @@ export class MemberService {
         emergencyContact: member.emergencyContact,
         status: member.status,
         joinedAt: member.joinedAt,
-        branch: member.branch,
       },
     };
   }
@@ -129,7 +127,6 @@ export class MemberService {
         code: member.code,
         fullName: member.fullName,
         status: member.status,
-        branch: member.branch,
       },
     };
   }
@@ -371,7 +368,6 @@ export class MemberService {
   ) {
     const member = await this.prisma.member.findUnique({
       where: { id: memberId },
-      include: { branch: { select: { id: true, name: true, code: true } } },
     });
     if (!member) throw new NotFoundException('Không tìm thấy hội viên.');
 
@@ -635,7 +631,6 @@ export class MemberService {
     const [data, total] = await Promise.all([
       this.prisma.checkIn.findMany({
         where,
-        include: { branch: { select: { id: true, name: true, code: true } } },
         orderBy: { checkInTime: 'desc' },
         skip,
         take: limit,

@@ -3,7 +3,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import apiClient from '@/lib/axios';
 import { checkinApi, searchMembersForCheckIn } from '@/services/checkin.service';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,7 +31,6 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowRight,
-  Building2,
   RefreshCw,
   UserRound,
 } from 'lucide-react';
@@ -83,43 +81,22 @@ export default function AdminCheckinsPage() {
     refetchInterval: 20000,
   });
 
-  // ------------------ Branch options ------------------
-  const { data: branches } = useQuery({
-    queryKey: ['branches-options'],
-    queryFn: async () => {
-      const res = await apiClient.get('/branches');
-      return res.data as any[];
-    },
-    retry: 0,
-  });
-
   // ------------------ History list ------------------
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [branchFilter, setBranchFilter] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const historyQuery = useQuery({
-    queryKey: [
-      'checkins-history',
-      page,
-      search,
-      statusFilter,
-      branchFilter,
-      fromDate,
-      toDate,
-      sortOrder,
-    ],
+    queryKey: ['checkins-history', page, search, statusFilter, fromDate, toDate, sortOrder],
     queryFn: () =>
       checkinApi.getAdminCheckins({
         page,
         limit: 20,
         search: search || undefined,
         status: statusFilter || undefined,
-        branchId: branchFilter || undefined,
         fromDate: fromDate || undefined,
         toDate: toDate || undefined,
         sortBy: 'checkInTime',
@@ -486,21 +463,6 @@ export default function AdminCheckinsPage() {
                   <option value="CHECKED_IN">Đang tập</option>
                   <option value="CHECKED_OUT">Đã hoàn tất</option>
                 </select>
-                <select
-                  value={branchFilter}
-                  onChange={(e) => {
-                    setBranchFilter(e.target.value);
-                    setPage(1);
-                  }}
-                  className="h-9 rounded-sm border border-line bg-ink px-2.5 text-xs text-chalk focus:outline-none focus:ring-2 focus:ring-neon/60"
-                >
-                  <option value="">Tất cả chi nhánh</option>
-                  {(branches || []).map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name}
-                    </option>
-                  ))}
-                </select>
                 <input
                   type="date"
                   value={fromDate}
@@ -565,7 +527,6 @@ export default function AdminCheckinsPage() {
                     <th className="py-2.5 px-4 font-semibold">Check-in</th>
                     <th className="py-2.5 px-4 font-semibold">Check-out</th>
                     <th className="py-2.5 px-4 font-semibold">Thời lượng</th>
-                    <th className="py-2.5 px-4 font-semibold">Chi nhánh</th>
                     <th className="py-2.5 px-4 font-semibold">Hình thức</th>
                     <th className="py-2.5 px-4 font-semibold">Trạng thái</th>
                     <th className="py-2.5 px-4 font-semibold text-right">Thao tác</th>
@@ -600,12 +561,6 @@ export default function AdminCheckinsPage() {
                         </td>
                         <td className="whitespace-nowrap py-2.5 px-4 text-chalk">
                           {formatDuration(c.durationMinutes)}
-                        </td>
-                        <td className="whitespace-nowrap py-2.5 px-4 text-muted">
-                          <span className="inline-flex items-center gap-1">
-                            <Building2 className="size-3.5" />
-                            {c.branch?.name || '--'}
-                          </span>
                         </td>
                         <td className="whitespace-nowrap py-2.5 px-4 text-muted">
                           <span className="inline-flex items-center gap-1.5">
@@ -830,10 +785,6 @@ export default function AdminCheckinsPage() {
                     <span className="font-mono text-neon">{qrResult.member.code}</span>
                     {' • '}
                     {qrResult.member.phone || 'chưa có SĐT'}
-                  </p>
-                  <p className="mt-1 flex items-center gap-1.5 text-[11px] text-muted">
-                    <Building2 className="size-3.5 shrink-0" />
-                    {qrResult.member.branch?.name || '—'}
                   </p>
                 </div>
                 <Badge variant={MEMBER_STATUS_META[qrResult.member.status]?.variant ?? 'default'}>

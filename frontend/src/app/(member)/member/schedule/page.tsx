@@ -20,7 +20,6 @@ import {
   User,
   MapPin,
   ClipboardList,
-  Dumbbell,
   UserRound,
   History,
   PlusCircle,
@@ -253,12 +252,6 @@ export default function MemberSchedulePage() {
                     <span className="inline-flex items-center gap-1.5">
                       <User className="size-3.5 text-neon" />
                       {s.trainer.user.fullName}
-                    </span>
-                  )}
-                  {s.description && s.type !== 'PERSONAL_TRAINING' && (
-                    <span className="inline-flex items-center gap-1.5">
-                      <Dumbbell className="size-3.5 text-neon" />
-                      {s.branch?.name || '--'}
                     </span>
                   )}
                 </div>

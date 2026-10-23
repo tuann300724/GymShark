@@ -8,7 +8,7 @@ import { HealthModule } from './modules/health/health.module';
 import { UsersModule } from './modules/users/users.module';
 import { MembersModule } from './modules/members/members.module';
 import { TrainersModule } from './modules/trainers/trainers.module';
-import { BranchesModule } from './modules/branches/branches.module';
+import { RoomsModule } from './modules/rooms/rooms.module';
 import { PackagesModule } from './modules/packages/packages.module';
 import { MembershipsModule } from './modules/memberships/memberships.module';
 import { CheckinsModule } from './modules/checkins/checkins.module';
@@ -51,7 +51,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     UsersModule,
     MembersModule,
     TrainersModule,
-    BranchesModule,
+    RoomsModule,
     PackagesModule,
     MembershipsModule,
     CheckinsModule,

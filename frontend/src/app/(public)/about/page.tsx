@@ -43,7 +43,7 @@ export default function PublicAboutPage() {
       label: 'HLV chuyên nghiệp',
     },
     { stat: '35+', label: 'Lớp học mỗi tuần' },
-    { stat: homeStats?.totalBranches?.toLocaleString('vi-VN') || '1', label: 'Chi nhánh' },
+    { stat: '10+', label: 'Năm kinh nghiệm' },
   ];
 
   return (

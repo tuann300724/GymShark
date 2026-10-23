@@ -130,13 +130,13 @@ export class NotificationTickerService implements OnModuleInit, OnModuleDestroy 
         status: { in: ['AVAILABLE', 'IN_USE', 'OPERATIONAL'] },
         nextMaintenanceAt: { lte: soon },
       },
-      select: { id: true, code: true, name: true, nextMaintenanceAt: true, branch: { select: { name: true } } },
+      select: { id: true, code: true, name: true, nextMaintenanceAt: true },
     });
     for (const e of due) {
-      await this.notificationsService.fanoutToAdmin({
+      await this.notificationsService.fanoutToStaff({
         type: 'EQUIPMENT',
         title: 'Thiết bị cần bảo trì 🛠️',
-        content: `${e.name} (${e.code}) tại ${e.branch?.name ?? ''} ${
+        content: `${e.name} (${e.code}) ${
           e.nextMaintenanceAt && e.nextMaintenanceAt < now
             ? `đã QUÁ HẠN bảo trì từ ${e.nextMaintenanceAt.toLocaleDateString('vi-VN')}`
             : `đến hạn bảo trì ${e.nextMaintenanceAt?.toLocaleDateString('vi-VN')}`
@@ -149,13 +149,13 @@ export class NotificationTickerService implements OnModuleInit, OnModuleDestroy 
 
     const broken = await this.prisma.equipment.findMany({
       where: { status: 'BROKEN' },
-      select: { id: true, code: true, name: true, branch: { select: { name: true } } },
+      select: { id: true, code: true, name: true },
     });
     for (const e of broken) {
-      await this.notificationsService.fanoutToAdmin({
+      await this.notificationsService.fanoutToStaff({
         type: 'EQUIPMENT',
         title: 'Thiết bị hỏng 🚨',
-        content: `${e.name} (${e.code}) tại ${e.branch?.name ?? ''} đang trong tình trạng HỎNG. Kiểm tra và lên lịch sửa chữa.`,
+        content: `${e.name} (${e.code}) đang trong tình trạng HỎNG. Kiểm tra và lên lịch sửa chữa.`,
         link: '/admin/equipment',
         referenceType: 'EQUIPMENT_BROKEN',
         referenceId: e.id,

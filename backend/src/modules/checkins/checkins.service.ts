@@ -14,7 +14,6 @@ import { MemberQrService } from '../../common/services/member-qr.service';
 interface CheckInMember {
   id: string;
   status: string;
-  branchId: string;
   fullName?: string;
 }
 
@@ -37,7 +36,6 @@ export class CheckinsService {
     const member = await this.prisma.member.findUnique({
       where: { userId },
       include: {
-        branch: { select: { id: true, name: true, code: true } },
         user: { select: { id: true, fullName: true, avatarUrl: true } },
       },
     });
@@ -67,40 +65,10 @@ export class CheckinsService {
         endDate: { gte: now },
       },
       include: {
-        package: { select: { id: true, name: true, allowedBranches: true } },
+        package: { select: { id: true, name: true } },
       },
       orderBy: { endDate: 'desc' },
     });
-  }
-
-  /**
-   * STEP 7 — kiểm tra chi nhánh check-in:
-   * 1) Branch tồn tại + ACTIVE (INACTIVE chặn check-in mới)
-   * 2) Gói tập: allowedBranches null/[] = GLOBAL (mọi branch ACTIVE);
-   *    khác rỗng = chỉ được check-in tại các branch trong danh sách
-   */
-  private async validateBranchForCheckIn(
-    branchId: string,
-    membership: { package?: { allowedBranches?: unknown } | null },
-  ) {
-    const branch = await this.prisma.branch.findUnique({
-      where: { id: branchId },
-      select: { id: true, name: true, status: true },
-    });
-    if (!branch) throw new NotFoundException('Không tìm thấy chi nhánh.');
-    if (branch.status !== 'ACTIVE') {
-      throw new BadRequestException(
-        `Chi nhánh ${branch.name} đang ngừng hoạt động, không thể check-in tại đây.`,
-      );
-    }
-
-    const allowed = membership.package?.allowedBranches;
-    if (Array.isArray(allowed) && allowed.length > 0 && !allowed.includes(branchId)) {
-      throw new BadRequestException(
-        'Gói tập của bạn chỉ áp dụng tại các chi nhánh được chỉ định, không áp dụng tại chi nhánh này.',
-      );
-    }
-    return branch;
   }
 
   /**
@@ -162,25 +130,17 @@ export class CheckinsService {
   // Member tự check-in / check-out
   // ---------------------------------------------------------------------------
 
-  /** POST /checkins — member tự check-in (lấy member từ JWT, có thể chọn chi nhánh) */
-  async checkIn(userId: string, method?: CheckInMethod, branchId?: string) {
+  /** POST /checkins — member tự check-in (lấy member từ JWT) */
+  async checkIn(userId: string, method?: CheckInMethod) {
     const member = await this.resolveMemberByUserId(userId);
     const membership = await this.validateMemberForCheckIn(member);
-
-    // STEP 7 — chọn chi nhánh check-in (mặc định chi nhánh của hội viên)
-    const targetBranchId = branchId ?? member.branchId;
-    await this.validateBranchForCheckIn(targetBranchId, membership);
 
     const checkIn = await this.prisma.checkIn.create({
       data: {
         memberId: member.id,
-        branchId: targetBranchId,
         checkInTime: new Date(),
         status: 'CHECKED_IN',
         method: method ?? CheckInMethod.MANUAL,
-      },
-      include: {
-        branch: { select: { id: true, name: true, code: true } },
       },
     });
 
@@ -189,7 +149,7 @@ export class CheckinsService {
       data: {
         memberId: member.id,
         title: 'Check-in thành công 💪',
-        content: `Bạn đã check-in tại ${checkIn.branch?.name ?? 'phòng tập'} lúc ${checkIn.checkInTime.toLocaleTimeString('vi-VN')}.`,
+        content: `Bạn đã check-in lúc ${checkIn.checkInTime.toLocaleTimeString('vi-VN')}.`,
         type: 'CHECKIN',
         link: '/member/checkins',
         referenceType: 'CHECKIN',
@@ -202,7 +162,7 @@ export class CheckinsService {
       action: 'CHECK_IN',
       entity: 'CheckIn',
       entityId: checkIn.id,
-      metadata: { method: checkIn.method, branchName: checkIn.branch?.name ?? null, memberCode: member.code },
+      metadata: { method: checkIn.method, memberCode: member.code },
     });
 
     return {
@@ -213,7 +173,6 @@ export class CheckinsService {
         checkInAt: checkIn.checkInTime,
         status: checkIn.status,
         method: checkIn.method,
-        branch: checkIn.branch,
         member: {
           id: member.id,
           code: member.code,
@@ -242,7 +201,6 @@ export class CheckinsService {
     const updated = await this.prisma.checkIn.update({
       where: { id: active.id },
       data: { checkOutTime: checkOutAt, status: 'CHECKED_OUT' },
-      include: { branch: { select: { id: true, name: true, code: true } } },
     });
 
     // Thông báo check-out thành công (STEP 8)
@@ -250,7 +208,7 @@ export class CheckinsService {
       data: {
         memberId: member.id,
         title: 'Check-out thành công 👋',
-        content: `Buổi tập kết thúc lúc ${checkOutAt.toLocaleTimeString('vi-VN')}. Hẹn gặp lại bạn tại ${updated.branch?.name ?? 'phòng tập'}!`,
+        content: `Buổi tập kết thúc lúc ${checkOutAt.toLocaleTimeString('vi-VN')}. Hẹn gặp lại bạn!`,
         type: 'CHECKIN',
         link: '/member/checkins',
         referenceType: 'CHECKOUT',
@@ -275,7 +233,6 @@ export class CheckinsService {
         checkOutAt,
         status: updated.status,
         durationMinutes: this.computeDurationMinutes(updated.checkInTime, checkOutAt),
-        branch: updated.branch,
       },
     };
   }
@@ -287,7 +244,7 @@ export class CheckinsService {
   /**
    * POST /checkins/face — hội viên tự quét khuôn mặt (1:1).
    * Bước 1: FacesService so vector với mẫu đã đăng ký của CHÍNH hội viên (cosine).
-   * Bước 2: nếu khớp → gọi lại pipeline checkIn() chuẩn (validate thẻ/chi nhánh,
+   * Bước 2: nếu khớp → gọi lại pipeline checkIn() chuẩn (validate thẻ tập,
    *          notification, audit) với method FACE_ID — không viết lại validate.
    */
   async faceCheckIn(userId: string, dto: FaceCheckInDto) {
@@ -299,7 +256,7 @@ export class CheckinsService {
       );
     }
 
-    const result = await this.checkIn(userId, CheckInMethod.FACE_ID, dto.branchId);
+    const result = await this.checkIn(userId, CheckInMethod.FACE_ID);
     return {
       ...result,
       face: { similarity: Number(match.similarity.toFixed(4)) },
@@ -309,15 +266,8 @@ export class CheckinsService {
   /**
    * POST /checkins/face-scan — lễ tân quét 1:N tại quầy.
    * Server tự nhận diện (không tin memberId từ client) rồi chạy pipeline staffCheckIn.
-   * Chi nhánh ghi nhận = chi nhánh của người quét (máy quầy lễ tân); STAFF vẫn
-   * bị ràng buộc "chỉ check-in tại chi nhánh của mình" như lệnh staff thường.
    */
-  async faceScanForStaff(
-    dto: FaceScanDto,
-    role: string,
-    userBranchId?: string | null,
-    actorId?: string,
-  ) {
+  async faceScanForStaff(dto: FaceScanDto, role: string, actorId?: string) {
     const match = await this.facesService.matchGlobal(dto.embedding);
     if (!match) {
       throw new NotFoundException(
@@ -330,10 +280,8 @@ export class CheckinsService {
         memberId: match.memberId,
         method: CheckInMethod.FACE_ID,
         note: `Quét khuôn mặt — độ khớp ${(match.similarity * 100).toFixed(1)}%`,
-        branchId: userBranchId ?? undefined,
       },
       role,
-      userBranchId,
       actorId,
     );
     return {
@@ -351,7 +299,6 @@ export class CheckinsService {
     const member = await this.resolveMemberByUserId(userId);
     const active = await this.prisma.checkIn.findFirst({
       where: { memberId: member.id, status: 'CHECKED_IN' },
-      include: { branch: { select: { id: true, name: true, code: true } } },
     });
     if (!active) {
       return { checkedIn: false };
@@ -360,7 +307,6 @@ export class CheckinsService {
       checkedIn: true,
       checkInAt: active.checkInTime,
       sinceMinutes: this.computeDurationMinutes(active.checkInTime, new Date()),
-      branch: active.branch,
       checkInId: active.id,
     };
   }
@@ -394,7 +340,6 @@ export class CheckinsService {
     const [data, total] = await Promise.all([
       this.prisma.checkIn.findMany({
         where,
-        include: { branch: { select: { id: true, name: true, code: true } } },
         orderBy: { checkInTime: 'desc' },
         skip,
         take: limit,
@@ -453,7 +398,6 @@ export class CheckinsService {
       checkOutTime: c.checkOutTime,
       status: c.status,
       method: c.method,
-      branch: c.branch,
       durationMinutes: this.computeDurationMinutes(c.checkInTime, c.checkOutTime),
     };
   }
@@ -462,35 +406,23 @@ export class CheckinsService {
   // Staff / Admin thao tác cho người khác
   // ---------------------------------------------------------------------------
 
-  /** POST /checkins/staff — lễ tân check-in hội viên theo memberId (không tin member, chọn branch) */
-  async staffCheckIn(dto: StaffCheckInInput, role = 'ADMIN', userBranchId?: string | null, actorId?: string) {
+  /** POST /checkins/staff — lễ tân check-in hội viên theo memberId (không tin member) */
+  async staffCheckIn(dto: StaffCheckInInput, role = 'STAFF', actorId?: string) {
     const member = await this.prisma.member.findUnique({
       where: { id: dto.memberId },
-      include: { branch: { select: { id: true, name: true, code: true } } },
     });
     if (!member) throw new NotFoundException('Không tìm thấy hội viên.');
 
     const membership = await this.validateMemberForCheckIn(member);
 
-    // STEP 7 — STAFF chỉ check-in tại chi nhánh của chính mình
-    const targetBranchId = dto.branchId ?? member.branchId;
-    if ((role === 'TRAINER') && userBranchId) {
-      if (targetBranchId !== userBranchId) {
-        throw new ForbiddenException('Bạn chỉ được check-in hội viên tại chi nhánh của mình.');
-      }
-    }
-    await this.validateBranchForCheckIn(targetBranchId, membership);
-
     const checkIn = await this.prisma.checkIn.create({
       data: {
         memberId: member.id,
-        branchId: targetBranchId,
         checkInTime: new Date(),
         status: 'CHECKED_IN',
         method: dto.method ?? CheckInMethod.STAFF,
         notes: dto.note ?? null,
       },
-      include: { branch: { select: { id: true, name: true, code: true } } },
     });
 
     // Thông báo check-in bởi lễ tân (STEP 8)
@@ -498,7 +430,7 @@ export class CheckinsService {
       data: {
         memberId: member.id,
         title: 'Check-in thành công 💪',
-        content: `Lễ tân đã check-in cho bạn tại ${checkIn.branch?.name ?? 'phòng tập'} lúc ${checkIn.checkInTime.toLocaleTimeString('vi-VN')}.`,
+        content: `Lễ tân đã check-in cho bạn lúc ${checkIn.checkInTime.toLocaleTimeString('vi-VN')}.`,
         type: 'CHECKIN',
         link: '/member/checkins',
         referenceType: 'CHECKIN_STAFF',
@@ -511,7 +443,7 @@ export class CheckinsService {
       action: 'CHECK_IN',
       entity: 'CheckIn',
       entityId: checkIn.id,
-      metadata: { method: checkIn.method, branchName: checkIn.branch?.name ?? null, memberCode: member.code, via: 'staff' },
+      metadata: { method: checkIn.method, memberCode: member.code, via: 'staff' },
     });
 
     return {
@@ -522,7 +454,6 @@ export class CheckinsService {
         checkInAt: checkIn.checkInTime,
         status: checkIn.status,
         method: checkIn.method,
-        branch: checkIn.branch,
         member: {
           id: member.id,
           code: member.code,
@@ -551,7 +482,6 @@ export class CheckinsService {
     const member = await this.prisma.member.findUnique({
       where: { id: payload.memberId },
       include: {
-        branch: { select: { id: true, name: true, code: true } },
         user: { select: { id: true, avatarUrl: true } },
       },
     });
@@ -564,7 +494,6 @@ export class CheckinsService {
     const current = await this.prisma.checkIn.findFirst({
       where: { memberId: member.id, status: 'CHECKED_IN' },
       orderBy: { checkInTime: 'desc' },
-      include: { branch: { select: { id: true, name: true } } },
     });
 
     const membership = await this.getActiveMembership(member.id);
@@ -578,12 +507,9 @@ export class CheckinsService {
         email: member.email,
         avatarUrl: member.avatarUrl ?? member.user?.avatarUrl ?? null,
         status: member.status,
-        branch: member.branch,
       },
       checkedIn: !!current,
-      currentCheckIn: current
-        ? { id: current.id, checkInAt: current.checkInTime, branch: current.branch }
-        : null,
+      currentCheckIn: current ? { id: current.id, checkInAt: current.checkInTime } : null,
       membership: membership
         ? {
             id: membership.id,
@@ -600,22 +526,20 @@ export class CheckinsService {
 
   /**
    * POST /checkins/qr — lễ tân quét/nhập mã QR rồi check-in cho hội viên.
-   * Mã QR chỉ là cách *tìm ra* memberId; toàn bộ kiểm tra thẻ tập, nhánh chi nhánh
-   * và quyền hạn vẫn đi qua `staffCheckIn` như check-in tay, không có đường tắt.
+   * Mã QR chỉ là cách *tìm ra* memberId; toàn bộ kiểm tra thẻ tập và quyền hạn
+   * vẫn đi qua `staffCheckIn` như check-in tay, không có đường tắt.
    */
-  async checkInByQr(dto: QrCheckInDto, role = 'ADMIN', userBranchId?: string | null, actorId?: string) {
+  async checkInByQr(dto: QrCheckInDto, role = 'STAFF', actorId?: string) {
     const payload = this.qrService.verify(dto.token);
     if (!payload) throw new BadRequestException('Mã QR không hợp lệ hoặc đã bị chỉnh sửa.');
 
     return this.staffCheckIn(
       {
         memberId: payload.memberId,
-        branchId: dto.branchId,
         note: dto.note,
         method: CheckInMethod.QR_CODE,
       },
       role,
-      userBranchId,
       actorId,
     );
   }
@@ -635,7 +559,6 @@ export class CheckinsService {
       data: { checkOutTime: checkOutAt, status: 'CHECKED_OUT' },
       include: {
         member: { select: CheckinsService.memberSelect },
-        branch: { select: { id: true, name: true, code: true } },
       },
     });
 
@@ -657,7 +580,6 @@ export class CheckinsService {
         checkOutAt,
         status: updated.status,
         durationMinutes: this.computeDurationMinutes(updated.checkInTime, checkOutAt),
-        branch: updated.branch,
       },
     };
   }
@@ -675,7 +597,6 @@ export class CheckinsService {
     const where: Prisma.CheckInWhereInput = {};
 
     if (query.status) where.status = query.status as any;
-    if (query.branchId) where.branchId = query.branchId;
 
     if (query.search) {
       const term = query.search.trim();
@@ -709,7 +630,6 @@ export class CheckinsService {
         where,
         include: {
           member: { select: CheckinsService.memberSelect },
-          branch: { select: { id: true, name: true, code: true } },
         },
         orderBy: { [sortBy]: sortOrder },
         skip,
@@ -729,7 +649,6 @@ export class CheckinsService {
         notes: c.notes,
         durationMinutes: this.computeDurationMinutes(c.checkInTime, c.checkOutTime),
         member: c.member,
-        branch: c.branch,
       })),
       total,
       page,
@@ -753,7 +672,6 @@ export class CheckinsService {
             },
           },
         },
-        branch: { select: { id: true, name: true, code: true } },
       },
       orderBy: { checkInTime: 'asc' },
     });
@@ -766,7 +684,6 @@ export class CheckinsService {
       packageName: c.member.memberships[0]?.package?.name ?? null,
       checkInTime: c.checkInTime,
       durationMinutes: this.computeDurationMinutes(c.checkInTime, now),
-      branch: c.branch,
       method: c.method,
     }));
   }
@@ -805,7 +722,6 @@ export interface GetCheckinsQuery {
   limit?: number | string;
   search?: string;
   status?: string;
-  branchId?: string;
   fromDate?: string;
   toDate?: string;
   sortBy?: string;
@@ -816,6 +732,4 @@ export interface StaffCheckInInput {
   memberId: string;
   method?: CheckInMethod;
   note?: string;
-  /** STEP 7 — chi nhánh check-in (mặc định chi nhánh của hội viên; STAFF buộc ở chi nhánh mình) */
-  branchId?: string;
 }

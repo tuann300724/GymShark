@@ -5,7 +5,6 @@ import {
   IsEnum,
   IsOptional,
   IsString,
-  IsUUID,
   Matches,
   MaxLength,
   MinLength,
@@ -57,13 +56,6 @@ export class CreateMemberDto {
   @IsString()
   @MaxLength(255)
   address?: string;
-
-  @ApiPropertyOptional({
-    description: 'Chi nhánh — mặc định lấy chi nhánh của nhân viên đang đăng nhập',
-  })
-  @IsOptional()
-  @IsUUID('4', { message: 'Chi nhánh không hợp lệ' })
-  branchId?: string;
 
   @ApiPropertyOptional({ example: 'Nguyễn Văn Ba - 0911222333' })
   @IsOptional()

@@ -1,7 +1,6 @@
 import apiClient from '@/lib/axios';
 import type {
   AttendanceReport,
-  BranchOverviewReport,
   EquipmentStatsReport,
   MembersReport,
   MembershipsReport,
@@ -12,7 +11,6 @@ import type {
 } from './types';
 
 export interface ReportFilters {
-  branchId?: string;
   from?: string;
   to?: string;
   search?: string;
@@ -20,17 +18,13 @@ export interface ReportFilters {
 }
 
 export const reportApi = {
-  summary: async (branchId?: string): Promise<ReportSummary> => {
-    const res = await apiClient.get<ReportSummary>('/reports/summary', {
-      params: branchId ? { branchId } : {},
-    });
+  summary: async (): Promise<ReportSummary> => {
+    const res = await apiClient.get<ReportSummary>('/reports/summary');
     return res.data;
   },
 
-  overview: async (branchId?: string): Promise<OverviewReport> => {
-    const res = await apiClient.get<OverviewReport>('/reports/overview', {
-      params: branchId ? { branchId } : {},
-    });
+  overview: async (): Promise<OverviewReport> => {
+    const res = await apiClient.get<OverviewReport>('/reports/overview');
     return res.data;
   },
 
@@ -61,11 +55,6 @@ export const reportApi = {
 
   equipment: async (): Promise<EquipmentStatsReport> => {
     const res = await apiClient.get<EquipmentStatsReport>('/reports/equipment');
-    return res.data;
-  },
-
-  branches: async (): Promise<BranchOverviewReport> => {
-    const res = await apiClient.get<BranchOverviewReport>('/reports/branches');
     return res.data;
   },
 

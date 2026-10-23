@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+﻿import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -30,31 +30,31 @@ export class PaymentsController {
   ) {}
 
   @Get()
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
   @ApiOperation({
-    summary: 'Danh sách giao dịch thanh toán (admin) — filter, search, phân trang kèm thống kê doanh thu',
+    summary: 'Danh sÃ¡ch giao dá»‹ch thanh toÃ¡n (admin) â€” filter, search, phÃ¢n trang kÃ¨m thá»‘ng kÃª doanh thu',
   })
   findAll(@Query() query: PaymentListQueryDto) {
     return this.paymentsService.findAll(query);
   }
 
   @Get('bank-info')
-  @Roles(Role.ADMIN, Role.MEMBER)
-  @ApiOperation({ summary: 'Thông tin tài khoản nhận tiền (chuyển khoản) + danh sách cổng thanh toán' })
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.MEMBER)
+  @ApiOperation({ summary: 'ThÃ´ng tin tÃ i khoáº£n nháº­n tiá»n (chuyá»ƒn khoáº£n) + danh sÃ¡ch cá»•ng thanh toÃ¡n' })
   getBankInfo() {
     return this.paymentsService.getBankInfo();
   }
 
   @Get('me')
   @Roles(Role.MEMBER)
-  @ApiOperation({ summary: 'Lịch sử thanh toán của hội viên đang đăng nhập' })
+  @ApiOperation({ summary: 'Lá»‹ch sá»­ thanh toÃ¡n cá»§a há»™i viÃªn Ä‘ang Ä‘Äƒng nháº­p' })
   getMyPayments(@CurrentUser('id') userId: string) {
     return this.memberService.getPayments(userId);
   }
 
   @Get('me/:id')
   @Roles(Role.MEMBER)
-  @ApiOperation({ summary: 'Chi tiết hóa đơn của hội viên (chỉ xem được của chính mình)' })
+  @ApiOperation({ summary: 'Chi tiáº¿t hÃ³a Ä‘Æ¡n cá»§a há»™i viÃªn (chá»‰ xem Ä‘Æ°á»£c cá»§a chÃ­nh mÃ¬nh)' })
   getMyPayment(@CurrentUser('id') userId: string, @Param('id') id: string) {
     return this.memberService.getPaymentDetail(userId, id);
   }
@@ -63,10 +63,10 @@ export class PaymentsController {
   @Roles(Role.MEMBER)
   @ApiOperation({
     summary:
-      'Tạo yêu cầu thanh toán (đăng ký / gia hạn gói). Amount do backend tính từ package, không tin frontend.',
+      'Táº¡o yÃªu cáº§u thanh toÃ¡n (Ä‘Äƒng kÃ½ / gia háº¡n gÃ³i). Amount do backend tÃ­nh tá»« package, khÃ´ng tin frontend.',
   })
-  @ApiResponse({ status: 201, description: 'Tạo yêu cầu thành công (Payment PENDING + Invoice ISSUED)' })
-  @ApiResponse({ status: 409, description: 'Đã có gói chờ xác nhận / đang hoạt động' })
+  @ApiResponse({ status: 201, description: 'Táº¡o yÃªu cáº§u thÃ nh cÃ´ng (Payment PENDING + Invoice ISSUED)' })
+  @ApiResponse({ status: 409, description: 'ÄÃ£ cÃ³ gÃ³i chá» xÃ¡c nháº­n / Ä‘ang hoáº¡t Ä‘á»™ng' })
   createPaymentRequest(
     @CurrentUser('id') userId: string,
     @Body() dto: MemberPaymentCreateDto,
@@ -75,22 +75,22 @@ export class PaymentsController {
   }
 
   @Get(':id')
-  @Roles(Role.ADMIN)
-  @ApiOperation({ summary: 'Chi tiết một giao dịch thanh toán (admin)' })
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @ApiOperation({ summary: 'Chi tiáº¿t má»™t giao dá»‹ch thanh toÃ¡n (admin)' })
   findOne(@Param('id') id: string) {
     return this.paymentsService.findOne(id);
   }
 
   @Post(':id/confirm')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
   @ApiOperation({
-    summary: 'Xác nhận thanh toán: Payment PENDING → PAID, Membership → ACTIVE, Invoice → PAID (transaction)',
+    summary: 'XÃ¡c nháº­n thanh toÃ¡n: Payment PENDING â†’ PAID, Membership â†’ ACTIVE, Invoice â†’ PAID (transaction)',
   })
-  @ApiParam({ name: 'id', description: 'ID giao dịch thanh toán' })
-  @ApiResponse({ status: 200, description: 'Xác nhận thành công' })
-  @ApiResponse({ status: 400, description: 'Chỉ hóa đơn PENDING xác nhận được' })
-  @ApiResponse({ status: 403, description: 'STAFF chỉ xác nhận được Tiền mặt / Chuyển khoản' })
-  @ApiResponse({ status: 409, description: 'Mã giao dịch trùng với hóa đơn khác' })
+  @ApiParam({ name: 'id', description: 'ID giao dá»‹ch thanh toÃ¡n' })
+  @ApiResponse({ status: 200, description: 'XÃ¡c nháº­n thÃ nh cÃ´ng' })
+  @ApiResponse({ status: 400, description: 'Chá»‰ hÃ³a Ä‘Æ¡n PENDING xÃ¡c nháº­n Ä‘Æ°á»£c' })
+  @ApiResponse({ status: 403, description: 'STAFF chá»‰ xÃ¡c nháº­n Ä‘Æ°á»£c Tiá»n máº·t / Chuyá»ƒn khoáº£n' })
+  @ApiResponse({ status: 409, description: 'MÃ£ giao dá»‹ch trÃ¹ng vá»›i hÃ³a Ä‘Æ¡n khÃ¡c' })
   confirm(
     @Param('id') id: string,
     @CurrentUser() user: { id: string; role: string; fullName?: string },
@@ -100,10 +100,10 @@ export class PaymentsController {
   }
 
   @Post(':id/check-casso')
-  @Roles(Role.ADMIN, Role.MEMBER)
-  @ApiOperation({ summary: 'Đối soát tự động CASSO: poll Google Sheet → khớp GYM ... → xác nhận PAID' })
-  @ApiParam({ name: 'id', description: 'ID thanh toán' })
-  @ApiResponse({ status: 200, description: 'Khớp CASSO → PAID / Chưa khớp → PENDING' })
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.MEMBER)
+  @ApiOperation({ summary: 'Äá»‘i soÃ¡t tá»± Ä‘á»™ng CASSO: poll Google Sheet â†’ khá»›p GYM ... â†’ xÃ¡c nháº­n PAID' })
+  @ApiParam({ name: 'id', description: 'ID thanh toÃ¡n' })
+  @ApiResponse({ status: 200, description: 'Khá»›p CASSO â†’ PAID / ChÆ°a khá»›p â†’ PENDING' })
   checkCasso(
     @Param('id') id: string,
     @CurrentUser() user: { id: string; role: string; fullName?: string },
@@ -112,8 +112,8 @@ export class PaymentsController {
   }
 
   @Post(':id/reject')
-  @Roles(Role.ADMIN)
-  @ApiOperation({ summary: 'Từ chối/hủy thanh toán đang chờ: Payment → CANCELLED, Membership → CANCELLED' })
+  @Roles(Role.ADMIN, Role.MANAGER)
+  @ApiOperation({ summary: 'Tá»« chá»‘i/há»§y thanh toÃ¡n Ä‘ang chá»: Payment â†’ CANCELLED, Membership â†’ CANCELLED' })
   reject(
     @Param('id') id: string,
     @CurrentUser() user: { id: string; role: string; fullName?: string },
@@ -124,7 +124,7 @@ export class PaymentsController {
 
   @Post(':id/refund')
   @Roles(Role.ADMIN)
-  @ApiOperation({ summary: 'Hoàn tiền (chỉ ADMIN): Payment PAID → REFUNDED, Invoice → CANCELLED' })
+  @ApiOperation({ summary: 'HoÃ n tiá»n (chá»‰ ADMIN): Payment PAID â†’ REFUNDED, Invoice â†’ CANCELLED' })
   refund(
     @Param('id') id: string,
     @CurrentUser() user: { id: string; role: string; fullName?: string },
@@ -136,15 +136,15 @@ export class PaymentsController {
   // ---------- Back-compat (STEP 4) ----------
 
   @Patch(':id/approve')
-  @Roles(Role.ADMIN)
-  @ApiOperation({ summary: '[Back-compat] Xác nhận thanh toán (alias của POST /:id/confirm)' })
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @ApiOperation({ summary: '[Back-compat] XÃ¡c nháº­n thanh toÃ¡n (alias cá»§a POST /:id/confirm)' })
   approve(@Param('id') id: string, @CurrentUser() user: { id: string; role: string }) {
     return this.paymentsService.confirm(id, user, {});
   }
 
   @Patch(':id/cancel')
-  @Roles(Role.ADMIN)
-  @ApiOperation({ summary: '[Back-compat] Hủy hóa đơn đang chờ (alias của POST /:id/reject)' })
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @ApiOperation({ summary: '[Back-compat] Há»§y hÃ³a Ä‘Æ¡n Ä‘ang chá» (alias cá»§a POST /:id/reject)' })
   cancel(@Param('id') id: string, @CurrentUser() user: { id: string; role: string }) {
     return this.paymentsService.cancel(id, user);
   }

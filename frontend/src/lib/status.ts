@@ -59,13 +59,8 @@ export const ASSIGNMENT_STATUS_META: Record<string, { label: string; variant: Ba
 };
 
 // ---------------------------------------------------------------------------
-// STEP 7 — Branch / Room / Equipment / Maintenance
+// STEP 7 — Room / Equipment / Maintenance
 // ---------------------------------------------------------------------------
-
-export const BRANCH_STATUS_META: Record<string, { label: string; variant: BadgeVariant }> = {
-  ACTIVE: { label: 'Đang hoạt động', variant: 'success' },
-  INACTIVE: { label: 'Ngừng hoạt động', variant: 'destructive' },
-};
 
 export const ROOM_STATUS_META: Record<string, { label: string; variant: BadgeVariant }> = {
   AVAILABLE: { label: 'Sẵn sàng', variant: 'success' },
@@ -145,8 +140,9 @@ export const ANNOUNCEMENT_TARGET_LABEL: Record<string, string> = {
   ALL: 'Tất cả mọi người',
   MEMBERS: 'Hội viên',
   TRAINERS: 'Huấn luyện viên',
+  STAFF: 'Nhân viên lễ tân',
+  MANAGERS: 'Quản lý',
   ADMIN: 'Quản trị viên',
-  SPECIFIC_BRANCH: 'Theo chi nhánh',
 };
 
 // ============ STEP 9 — Nhật ký hoạt động (Audit log) ============
@@ -237,6 +233,8 @@ export const AUDIT_ENTITY_LABEL: Record<string, string> = {
 /** Nhãn vai trò người thực hiện (hiển thị trong nhật ký) */
 export const AUDIT_ROLE_LABEL: Record<string, string> = {
   ADMIN: 'Quản trị viên',
+  MANAGER: 'Quản lý',
+  STAFF: 'Lễ tân',
   TRAINER: 'Huấn luyện viên',
   MEMBER: 'Hội viên',
 };

@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { notificationApi } from '@/services/notification.service';
-import { branchApi } from '@/services/branch.service';
 import type { NotificationItem } from '@/services/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -39,6 +38,8 @@ const ROLE_OPTIONS = [
   { value: '', label: 'Mọi vai trò' },
   { value: 'MEMBER', label: 'Hội viên' },
   { value: 'TRAINER', label: 'Huấn luyện viên' },
+  { value: 'STAFF', label: 'Nhân viên lễ tân' },
+  { value: 'MANAGER', label: 'Quản lý' },
   { value: 'ADMIN', label: 'Quản trị viên' },
 ];
 
@@ -51,10 +52,9 @@ type FormState = {
   title: string;
   message: string;
   target: string;
-  branchId: string;
 };
 
-const EMPTY_FORM: FormState = { title: '', message: '', target: 'ALL', branchId: '' };
+const EMPTY_FORM: FormState = { title: '', message: '', target: 'ALL' };
 
 function recipientName(n: NotificationItem) {
   if (n.member) return `${n.member.fullName} (${n.member.code})`;
@@ -80,12 +80,6 @@ export default function AdminNotificationsPage() {
         role: role || undefined,
         limit: 100,
       }),
-    retry: 1,
-  });
-
-  const { data: branches } = useQuery({
-    queryKey: ['branches-list'],
-    queryFn: branchApi.list,
     retry: 1,
   });
 
@@ -124,7 +118,6 @@ export default function AdminNotificationsPage() {
         title: form.title.trim(),
         message: form.message.trim(),
         target: form.target,
-        branchId: form.target === 'SPECIFIC_BRANCH' ? form.branchId || undefined : undefined,
       }),
     onSuccess: (res: any) => {
       toast.success(
@@ -145,9 +138,6 @@ export default function AdminNotificationsPage() {
     if (!form.title.trim()) return toast.error('Thiếu tiêu đề', 'Vui lòng nhập tiêu đề thông báo.');
     if (!form.message.trim())
       return toast.error('Thiếu nội dung', 'Vui lòng nhập nội dung thông báo.');
-    if (form.target === 'SPECIFIC_BRANCH' && !form.branchId) {
-      return toast.error('Thiếu chi nhánh', 'Vui lòng chọn chi nhánh để gửi.');
-    }
     announce.mutate();
   };
 
@@ -327,17 +317,6 @@ export default function AdminNotificationsPage() {
             onChange={(e) => setForm((f) => ({ ...f, target: e.target.value }))}
             options={TARGET_OPTIONS}
           />
-          {form.target === 'SPECIFIC_BRANCH' && (
-            <Select
-              label="Chi nhánh"
-              value={form.branchId}
-              onChange={(e) => setForm((f) => ({ ...f, branchId: e.target.value }))}
-              options={(branches || []).map((b) => ({
-                value: b.id,
-                label: `${b.name} (${b.code})`,
-              }))}
-            />
-          )}
           <div className="flex items-center justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
               Hủy

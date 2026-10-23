@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
 import { trainingApi } from '@/services/training.service';
 import { trainerApi } from '@/services/trainer.service';
+import { roomApi } from '@/services/room.service';
 import { formatDateTime } from '@/lib/utils';
 import type { TrainingSession } from '@/services/types';
 import { Search, UserPlus, CheckCircle2, AlertTriangle } from 'lucide-react';
@@ -23,7 +24,6 @@ const sessionSchema = z
     trainerId: z.string().min(1, 'Vui lòng chọn huấn luyện viên'),
     type: z.enum(['PERSONAL_TRAINING', 'GROUP_CLASS', 'FREE_TRAINING']),
     memberId: z.string().optional(),
-    branchId: z.string().optional(),
     roomId: z.string().optional(),
     title: z.string().min(2, 'Tiêu đề quá ngắn'),
     description: z.string().optional(),
@@ -95,7 +95,6 @@ export function SessionFormDialog({
 
   const watchType = watch('type');
   const watchTrainerId = watch('trainerId');
-  const watchBranchId = watch('branchId');
   const watchMemberId = watch('memberId');
 
   // Đổ dữ liệu khi mở dialog (tạo mới / sửa)
@@ -108,7 +107,6 @@ export function SessionFormDialog({
         trainerId: editing.trainer?.id || '',
         type: editing.type as any,
         memberId: editing.member?.id || '',
-        branchId: editing.branch?.id || '',
         roomId: editing.room?.id || '',
         title: editing.title,
         description: editing.description || '',
@@ -144,20 +142,10 @@ export function SessionFormDialog({
     return list;
   }, [trainersData, editing]);
 
-  const { data: branchesData } = useQuery({
-    queryKey: ['branches-form'],
-    queryFn: async () => (await apiClient.get('/branches')).data,
-    enabled: open,
-  });
-
   const { data: roomsData } = useQuery({
-    queryKey: ['branch-rooms-form', watchBranchId],
-    queryFn: async () => {
-      if (!watchBranchId) return [];
-      const res = await apiClient.get(`/branches/${watchBranchId}`);
-      return res.data?.rooms || [];
-    },
-    enabled: open && !!watchBranchId,
+    queryKey: ['rooms-form'],
+    queryFn: roomApi.rooms,
+    enabled: open,
   });
 
   // Tìm kiếm hội viên
@@ -204,7 +192,6 @@ export function SessionFormDialog({
       const payload = {
         trainerId: values.trainerId,
         memberId: values.memberId || undefined,
-        branchId: values.branchId || undefined,
         roomId: values.roomId || undefined,
         type: values.type,
         title: values.title,
@@ -327,16 +314,6 @@ export function SessionFormDialog({
           />
 
           <Select
-            label="Chi nhánh"
-            error={errors.branchId?.message}
-            options={[
-              { value: '', label: '-- Theo HLV (mặc định) --' },
-              ...(branchesData || []).map((b: any) => ({ value: b.id, label: b.name })),
-            ]}
-            {...register('branchId')}
-          />
-
-          <Select
             label="Phòng tập"
             error={errors.roomId?.message}
             options={[
@@ -350,12 +327,11 @@ export function SessionFormDialog({
             ]}
             {...register('roomId')}
           />
-          {watchBranchId &&
-            (roomsData || []).filter((r: any) => r.status === 'AVAILABLE').length === 0 && (
-              <p className="text-[11px] font-medium text-amber-400">
-                Chi nhánh này hiện không có phòng SẴN SÀNG — cần mở phòng trước khi đặt lịch.
-              </p>
-            )}
+          {(roomsData || []).filter((r: any) => r.status === 'AVAILABLE').length === 0 && (
+            <p className="text-[11px] font-medium text-amber-400">
+              Hiện không có phòng SẴN SÀNG — cần mở phòng trước khi đặt lịch.
+            </p>
+          )}
 
           <div>
             <Input label="Ngày *" type="date" error={errors.date?.message} {...register('date')} />

@@ -73,7 +73,6 @@ const METADATA_LABELS: Record<string, string> = {
   promotionCode: 'Mã khuyến mãi',
   transactionRef: 'Mã giao dịch',
   newEndDate: 'Hạn mới',
-  branchName: 'Chi nhánh',
   equipmentCode: 'Mã thiết bị',
   specialization: 'Chuyên môn',
   role: 'Vai trò',
@@ -114,7 +113,7 @@ function MetadataList({ item }: { item: AuditLogItem }) {
 
 export default function AuditLogsPage() {
   const user = getStoredUser();
-  const canView = user?.role === 'ADMIN';
+  const canView = user?.role === 'ADMIN' || user?.role === 'MANAGER';
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');

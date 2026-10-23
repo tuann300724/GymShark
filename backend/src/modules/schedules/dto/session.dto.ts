@@ -24,11 +24,6 @@ export class CreateSessionDto {
   @IsString()
   memberId?: string;
 
-  @ApiPropertyOptional({ description: 'ID chi nhánh (mặc định lấy theo HLV)' })
-  @IsOptional()
-  @IsString()
-  branchId?: string;
-
   @ApiPropertyOptional({ description: 'ID phòng tập' })
   @IsOptional()
   @IsString()
@@ -114,11 +109,6 @@ export class SessionQueryDto {
   @IsOptional()
   @IsString()
   memberId?: string;
-
-  @ApiPropertyOptional({ description: 'Lọc theo chi nhánh' })
-  @IsOptional()
-  @IsString()
-  branchId?: string;
 
   @ApiPropertyOptional({ enum: ScheduleStatus })
   @IsOptional()

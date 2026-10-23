@@ -13,6 +13,8 @@ generator client {
 
 enum UserRole {
   ADMIN
+  MANAGER
+  STAFF
   TRAINER
   MEMBER
 }
@@ -158,37 +160,9 @@ enum RoomType {
 // MODELS
 // -------------------------------------------------------------
 
-model Branch {
-  id           String   @id @default(uuid())
-  code         String   @unique
-  name         String
-  address      String
-  phone        String
-  email        String?
-  description  String?
-  openingTime  String? // HH:mm
-  closingTime  String? // HH:mm
-  openingHours String? // legacy mô tả giờ mở cửa dạng chữ
-  status       String   @default("ACTIVE")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  users     User[]
-  members   Member[]
-  rooms     Room[]
-  equipment Equipment[]
-  checkIns  CheckIn[]
-  schedules TrainingSchedule[]
-
-  @@index([code])
-  @@index([status])
-}
-
 model Room {
   id          String   @id @default(uuid())
-  branchId    String
-  branch      Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  code        String? // unique trong branch, VD: BR001-R01
+  code        String? @unique // mã phòng duy nhất toàn hệ thống, VD: R-01
   name        String
   type        String   @default("GYM_AREA")
   capacity    Int      @default(20)
@@ -201,9 +175,7 @@ model Room {
   equipment Equipment[]
   schedules TrainingSchedule[]
 
-  @@unique([branchId, code])
-  @@index([branchId])
-  @@index([branchId, status])
+  @@index([status])
   @@index([type])
 }
 
@@ -223,8 +195,6 @@ model User {
   provider     String     @default("LOCAL")
   /// Google `sub` — unique khi có giá trị (PostgreSQL cho phép nhiều NULL).
   providerId   String?    @unique
-  branchId     String?
-  branch       Branch?    @relation(fields: [branchId], references: [id], onDelete: SetNull)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
@@ -237,7 +207,6 @@ model User {
 
   @@index([email])
   @@index([role])
-  @@index([branchId])
 }
 
 model Trainer {
@@ -283,8 +252,6 @@ model Member {
   notes            String?
   emergencyContact String?
   joinedAt         DateTime     @default(now())
-  branchId         String
-  branch           Branch       @relation(fields: [branchId], references: [id], onDelete: Restrict)
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
@@ -302,7 +269,6 @@ model Member {
 
   @@index([code])
   @@index([phone])
-  @@index([branchId])
   @@index([status])
 }
 
@@ -322,7 +288,6 @@ model EmailVerification {
   dateOfBirth      DateTime?
   address          String?
   emergencyContact String?
-  branchId         String?
   /// Số lần nhập sai — chạm ngưỡng thì xoá dòng, buộc người dùng xin mã mới
   attempts         Int       @default(0)
   /// Mốc hết hạn của mã (đếm ngược ở UI đăng ký)
@@ -348,8 +313,6 @@ model MembershipPackage {
   sessions        Int?
   type            PackageType @default(FIXED_TERM)
   status          String      @default("ACTIVE")
-  // Giới hạn branch: null/[] = GLOBAL (dùng mọi chi nhánh ACTIVE); khác rỗng = chỉ dùng các branch trong mảng id
-  allowedBranches Json?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
@@ -451,8 +414,6 @@ model CheckIn {
   id           String        @id @default(uuid())
   memberId     String
   member       Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  branchId     String
-  branch       Branch        @relation(fields: [branchId], references: [id], onDelete: Restrict)
   checkInTime  DateTime      @default(now())
   checkOutTime DateTime?
   status       CheckInStatus @default(CHECKED_IN)
@@ -462,7 +423,6 @@ model CheckIn {
   updatedAt    DateTime      @updatedAt
 
   @@index([memberId])
-  @@index([branchId])
   @@index([status])
   @@index([checkInTime])
 }
@@ -493,8 +453,6 @@ model TrainingSchedule {
   trainer          Trainer        @relation(fields: [trainerId], references: [id], onDelete: Restrict)
   memberId         String?
   member           Member?        @relation(fields: [memberId], references: [id], onDelete: SetNull)
-  branchId         String?
-  branch           Branch?        @relation(fields: [branchId], references: [id], onDelete: SetNull)
   roomId           String?
   room             Room?          @relation(fields: [roomId], references: [id], onDelete: SetNull)
   type             SessionType    @default(PERSONAL_TRAINING)
@@ -512,7 +470,6 @@ model TrainingSchedule {
 
   @@index([trainerId])
   @@index([memberId])
-  @@index([branchId])
   @@index([roomId])
   @@index([startTime])
   @@index([endTime])
@@ -610,8 +567,6 @@ model Equipment {
   code              String             @unique
   name              String
   category          String
-  branchId          String
-  branch            Branch             @relation(fields: [branchId], references: [id], onDelete: Restrict)
   roomId            String?
   room              Room?              @relation(fields: [roomId], references: [id], onDelete: SetNull)
   brand             String?
@@ -631,7 +586,6 @@ model Equipment {
   maintenances EquipmentMaintenance[]
 
   @@index([code])
-  @@index([branchId])
   @@index([roomId])
   @@index([status])
   @@index([category])

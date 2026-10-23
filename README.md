@@ -205,7 +205,7 @@ và `AdminGuard` / `MemberGuard` / `TrainerGuard` ở frontend (điều hướng
 | Check-in thủ công (lễ tân) | ✅ | ✅ | ✅ | — | — |
 | Xác nhận / từ chối / hoàn tiền | ✅ | ✅ | ✅¹ | — | — |
 | Khuyến mãi & voucher | ✅ | ✅ | (đọc) | — | — |
-| Chi nhánh / phòng / thiết bị / bảo trì | ✅ | ✅ | (đọc) | — | — |
+| Phòng / thiết bị / bảo trì | ✅ | ✅ | ✅ (đọc)¹ | — | — |
 | Quản lý tài khoản & đổi vai trò | ✅ | — | — | — | — |
 | **Nhật ký hệ thống** | ✅ | ✅ | ❌ (403) | ❌ | ❌ |
 | Giao diện huấn luyện viên | — | — | — | ✅ | — |

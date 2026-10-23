@@ -52,6 +52,7 @@ export default function ChatClient({ myRole, emptyHint }: ChatClientProps) {
         ? chatApi.getMessages(activeConv, { limit: 50 })
         : Promise.resolve({ data: [], total: 0, page: 1, limit: 50 }),
     enabled: !!activeConv,
+    refetchInterval: 1000,
   });
 
   const messageList = msgs?.data ?? [];
@@ -254,9 +255,7 @@ export default function ChatClient({ myRole, emptyHint }: ChatClientProps) {
                               className="mb-1 max-h-64 rounded-sm object-cover"
                             />
                           ) : null}
-                          {m.mealPlan && (
-                            <MealPlanCard message={m} />
-                          )}
+                          {m.mealPlan && <MealPlanCard message={m} />}
                           {m.content && (
                             <p className="whitespace-pre-wrap break-words">{m.content}</p>
                           )}
@@ -347,8 +346,8 @@ function MealPlanCard({ message }: { message: MessageItem }) {
         <div className="min-w-0 flex-1">
           <p className="font-semibold text-chalk">{plan.title}</p>
           <p className="text-xs text-muted">
-            {plan.scope === 'WEEK' ? 'Thực đơn tuần' : 'Thực đơn ngày'}
-            • {plan.totalCalories ?? 0} kcal • {meals.length} bữa
+            {plan.scope === 'WEEK' ? 'Thực đơn tuần' : 'Thực đơn ngày'}• {plan.totalCalories ?? 0}{' '}
+            kcal • {meals.length} bữa
           </p>
         </div>
         <span className="text-xs text-muted">{expanded ? 'Thu gọn' : 'Xem món'}</span>
@@ -360,14 +359,21 @@ function MealPlanCard({ message }: { message: MessageItem }) {
               <div key={i} className="rounded-sm border border-line/30 bg-ink p-2">
                 <div className="mb-1 flex items-center gap-2 text-xs font-bold text-neon">
                   <span className="uppercase tracking-wide">
-                    {(meal.type || '').replace('BREAKFAST', 'Sáng').replace('LUNCH', 'Trưa').replace('DINNER', 'Tối').replace('SNACK', 'Phụ')}
+                    {(meal.type || '')
+                      .replace('BREAKFAST', 'Sáng')
+                      .replace('LUNCH', 'Trưa')
+                      .replace('DINNER', 'Tối')
+                      .replace('SNACK', 'Phụ')}
                   </span>
                   {meal.time && <span className="text-muted">{meal.time}</span>}
                   <span className="ml-auto text-[10px] text-muted">{meal.note || ''}</span>
                 </div>
                 <div className="space-y-1">
                   {(meal.items || []).map((it: any, j: number) => (
-                    <div key={j} className="flex items-center justify-between gap-2 rounded-sm px-2 py-1 text-xs hover:bg-line/20">
+                    <div
+                      key={j}
+                      className="flex items-center justify-between gap-2 rounded-sm px-2 py-1 text-xs hover:bg-line/20"
+                    >
                       <span className="text-chalk">{it.name}</span>
                       <span className="text-muted">
                         {it.quantity} {it.unit || 'g'} • {Math.round(it.calories || 0)} kcal

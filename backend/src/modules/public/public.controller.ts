@@ -33,14 +33,6 @@ export class PublicController {
   }
 
   @Public()
-  @Get('branches')
-  @ApiOperation({ summary: 'Danh sách chi nhánh (trang liên hệ)' })
-  @ApiResponse({ status: 200, description: 'Danh sách chi nhánh ACTIVE' })
-  getBranches() {
-    return this.publicService.getBranches();
-  }
-
-  @Public()
   @Get('promotions')
   @ApiOperation({ summary: 'Mã khuyến mãi đang hiệu lực (trang gói tập công khai)' })
   @ApiResponse({ status: 200, description: 'Danh sách mã khuyến mãi ACTIVE và còn thời hạn' })
@@ -51,7 +43,7 @@ export class PublicController {
   @Public()
   @Get('home-stats')
   @ApiOperation({ summary: 'Thống kê nhanh cho trang chủ' })
-  @ApiResponse({ status: 200, description: 'Số liệu hội viên, HLV, chi nhánh' })
+  @ApiResponse({ status: 200, description: 'Số liệu hội viên, HLV' })
   getHomeStats() {
     return this.publicService.getHomeStats();
   }

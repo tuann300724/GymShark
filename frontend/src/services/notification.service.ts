@@ -62,12 +62,11 @@ export const notificationApi = {
     return res.data;
   },
 
-  /** Thông báo hàng loạt — target: ALL/MEMBERS/TRAINERS/STAFF/MANAGERS/SPECIFIC_BRANCH */
+  /** Thông báo hàng loạt — target: ALL/MEMBERS/TRAINERS/STAFF/MANAGERS */
   announce: async (payload: {
     title: string;
     message: string;
     target: string;
-    branchId?: string;
     startAt?: string;
     endAt?: string;
   }) => {

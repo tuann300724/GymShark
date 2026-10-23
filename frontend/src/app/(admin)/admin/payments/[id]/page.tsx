@@ -41,7 +41,7 @@ export default function PaymentDetailPage() {
   const params = useParams();
   const id = params?.id as string;
   const user = getStoredUser();
-  const canReject = user?.role === 'ADMIN';
+  const canReject = user?.role === 'ADMIN' || user?.role === 'MANAGER';
   const canRefund = user?.role === 'ADMIN';
 
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -376,10 +376,6 @@ export default function PaymentDetailPage() {
           <div>
             <p className="text-muted">Email</p>
             <p className="text-chalk">{payment.member?.email || '—'}</p>
-          </div>
-          <div>
-            <p className="text-muted">Chi nhánh</p>
-            <p className="text-chalk">{payment.member?.branch?.name || '—'}</p>
           </div>
           {payment.member && (
             <Link href={`/admin/members/${payment.member.id}`}>

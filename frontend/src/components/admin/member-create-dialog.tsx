@@ -19,7 +19,6 @@ import { FaceScanner } from '@/components/ui/face-scanner';
 import { useToast } from '@/components/ui/toast';
 import apiClient from '@/lib/axios';
 import { formatCurrency, cn } from '@/lib/utils';
-import { branchApi } from '@/services/branch.service';
 import {
   adminMemberApi,
   type CreateMemberPayload,
@@ -28,7 +27,7 @@ import {
   type RegisterCardResult,
 } from '@/services/admin-member.service';
 import { faceApi } from '@/services/face.service';
-import type { Branch, MembershipPackage } from '@/services/types';
+import type { MembershipPackage } from '@/services/types';
 
 /**
  * MemberCreateDialog — luồng "làm thẻ hội viên mới" tại quầy, 3 bước:
@@ -63,7 +62,6 @@ const EMPTY_FORM = {
   dateOfBirth: '',
   address: '',
   emergencyContact: '',
-  branchId: '',
 };
 
 interface Props {
@@ -100,13 +98,6 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
   // Thu tiền tại quầy chỉ áp dụng cho phương thức xác nhận thủ công
   const isManualMethod = paymentMethod === 'CASH' || paymentMethod === 'BANK_TRANSFER';
   const payNowBlocked = payNow && !isManualMethod;
-
-  const { data: branches = [] } = useQuery({
-    queryKey: ['branches-list'],
-    queryFn: branchApi.list,
-    enabled: open,
-    staleTime: 5 * 60 * 1000,
-  });
 
   const { data: packages = [] } = useQuery({
     queryKey: ['membership-packages'],
@@ -231,7 +222,6 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
     if (form.dateOfBirth) payload.dateOfBirth = form.dateOfBirth;
     if (form.address.trim()) payload.address = form.address.trim();
     if (form.emergencyContact.trim()) payload.emergencyContact = form.emergencyContact.trim();
-    if (form.branchId) payload.branchId = form.branchId;
     createMutation.mutate(payload);
   };
 
@@ -343,17 +333,6 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
               type="date"
               value={form.dateOfBirth}
               onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })}
-            />
-            <Select
-              label="Chi nhánh"
-              value={form.branchId}
-              options={[
-                { value: '', label: 'Chi nhánh của tôi (mặc định)' },
-                ...branches
-                  .filter((b: Branch) => b.status === 'ACTIVE')
-                  .map((b: Branch) => ({ value: b.id, label: b.name })),
-              ]}
-              onChange={(e) => setForm({ ...form, branchId: e.target.value })}
             />
             <Input
               label="Mật khẩu đăng nhập"

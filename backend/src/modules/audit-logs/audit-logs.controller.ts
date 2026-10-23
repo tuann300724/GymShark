@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+﻿import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuditService } from './audit-logs.service';
 import { QueryAuditLogsDto } from './dto/query-audit-logs.dto';
@@ -15,10 +15,10 @@ export class AuditLogsController {
   constructor(private readonly auditService: AuditService) {}
 
   @Get()
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.MANAGER)
   @ApiOperation({
     summary:
-      'Nhật ký hoạt động toàn hệ thống (lọc theo user/action/entity/ngày, phân trang) — chỉ ADMIN & MANAGER',
+      'Nháº­t kÃ½ hoáº¡t Ä‘á»™ng toÃ n há»‡ thá»‘ng (lá»c theo user/action/entity/ngÃ y, phÃ¢n trang) â€” chá»‰ ADMIN & MANAGER',
   })
   findAll(@Query() query: QueryAuditLogsDto) {
     return this.auditService.findAll(query);

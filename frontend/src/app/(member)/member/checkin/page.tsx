@@ -6,27 +6,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { checkinApi } from '@/services/checkin.service';
 import { memberApi } from '@/services/member.service';
 import { faceApi } from '@/services/face.service';
-import apiClient from '@/lib/axios';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Select } from '@/components/ui/select';
 import { Tabs } from '@/components/ui/tabs';
 import { FaceScanner } from '@/components/ui/face-scanner';
 import { useToast } from '@/components/ui/toast';
 import { formatTime } from '@/lib/utils';
-import { BRANCH_STATUS_META } from '@/lib/status';
-import {
-  LogIn,
-  LogOut,
-  Clock,
-  Timer,
-  CheckCircle2,
-  Activity,
-  MapPin,
-  ScanFace,
-} from 'lucide-react';
+import { LogIn, LogOut, Clock, Timer, CheckCircle2, Activity, ScanFace } from 'lucide-react';
 
 function formatElapsed(ms: number): string {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
@@ -59,14 +47,6 @@ export default function MemberCheckInPage() {
     refetchInterval: 30000,
   });
 
-  // Danh sách chi nhánh ACTIVE để member chọn khi check-in
-  const { data: branches } = useQuery({
-    queryKey: ['public-branches'],
-    queryFn: async () => (await apiClient.get('/public/branches')).data,
-    retry: 0,
-  });
-  const [selectedBranchId, setSelectedBranchId] = useState('');
-
   // ------------------ Check-in bằng khuôn mặt ------------------
   const [checkinTab, setCheckinTab] = useState<'manual' | 'face'>('manual');
   // Tăng số để remount FaceScanner (quét lại sau lỗi đối sánh)
@@ -92,14 +72,13 @@ export default function MemberCheckInPage() {
   }, [checkedIn, current?.checkInAt, now]);
 
   const checkInMutation = useMutation({
-    mutationFn: () => checkinApi.checkIn('MANUAL', selectedBranchId || undefined),
+    mutationFn: () => checkinApi.checkIn('MANUAL'),
     onSuccess: (res) => {
       const name = res.data.member?.fullName || me?.fullName || '';
       toast.success(
         'CHECK-IN THÀNH CÔNG',
         `${name ? `Xin chào ${name}. ` : ''}Chúc bạn có buổi tập hiệu quả!`,
       );
-      setSelectedBranchId('');
       setNow(Date.now());
       queryClient.invalidateQueries({ queryKey: ['checkin-current'] });
       queryClient.invalidateQueries({ queryKey: ['member-checkins'] });
@@ -133,15 +112,13 @@ export default function MemberCheckInPage() {
   });
 
   const faceCheckInMutation = useMutation({
-    mutationFn: (embedding: number[]) =>
-      checkinApi.faceCheckIn(embedding, selectedBranchId || undefined),
+    mutationFn: (embedding: number[]) => checkinApi.faceCheckIn(embedding),
     onSuccess: (res) => {
       const name = res.data.member?.fullName || me?.fullName || '';
       toast.success(
         'CHECK-IN BẰNG KHUÔN MẶT THÀNH CÔNG',
         `${name ? `Xin chào ${name}. ` : ''}Chúc bạn có buổi tập hiệu quả!`,
       );
-      setSelectedBranchId('');
       setNow(Date.now());
       queryClient.invalidateQueries({ queryKey: ['checkin-current'] });
       queryClient.invalidateQueries({ queryKey: ['member-checkins'] });
@@ -200,25 +177,6 @@ export default function MemberCheckInPage() {
                 {' • '}
                 Hãy chấm công để bắt đầu buổi tập!
               </p>
-
-              {branches && branches.length > 0 && (
-                <div className="mt-5 w-full max-w-sm">
-                  <Select
-                    label="Chọn chi nhánh check-in"
-                    value={selectedBranchId}
-                    onChange={(e) => setSelectedBranchId(e.target.value)}
-                    options={[
-                      { value: '', label: '-- Chọn chi nhánh --' },
-                      ...branches
-                        .filter((b: any) => b.status === 'ACTIVE')
-                        .map((b: any) => ({ value: b.id, label: `${b.name} (${b.code})` })),
-                    ]}
-                  />
-                  <p className="mt-1 text-[11px] text-muted">
-                    Chi nhánh bạn chọn phải được phép theo thẻ hội viên.
-                  </p>
-                </div>
-              )}
 
               {/* Chọn hình thức: thủ công hoặc quét khuôn mặt */}
               <div className="mt-5 w-full max-w-sm">
@@ -328,14 +286,6 @@ export default function MemberCheckInPage() {
                     {formatElapsed(elapsedMs)}
                   </span>
                 </div>
-                {current?.branch && (
-                  <div className="flex items-center justify-between rounded-xl border border-line bg-ink px-4 py-3">
-                    <span className="flex items-center gap-2 text-sm text-muted">
-                      <MapPin className="size-4 text-neon" /> Chi nhánh
-                    </span>
-                    <span className="text-sm font-semibold text-chalk">{current.branch.name}</span>
-                  </div>
-                )}
               </div>
 
               <Button

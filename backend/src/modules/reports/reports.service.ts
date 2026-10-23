@@ -3,34 +3,26 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RevenueReportQueryDto } from './dto/revenue-report-query.dto';
 import { EquipmentService } from '../equipment/equipment.service';
-import { BranchesService } from '../branches/branches.service';
 
 @Injectable()
 export class ReportsService {
   constructor(
     private prisma: PrismaService,
     private readonly equipmentService: EquipmentService,
-    private readonly branchesService: BranchesService,
   ) {}
 
-  /** Filter hội viên theo chi nhánh (STEP 7) */
-  private memberWhere(branchId?: string): Prisma.MemberWhereInput {
-    return branchId ? { branchId } : {};
-  }
-
-  async getSummary(branchId?: string) {
+  async getSummary() {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const [totalMembers, activeMemberIds, expiredMembers, pendingMemberships, pendingPayments, totalRevenue, revenueThisMonth, newMembersThisMonth, totalTrainers, totalBranches, todayCheckIns, todayCheckOuts, currentlyInside] =
+    const [totalMembers, activeMemberIds, expiredMembers, pendingMemberships, pendingPayments, totalRevenue, revenueThisMonth, newMembersThisMonth, totalTrainers, todayCheckIns, todayCheckOuts, currentlyInside] =
       await Promise.all([
-        this.prisma.member.count({ where: this.memberWhere(branchId) }),
+        this.prisma.member.count(),
         // Hội viên đang có thẻ còn hiệu lực
         this.prisma.membership.findMany({
           where: {
             status: 'ACTIVE',
             endDate: { gte: now },
-            ...(branchId ? { member: { is: { branchId } } } : {}),
           },
           select: { memberId: true },
           distinct: ['memberId'],
@@ -39,50 +31,45 @@ export class ReportsService {
         this.prisma.membership.findMany({
           where: {
             endDate: { lt: now },
-            ...(branchId ? { member: { is: { branchId } } } : {}),
           },
           select: { memberId: true, endDate: true },
           distinct: ['memberId'],
         }),
         this.prisma.membership.count({
-          where: { status: 'PENDING', ...(branchId ? { member: { is: { branchId } } } : {}) },
+          where: { status: 'PENDING' },
         }),
         this.prisma.payment.count({
-          where: { status: 'PENDING', ...(branchId ? { member: { is: { branchId } } } : {}) },
+          where: { status: 'PENDING' },
         }),
         this.prisma.payment.aggregate({
           _sum: { amount: true },
-          where: { status: 'PAID', ...(branchId ? { member: { is: { branchId } } } : {}) },
+          where: { status: 'PAID' },
         }),
         this.prisma.payment.aggregate({
           _sum: { amount: true },
           where: {
             status: 'PAID',
             createdAt: { gte: startOfMonth },
-            ...(branchId ? { member: { is: { branchId } } } : {}),
           },
         }),
         this.prisma.member.count({
-          where: { joinedAt: { gte: startOfMonth }, ...this.memberWhere(branchId) },
+          where: { joinedAt: { gte: startOfMonth } },
         }),
         this.prisma.trainer.count({
-          where: { status: 'ACTIVE', ...(branchId ? { user: { is: { branchId } } } : {}) },
+          where: { status: 'ACTIVE' },
         }),
-        this.prisma.branch.count({ where: { status: 'ACTIVE' } }),
         this.prisma.checkIn.count({
           where: {
             checkInTime: { gte: new Date(now.setHours(0, 0, 0, 0)) },
-            ...(branchId ? { branchId } : {}),
           },
         }),
         this.prisma.checkIn.count({
           where: {
             checkOutTime: { gte: new Date(now.setHours(0, 0, 0, 0)) },
-            ...(branchId ? { branchId } : {}),
           },
         }),
         this.prisma.checkIn.count({
-          where: { status: 'CHECKED_IN', ...(branchId ? { branchId } : {}) },
+          where: { status: 'CHECKED_IN' },
         }),
       ]);
 
@@ -101,7 +88,6 @@ export class ReportsService {
       totalRevenue: totalRevenue._sum.amount || 0,
       revenueThisMonth: revenueThisMonth._sum.amount || 0,
       totalTrainers,
-      totalBranches,
       todayCheckIns,
       todayCheckOuts,
       currentlyInside,
@@ -142,7 +128,6 @@ export class ReportsService {
     const baseWhere: Prisma.PaymentWhereInput = { status: 'PAID' };
     if (query.method) baseWhere.method = query.method;
     if (query.packageId) baseWhere.membership = { is: { packageId: query.packageId } };
-    if (query.branchId) baseWhere.member = { is: { branchId: query.branchId } };
 
     // Phạm vi ngày cho biểu đồ theo ngày (mặc định 30 ngày gần nhất)
     const rangeFrom = query.from ? this.startOfDay(new Date(query.from)) : this.daysAgo(29);
@@ -289,13 +274,13 @@ export class ReportsService {
     };
   }
 
-  /** Dữ liệu tổng hợp cho trang Dashboard admin (+ lọc theo chi nhánh STEP 7) */
-  async getDashboard(branchId?: string) {
-    const stats = await this.getSummary(branchId);
+  /** Dữ liệu tổng hợp cho trang Dashboard admin */
+  async getDashboard() {
+    const stats = await this.getSummary();
 
     const [recentRegistrations, pendingPayments] = await Promise.all([
       this.prisma.membership.findMany({
-        where: branchId ? { member: { is: { branchId } } } : {},
+        where: {},
         include: {
           member: { select: { id: true, code: true, fullName: true, phone: true } },
           package: { select: { id: true, name: true } },
@@ -304,7 +289,7 @@ export class ReportsService {
         take: 6,
       }),
       this.prisma.payment.findMany({
-        where: { status: 'PENDING', ...(branchId ? { member: { is: { branchId } } } : {}) },
+        where: { status: 'PENDING' },
         include: {
           member: { select: { id: true, code: true, fullName: true, phone: true } },
           membership: { include: { package: { select: { id: true, name: true } } } },
@@ -318,72 +303,8 @@ export class ReportsService {
   }
 
   // ---------------------------------------------------------------------------
-  // STEP 7 — Branch overview + Equipment stats (cho dashboard / báo cáo)
+  // Equipment stats (cho dashboard / báo cáo)
   // ---------------------------------------------------------------------------
-
-  /** GET /reports/branches — tổng quan từng chi nhánh: hội viên, check-in, doanh thu, thiết bị, HLV */
-  async getBranchOverview() {
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-    const branches = await this.prisma.branch.findMany({
-      include: {
-        _count: { select: { members: true, equipment: true, rooms: true } },
-      },
-      orderBy: { createdAt: 'asc' },
-    });
-
-    const rows = await Promise.all(
-      branches.map(async (b) => {
-        const [activeMemberRows, checkInsThisMonth, revenueThisMonth, trainerCount, upcomingSessions, checkInsToday] =
-          await Promise.all([
-            this.prisma.membership.findMany({
-              where: { status: 'ACTIVE', endDate: { gte: now }, member: { is: { branchId: b.id } } },
-              select: { memberId: true },
-              distinct: ['memberId'],
-            }),
-            this.prisma.checkIn.count({
-              where: { branchId: b.id, checkInTime: { gte: startOfMonth } },
-            }),
-            this.prisma.payment.aggregate({
-              _sum: { amount: true },
-              where: { status: 'PAID', member: { is: { branchId: b.id } }, paidAt: { gte: startOfMonth } },
-            }),
-            this.prisma.trainer.count({
-              where: { status: 'ACTIVE', user: { is: { branchId: b.id } } },
-            }),
-            this.prisma.trainingSchedule.count({
-              where: { branchId: b.id, status: 'SCHEDULED', startTime: { gte: now } },
-            }),
-            this.prisma.checkIn.count({
-              where: {
-                branchId: b.id,
-                checkInTime: { gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()) },
-              },
-            }),
-          ]);
-        return {
-          id: b.id,
-          code: b.code,
-          name: b.name,
-          address: b.address,
-          status: b.status,
-          openingHours: b.openingHours,
-          members: b._count.members,
-          activeMembers: activeMemberRows.length,
-          equipment: b._count.equipment,
-          rooms: b._count.rooms,
-          trainers: trainerCount,
-          checkInsThisMonth,
-          checkInsToday,
-          revenueThisMonth: revenueThisMonth._sum.amount || 0,
-          upcomingSessions,
-        };
-      }),
-    );
-
-    return { data: rows, total: rows.length };
-  }
 
   /** GET /reports/equipment — tổng quan thiết bị hệ thống (ủy quyền EquipmentService) */
   async getEquipmentStats() {
@@ -527,13 +448,10 @@ export class ReportsService {
   // STEP 8 — Reports: members / memberships / trainers / attendance / overview
   // ---------------------------------------------------------------------------
 
-  /** GET /reports/members — Hội viên: tổng, trạng thái, tăng trưởng theo tháng, chi nhánh */
-  async getMembersReport(
-    query: { branchId?: string; from?: string; to?: string; search?: string } = {},
-  ) {
+  /** GET /reports/members — Hội viên: tổng, trạng thái, tăng trưởng theo tháng */
+  async getMembersReport(query: { from?: string; to?: string; search?: string } = {}) {
     const now = new Date();
     const memberWhere: Prisma.MemberWhereInput = {};
-    if (query.branchId) memberWhere.branchId = query.branchId;
     if (query.from || query.to) {
       memberWhere.joinedAt = {
         ...(query.from ? { gte: this.startOfDay(new Date(query.from)) } : {}),
@@ -553,7 +471,6 @@ export class ReportsService {
       this.prisma.member.findMany({
         where: memberWhere,
         include: {
-          branch: { select: { id: true, name: true } },
           _count: { select: { payments: true, checkIns: true } },
         },
         orderBy: { joinedAt: 'desc' },
@@ -563,13 +480,12 @@ export class ReportsService {
         where: {
           status: 'ACTIVE',
           endDate: { gte: now },
-          ...(query.branchId ? { member: { is: { branchId: query.branchId } } } : {}),
         },
         select: { memberId: true },
         distinct: ['memberId'],
       }),
       this.prisma.membership.count({
-        where: { status: 'PENDING', ...(query.branchId ? { member: { is: { branchId: query.branchId } } } : {}) },
+        where: { status: 'PENDING' },
       }),
     ]);
 
@@ -602,10 +518,9 @@ export class ReportsService {
 
   /** GET /reports/memberships — Gói tập: phổ biến, trạng thái, đăng ký theo tháng */
   async getMembershipsReport(
-    query: { branchId?: string; from?: string; to?: string; packageId?: string } = {},
+    query: { from?: string; to?: string; packageId?: string } = {},
   ) {
     const where: Prisma.MembershipWhereInput = {
-      ...(query.branchId ? { member: { is: { branchId: query.branchId } } } : {}),
       ...(query.packageId ? { packageId: query.packageId } : {}),
     };
     if (query.from || query.to) {
@@ -655,10 +570,9 @@ export class ReportsService {
     };
   }
 
-  /** GET /reports/trainers — HLV: số hội viên phụ trách, số buổi tập, theo chi nhánh */
-  async getTrainersReport(query: { branchId?: string } = {}) {
+  /** GET /reports/trainers — HLV: số hội viên phụ trách, số buổi tập */
+  async getTrainersReport() {
     const trainers = await this.prisma.trainer.findMany({
-      where: { ...(query.branchId ? { user: { is: { branchId: query.branchId } } } : {}) },
       include: {
         user: {
           select: {
@@ -666,7 +580,6 @@ export class ReportsService {
             fullName: true,
             email: true,
             avatarUrl: true,
-            branch: { select: { id: true, name: true } },
           },
         },
         _count: { select: { trainerMembers: true, schedules: true } },
@@ -691,7 +604,6 @@ export class ReportsService {
         fullName: t.user.fullName,
         email: t.user.email,
         avatarUrl: t.user.avatarUrl,
-        branch: t.user.branch,
         status: t.status,
         memberCount: t._count.trainerMembers,
         scheduleCount: t._count.schedules,
@@ -700,30 +612,24 @@ export class ReportsService {
     };
   }
 
-  /** GET /reports/attendance — chuyên cần tổng hợp: theo ngày/giờ/thứ/chi nhánh */
-  async getAttendanceReport(query: { from?: string; to?: string; branchId?: string } = {}) {
+  /** GET /reports/attendance — chuyên cần tổng hợp: theo ngày/giờ/thứ/hình thức */
+  async getAttendanceReport(query: { from?: string; to?: string } = {}) {
     const toDate = query.to ? this.endOfDay(new Date(query.to)) : new Date();
     const fromDate = query.from ? this.startOfDay(new Date(query.from)) : this.daysAgo(30);
-    const branchFilter = query.branchId ? { branchId: query.branchId } : {};
 
-    const [checkIns, checkOuts, byBranchRows, byMethodRows] = await Promise.all([
+    const [checkIns, checkOuts, byMethodRows] = await Promise.all([
       this.prisma.checkIn.findMany({
-        where: { checkInTime: { gte: fromDate, lte: toDate }, ...branchFilter },
+        where: { checkInTime: { gte: fromDate, lte: toDate } },
         select: { checkInTime: true },
       }),
       this.prisma.checkIn.findMany({
-        where: { checkOutTime: { gte: fromDate, lte: toDate }, ...branchFilter },
+        where: { checkOutTime: { gte: fromDate, lte: toDate } },
         select: { checkOutTime: true },
-      }),
-      this.prisma.checkIn.groupBy({
-        by: ['branchId'],
-        where: { checkInTime: { gte: fromDate, lte: toDate }, ...branchFilter },
-        _count: true,
       }),
       // Số lượt theo hình thức check-in (MANUAL / STAFF / QR_CODE / FACE_ID)
       this.prisma.checkIn.groupBy({
         by: ['method'],
-        where: { checkInTime: { gte: fromDate, lte: toDate }, ...branchFilter },
+        where: { checkInTime: { gte: fromDate, lte: toDate } },
         _count: true,
       }),
     ]);
@@ -755,20 +661,6 @@ export class ReportsService {
       .sort((a, b) => a[0] - b[0])
       .map(([day, count]) => ({ day, label: WEEKDAY_LABELS[day] || `Thứ ${day + 1}`, count }));
 
-    const branchIds = byBranchRows.map((r) => r.branchId);
-    const branches = branchIds.length
-      ? await this.prisma.branch.findMany({
-          where: { id: { in: branchIds } },
-          select: { id: true, name: true, code: true },
-        })
-      : [];
-    const branchNameById = new Map(branches.map((b) => [b.id, b]));
-    const byBranch = byBranchRows.map((r) => ({
-      branchId: r.branchId,
-      branchName: branchNameById.get(r.branchId)?.name || 'Không xác định',
-      count: r._count,
-    }));
-
     let peakHour: number | null = null;
     let peakCount = 0;
     hourBuckets.forEach((b) => {
@@ -793,7 +685,6 @@ export class ReportsService {
         .map(([date, counts]) => ({ date, ...counts })),
       byHour: hourBuckets,
       byWeekday,
-      byBranch,
       byMethod: byMethodRows
         .map((r) => ({ method: r.method, count: r._count }))
         .sort((a, b) => b.count - a.count),
@@ -801,10 +692,10 @@ export class ReportsService {
   }
 
   /** GET /reports/overview — tổng hợp nhanh toàn hệ thống cho dashboard/báo cáo */
-  async getOverview(query: { branchId?: string } = {}) {
-    const summary = await this.getSummary(query.branchId);
-    const revenue = await this.getRevenue({ branchId: query.branchId });
-    const attendance = await this.getAttendanceReport({ branchId: query.branchId });
+  async getOverview() {
+    const summary = await this.getSummary();
+    const revenue = await this.getRevenue({});
+    const attendance = await this.getAttendanceReport({});
     return {
       summary,
       revenue: {
@@ -824,7 +715,7 @@ export class ReportsService {
 
   async exportCsv(
     type: string,
-    query: { branchId?: string; from?: string; to?: string; search?: string } = {},
+    query: { from?: string; to?: string; search?: string } = {},
   ): Promise<{ filename: string; csv: string }> {
     if (type === 'revenue') {
       const r = await this.getRevenue(query);
@@ -834,11 +725,10 @@ export class ReportsService {
     }
     if (type === 'members') {
       const r = await this.getMembersReport(query);
-      const headers = ['Mã HV', 'Họ tên', 'Chi nhánh', 'Ngày tham gia'];
+      const headers = ['Mã HV', 'Họ tên', 'Ngày tham gia'];
       const rows = r.recent.map((m) => [
         m.code,
         m.fullName,
-        m.branch?.name || '',
         m.joinedAt.toISOString().slice(0, 10),
       ]);
       return { filename: 'hoi-vien.csv', csv: this.toCsv(headers, rows) };

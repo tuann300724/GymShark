@@ -3,9 +3,8 @@ export interface StoredUser {
   id: string;
   email: string;
   fullName: string;
-  role: 'ADMIN' | 'TRAINER' | 'MEMBER';
+  role: 'ADMIN' | 'MANAGER' | 'STAFF' | 'TRAINER' | 'MEMBER';
   status?: string;
-  branchId?: string | null;
   avatarUrl?: string | null;
 }
 
@@ -21,7 +20,7 @@ export function getStoredUser(): StoredUser | null {
   }
 }
 
-const ADMIN_ROLES = ['ADMIN'] as const;
+const ADMIN_ROLES = ['ADMIN', 'MANAGER', 'STAFF'] as const;
 
 export function isAdminRole(role?: string): boolean {
   return !!role && ADMIN_ROLES.includes(role as (typeof ADMIN_ROLES)[number]);

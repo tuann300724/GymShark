@@ -19,8 +19,7 @@ import {
 } from './dto/equipment.dto';
 
 /** Vai trò được phép quản lý thiết bị (tạo/sửa/xóa/đổi trạng thái) */
-const MANAGE_ROLES = ['ADMIN', 'TRAINER'];
-/** STAFF chỉ được tạo/hoàn tất bảo trì thiết bị của chi nhánh mình */
+const MANAGE_ROLES = ['ADMIN', 'MANAGER', 'STAFF'];
 const MAINTENANCE_ROLES = ['ADMIN', 'TRAINER'];
 
 @Injectable()
@@ -47,25 +46,8 @@ export class EquipmentService {
     return equipment;
   }
 
-  /** STAFF/TRAINER chỉ nhìn/móc thiết bị thuộc chi nhánh của mình */
-  private assertBranchScope(branchId: string, role: string, userBranchId?: string | null) {
-    if ((role === 'TRAINER') && userBranchId) {
-      if (branchId !== userBranchId) {
-        throw new ForbiddenException('Bạn chỉ được thao tác thiết bị thuộc chi nhánh của mình.');
-      }
-    }
-  }
-
-  private scopedWhere(role: string, userBranchId?: string | null): Prisma.EquipmentWhereInput {
-    if ((role === 'TRAINER') && userBranchId) {
-      return { branchId: userBranchId };
-    }
-    return {};
-  }
-
   private includeBase() {
     return {
-      branch: { select: { id: true, name: true, code: true } },
       room: { select: { id: true, name: true, code: true } },
       maintenances: {
         orderBy: { maintenanceDate: 'desc' },
@@ -78,14 +60,11 @@ export class EquipmentService {
   // List / Detail / Stats / Alerts
   // ---------------------------------------------------------------------------
 
-  async findAll(query: EquipmentQueryDto = {}, role = 'ADMIN', userBranchId?: string | null) {
-    const { page = 1, limit = 20, search, category, status, condition, branchId, roomId } = query;
+  async findAll(query: EquipmentQueryDto = {}) {
+    const { page = 1, limit = 20, search, category, status, condition, roomId } = query;
     const skip = (page - 1) * limit;
 
-    const scope = this.scopedWhere(role, userBranchId);
-    const where: Prisma.EquipmentWhereInput = { ...scope };
-    // STAFF/TRAINER đã bị khóa ở chi nhánh của mình; chỉ ADMIN/MANAGER được lọc branch khác
-    if (branchId && !scope.branchId) where.branchId = branchId;
+    const where: Prisma.EquipmentWhereInput = {};
     if (roomId) where.roomId = roomId;
     if (category) where.category = category;
     if (status) where.status = status;
@@ -118,11 +97,10 @@ export class EquipmentService {
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
-  async findOne(id: string, role = 'ADMIN', userBranchId?: string | null) {
+  async findOne(id: string) {
     const equipment = await this.prisma.equipment.findUnique({
       where: { id },
       include: {
-        branch: true,
         room: true,
         maintenances: {
           include: { equipment: { select: { id: true, code: true, name: true } } },
@@ -131,7 +109,6 @@ export class EquipmentService {
       },
     });
     if (!equipment) throw new NotFoundException('Không tìm thấy thiết bị.');
-    this.assertBranchScope(equipment.branchId, role, userBranchId);
     return equipment;
   }
 
@@ -191,12 +168,11 @@ export class EquipmentService {
   }
 
   /** GET /equipment/alerts — cảnh báo bảo trì quá hạn / sắp tới / hỏng / hết bảo hành */
-  async getAlerts(role = 'ADMIN', userBranchId?: string | null) {
+  async getAlerts() {
     const now = new Date();
     const in14Days = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
     const in30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
-    const scope = this.scopedWhere(role, userBranchId);
     const select = {
       id: true,
       code: true,
@@ -204,14 +180,12 @@ export class EquipmentService {
       status: true,
       nextMaintenanceAt: true,
       warrantyExpiry: true,
-      branch: { select: { id: true, name: true, code: true } },
       room: { select: { id: true, name: true } },
     } satisfies Prisma.EquipmentSelect;
 
     const [overdue, upcoming, broken, warranty] = await Promise.all([
       this.prisma.equipment.findMany({
         where: {
-          ...scope,
           nextMaintenanceAt: { lt: now },
           status: { in: [EquipmentStatus.AVAILABLE, EquipmentStatus.IN_USE, EquipmentStatus.MAINTENANCE] },
         },
@@ -221,7 +195,6 @@ export class EquipmentService {
       }),
       this.prisma.equipment.findMany({
         where: {
-          ...scope,
           nextMaintenanceAt: { gte: now, lte: in14Days },
           status: { in: [EquipmentStatus.AVAILABLE, EquipmentStatus.IN_USE] },
         },
@@ -230,13 +203,13 @@ export class EquipmentService {
         take: 50,
       }),
       this.prisma.equipment.findMany({
-        where: { ...scope, status: EquipmentStatus.BROKEN },
+        where: { status: EquipmentStatus.BROKEN },
         select,
         orderBy: { updatedAt: 'desc' },
         take: 50,
       }),
       this.prisma.equipment.findMany({
-        where: { ...scope, warrantyExpiry: { gte: now, lte: in30Days }, status: { not: EquipmentStatus.RETIRED } },
+        where: { warrantyExpiry: { gte: now, lte: in30Days }, status: { not: EquipmentStatus.RETIRED } },
         select,
         orderBy: { warrantyExpiry: 'asc' },
         take: 50,
@@ -265,9 +238,6 @@ export class EquipmentService {
   async create(dto: CreateEquipmentDto, role: string, actorId?: string) {
     this.assertManage(role);
 
-    const branch = await this.prisma.branch.findUnique({ where: { id: dto.branchId } });
-    if (!branch) throw new NotFoundException('Không tìm thấy chi nhánh.');
-
     const dupCode = await this.prisma.equipment.findUnique({ where: { code: dto.code } });
     if (dupCode) throw new ConflictException(`Mã thiết bị ${dto.code} đã tồn tại.`);
 
@@ -283,11 +253,11 @@ export class EquipmentService {
 
     if (dto.roomId) {
       const room = await this.prisma.room.findFirst({
-        where: { id: dto.roomId, branchId: dto.branchId },
+        where: { id: dto.roomId },
         select: { id: true },
       });
       if (!room) {
-        throw new BadRequestException('Phòng được chọn không thuộc chi nhánh của thiết bị.');
+        throw new BadRequestException('Không tìm thấy phòng tập được chọn.');
       }
     }
 
@@ -296,7 +266,6 @@ export class EquipmentService {
         code: dto.code,
         name: dto.name,
         category: dto.category,
-        branchId: dto.branchId,
         roomId: dto.roomId ?? null,
         brand: dto.brand ?? null,
         model: dto.model ?? null,
@@ -345,11 +314,11 @@ export class EquipmentService {
 
     if (dto.roomId !== undefined && dto.roomId) {
       const room = await this.prisma.room.findFirst({
-        where: { id: dto.roomId, branchId: dto.branchId ?? existing.branchId },
+        where: { id: dto.roomId },
         select: { id: true },
       });
       if (!room) {
-        throw new BadRequestException('Phòng được chọn không thuộc chi nhánh của thiết bị.');
+        throw new BadRequestException('Không tìm thấy phòng tập được chọn.');
       }
     }
 
@@ -390,16 +359,9 @@ export class EquipmentService {
   }
 
   /** Đổi trạng thái nhanh (AVAILABLE / IN_USE / MAINTENANCE / BROKEN / RETIRED) */
-  async setStatus(
-    id: string,
-    status: EquipmentStatus,
-    role: string,
-    userBranchId?: string | null,
-    actorId?: string,
-  ) {
+  async setStatus(id: string, status: EquipmentStatus, role: string, actorId?: string) {
     this.assertManage(role);
     const existing = await this.getEquipment(id);
-    this.assertBranchScope(existing.branchId, role, userBranchId);
 
     const equipment = await this.prisma.equipment.update({
       where: { id },
@@ -409,10 +371,10 @@ export class EquipmentService {
 
     // STEP 8 — thiết bị hỏng → cảnh báo ADMIN/MANAGER/STAFF (dedupe theo ref)
     if (status === EquipmentStatus.BROKEN) {
-      await this.notificationsService.fanoutToAdmin({
+      await this.notificationsService.fanoutToStaff({
         type: 'EQUIPMENT',
         title: 'Thiết bị hỏng 🚨',
-        content: `${equipment.name} (${equipment.code}) tại ${equipment.branch?.name ?? ''} vừa được đánh dấu HỎNG. Kiểm tra và lên lịch sửa chữa.`,
+        content: `${equipment.name} (${equipment.code}) vừa được đánh dấu HỎNG. Kiểm tra và lên lịch sửa chữa.`,
         link: '/admin/equipment',
         referenceType: 'EQUIPMENT_BROKEN',
         referenceId: equipment.id,
@@ -431,10 +393,9 @@ export class EquipmentService {
   }
 
   /** Retire (soft-delete): giữ lịch sử, chuyển sang RETIRED */
-  async remove(id: string, role: string, userBranchId?: string | null, actorId?: string) {
+  async remove(id: string, role: string, actorId?: string) {
     this.assertManage(role);
     const existing = await this.getEquipment(id);
-    this.assertBranchScope(existing.branchId, role, userBranchId);
 
     if (existing.status === EquipmentStatus.RETIRED) {
       throw new BadRequestException('Thiết bị này đã ở trạng thái thanh lý (RETIRED).');
@@ -473,24 +434,20 @@ export class EquipmentService {
   private async getMaintenance(id: string) {
     const record = await this.prisma.equipmentMaintenance.findUnique({
       where: { id },
-      include: { equipment: { select: { id: true, branchId: true } } },
+      include: { equipment: { select: { id: true } } },
     });
     if (!record) throw new NotFoundException('Không tìm thấy yêu cầu bảo trì.');
     return record;
   }
 
-  async findAllMaintenance(query: MaintenanceQueryDto = {}, role = 'ADMIN', userBranchId?: string | null) {
-    const { page = 1, limit = 20, equipmentId, branchId, status, type } = query;
+  async findAllMaintenance(query: MaintenanceQueryDto = {}) {
+    const { page = 1, limit = 20, equipmentId, status, type } = query;
     const skip = (page - 1) * limit;
 
     const where: Prisma.EquipmentMaintenanceWhereInput = {};
     if (equipmentId) where.equipmentId = equipmentId;
     if (status) where.status = status;
     if (type) where.type = type;
-    if (branchId) where.equipment = { is: { branchId } };
-    if ((role === 'TRAINER') && userBranchId) {
-      where.equipment = { is: { branchId: userBranchId } };
-    }
 
     const [data, total] = await Promise.all([
       this.prisma.equipmentMaintenance.findMany({
@@ -502,7 +459,6 @@ export class EquipmentService {
               code: true,
               name: true,
               status: true,
-              branch: { select: { id: true, name: true, code: true } },
             },
           },
         },
@@ -516,18 +472,12 @@ export class EquipmentService {
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
-  /** Tạo yêu cầu bảo trì — thiết bị AVAILABLE/IN_USE → MAINTENANCE (STAFF chỉ thiết bị chi nhánh mình) */
-  async createMaintenance(
-    dto: CreateMaintenanceDto,
-    role: string,
-    userBranchId?: string | null,
-    actorId?: string,
-  ) {
+  /** Tạo yêu cầu bảo trì — thiết bị AVAILABLE/IN_USE → MAINTENANCE */
+  async createMaintenance(dto: CreateMaintenanceDto, role: string, actorId?: string) {
     if (!MAINTENANCE_ROLES.includes(role)) {
       throw new ForbiddenException('Bạn không có quyền tạo yêu cầu bảo trì.');
     }
     const equipment = await this.getEquipment(dto.equipmentId);
-    this.assertBranchScope(equipment.branchId, role, userBranchId);
 
     if (equipment.status === EquipmentStatus.RETIRED) {
       throw new BadRequestException('Thiết bị đã thanh lý, không thể tạo bảo trì.');
@@ -548,7 +498,7 @@ export class EquipmentService {
       },
       include: {
         equipment: {
-          select: { id: true, code: true, name: true, branch: { select: { id: true, name: true } } },
+          select: { id: true, code: true, name: true },
         },
       },
     });
@@ -585,18 +535,11 @@ export class EquipmentService {
   }
 
   /** Hoàn tất bảo trì — thiết bị MAINTENANCE → AVAILABLE (hoặc BROKEN nếu đánh dấu hỏng) */
-  async completeMaintenance(
-    id: string,
-    dto: CompleteMaintenanceDto,
-    role: string,
-    userBranchId?: string | null,
-    actorId?: string,
-  ) {
+  async completeMaintenance(id: string, dto: CompleteMaintenanceDto, role: string, actorId?: string) {
     if (!MAINTENANCE_ROLES.includes(role)) {
       throw new ForbiddenException('Bạn không có quyền hoàn tất bảo trì.');
     }
     const record = await this.getMaintenance(id);
-    this.assertBranchScope(record.equipment.branchId, role, userBranchId);
 
     if (record.status === MaintenanceStatus.COMPLETED) {
       throw new BadRequestException('Yêu cầu bảo trì này đã hoàn tất trước đó.');
@@ -635,10 +578,10 @@ export class EquipmentService {
 
     // STEP 8 — hoàn tất bảo trì nhưng thiết bị hỏng → cảnh báo
     if (dto.markBroken) {
-      await this.notificationsService.fanoutToAdmin({
+      await this.notificationsService.fanoutToStaff({
         type: 'EQUIPMENT',
         title: 'Thiết bị hỏng 🚨',
-        content: `${equipment.name} (${equipment.code}) tại ${equipment.branch?.name ?? ''} được xác định HỎNG sau bảo trì. Lên kế hoạch sửa chữa / thay thế.`,
+        content: `${equipment.name} (${equipment.code}) được xác định HỎNG sau bảo trì. Lên kế hoạch sửa chữa / thay thế.`,
         link: '/admin/equipment',
         referenceType: 'EQUIPMENT_BROKEN',
         referenceId: equipment.id,
@@ -669,17 +612,11 @@ export class EquipmentService {
   }
 
   /** Hủy yêu cầu bảo trì — trả thiết bị về AVAILABLE nếu không còn bảo trì đang chạy */
-  async cancelMaintenance(
-    id: string,
-    role: string,
-    userBranchId?: string | null,
-    actorId?: string,
-  ) {
+  async cancelMaintenance(id: string, role: string, actorId?: string) {
     if (!MAINTENANCE_ROLES.includes(role)) {
       throw new ForbiddenException('Bạn không có quyền hủy yêu cầu bảo trì.');
     }
     const record = await this.getMaintenance(id);
-    this.assertBranchScope(record.equipment.branchId, role, userBranchId);
 
     if (record.status === MaintenanceStatus.COMPLETED) {
       throw new BadRequestException('Yêu cầu bảo trì đã hoàn tất, không thể hủy.');

@@ -29,13 +29,10 @@ import {
   MapPin,
   Clock,
   ArrowRight,
-  LogIn,
-  LogOut,
-  CheckCircle2,
   Wallet,
   Receipt,
 } from 'lucide-react';
-import { formatCurrency, formatDate, formatTime } from '@/lib/utils';
+import { formatCurrency, formatDate } from '@/lib/utils';
 
 export default function MemberDashboardPage() {
   const queryClient = useQueryClient();
@@ -53,7 +50,7 @@ export default function MemberDashboardPage() {
     retry: 0,
   });
 
-  const { data: checkins } = useQuery({
+  const { data: checkins, error: checkinsError } = useQuery({
     queryKey: ['member-checkins', 1, 5],
     queryFn: () => checkinApi.getMyCheckins(1, 5),
     retry: 0,
@@ -79,7 +76,7 @@ export default function MemberDashboardPage() {
     },
   });
 
-  const { data: upcomingSessions } = useQuery({
+  const { data: upcomingSessions, error: upcomingError } = useQuery({
     queryKey: ['member-upcoming-dash'],
     queryFn: trainingApi.getMyUpcoming,
     retry: 0,
@@ -364,72 +361,6 @@ export default function MemberDashboardPage() {
         </Card>
       )}
 
-      {/* Today's Attendance */}
-      <Card
-        className={`border-2 transition-colors duration-500 ${
-          attCurrent?.checkedIn ? 'border-neon/50' : 'border-line'
-        }`}
-      >
-        <CardContent className="p-5">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3">
-              <div
-                className={`flex size-11 shrink-0 items-center justify-center rounded-xl border ${
-                  attCurrent?.checkedIn ? 'border-neon/40 bg-neon/10' : 'border-line bg-surface'
-                }`}
-              >
-                {attCurrent?.checkedIn ? (
-                  <CheckCircle2 className="size-5 text-neon" />
-                ) : (
-                  <QrCode className="size-5 text-muted" />
-                )}
-              </div>
-              <div>
-                {attCurrent === undefined ? (
-                  <>
-                    <Skeleton className="h-5 w-48" />
-                    <Skeleton className="mt-1.5 h-4 w-64" />
-                  </>
-                ) : attCurrent.checkedIn ? (
-                  <>
-                    <p className="text-sm font-semibold text-neon">Đang tập</p>
-                    <p className="mt-0.5 text-xs text-muted">
-                      Check-in: {formatTime(attCurrent.checkInAt)}
-                      {attCurrent.branch ? ` • ${attCurrent.branch.name}` : ''}
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-sm font-semibold text-chalk">Bạn chưa check-in hôm nay</p>
-                    <p className="mt-0.5 text-xs text-muted">
-                      Chấm công để bắt đầu buổi tập của bạn
-                    </p>
-                  </>
-                )}
-              </div>
-            </div>
-            <div className="shrink-0">
-              {attCurrent?.checkedIn ? (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  isLoading={checkOutMutation.isPending}
-                  onClick={() => checkOutMutation.mutate()}
-                >
-                  <LogOut className="size-4 mr-1.5" /> Check-out
-                </Button>
-              ) : (
-                <Link href="/member/checkin">
-                  <Button variant="primary" size="sm">
-                    <LogIn className="size-4 mr-1.5" /> Check-in ngay
-                  </Button>
-                </Link>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Stats */}
       <StaggerGroup className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {statItems.map((s) => (
@@ -469,10 +400,19 @@ export default function MemberDashboardPage() {
             </CardHeader>
             <CardContent>
               {!checkins ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-10 w-full" />
-                </div>
+                checkinsError ? (
+                  <EmptyState
+                    icon={QrCode}
+                    title="Không tải được dữ liệu"
+                    description="Thử tải lại trang."
+                    className="border-0 bg-transparent px-4 py-8"
+                  />
+                ) : (
+                  <div className="space-y-2">
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                )
               ) : checkins.data.length === 0 ? (
                 <EmptyState
                   icon={QrCode}
@@ -497,7 +437,6 @@ export default function MemberDashboardPage() {
                             hour: '2-digit',
                             minute: '2-digit',
                           })}
-                          {c.branch ? ` • ${c.branch.name}` : ''}
                         </p>
                       </div>
                       <Badge variant={c.status === 'CHECKED_OUT' ? 'success' : 'info'}>
@@ -526,10 +465,19 @@ export default function MemberDashboardPage() {
             </CardHeader>
             <CardContent>
               {!upcomingSessions ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-10 w-full" />
-                </div>
+                upcomingError ? (
+                  <EmptyState
+                    icon={CalendarDays}
+                    title="Không tải được dữ liệu"
+                    description="Thử tải lại trang."
+                    className="border-0 bg-transparent px-4 py-8"
+                  />
+                ) : (
+                  <div className="space-y-2">
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                )
               ) : nextSessions.length === 0 ? (
                 <EmptyState
                   icon={CalendarDays}

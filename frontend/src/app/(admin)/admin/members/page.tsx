@@ -266,16 +266,22 @@ export default function MembersPage() {
             />
           ) : data?.data.length > 0 ? (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[800px] text-left text-sm">
+              <table className="w-full min-w-[1128px] text-left text-sm table-fixed">
                 <thead className="text-[11px] uppercase tracking-wider text-muted bg-ink border-b border-line">
                   <tr>
-                    <th className="py-3 px-4 font-semibold">Mã HV</th>
+                    <th className="w-[104px] py-3 px-4 font-semibold whitespace-nowrap">Mã HV</th>
                     <th className="py-3 px-4 font-semibold">Họ và Tên</th>
-                    <th className="py-3 px-4 font-semibold">Số điện thoại</th>
-                    <th className="py-3 px-4 font-semibold">Gói tập</th>
-                    <th className="py-3 px-4 font-semibold">Ngày đăng ký</th>
-                    <th className="py-3 px-4 font-semibold">Trạng thái</th>
-                    <th className="py-3 px-4 font-semibold text-right">Thao tác</th>
+                    <th className="w-[176px] py-3 px-4 font-semibold whitespace-nowrap">
+                      Số điện thoại
+                    </th>
+                    <th className="w-[206px] py-3 px-4 font-semibold">Gói tập</th>
+                    <th className="w-[110px] py-3 px-4 font-semibold whitespace-nowrap">
+                      Ngày đăng ký
+                    </th>
+                    <th className="w-[156px] py-3 px-4 font-semibold">Trạng thái</th>
+                    <th className="w-[208px] py-3 px-4 font-semibold text-right whitespace-nowrap">
+                      Thao tác
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line font-medium">
@@ -284,21 +290,40 @@ export default function MembersPage() {
                     const activePkg = latestMs?.package?.name || 'Chưa đăng ký gói';
                     return (
                       <tr key={m.id} className="hover:bg-line/30 transition-colors">
-                        <td className="py-3 px-4 font-mono font-bold text-neon">{m.code}</td>
-                        <td className="py-3 px-4">
-                          <p className="font-semibold text-chalk">{m.fullName}</p>
-                          <p className="text-[11px] text-muted">{m.email || 'Không có email'}</p>
+                        <td className="py-3 px-4 align-middle font-mono font-bold text-neon whitespace-nowrap">
+                          {m.code}
                         </td>
-                        <td className="py-3 px-4 text-muted">{m.phone}</td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-semibold text-chalk">{activePkg}</span>
+                        <td className="py-3 px-4 align-middle">
+                          <p className="font-semibold text-chalk truncate" title={m.fullName}>
+                            {m.fullName}
+                          </p>
+                          <p
+                            className="text-[11px] text-muted truncate"
+                            title={m.email || undefined}
+                          >
+                            {m.email || 'Không có email'}
+                          </p>
+                        </td>
+                        <td
+                          className="py-3 px-4 align-middle text-muted truncate"
+                          title={m.phone || undefined}
+                        >
+                          {m.phone}
+                        </td>
+                        <td className="py-3 px-4 align-middle">
+                          <div className="flex flex-col items-start gap-1.5">
+                            <span
+                              className="font-semibold text-chalk truncate max-w-full"
+                              title={activePkg}
+                            >
+                              {activePkg}
+                            </span>
                             {latestMs && (
                               <Badge
                                 variant={
                                   MEMBERSHIP_STATUS_META[latestMs.status]?.variant || 'outline'
                                 }
-                                className="ml-1"
+                                className="whitespace-nowrap"
                               >
                                 {MEMBERSHIP_STATUS_META[latestMs.status]?.label || latestMs.status}
                               </Badge>
@@ -317,8 +342,10 @@ export default function MembersPage() {
                             </Button>
                           )}
                         </td>
-                        <td className="py-3 px-4 text-muted">{formatDate(m.joinedAt)}</td>
-                        <td className="py-3 px-4">
+                        <td className="py-3 px-4 align-middle text-muted whitespace-nowrap">
+                          {formatDate(m.joinedAt)}
+                        </td>
+                        <td className="py-3 px-4 align-middle">
                           <Select
                             value={m.status}
                             options={[
@@ -327,25 +354,34 @@ export default function MembersPage() {
                               { value: 'SUSPENDED', label: 'Bị khóa' },
                               { value: 'EXPIRED', label: 'Hết hạn' },
                             ]}
-                            className="text-xs min-w-[120px] bg-ink border-none text-chalk focus:ring-0"
+                            className="text-xs h-9 py-0 bg-ink text-chalk focus:ring-0"
                             disabled={statusMutation.isPending}
-                            onChange={(e) => statusMutation.mutate({ id: m.id, status: e.target.value })}
+                            onChange={(e) =>
+                              statusMutation.mutate({ id: m.id, status: e.target.value })
+                            }
                           />
                         </td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <Link href={`/admin/members/${m.id}`}>
-                              <Button variant="outline" size="sm" className="font-medium text-xs">
-                                <Eye className="size-3.5 mr-1 text-muted" /> Chi tiết
+                        <td className="py-3 px-4 align-middle">
+                          <div className="flex items-center justify-end gap-1 whitespace-nowrap">
+                            <Link href={`/admin/members/${m.id}`} title="Chi tiết">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-8"
+                                aria-label={`Chi tiết hội viên ${m.fullName}`}
+                              >
+                                <Eye className="size-4 text-muted" />
                               </Button>
                             </Link>
                             <Button
-                              variant="outline"
-                              size="sm"
-                              className="font-medium text-xs"
+                              variant="ghost"
+                              size="icon"
+                              className="size-8"
+                              title="Sửa"
+                              aria-label={`Sửa hội viên ${m.fullName}`}
                               onClick={() => openEdit(m)}
                             >
-                              <Pencil className="size-3.5 mr-1 text-muted" /> Sửa
+                              <Pencil className="size-4 text-muted" />
                             </Button>
                             {m.status === 'SUSPENDED' ? (
                               <Button

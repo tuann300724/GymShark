@@ -42,12 +42,7 @@ export class CreateEquipmentDto {
   @IsIn(EQUIPMENT_CATEGORIES, { message: 'Nhóm thiết bị không hợp lệ' })
   category: string;
 
-  @ApiProperty({ description: 'Chi nhánh sở hữu thiết bị (phải tồn tại)' })
-  @IsString()
-  @IsNotEmpty({ message: 'Vui lòng chọn chi nhánh' })
-  branchId: string;
-
-  @ApiPropertyOptional({ description: 'Phòng đặt thiết bị (phải thuộc chi nhánh)' })
+  @ApiPropertyOptional({ description: 'Phòng đặt thiết bị (phải tồn tại)' })
   @IsOptional()
   @IsString()
   roomId?: string;
@@ -144,11 +139,6 @@ export class EquipmentQueryDto {
   @IsOptional()
   @IsEnum(EquipmentCondition)
   condition?: EquipmentCondition;
-
-  @ApiPropertyOptional({ description: 'Lọc theo chi nhánh' })
-  @IsOptional()
-  @IsString()
-  branchId?: string;
 
   @ApiPropertyOptional({ description: 'Lọc theo phòng' })
   @IsOptional()
@@ -255,11 +245,6 @@ export class MaintenanceQueryDto {
   @IsOptional()
   @IsString()
   equipmentId?: string;
-
-  @ApiPropertyOptional({ description: 'Lọc theo chi nhánh (qua thiết bị)' })
-  @IsOptional()
-  @IsString()
-  branchId?: string;
 
   @ApiPropertyOptional({ enum: MaintenanceStatus })
   @IsOptional()

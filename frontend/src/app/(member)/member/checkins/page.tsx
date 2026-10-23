@@ -157,9 +157,6 @@ export default function MemberCheckinsPage() {
                       Hình thức
                     </th>
                     <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted">
-                      Chi nhánh
-                    </th>
-                    <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted">
                       Trạng thái
                     </th>
                   </tr>
@@ -203,7 +200,6 @@ export default function MemberCheckinsPage() {
                             {methodMeta.label}
                           </span>
                         </td>
-                        <td className="px-4 py-3.5 text-muted">{c.branch?.name || '--'}</td>
                         <td className="whitespace-nowrap px-4 py-3.5">
                           <Badge variant={c.status === 'CHECKED_OUT' ? 'success' : 'info'}>
                             {c.status === 'CHECKED_OUT' ? 'Hoàn tất' : 'Đang tập'}

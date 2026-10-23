@@ -201,9 +201,7 @@ export function MemberPackageDialog({ open, onClose, member, onSuccess }: Props)
               alt="Mã VietQR chuyển khoản MB Bank"
               className="mx-auto h-32 w-auto rounded-lg border border-line shadow-md"
             />
-            <p className="mt-1 text-[10px] text-muted">
-              MB Bank · 0799951104 · GYM SHARK
-            </p>
+            <p className="mt-1 text-[10px] text-muted">MB Bank · 0799951104 · GYM SHARK</p>
           </div>
         )}
 

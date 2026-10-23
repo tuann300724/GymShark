@@ -19,7 +19,6 @@ export interface MemberListQuery {
   status?: string;
   membershipStatus?: string;
   packageId?: string;
-  branchId?: string;
   page?: number;
   limit?: number;
   sort?: string;
@@ -29,7 +28,6 @@ export interface MemberListQuery {
 export interface StaffActor {
   id: string;
   role: string;
-  branchId?: string | null;
 }
 
 /** Phương thức lễ tân có thể xác nhận thủ công tại quầy */
@@ -69,11 +67,6 @@ export class MembersService {
       where.status = query.status as MemberStatus;
     }
 
-    // STEP 7 — lọc hội viên theo chi nhánh
-    if (query.branchId && query.branchId !== 'ALL') {
-      where.branchId = query.branchId;
-    }
-
     const msWhere: Prisma.MembershipWhereInput = {};
     if (query.membershipStatus && query.membershipStatus !== 'ALL') {
       msWhere.status = query.membershipStatus as any;
@@ -102,7 +95,6 @@ export class MembersService {
       this.prisma.member.findMany({
         where,
         include: {
-          branch: { select: { id: true, name: true, code: true } },
           user: { select: { id: true, email: true, status: true } },
           memberships: {
             include: { package: { select: { id: true, name: true, durationDays: true } } },
@@ -124,7 +116,6 @@ export class MembersService {
     const member = await this.prisma.member.findUnique({
       where: { id },
       include: {
-        branch: true,
         user: { select: { id: true, email: true, role: true, status: true, avatarUrl: true } },
         memberships: {
           include: { package: true, payments: true },
@@ -354,8 +345,6 @@ export class MembersService {
       );
     }
 
-    const branchId = await this.resolveBranchId(dto.branchId, actor.branchId);
-
     const typedPassword = dto.password?.trim() || '';
     const isTempPassword = !typedPassword;
     const rawPassword = isTempPassword ? this.genTempPassword() : typedPassword;
@@ -371,7 +360,6 @@ export class MembersService {
           fullName,
           phone,
           role: UserRole.MEMBER,
-          branchId,
         },
         select: { id: true, email: true, fullName: true, status: true },
       });
@@ -387,7 +375,6 @@ export class MembersService {
           dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : null,
           address: dto.address?.trim() || null,
           emergencyContact: dto.emergencyContact?.trim() || null,
-          branchId,
         },
         select: {
           id: true,
@@ -396,7 +383,6 @@ export class MembersService {
           email: true,
           phone: true,
           status: true,
-          branchId: true,
         },
       });
 
@@ -424,7 +410,6 @@ export class MembersService {
         fullName,
         email,
         phone,
-        branchId,
         via: 'admin',
         tempPassword: isTempPassword,
       },
@@ -514,26 +499,5 @@ export class MembersService {
     let out = '';
     for (let i = 0; i < 8; i++) out += chars[Math.floor(Math.random() * chars.length)];
     return out;
-  }
-
-  /** Ưu tiên: chi nhánh lễ tân chọn → chi nhánh của nhân viên đang đăng nhập → chi nhánh ACTIVE đầu tiên */
-  private async resolveBranchId(requested?: string, actorBranchId?: string | null): Promise<string> {
-    const candidate = requested || actorBranchId || null;
-    if (candidate) {
-      const branch = await this.prisma.branch.findUnique({
-        where: { id: candidate },
-        select: { id: true, status: true },
-      });
-      if (!branch) throw new BadRequestException('Chi nhánh không tồn tại');
-      if (branch.status !== 'ACTIVE') throw new BadRequestException('Chi nhánh đã ngừng hoạt động');
-      return branch.id;
-    }
-    const fallback = await this.prisma.branch.findFirst({
-      where: { status: 'ACTIVE' },
-      orderBy: { createdAt: 'asc' },
-      select: { id: true },
-    });
-    if (!fallback) throw new BadRequestException('Hệ thống chưa có chi nhánh hoạt động');
-    return fallback.id;
   }
 }

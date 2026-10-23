@@ -5,7 +5,6 @@ interface UserInfo {
   email: string;
   fullName: string;
   role: string;
-  branchId?: string | null;
   avatarUrl?: string | null;
 }
 
@@ -52,7 +51,6 @@ export interface MemberRegisterVerifyResponse {
     phone?: string | null;
     role: string;
     status: string;
-    branchId?: string | null;
   };
   member: {
     id: string;
@@ -102,39 +100,8 @@ export interface PublicSchedule {
   room?: { id: string; name: string; capacity: number } | null;
 }
 
-export interface Branch {
-  id: string;
-  code: string;
-  name: string;
-  address: string;
-  phone: string;
-  email?: string | null;
-  description?: string | null;
-  openingTime?: string | null;
-  closingTime?: string | null;
-  openingHours?: string | null;
-  status: string;
-  createdAt?: string;
-  _count?: {
-    members: number;
-    equipment: number;
-    rooms: number;
-    users: number;
-    schedules: number;
-  };
-  rooms?: {
-    id: string;
-    code: string | null;
-    name: string;
-    type: string;
-    capacity: number;
-    status: string;
-  }[];
-}
-
 export interface Room {
   id: string;
-  branchId: string;
   code: string | null;
   name: string;
   type: string;
@@ -143,22 +110,7 @@ export interface Room {
   description?: string | null;
   status: string;
   createdAt?: string;
-  branch?: { id: string; name: string; code: string } | null;
   _count?: { equipment: number; schedules: number };
-}
-
-export interface BranchStats {
-  branchId: string;
-  totalMembers: number;
-  activeMembers: number;
-  totalTrainers: number;
-  equipmentCount: number;
-  equipmentByStatus: Record<string, number>;
-  roomAvailable: number;
-  roomCount: number;
-  checkInsToday: number;
-  revenueThisMonth: number;
-  upcomingSessions: number;
 }
 
 export type EquipmentStatusValue =
@@ -179,7 +131,6 @@ export interface Equipment {
   code: string;
   name: string;
   category: string;
-  branchId: string;
   roomId?: string | null;
   brand?: string | null;
   model?: string | null;
@@ -193,7 +144,6 @@ export interface Equipment {
   nextMaintenanceAt?: string | null;
   description?: string | null;
   createdAt?: string;
-  branch?: { id: string; name: string; code: string } | null;
   room?: { id: string; name: string; code?: string | null } | null;
   maintenances?: EquipmentMaintenance[];
 }
@@ -214,7 +164,6 @@ export interface EquipmentMaintenance {
     code: string;
     name: string;
     status?: string;
-    branch?: { id: string; name: string; code: string } | null;
   } | null;
 }
 
@@ -251,7 +200,6 @@ interface EquipmentAlertItem {
   status: EquipmentStatusValue;
   nextMaintenanceAt?: string | null;
   warrantyExpiry?: string | null;
-  branch?: { id: string; name: string; code: string } | null;
   room?: { id: string; name: string } | null;
 }
 
@@ -290,7 +238,6 @@ interface MemberProfile {
   emergencyContact?: string | null;
   status: string;
   joinedAt: string;
-  branch?: { id: string; name: string; code: string } | null;
 }
 
 export interface MemberMe {
@@ -327,7 +274,6 @@ export interface MemberCheckIn {
   method?: string;
   notes?: string | null;
   durationMinutes?: number | null;
-  branch?: { id: string; name: string; code: string } | null;
 }
 
 export interface CurrentCheckIn {
@@ -335,7 +281,6 @@ export interface CurrentCheckIn {
   checkInAt?: string | null;
   sinceMinutes?: number | null;
   checkInId?: string | null;
-  branch?: { id: string; name: string; code: string } | null;
 }
 
 interface CheckInResultData {
@@ -345,7 +290,6 @@ interface CheckInResultData {
   status: string;
   method?: string;
   durationMinutes?: number | null;
-  branch?: { id: string; name: string; code: string } | null;
   member?: {
     id: string;
     code: string;
@@ -379,7 +323,6 @@ export interface AdminCheckInRecord {
     phone?: string | null;
     avatarUrl?: string | null;
   } | null;
-  branch?: { id: string; name: string; code: string } | null;
 }
 
 export interface CheckInsListResponse {
@@ -402,7 +345,6 @@ export interface CurrentlyInsideRecord {
   packageName?: string | null;
   checkInTime: string;
   durationMinutes?: number | null;
-  branch?: { id: string; name: string; code: string } | null;
   method?: string;
 }
 
@@ -485,7 +427,6 @@ export interface PaymentDetail extends Payment {
     email?: string | null;
     address?: string | null;
     joinedAt?: string | null;
-    branch?: { id: string; name: string; code: string } | null;
   };
   invoice?: Invoice | null;
   // Chỉ có khi phương thức BANK_TRANSFER
@@ -725,7 +666,6 @@ export interface ReportSummary {
   totalRevenue: number | string;
   revenueThisMonth: number | string;
   totalTrainers: number;
-  totalBranches: number;
   todayCheckIns: number;
   todayCheckOuts: number;
   currentlyInside: number;
@@ -763,7 +703,6 @@ export interface MembersReport {
     code: string;
     fullName: string;
     joinedAt: string;
-    branch: { id: string; name: string } | null;
     _count: { payments: number; checkIns: number };
   }[];
 }
@@ -790,7 +729,6 @@ export interface TrainersReport {
     fullName: string;
     email: string;
     avatarUrl: string | null;
-    branch: { id: string; name: string } | null;
     status: string;
     memberCount: number;
     scheduleCount: number;
@@ -811,7 +749,6 @@ export interface AttendanceReport {
   byDay: { date: string; checkIns: number; checkOuts: number }[];
   byHour: { hour: number; count: number }[];
   byWeekday: { day: number; label: string; count: number }[];
-  byBranch: { branchId: string; branchName: string; count: number }[];
   /** Số lượt theo hình thức check-in (MANUAL / STAFF / QR_CODE / FACE_ID) */
   byMethod: { method: string; count: number }[];
 }
@@ -827,27 +764,6 @@ export interface EquipmentStatsReport {
   retired: number;
   alerts: { overdue: number; upcoming: number; broken: number; warrantyExpiring: number };
   maintenanceThisMonth: number;
-}
-
-export interface BranchOverviewReport {
-  data: {
-    id: string;
-    code: string;
-    name: string;
-    address: string;
-    status: string;
-    openingHours: string | null;
-    members: number;
-    activeMembers: number;
-    equipment: number;
-    rooms: number;
-    trainers: number;
-    checkInsThisMonth: number;
-    checkInsToday: number;
-    revenueThisMonth: number;
-    upcomingSessions: number;
-  }[];
-  total: number;
 }
 
 export interface MemberStats {
@@ -1001,12 +917,10 @@ export interface TrainingSession {
   notes?: string | null;
   cancellationNote?: string | null;
   completedAt?: string | null;
-  branchId?: string | null;
   roomId?: string | null;
   createdAt?: string;
   trainer?: SessionTrainerInfo | null;
   member?: SessionMemberInfo | null;
-  branch?: { id: string; name: string } | null;
   room?: { id: string; name: string; capacity?: number | null } | null;
 }
 

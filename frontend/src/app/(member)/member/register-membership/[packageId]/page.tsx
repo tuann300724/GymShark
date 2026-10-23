@@ -345,7 +345,9 @@ export default function RegisterMembershipPage() {
                       <span className="ml-2">· {bankInfo.accountName}</span>
                     </p>
                     <div className="mt-3 rounded-lg border border-dashed border-neon/50 bg-ink p-3 text-center">
-                      <p className="text-[11px] text-muted mb-1">Quét mã QR để chuyển khoản nhanh</p>
+                      <p className="text-[11px] text-muted mb-1">
+                        Quét mã QR để chuyển khoản nhanh
+                      </p>
                       {/* QR VietQR là SVG sinh động từ dịch vụ ngoài → không tối ưu hoá, dùng <img> */}
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
@@ -385,13 +387,17 @@ export default function RegisterMembershipPage() {
                           className="mt-2 text-xs"
                           onClick={() => {
                             if (!successPayment?.payment?.id) return;
-                            paymentApi.checkCasso(successPayment.payment.id)
+                            paymentApi
+                              .checkCasso(successPayment.payment.id)
                               .then((res: any) => {
                                 toast.success('Kiểm tra CASSO', res.message || 'Đã khớp!');
                                 queryClient.invalidateQueries({ queryKey: ['member-payments'] });
                               })
                               .catch((err: any) => {
-                                toast.error('CASSO', err.response?.data?.message || 'Chưa khớp / lỗi');
+                                toast.error(
+                                  'CASSO',
+                                  err.response?.data?.message || 'Chưa khớp / lỗi',
+                                );
                               });
                           }}
                         >

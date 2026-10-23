@@ -37,8 +37,8 @@ export const checkinApi = {
   },
 
   /** Member tự check-in */
-  checkIn: async (method = 'MANUAL', branchId?: string): Promise<CheckInResult> => {
-    const res = await apiClient.post('/checkins', { method, branchId });
+  checkIn: async (method = 'MANUAL', note?: string): Promise<CheckInResult> => {
+    const res = await apiClient.post('/checkins', { method, note });
     return res.data;
   },
 
@@ -61,8 +61,8 @@ export const checkinApi = {
   },
 
   /** Hội viên tự quét khuôn mặt để check-in (1:1 — vector tính ngay trên máy) */
-  faceCheckIn: async (embedding: number[], branchId?: string): Promise<CheckInResult> => {
-    const res = await apiClient.post('/checkins/face', { embedding, branchId });
+  faceCheckIn: async (embedding: number[]): Promise<CheckInResult> => {
+    const res = await apiClient.post('/checkins/face', { embedding });
     return res.data;
   },
 
@@ -84,13 +84,11 @@ export const checkinApi = {
       email: string | null;
       avatarUrl: string | null;
       status: string;
-      branch: { id: string; name: string; code: string };
     };
     checkedIn: boolean;
     currentCheckIn: {
       id: string;
       checkInAt: string;
-      branch: { id: string; name: string } | null;
     } | null;
     membership: {
       id: string;
@@ -116,7 +114,6 @@ export const checkinApi = {
       limit?: number;
       search?: string;
       status?: string;
-      branchId?: string;
       fromDate?: string;
       toDate?: string;
       sortBy?: string;

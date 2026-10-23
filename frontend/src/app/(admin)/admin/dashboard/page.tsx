@@ -8,11 +8,9 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency, formatDateTime, formatDate } from '@/lib/utils';
-import { MEMBERSHIP_STATUS_META, PAYMENT_STATUS_META, BRANCH_STATUS_META } from '@/lib/status';
-import { Select } from '@/components/ui/select';
+import { MEMBERSHIP_STATUS_META, PAYMENT_STATUS_META } from '@/lib/status';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Spinner } from '@/components/ui/spinner';
-import { branchApi } from '@/services/branch.service';
 import { equipmentApi } from '@/services/equipment.service';
 import {
   Users,
@@ -36,8 +34,6 @@ import {
   Boxes,
   Wrench,
   AlertTriangle,
-  Building2,
-  Filter,
   CalendarClock,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -48,15 +44,12 @@ export default function DashboardPage() {
   const [checkInMsg, setCheckInMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(
     null,
   );
-  const [branchFilter, setBranchFilter] = useState('ALL');
 
   // 1. Fetch dashboard summary + recent registrations + pending payments
   const { data: dashboardData, isLoading: isSummaryLoading } = useQuery({
-    queryKey: ['reports-dashboard', branchFilter],
+    queryKey: ['reports-dashboard'],
     queryFn: async () => {
-      const res = await apiClient.get('/reports/dashboard', {
-        params: branchFilter !== 'ALL' ? { branchId: branchFilter } : {},
-      });
+      const res = await apiClient.get('/reports/dashboard');
       return res.data;
     },
   });
@@ -75,18 +68,10 @@ export default function DashboardPage() {
     retry: 0,
   });
 
-  // 1b. Cơ sở vật chất: branches (bộ lọc + overview) + equipment stats
-  const { data: branches } = useQuery({ queryKey: ['branches-list'], queryFn: branchApi.list });
+  // 1b. Cơ sở vật chất: equipment stats
   const { data: equipmentStats } = useQuery({
     queryKey: ['equipment-stats'],
     queryFn: equipmentApi.stats,
-  });
-  const { data: branchOverview } = useQuery({
-    queryKey: ['reports-branches'],
-    queryFn: async () => {
-      const res = await apiClient.get('/reports/branches');
-      return res.data?.data || [];
-    },
   });
 
   // 2. Fetch live checkins
@@ -167,30 +152,6 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-
-      {/* Branch filter bar */}
-      <Card>
-        <CardContent className="p-3.5">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="flex items-center gap-2 text-xs font-semibold text-muted shrink-0">
-              <Filter className="size-3.5 text-neon" />
-              Bộ lọc chi nhánh
-            </div>
-            <Select
-              value={branchFilter}
-              onChange={(e) => {
-                setBranchFilter(e.target.value);
-                queryClient.invalidateQueries({ queryKey: ['reports-dashboard'] });
-              }}
-              className="sm:max-w-xs h-9"
-              options={[
-                { value: 'ALL', label: 'Toàn hệ thống' },
-                ...(branches || []).map((b) => ({ value: b.id, label: `${b.name} (${b.code})` })),
-              ]}
-            />
-          </div>
-        </CardContent>
-      </Card>
 
       {/* KPI Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -392,7 +353,6 @@ export default function DashboardPage() {
                     <tr>
                       <th className="py-2.5 px-3 font-semibold">Hội viên</th>
                       <th className="py-2.5 px-3 font-semibold">Mã thẻ</th>
-                      <th className="py-2.5 px-3 font-semibold">Chi nhánh</th>
                       <th className="py-2.5 px-3 font-semibold">Thời gian</th>
                       <th className="py-2.5 px-3 font-semibold text-right">Trạng thái</th>
                     </tr>
@@ -404,7 +364,6 @@ export default function DashboardPage() {
                           {ci.member.fullName}
                         </td>
                         <td className="py-2.5 px-3 font-mono text-neon">{ci.member.code}</td>
-                        <td className="py-2.5 px-3 text-muted">{ci.branch.name}</td>
                         <td className="py-2.5 px-3 text-muted">{formatDateTime(ci.checkInTime)}</td>
                         <td className="py-2.5 px-3 text-right">
                           <Badge variant="success">ĐÃ VÀO CỔNG</Badge>
@@ -539,9 +498,9 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Cơ sở vật chất: thiết bị + tổng quan chi nhánh */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-1">
+      {/* Cơ sở vật chất: thiết bị */}
+      <div>
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <div>
               <CardTitle className="text-base font-bold flex items-center gap-2">
@@ -614,89 +573,6 @@ export default function DashboardPage() {
                     )}
                   </div>
                 )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <div>
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <Building2 className="size-4 text-neon" />
-                Tổng Quan Chi Nhánh
-              </CardTitle>
-              <CardDescription>Vận hành theo từng cơ sở trong mạng lưới</CardDescription>
-            </div>
-            <Link
-              href="/admin/branches"
-              className="text-xs text-neon font-semibold hover:underline flex items-center gap-1"
-            >
-              Chi tiết <ChevronRight className="size-3.5" />
-            </Link>
-          </CardHeader>
-          <CardContent className="p-0">
-            {!branchOverview || branchOverview.length === 0 ? (
-              <EmptyState
-                className="m-3"
-                icon={Building2}
-                title="Chưa có dữ liệu chi nhánh"
-                description="Số liệu vận hành theo chi nhánh sẽ hiển thị khi có dữ liệu."
-              />
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[800px] text-left text-sm">
-                  <thead className="text-[11px] uppercase tracking-wider text-muted bg-ink border-b border-line">
-                    <tr>
-                      <th className="py-2.5 px-4 font-semibold">Chi nhánh</th>
-                      <th className="py-2.5 px-4 font-semibold text-center">Hội viên</th>
-                      <th className="py-2.5 px-4 font-semibold text-center">Thẻ hiệu lực</th>
-                      <th className="py-2.5 px-4 font-semibold text-center">Phòng</th>
-                      <th className="py-2.5 px-4 font-semibold text-center">Thiết bị</th>
-                      <th className="py-2.5 px-4 font-semibold text-center">Check-in HN</th>
-                      <th className="py-2.5 px-4 font-semibold text-right">Doanh thu T.Này</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-line">
-                    {branchOverview.map((b: any) => {
-                      const meta = BRANCH_STATUS_META[b.status] || {
-                        label: b.status,
-                        variant: 'outline',
-                      };
-                      return (
-                        <tr key={b.id} className="hover:bg-line/30 transition-colors">
-                          <td className="py-2.5 px-4">
-                            <Link href={`/admin/branches/${b.id}`} className="hover:opacity-90">
-                              <div className="font-semibold text-chalk flex items-center gap-2">
-                                {b.name}
-                                <Badge variant={meta.variant as any}>{meta.label}</Badge>
-                              </div>
-                              <p className="font-mono text-[10px] text-neon">{b.code}</p>
-                            </Link>
-                          </td>
-                          <td className="py-2.5 px-4 text-center font-mono text-chalk">
-                            {b.members}
-                          </td>
-                          <td className="py-2.5 px-4 text-center font-mono text-chalk">
-                            {b.activeMembers}
-                          </td>
-                          <td className="py-2.5 px-4 text-center font-mono text-muted">
-                            {b.rooms}
-                          </td>
-                          <td className="py-2.5 px-4 text-center font-mono text-muted">
-                            {b.equipment}
-                          </td>
-                          <td className="py-2.5 px-4 text-center font-mono text-neon">
-                            {b.checkInsToday}
-                          </td>
-                          <td className="py-2.5 px-4 text-right font-mono font-semibold text-chalk">
-                            {formatCurrency(b.revenueThisMonth)}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
               </div>
             )}
           </CardContent>

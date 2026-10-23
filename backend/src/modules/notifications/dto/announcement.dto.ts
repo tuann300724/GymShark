@@ -1,13 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsDateString, IsIn, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 
-export const ANNOUNCEMENT_TARGETS = [
-  'ALL',
-  'MEMBERS',
-  'TRAINERS',
-
-  'SPECIFIC_BRANCH',
-] as const;
+export const ANNOUNCEMENT_TARGETS = ['ALL', 'MEMBERS', 'TRAINERS', 'STAFF', 'MANAGERS'] as const;
 
 /** Tạo thông báo hàng loạt (ADMIN/MANAGER) */
 export class AnnouncementDto {
@@ -31,11 +25,6 @@ export class AnnouncementDto {
   @IsNotEmpty({ message: 'Vui lòng chọn đối tượng nhận' })
   @IsIn(ANNOUNCEMENT_TARGETS, { message: 'Đối tượng nhận không hợp lệ' })
   target: (typeof ANNOUNCEMENT_TARGETS)[number];
-
-  @ApiPropertyOptional({ description: 'Chi nhánh (bắt buộc khi target = SPECIFIC_BRANCH)' })
-  @IsOptional()
-  @IsString()
-  branchId?: string;
 
   @ApiPropertyOptional({ description: 'Hiển thị từ lúc (ISO) — hiện gửi ngay' })
   @IsOptional()

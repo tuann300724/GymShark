@@ -13,11 +13,6 @@ export class RevenueReportQueryDto {
   @IsISO8601()
   to?: string;
 
-  @ApiPropertyOptional({ description: 'Lọc theo chi nhánh (qua Member)' })
-  @IsOptional()
-  @IsString()
-  branchId?: string;
-
   @ApiPropertyOptional({ description: 'Lọc theo gói tập' })
   @IsOptional()
   @IsString()

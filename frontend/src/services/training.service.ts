@@ -16,7 +16,6 @@ export interface SessionQuery {
   to?: string;
   trainerId?: string;
   memberId?: string;
-  branchId?: string;
   status?: string;
   type?: string;
 }
@@ -36,7 +35,6 @@ export const trainingApi = {
   create: async (payload: {
     trainerId: string;
     memberId?: string;
-    branchId?: string;
     roomId?: string;
     type: string;
     title: string;
@@ -54,7 +52,6 @@ export const trainingApi = {
     payload: Partial<{
       trainerId: string;
       memberId: string | null;
-      branchId: string;
       roomId: string | null;
       type: string;
       title: string;

@@ -76,11 +76,6 @@ export class CreateTrainerDto {
   @Min(0)
   hourlyRate?: number;
 
-  @ApiPropertyOptional({ description: 'Chi nhánh làm việc (branchId)' })
-  @IsOptional()
-  @IsString()
-  branchId?: string;
-
   @ApiPropertyOptional({ enum: TrainerStatus, default: TrainerStatus.ACTIVE })
   @IsOptional()
   @IsEnum(TrainerStatus, { message: 'Trạng thái không hợp lệ' })
@@ -118,9 +113,4 @@ export class TrainerQueryDto {
   @IsString()
   @MaxLength(100)
   specialization?: string;
-
-  @ApiPropertyOptional({ description: 'Lọc theo chi nhánh làm việc (branchId)' })
-  @IsOptional()
-  @IsString()
-  branchId?: string;
 }

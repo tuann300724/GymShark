@@ -102,7 +102,6 @@ export class AuthService {
         email: user.email,
         fullName: user.fullName,
         role: user.role,
-        branchId: user.branchId,
         avatarUrl: user.avatarUrl,
       },
     };
@@ -134,16 +133,6 @@ export class AuthService {
       where: { expiresAt: { lt: new Date(Date.now() - EXPIRED_CLEANUP_GRACE_HOURS * 3600_000) } },
     });
 
-    const branch = await this.prisma.branch.findFirst({
-      where: { status: 'ACTIVE' },
-      orderBy: { createdAt: 'asc' },
-      select: { id: true },
-    });
-
-    if (!branch) {
-      throw new BadRequestException('Hệ thống chưa có chi nhánh hoạt động');
-    }
-
     const code = this.generateCode();
     const [codeHash, passwordHash] = await Promise.all([
       bcrypt.hash(code, 10),
@@ -165,7 +154,6 @@ export class AuthService {
         dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : null,
         address: dto.address?.trim() || null,
         emergencyContact: dto.emergencyContact?.trim() || null,
-        branchId: branch.id,
         expiresAt,
       },
     });
@@ -340,7 +328,6 @@ export class AuthService {
           fullName: pending.fullName,
           phone: pending.phone,
           role: UserRole.MEMBER,
-          branchId: pending.branchId,
         },
         select: {
           id: true,
@@ -349,7 +336,6 @@ export class AuthService {
           phone: true,
           role: true,
           status: true,
-          branchId: true,
           createdAt: true,
         },
       });
@@ -365,7 +351,6 @@ export class AuthService {
           dateOfBirth: pending.dateOfBirth,
           address: pending.address,
           emergencyContact: pending.emergencyContact,
-          branchId: pending.branchId,
         },
         select: {
           id: true,
@@ -665,7 +650,6 @@ export class AuthService {
         email: user.email,
         fullName: user.fullName,
         role: user.role,
-        branchId: user.branchId,
         avatarUrl: user.avatarUrl,
       },
     };
@@ -676,16 +660,6 @@ export class AuthService {
    * Mật khẩu random bcrypt — tài khoản này đăng nhập bằng Google, không dùng mật khẩu.
    */
   private async createMemberFromGoogle(email: string, profile: GoogleProfile) {
-    const branch = await this.prisma.branch.findFirst({
-      where: { status: 'ACTIVE' },
-      orderBy: { createdAt: 'asc' },
-      select: { id: true },
-    });
-
-    if (!branch) {
-      throw new BadRequestException('Hệ thống chưa có chi nhánh hoạt động');
-    }
-
     const passwordHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
 
     const user = await this.prisma.$transaction(async (tx) => {
@@ -695,7 +669,6 @@ export class AuthService {
           passwordHash,
           fullName: profile.fullName,
           role: UserRole.MEMBER,
-          branchId: branch.id,
           avatarUrl: profile.avatarUrl || null,
           provider: 'GOOGLE',
           providerId: profile.providerId,
@@ -709,7 +682,6 @@ export class AuthService {
           fullName: profile.fullName,
           email,
           phone: `G-${profile.providerId.slice(0, 15)}`,
-          branchId: branch.id,
         },
         select: { id: true, code: true },
       });
@@ -756,7 +728,6 @@ export class AuthService {
         fullName: registerDto.fullName,
         phone: registerDto.phone,
         role: (registerDto.role as UserRole) || UserRole.MEMBER,
-        branchId: registerDto.branchId,
       },
       select: {
         id: true,
@@ -764,7 +735,6 @@ export class AuthService {
         fullName: true,
         role: true,
         status: true,
-        branchId: true,
         createdAt: true,
       },
     });
@@ -794,14 +764,6 @@ export class AuthService {
         role: true,
         status: true,
         avatarUrl: true,
-        branchId: true,
-        branch: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
-          },
-        },
         trainer: {
           select: {
             id: true,

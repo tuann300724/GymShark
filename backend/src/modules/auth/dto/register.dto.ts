@@ -25,8 +25,4 @@ export class RegisterDto {
   @IsOptional()
   @IsEnum(Role, { message: 'Vai trò không hợp lệ' })
   role?: Role;
-
-  @ApiPropertyOptional({ description: 'ID chi nhánh trực thuộc' })
-  @IsOptional()
-  branchId?: string;
 }
