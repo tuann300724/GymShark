@@ -329,7 +329,9 @@ export default function MembersPage() {
                             ]}
                             className="text-xs min-w-[120px] bg-ink border-none text-chalk focus:ring-0"
                             disabled={statusMutation.isPending}
-                            onChange={(e) => statusMutation.mutate({ id: m.id, status: e.target.value })}
+                            onChange={(e) =>
+                              statusMutation.mutate({ id: m.id, status: e.target.value })
+                            }
                           />
                         </td>
                         <td className="py-3 px-4">

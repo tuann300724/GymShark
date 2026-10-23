@@ -16,7 +16,14 @@ interface Props {
   accountNumber?: string;
 }
 
-export function PaymentQrBlock({ paymentId, amount, content, bankName = 'MB Bank', accountName = 'GYM SHARK', accountNumber = '0799951104' }: Props) {
+export function PaymentQrBlock({
+  paymentId,
+  amount,
+  content,
+  bankName = 'MB Bank',
+  accountName = 'GYM SHARK',
+  accountNumber = '0799951104',
+}: Props) {
   const toast = useToast();
   const [polling, setPolling] = useState(false);
 
@@ -26,7 +33,8 @@ export function PaymentQrBlock({ paymentId, amount, content, bankName = 'MB Bank
   useEffect(() => {
     if (!polling) return;
     const iv = setInterval(() => {
-      paymentApi.checkCasso(paymentId)
+      paymentApi
+        .checkCasso(paymentId)
         .then((res: any) => {
           if (res.matched || res.status === 'PAID') {
             toast.success('CASSO khớp!', 'Thanh toán đã xác nhận — gói sẽ kích hoạt.');
@@ -52,21 +60,45 @@ export function PaymentQrBlock({ paymentId, amount, content, bankName = 'MB Bank
       <div className="flex items-center gap-4 sm:gap-6">
         <a href={qrUrl} target="_blank" rel="noopener noreferrer" className="shrink-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={qrUrl} alt="VietQR" className="h-36 w-auto rounded-xl border border-line shadow-lg" />
+          <img
+            src={qrUrl}
+            alt="VietQR"
+            className="h-36 w-auto rounded-xl border border-line shadow-lg"
+          />
         </a>
         <div className="min-w-0 flex-1 space-y-2 text-xs text-muted">
-          <p><b className="text-chalk">Nội dung:</b> <span className="font-mono text-chalk">{content}</span></p>
-          <p><b className="text-chalk">Số tài khoản:</b> <span className="font-mono text-neon">{accountNumber}</span> · {accountName}</p>
-          <p><b className="text-chalk">Số tiền:</b> <span className="font-mono text-chalk">{amount.toLocaleString('vi')}</span> đ</p>
+          <p>
+            <b className="text-chalk">Nội dung:</b>{' '}
+            <span className="font-mono text-chalk">{content}</span>
+          </p>
+          <p>
+            <b className="text-chalk">Số tài khoản:</b>{' '}
+            <span className="font-mono text-neon">{accountNumber}</span> · {accountName}
+          </p>
+          <p>
+            <b className="text-chalk">Số tiền:</b>{' '}
+            <span className="font-mono text-chalk">{amount.toLocaleString('vi')}</span> đ
+          </p>
         </div>
       </div>
 
       <div className="flex gap-2">
-        <Button size="sm" onClick={() => setPolling((p) => !p)} className={polling ? 'bg-neon/20 text-neon border-neon' : ''}>
+        <Button
+          size="sm"
+          onClick={() => setPolling((p) => !p)}
+          className={polling ? 'bg-neon/20 text-neon border-neon' : ''}
+        >
           <RefreshCw className={`size-3 mr-1 ${polling ? 'animate-spin' : ''}`} />
           {polling ? 'Đang tự động kiểm tra...' : 'Kiểm tra CASSO'}
         </Button>
-        <Button size="sm" variant="outline" onClick={() => { navigator.clipboard?.writeText(content); toast.success('Đã sao chép nội dung'); }}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            navigator.clipboard?.writeText(content);
+            toast.success('Đã sao chép nội dung');
+          }}
+        >
           Sao chép nội dung
         </Button>
       </div>

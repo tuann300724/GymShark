@@ -32,9 +32,7 @@ export function TrainerGuard({ children }: { children: React.ReactNode }) {
     if (state === 'guest') router.replace('/login');
     if (state === 'other') {
       const user = getStoredUser();
-      router.replace(
-        user && user.role === 'ADMIN' ? '/admin' : '/member',
-      );
+      router.replace(user && user.role === 'ADMIN' ? '/admin' : '/member');
     }
   }, [state, router]);
 
