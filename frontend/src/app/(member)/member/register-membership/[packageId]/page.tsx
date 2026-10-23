@@ -440,7 +440,7 @@ export default function RegisterMembershipPage() {
             onClick={() => registerMutation.mutate()}
           >
             <Sparkles className="size-4" />
-            {paymentMethod === 'BANK_TRANSFER' ? 'Thanh toán ngay — hiện QR' : 'Gửi yêu cầu đăng ký'}
+            {method === 'BANK_TRANSFER' ? 'Thanh toán ngay — hiện QR' : 'Gửi yêu cầu đăng ký'}
             <ArrowRight className="size-4" />
           </Button>
           <p className="text-center text-[11px] text-muted">
