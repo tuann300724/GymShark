@@ -101,7 +101,10 @@ export default function RegisterMembershipPage() {
 
   const { data: checkedPayment } = useQuery({
     queryKey: ['member-payment-detail', paymentId],
-    queryFn: () => paymentApi.getPaymentDetail(paymentId),
+    queryFn: async () => {
+      await paymentApi.checkCasso(paymentId);
+      return paymentApi.getPaymentDetail(paymentId);
+    },
     enabled: method === 'BANK_TRANSFER' && !!paymentId,
     refetchInterval: (query) => (query.state.data?.status === 'PENDING' ? 2000 : false),
     refetchIntervalInBackground: true,

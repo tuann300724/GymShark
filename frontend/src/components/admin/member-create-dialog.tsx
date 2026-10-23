@@ -131,7 +131,10 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
 
   const { data: cardPayment } = useQuery({
     queryKey: ['admin-payment-detail', card?.payment.id],
-    queryFn: () => paymentApi.getPayment(card!.payment.id),
+    queryFn: async () => {
+      await paymentApi.checkCasso(card!.payment.id);
+      return paymentApi.getPayment(card!.payment.id);
+    },
     enabled: open && step >= 3 && paymentMethod === 'BANK_TRANSFER' && !!card?.payment.id,
     refetchInterval: (query) => (query.state.data?.status === 'PENDING' ? 2000 : false),
     refetchIntervalInBackground: true,
