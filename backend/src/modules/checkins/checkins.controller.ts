@@ -152,4 +152,18 @@ export class CheckinsController {
   checkOut(@CurrentUser('id') userId: string) {
     return this.checkinsService.checkOut(userId);
   }
+
+  @Post('face-checkout')
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @ApiOperation({
+    summary:
+      'Lá»… tÃ¢n quÃ©t khuÃ´n máº·t Ä‘á»ƒ check-out (1:N â€” server tá»± nháº­n diá»‡n rá»“i check-out náº¿u Ä‘ang má»Ÿ)',
+  })
+  faceCheckOut(
+    @Body() dto: FaceScanDto,
+    @CurrentUser('role') role: string,
+    @CurrentUser('id') actorId?: string,
+  ) {
+    return this.checkinsService.faceCheckOut(dto, role, actorId);
+  }
 }

@@ -267,6 +267,60 @@ export class CheckinsService {
    * POST /checkins/face-scan — lễ tân quét 1:N tại quầy.
    * Server tự nhận diện (không tin memberId từ client) rồi chạy pipeline staffCheckIn.
    */
+  /**
+   * POST /checkins/face-checkout — lễ tân quét 1:N để check-out (tự tìm hội viên rồi đóng phiên đang mở)
+   */
+  async faceCheckOut(dto: FaceScanDto, role = 'STAFF', actorId?: string) {
+    const match = await this.facesService.matchGlobal(dto.embedding);
+    if (!match) {
+      throw new NotFoundException('Không nhận diện được hội viên nào.');
+    }
+    const active = await this.prisma.checkIn.findFirst({
+      where: { memberId: match.memberId, status: 'CHECKED_IN' },
+    });
+    if (!active) {
+      throw new BadRequestException('Hội viên chưa check-in (không có phiên tập đang mở).');
+    }
+    const updated = await this.prisma.checkIn.update({
+      where: { id: active.id },
+      data: { checkOutTime: new Date(), status: 'CHECKED_OUT' },
+    });
+    await this.prisma.notification.create({
+      data: {
+        memberId: active.memberId,
+        title: 'Check-out thành công 👋',
+        content: `Bạn đã kết thúc buổi tập lúc ${updated.checkOutTime!.toLocaleTimeString('vi-VN')}.`,
+        type: 'CHECKIN',
+        link: '/member/checkins',
+        referenceType: 'CHECKOUT',
+        referenceId: updated.id,
+      },
+    });
+    await this.auditService.log({
+      userId: actorId,
+      action: 'CHECK_OUT',
+      entity: 'CheckIn',
+      entityId: updated.id,
+      metadata: { method: CheckInMethod.FACE_ID, memberCode: match.memberCode ?? '', via: 'staff-face-checkout' },
+    });
+    return {
+      success: true,
+      message: 'Check-out thành công',
+      data: {
+        id: updated.id,
+        checkInTime: updated.checkInTime,
+        checkOutTime: updated.checkOutTime,
+        status: updated.status,
+        member: {
+          id: active.memberId,
+          code: match.memberCode ?? (await this.prisma.member.findUnique({ where: { id: match.memberId }, select: { code: true } }))?.code ?? '',
+          fullName: (await this.prisma.member.findUnique({ where: { id: match.memberId }, select: { fullName: true } }))?.fullName ?? '',
+        },
+      },
+      face: { similarity: Number(match.similarity.toFixed(4)), imageData: match.imageData },
+    };
+  }
+
   async faceScanForStaff(dto: FaceScanDto, role: string, actorId?: string) {
     const match = await this.facesService.matchGlobal(dto.embedding);
     if (!match) {

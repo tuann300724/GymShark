@@ -78,7 +78,7 @@ export default function AdminCheckinsPage() {
     queryKey: ['checkins-inside'],
     queryFn: checkinApi.getCurrentlyInside,
     retry: 0,
-    refetchInterval: 20000,
+    refetchInterval: 3000,
   });
 
   // ------------------ History list ------------------
@@ -295,6 +295,7 @@ export default function AdminCheckinsPage() {
 
   return (
     <div className="space-y-6">
+      <Link href="/kiosk" target="_blank" className="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-[var(--neon)] text-[var(--ink)] font-bold shadow-lg hover:brightness-110 transition mb-2"><ScanFace className="w-5 h-5"/> Quét mặt check-in / check-out</Link>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-display text-2xl font-bold uppercase tracking-tight text-chalk sm:text-3xl">

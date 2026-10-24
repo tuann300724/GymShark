@@ -7,6 +7,8 @@ import {
   ChevronLeft,
   ChevronRight,
   CreditCard,
+  Landmark,
+  RefreshCw,
   ScanFace,
   UserPlus,
   Wallet,
@@ -19,6 +21,7 @@ import { FaceScanner } from '@/components/ui/face-scanner';
 import { useToast } from '@/components/ui/toast';
 import apiClient from '@/lib/axios';
 import { formatCurrency, cn } from '@/lib/utils';
+import { paymentApi } from '@/services/payment.service';
 import {
   adminMemberApi,
   type CreateMemberPayload,
@@ -39,12 +42,13 @@ import type { MembershipPackage } from '@/services/types';
  * danh sách và có thể làm thẻ lại từ hồ sơ — tránh mất dữ liệu vì chọn nhầm gói.
  */
 
-type Step = 1 | 2 | 3 | 4;
+type Step = 1 | 2 | 3 | 4 | 5;
 
 const STEPS: { step: Step; label: string }[] = [
   { step: 1, label: 'Thông tin' },
   { step: 2, label: 'Gói tập' },
-  { step: 3, label: 'Khuôn mặt' },
+  { step: 3, label: 'Thanh toán' },
+  { step: 4, label: 'Khuôn mặt' },
 ];
 
 const PAYMENT_METHODS = [
@@ -109,6 +113,25 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
     staleTime: 5 * 60 * 1000,
   });
 
+  const { data: bankInfo } = useQuery({
+    queryKey: ['bank-info'],
+    queryFn: paymentApi.getBankInfo,
+    enabled: open && paymentMethod === 'BANK_TRANSFER',
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const { data: cardPayment } = useQuery({
+    queryKey: ['admin-payment-detail', card?.payment.id],
+    queryFn: async () => {
+      await paymentApi.checkCasso(card!.payment.id);
+      return paymentApi.getPayment(card!.payment.id);
+    },
+    enabled: open && step >= 3 && paymentMethod === 'BANK_TRANSFER' && !!card?.payment.id,
+    refetchInterval: (query) => (query.state.data?.status === 'PENDING' ? 2000 : false),
+    refetchIntervalInBackground: true,
+    retry: 1,
+  });
+
   // Reset toàn bộ mỗi lần mở lại dialog
   useEffect(() => {
     if (!open) return;
@@ -138,11 +161,24 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
     () => packages.find((p) => p.id === packageId) ?? null,
     [packages, packageId],
   );
+  const transferContent = created && card ? `GYM ${created.member.code} ${card.payment.code}` : '';
+  const qrUrl =
+    bankInfo && card?.payment
+      ? `https://img.vietqr.io/image/${encodeURIComponent(bankInfo.shortName)}-${encodeURIComponent(bankInfo.accountNumber)}-qr_only.svg?amount=${Math.round(Number(card.payment.amount ?? selectedPackage?.price ?? 0))}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent(bankInfo.accountName)}`
+      : null;
+  const paymentConfirmed = cardPayment?.status === 'PAID';
 
   // Thu tiền tại quầy với ví điện tử là bất khả thi (nhân viên không xác nhận được) → tự đổi về chờ
   useEffect(() => {
     if (payNowBlocked) setPayNow(false);
   }, [payNowBlocked]);
+
+  useEffect(() => {
+    if (cardPayment?.status !== 'PAID') return;
+    setCard((current) => (current ? { ...current, activated: true } : current));
+    setStep(4);
+    toast.success('Đã nhận thanh toán', 'Thẻ hội viên đã được kích hoạt.');
+  }, [cardPayment?.status, toast]);
 
   const createMutation = useMutation({
     mutationFn: async (payload: CreateMemberPayload) => adminMemberApi.create(payload),
@@ -171,7 +207,7 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
       adminMemberApi.registerCard(created!.member.id, payload),
     onSuccess: (res) => {
       setCard(res);
-      setStep(3);
+      setStep(paymentMethod === 'BANK_TRANSFER' ? 3 : 4);
       toast.success(
         res.activated ? 'Đã kích hoạt thẻ' : 'Đã tạo thẻ — chờ thanh toán',
         `Hoá đơn ${res.payment.code} · ${formatCurrency(String(res.payment.amount ?? 0))}`,
@@ -190,7 +226,7 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
     mutationFn: async () => faceApi.adminEnroll(created!.member.id, faceSamples, faceImage),
     onSuccess: () => {
       setFaceDone(true);
-      setStep(4);
+      setStep(5);
       toast.success('Đã đăng ký khuôn mặt', 'Hội viên có thể check-in nhận diện nhanh tại quầy.');
     },
     onError: (err: any) => {
@@ -234,15 +270,18 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
     const payload: RegisterCardPayload = {
       packageId,
       paymentMethod: paymentMethod as RegisterCardPayload['paymentMethod'],
+      payNow: paymentMethod === 'BANK_TRANSFER' ? false : payNow,
     };
     if (promotionCode.trim()) payload.promotionCode = promotionCode.trim().toUpperCase();
-    if (payNow && transactionRef.trim()) payload.transactionRef = transactionRef.trim();
+    if (paymentMethod !== 'BANK_TRANSFER' && payNow && transactionRef.trim()) {
+      payload.transactionRef = transactionRef.trim();
+    }
     cardMutation.mutate(payload);
   };
 
   const skipFace = () => {
     setFaceDone(false);
-    setStep(4);
+    setStep(5);
   };
 
   const submitFace = () => {
@@ -251,9 +290,12 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
   };
 
   // ----- Render --------------------------------------------------------------
+  const visibleSteps =
+    paymentMethod === 'BANK_TRANSFER' ? STEPS : STEPS.filter((item) => item.step !== 3);
+
   const stepIndicator = (
     <div className="flex items-center gap-1.5">
-      {STEPS.map((s) => {
+      {visibleSteps.map((s) => {
         const active = step === s.step;
         const done = step > s.step;
         return (
@@ -427,58 +469,136 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
             <p className="text-xs font-semibold uppercase tracking-wider text-muted">
               Thanh toán tại quầy
             </p>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => setPayNow(true)}
-                className={cn(
-                  'rounded-[10px] border p-3 text-left transition-colors',
-                  payNow ? 'border-neon/70 bg-neon/10' : 'border-line hover:border-neon/40',
-                )}
-              >
+            {paymentMethod === 'BANK_TRANSFER' ? (
+              <div className="rounded-sm border border-neon/70 bg-neon/10 p-3">
                 <span className="flex items-center gap-1.5 text-xs font-bold text-chalk">
-                  <Wallet className="size-3.5 text-neon" /> Thu tiền ngay
+                  <Landmark className="size-3.5 text-neon" /> Chuyển khoản bằng QR
                 </span>
                 <span className="mt-1 block text-[11px] text-muted">
-                  Kích hoạt thẻ ngay (ACTIVE) — dành cho Tiền mặt / Chuyển khoản
+                  Thẻ chờ xác nhận. Hệ thống tự kích hoạt sau khi nhận được đúng số tiền và nội
+                  dung.
                 </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setPayNow(false)}
-                className={cn(
-                  'rounded-[10px] border p-3 text-left transition-colors',
-                  !payNow ? 'border-neon/70 bg-neon/10' : 'border-line hover:border-neon/40',
-                )}
-              >
-                <span className="flex items-center gap-1.5 text-xs font-bold text-chalk">
-                  <CreditCard className="size-3.5 text-neon" /> Chờ xác nhận
-                </span>
-                <span className="mt-1 block text-[11px] text-muted">
-                  Thẻ PENDING + hoá đơn chờ thu, xác nhận sau ở Hoá đơn
-                </span>
-              </button>
-            </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => setPayNow(true)}
+                  className={cn(
+                    'rounded-[10px] border p-3 text-left transition-colors',
+                    payNow ? 'border-neon/70 bg-neon/10' : 'border-line hover:border-neon/40',
+                  )}
+                >
+                  <span className="flex items-center gap-1.5 text-xs font-bold text-chalk">
+                    <Wallet className="size-3.5 text-neon" /> Thu tiền ngay
+                  </span>
+                  <span className="mt-1 block text-[11px] text-muted">
+                    Kích hoạt thẻ ngay (ACTIVE) — chỉ áp dụng cho tiền mặt
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPayNow(false)}
+                  className={cn(
+                    'rounded-[10px] border p-3 text-left transition-colors',
+                    !payNow ? 'border-neon/70 bg-neon/10' : 'border-line hover:border-neon/40',
+                  )}
+                >
+                  <span className="flex items-center gap-1.5 text-xs font-bold text-chalk">
+                    <CreditCard className="size-3.5 text-neon" /> Chờ xác nhận
+                  </span>
+                  <span className="mt-1 block text-[11px] text-muted">
+                    Thẻ PENDING + hoá đơn chờ thu, xác nhận sau ở Hoá đơn
+                  </span>
+                </button>
+              </div>
+            )}
             {!isManualMethod && (
               <p className="text-[11px] text-muted">
                 Ví điện tử không thể thu tiền tại quầy — đã tự chuyển sang chế độ chờ xác nhận.
               </p>
             )}
-            {payNow && paymentMethod === 'BANK_TRANSFER' && (
-              <Input
-                label="Mã giao dịch chuyển khoản (tuỳ chọn)"
-                placeholder="FT20260929..."
-                value={transactionRef}
-                onChange={(e) => setTransactionRef(e.target.value)}
-              />
+            {paymentMethod === 'BANK_TRANSFER' && (
+              <p className="text-[11px] text-muted">
+                Nội dung chuyển khoản sẽ được tạo cùng mã hoá đơn sau khi đăng ký thẻ.
+              </p>
             )}
           </div>
         </div>
       );
     }
 
-    // ---------------- Bước 3: quét mặt (tuỳ chọn) ----------------
+    // ---------------- Bước 3: chờ thanh toán chuyển khoản ----------------
     if (step === 3) {
+      return (
+        <div className="space-y-4">
+          {created && (
+            <div className="flex items-center gap-2 rounded-lg border border-neon/40 bg-neon/5 px-3 py-2.5">
+              <UserPlus className="size-4 shrink-0 text-neon" />
+              <p className="text-xs text-chalk">
+                Hội viên <span className="font-mono font-bold">{created.member.code}</span> —{' '}
+                {created.member.fullName}
+              </p>
+            </div>
+          )}
+
+          {paymentMethod === 'BANK_TRANSFER' && card && qrUrl && bankInfo ? (
+            <div className="rounded-xl border border-dashed border-line p-4 text-center sm:p-5">
+              <div className="mb-3 flex items-center justify-center gap-2 text-xs font-semibold text-chalk">
+                <Landmark className="size-4 text-neon" />
+                Quét QR chuyển khoản
+              </div>
+              <div
+                data-qr-frame={!paymentConfirmed ? '' : undefined}
+                className={cn(
+                  'relative mx-auto w-fit overflow-hidden rounded-2xl border border-line bg-surface p-2 transition-all duration-700 sm:p-3',
+                  paymentConfirmed ? 'opacity-35' : 'opacity-100',
+                )}
+              >
+                {/* VietQR được sinh động từ dịch vụ ngoài nên dùng img thay vì next/image. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={qrUrl}
+                  alt={`Mã VietQR chuyển khoản ${bankInfo.bankName}`}
+                  className="mx-auto size-64 rounded-xl bg-surface object-contain sm:size-72"
+                />
+                {!paymentConfirmed && <span data-qr-scan-beam aria-hidden="true" />}
+                {paymentConfirmed && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-ink/55 text-neon animate-fade-in">
+                    <CheckCircle2 className="size-9" />
+                    <span className="text-xs font-bold">Đã nhận thanh toán</span>
+                  </div>
+                )}
+              </div>
+              <p className="mt-2 text-[11px] text-muted">
+                {bankInfo.bankName} · {bankInfo.accountNumber}
+              </p>
+              <div className="mt-3 rounded-lg border border-line bg-ink px-3 py-2 text-left">
+                <p className="text-[10px] text-muted">Nội dung chuyển khoản</p>
+                <p className="mt-0.5 break-all font-mono text-xs font-bold text-neon">
+                  {transferContent}
+                </p>
+                <p className="mt-1 text-[10px] text-muted">
+                  Số tiền: {formatCurrency(String(card.payment.amount ?? 0))}
+                </p>
+              </div>
+              <p className="mt-3 inline-flex items-center justify-center gap-2 text-[11px] text-muted">
+                <RefreshCw className="size-3 animate-spin text-neon" />
+                Đang chờ ngân hàng xác nhận. Bước quét khuôn mặt sẽ mở sau khi thanh toán thành
+                công.
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-line bg-surface p-3 text-sm text-muted">
+              Đang tải thông tin thanh toán...
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ---------------- Bước 4: quét mặt (tuỳ chọn) ----------------
+    if (step === 4) {
       return (
         <div className="space-y-4">
           <div className="flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2.5">
@@ -585,27 +705,31 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
       open={open}
       onClose={onClose}
       title="Đăng ký hội viên mới"
-      description="Làm thẻ tại quầy: tạo hồ sơ → chọn gói tập → quét khuôn mặt"
+      description="Làm thẻ tại quầy: tạo hồ sơ → chọn gói tập → thanh toán → quét khuôn mặt"
       className="max-w-2xl"
     >
       <div className="space-y-5">
-        {step < 4 && stepIndicator}
+        {step < 5 && stepIndicator}
         {stepBody()}
 
         {/* Thanh điều hướng bước */}
-        {step < 4 && (
+        {step < 5 && (
           <div className="flex items-center justify-between gap-2 border-t border-line pt-4">
             <Button
               variant="ghost"
-              onClick={step === 1 ? onClose : () => setStep((step - 1) as Step)}
+              onClick={step <= 2 ? (step === 1 ? onClose : () => setStep(1)) : onClose}
               disabled={createMutation.isPending || cardMutation.isPending}
             >
-              {step === 1 ? (
-                'Huỷ'
+              {step <= 2 ? (
+                step === 1 ? (
+                  'Huỷ'
+                ) : (
+                  <>
+                    <ChevronLeft className="size-4" /> Quay lại
+                  </>
+                )
               ) : (
-                <>
-                  <ChevronLeft className="size-4" /> Quay lại
-                </>
+                'Đóng'
               )}
             </Button>
 
@@ -621,7 +745,7 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
               </Button>
             )}
 
-            {step === 3 && (
+            {step === 4 && (
               <div className="flex items-center gap-2">
                 <Button variant="outline" onClick={skipFace} disabled={faceMutation.isPending}>
                   Bỏ qua
@@ -638,7 +762,7 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
           </div>
         )}
 
-        {step === 4 && (
+        {step === 5 && (
           <div className="flex justify-end border-t border-line pt-4">
             <Button onClick={onClose}>Xong</Button>
           </div>

@@ -160,6 +160,17 @@ enum RoomType {
 // MODELS
 // -------------------------------------------------------------
 
+model Branch {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  address   String?
+  phone     String?
+  status    String    @default("ACTIVE")
+  members   Member[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
 model Room {
   id          String   @id @default(uuid())
   code        String? @unique // mã phòng duy nhất toàn hệ thống, VD: R-01
@@ -241,6 +252,8 @@ model Member {
   code             String       @unique
   userId           String?      @unique
   user             User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  branchId         String?      // Phòng hiện tại (nullable — 1 chi nhánh có nhiều hội viên)
+  branch           Branch?      @relation(fields: [branchId], references: [id], onDelete: SetNull)
   fullName         String
   email            String?
   phone            String
