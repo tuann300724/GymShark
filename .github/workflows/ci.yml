@@ -18,7 +18,7 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v5
         with:
@@ -54,7 +54,7 @@ jobs:
     env:
       DATABASE_URL: "sqlserver://localhost:1433;database=gym_db;user=sa;password=NotARealPassword123!;encrypt=true;trustServerCertificate=true"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v5
         with:
