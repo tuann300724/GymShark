@@ -79,7 +79,6 @@ async function bootstrap() {
     .addTag('Payments', 'Quản lý giao dịch thu tiền và hoá đơn')
     .addTag('Training Schedules', 'Quản lý lịch tập và lớp học PT')
     .addTag('Promotions', 'Quản lý phiếu giảm giá và mã khuyến mãi')
-    .addTag('Equipment', 'Quản lý thiết bị máy móc và lịch bảo trì')
     .addTag('Notifications', 'Quản lý thông báo hệ thống')
     .addTag('Reports', 'Báo cáo doanh thu & số liệu vận hành')
     .build();

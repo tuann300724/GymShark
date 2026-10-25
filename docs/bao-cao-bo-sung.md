@@ -64,7 +64,7 @@ sequenceDiagram
   actor M as Hội viên
   participant FE as Next.js
   participant API as NestJS
-  participant DB as PostgreSQL
+  participant DB as SQL Server
   actor S as Lễ tân/Admin
   M->>FE: Đăng ký gói + mã KM (nếu có)
   FE->>API: POST /member/memberships (paymentMethod, promotionCode)

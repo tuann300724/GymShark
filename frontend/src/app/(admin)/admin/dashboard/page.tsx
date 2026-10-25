@@ -11,7 +11,6 @@ import { formatCurrency, formatDateTime, formatDate } from '@/lib/utils';
 import { MEMBERSHIP_STATUS_META, PAYMENT_STATUS_META } from '@/lib/status';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Spinner } from '@/components/ui/spinner';
-import { equipmentApi } from '@/services/equipment.service';
 import {
   Users,
   UserCheck,
@@ -31,10 +30,7 @@ import {
   ShieldCheck,
   LogOut,
   BarChart3,
-  Boxes,
-  Wrench,
   AlertTriangle,
-  CalendarClock,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -66,12 +62,6 @@ export default function DashboardPage() {
     },
     refetchInterval: 30000,
     retry: 0,
-  });
-
-  // 1b. Cơ sở vật chất: equipment stats
-  const { data: equipmentStats } = useQuery({
-    queryKey: ['equipment-stats'],
-    queryFn: equipmentApi.stats,
   });
 
   // 2. Fetch live checkins
@@ -492,87 +482,6 @@ export default function DashboardPage() {
                     </div>
                   );
                 })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Cơ sở vật chất: thiết bị */}
-      <div>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <div>
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <Boxes className="size-4 text-neon" />
-                Tình Trạng Thiết Bị
-              </CardTitle>
-              <CardDescription>Trạng thái vận hành toàn hệ thống</CardDescription>
-            </div>
-            <Link
-              href="/admin/equipment"
-              className="text-xs text-neon font-semibold hover:underline flex items-center gap-1"
-            >
-              Quản lý <ChevronRight className="size-3.5" />
-            </Link>
-          </CardHeader>
-          <CardContent>
-            {!equipmentStats ? (
-              <div className="flex items-center justify-center gap-2 py-8 text-xs text-muted">
-                <Spinner /> Đang tải dữ liệu thiết bị...
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between rounded-lg border border-line bg-ink px-3 py-2">
-                  <span className="flex items-center gap-2 text-xs text-muted">
-                    <Dumbbell className="size-3.5 text-neon" /> Tổng thiết bị
-                  </span>
-                  <span className="font-display font-bold text-chalk">{equipmentStats.total}</span>
-                </div>
-                <div className="flex items-center justify-between rounded-lg border border-line bg-ink px-3 py-2">
-                  <span className="flex items-center gap-2 text-xs text-muted">
-                    <CheckCircle2 className="size-3.5 text-neon" /> Sẵn sàng
-                  </span>
-                  <span className="font-display font-bold text-chalk">
-                    {equipmentStats.available}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between rounded-lg border border-line bg-ink px-3 py-2">
-                  <span className="flex items-center gap-2 text-xs text-muted">
-                    <Wrench className="size-3.5 text-amber-400" /> Đang bảo trì
-                  </span>
-                  <span className="font-display font-bold text-chalk">
-                    {equipmentStats.maintenance}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between rounded-lg border border-line bg-ink px-3 py-2">
-                  <span className="flex items-center gap-2 text-xs text-muted">
-                    <AlertTriangle className="size-3.5 text-danger" /> Hỏng
-                  </span>
-                  <span className="font-display font-bold text-chalk">{equipmentStats.broken}</span>
-                </div>
-                {(equipmentStats.alerts.overdue > 0 || equipmentStats.alerts.upcoming > 0) && (
-                  <div className="mt-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-400 space-y-1">
-                    {equipmentStats.alerts.overdue > 0 && (
-                      <p className="flex items-center gap-1.5">
-                        <AlertTriangle className="size-3 shrink-0" />
-                        {equipmentStats.alerts.overdue} thiết bị quá hạn bảo trì
-                      </p>
-                    )}
-                    {equipmentStats.alerts.upcoming > 0 && (
-                      <p className="flex items-center gap-1.5">
-                        <Wrench className="size-3 shrink-0" />
-                        {equipmentStats.alerts.upcoming} phiếu bảo trì trong 14 ngày tới
-                      </p>
-                    )}
-                    {equipmentStats.alerts.warrantyExpiring > 0 && (
-                      <p className="flex items-center gap-1.5">
-                        <CalendarClock className="size-3 shrink-0" />
-                        {equipmentStats.alerts.warrantyExpiring} thiết bị sắp hết bảo hành
-                      </p>
-                    )}
-                  </div>
-                )}
               </div>
             )}
           </CardContent>

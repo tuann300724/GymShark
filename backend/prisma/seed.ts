@@ -1,4 +1,5 @@
-import { PrismaClient, UserRole, Gender, MemberStatus, PackageType, PaymentMethod, PaymentStatus, EquipmentStatus, SessionType, InvoiceStatus } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
+import { UserRole, Gender, MemberStatus, PackageType, PaymentMethod, PaymentStatus, SessionType, InvoiceStatus } from '../src/common/constants/db-enums';
 import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -210,19 +211,19 @@ async function main() {
   const pkg1M = await prisma.membershipPackage.upsert({
     where: { code: 'PKG-1M' },
     update: {
-      features: {
+    features: JSON.stringify({
         title: 'Gói Cơ Bản 1 Tháng (Basic)',
         items: ['Tập luyện không giới hạn thời gian', '1 chi nhánh', 'Phòng Gym + Cardio', 'Tủ đồ cá nhân', 'Hướng dẫn sử dụng máy cơ bản'],
-      },
+    }),
     },
     create: {
       code: 'PKG-1M',
       name: 'Gói Cơ Bản 1 Tháng (Basic)',
       description: 'Tập luyện không giới hạn thời gian tại 1 chi nhánh',
-      features: {
+      features: JSON.stringify({
         title: 'Gói Cơ Bản 1 Tháng (Basic)',
         items: ['Tập luyện không giới hạn thời gian', '1 chi nhánh', 'Phòng Gym + Cardio', 'Tủ đồ cá nhân', 'Hướng dẫn sử dụng máy cơ bản'],
-      },
+      }),
       durationDays: 30,
       price: 450000,
       type: PackageType.FIXED_TERM,
@@ -232,19 +233,19 @@ async function main() {
   const pkg6M = await prisma.membershipPackage.upsert({
     where: { code: 'PKG-6M-VIP' },
     update: {
-      features: {
+      features: JSON.stringify({
         title: 'Gói VIP 6 Tháng',
         items: ['Toàn quyền sử dụng dịch vụ gym', 'Khu xông hơi & massage', 'Tặng 3 buổi tập cùng HLV', '1 chi nhánh', 'Ưu đãi 10% dịch vụ bổ sung'],
-      },
+      }),
     },
     create: {
       code: 'PKG-6M-VIP',
       name: 'Gói VIP 6 Tháng',
       description: 'Toàn quyền sử dụng dịch vụ gym, xông hơi và tặng 3 buổi cùng HLV',
-      features: {
+      features: JSON.stringify({
         title: 'Gói VIP 6 Tháng',
         items: ['Toàn quyền sử dụng dịch vụ gym', 'Khu xông hơi & massage', 'Tặng 3 buổi tập cùng HLV', '1 chi nhánh', 'Ưu đãi 10% dịch vụ bổ sung'],
-      },
+      }),
       durationDays: 180,
       price: 2400000,
       type: PackageType.FIXED_TERM,
@@ -254,19 +255,19 @@ async function main() {
   const pkg12M = await prisma.membershipPackage.upsert({
     where: { code: 'PKG-12M-DIAMOND' },
     update: {
-      features: {
+      features: JSON.stringify({
         title: 'Gói Kim Cương 12 Tháng',
         items: ['Trọn gói cao cấp', 'Không giới hạn CHI NHÁNH', 'Tặng khăn tập & tủ đồ VIP', 'Tặng 6 buổi PT trị giá 2.100.000đ', 'Ưu tiên đặt phòng & lớp học'],
-      },
+      }),
     },
     create: {
       code: 'PKG-12M-DIAMOND',
       name: 'Gói Kim Cương 12 Tháng',
       description: 'Trọn gói cao cấp không giới hạn chi nhánh, tặng khăn tập và tủ đồ VIP',
-      features: {
+      features: JSON.stringify({
         title: 'Gói Kim Cương 12 Tháng',
         items: ['Trọn gói cao cấp', 'Không giới hạn CHI NHÁNH', 'Tặng khăn tập & tủ đồ VIP', 'Tặng 6 buổi PT trị giá 2.100.000đ', 'Ưu tiên đặt phòng & lớp học'],
-      },
+      }),
       durationDays: 365,
       price: 4200000,
       type: PackageType.FIXED_TERM,
@@ -384,114 +385,7 @@ async function main() {
     });
   }
 
-  // 9. Equipment
-  await prisma.equipment.upsert({
-    where: { code: 'EQ-RUN-01' },
-    update: {},
-    create: {
-      code: 'EQ-RUN-01',
-      name: 'Máy Chạy Bộ Điện Cao Cấp Matrix T70',
-      category: 'CARDIO',
-      roomId: cardioRoom.id,
-      brand: 'Matrix',
-      model: 'T70-XR',
-      serialNumber: 'MTX-T70-2024-001',
-      purchaseDate: new Date('2024-01-15'),
-      purchasePrice: 45000000,
-      warrantyExpiry: new Date('2027-01-15'),
-      condition: 'GOOD',
-      status: EquipmentStatus.AVAILABLE,
-      nextMaintenanceAt: new Date(new Date().getTime() + 20 * 24 * 60 * 60 * 1000),
-      description: 'Máy chạy bộ điện cao cấp dành cho khu cardio.',
-    },
-  });
-
-  await prisma.equipment.upsert({
-    where: { code: 'EQ-BENCH-01' },
-    update: {},
-    create: {
-      code: 'EQ-BENCH-01',
-      name: 'Ghế Đẩy Tạ Đa Năng Olympic Bench Press',
-      category: 'FREE_WEIGHT',
-      roomId: weightRoom.id,
-      brand: 'Inspire',
-      model: 'BENCH-PRO',
-      serialNumber: 'ISP-BN-2023-088',
-      purchaseDate: new Date('2023-11-20'),
-      purchasePrice: 18000000,
-      warrantyExpiry: new Date('2026-11-20'),
-      condition: 'GOOD',
-      status: EquipmentStatus.AVAILABLE,
-      nextMaintenanceAt: new Date(new Date().getTime() - 5 * 24 * 60 * 60 * 1000),
-      description: 'Ghế đẩy tạ đa năng sử dụng tại khu free weight.',
-    },
-  });
-
-  await prisma.equipment.upsert({
-    where: { code: 'EQ-SQUAT-01' },
-    update: {},
-    create: {
-      code: 'EQ-SQUAT-01',
-      name: 'Khung Squat Rack An Toàn',
-      category: 'FREE_WEIGHT',
-      roomId: weightRoom.id,
-      brand: 'Rogue',
-      model: 'RM-6',
-      serialNumber: 'RGE-RM6-2025-014',
-      purchaseDate: new Date('2025-03-01'),
-      purchasePrice: 65000000,
-      warrantyExpiry: new Date('2028-03-01'),
-      condition: 'EXCELLENT',
-      status: EquipmentStatus.IN_USE,
-      nextMaintenanceAt: new Date(new Date().getTime() + 45 * 24 * 60 * 60 * 1000),
-      description: 'Khung squat an toàn với thanh đòn Olympic.',
-    },
-  });
-
-  // Equipment khu Group Class / Yoga
-  await prisma.equipment.upsert({
-    where: { code: 'EQ-TD-CYCLE-01' },
-    update: {},
-    create: {
-      code: 'EQ-TD-CYCLE-01',
-      name: 'Xe Đạp Trong Nhà Keiser M3i',
-      category: 'CARDIO',
-      roomId: tdClassRoom.id,
-      brand: 'Keiser',
-      model: 'M3i',
-      serialNumber: 'KSR-M3I-2024-220',
-      purchaseDate: new Date('2024-06-10'),
-      purchasePrice: 38000000,
-      warrantyExpiry: new Date('2027-06-10'),
-      condition: 'GOOD',
-      status: EquipmentStatus.AVAILABLE,
-      nextMaintenanceAt: new Date(new Date().getTime() + 60 * 24 * 60 * 60 * 1000),
-      description: 'Xe đạp trong nhà chuyên dụng cho lớp spinning.',
-    },
-  });
-
-  await prisma.equipment.upsert({
-    where: { code: 'EQ-TD-MAT-01' },
-    update: {},
-    create: {
-      code: 'EQ-TD-MAT-01',
-      name: 'Bộ Thảm Tập Yoga Cao Su TPE',
-      category: 'ACCESSORY',
-      roomId: tdYogaRoom.id,
-      brand: 'Manduka',
-      model: 'PRO 6mm',
-      serialNumber: 'MDK-PRO-2025-050',
-      purchaseDate: new Date('2025-01-05'),
-      purchasePrice: 2500000,
-      warrantyExpiry: new Date('2028-01-05'),
-      condition: 'EXCELLENT',
-      status: EquipmentStatus.AVAILABLE,
-      nextMaintenanceAt: new Date(new Date().getTime() + 90 * 24 * 60 * 60 * 1000),
-      description: 'Thảm tập cao su cao cấp cho phòng yoga.',
-    },
-  });
-
-  // 10. Promotion
+  // 9. Promotion
   await prisma.promotion.upsert({
     where: { code: 'SUMMER2026' },
     update: {},
@@ -848,21 +742,12 @@ async function main() {
     }
     roomCodeIdx += 1;
   }
-  // - Đổi status equipment legacy sang chuẩn STEP 7 (giữ nguyên bản ghi)
-  await prisma.equipment.updateMany({
-    where: { status: EquipmentStatus.OPERATIONAL },
-    data: { status: EquipmentStatus.AVAILABLE },
-  });
-  await prisma.equipment.updateMany({
-    where: { status: EquipmentStatus.UNDER_MAINTENANCE },
-    data: { status: EquipmentStatus.MAINTENANCE },
-  });
-  console.log('✅ Backfill STEP 7 (room codes + equipment status)');
+  console.log('✅ Backfill STEP 7 (room codes)');
 
   // -------------------------------------------------------------
   // 16. STEP 9 — Làm phong phú dữ liệu demo (graduation demo)
   //     Thêm ~10 hội viên + membership đa trạng thái + payment/invoice
-  //     + check-in + lịch tập + phân công HLV + bảo trì + mã KM hết hạn.
+  //     + check-in + lịch tập + phân công HLV + mã KM hết hạn.
   //     Idempotent: upsert / đếm trước khi create, KHÔNG xóa dữ liệu cũ.
   // -------------------------------------------------------------
   const dayMs = 24 * 60 * 60 * 1000;
@@ -1273,27 +1158,6 @@ async function main() {
     },
   });
 
-  // 16.6 Bảo trì thiết bị (demo: completed / scheduled / in-progress)
-  const eqRun = await prisma.equipment.findUnique({ where: { code: 'EQ-RUN-01' } });
-  const eqBench = await prisma.equipment.findUnique({ where: { code: 'EQ-BENCH-01' } });
-  const eqSquat = await prisma.equipment.findUnique({ where: { code: 'EQ-SQUAT-01' } });
-  // Idempotent: khoá theo (equipmentId, description) — mô tả đã viết sạch và
-  // duy nhất nên không cần marker ẩn.
-  const maintSeeds = [
-    { equipmentId: eqRun?.id, type: 'REPAIR', maintenanceDate: daysAgo9(25), cost: 1150000, description: 'Thay băng tải và siết khung máy chạy.', status: 'COMPLETED' },
-    { equipmentId: eqBench?.id, type: 'ROUTINE', maintenanceDate: daysFromNow9(10), cost: 450000, description: 'Bảo dưỡng định kỳ 6 tháng.', status: 'SCHEDULED' },
-    { equipmentId: eqSquat?.id, type: 'INSPECTION', maintenanceDate: daysAgo9(1), cost: 300000, description: 'Kiểm tra khung squat rack sau phản hồi tiếng kêu.', status: 'IN_PROGRESS' },
-  ];
-  for (const m of maintSeeds) {
-    if (!m.equipmentId) continue;
-    const ex = await prisma.equipmentMaintenance.findFirst({
-      where: { equipmentId: m.equipmentId, description: m.description },
-    });
-    if (!ex) {
-      await prisma.equipmentMaintenance.create({ data: m as any });
-    }
-  }
-
   // 16.7 Thông báo mẫu cho hội viên demo (chỉ tạo khi DEMO_MEMBERS = true)
   const notifSeeds = DEMO_MEMBERS
     ? [
@@ -1339,18 +1203,14 @@ async function main() {
   }
   console.log(
     DEMO_MEMBERS
-      ? '✅ Created promotions expired + maintenance + notifications (STEP 9)'
-      : '✅ Created promotions expired + maintenance (STEP 9) — bỏ qua thông báo hội viên mẫu (DEMO_MEMBERS = false)',
+      ? '✅ Created promotions expired + notifications (STEP 9)'
+      : '✅ Created promotions expired (STEP 9) — bỏ qua thông báo hội viên mẫu (DEMO_MEMBERS = false)',
   );
 
   // 16.8 Nhật ký hệ thống (AuditLog) — để trang /admin/audit-logs có dữ liệu demo ngay sau khi seed.
   // Idempotent: chỉ tạo khi bảng còn trống.
   const auditCount = await prisma.auditLog.count();
   if (auditCount === 0) {
-    const eqSquat = await prisma.equipment.findFirst({ where: { code: { contains: 'SQ' } } });
-    // thiết bị lâu đời nhất -> dùng cho log EQUIPMENT_RETIRE
-    const eqOldest = await prisma.equipment.findFirst({ orderBy: { purchaseDate: 'asc' } });
-
     type AuditSeed = {
       userId: string | null;
       action: string;
@@ -1375,15 +1235,6 @@ async function main() {
       { userId: adminUser.id, action: 'TRAINER_CREATE', entity: 'Trainer', entityId: trainer1Rec?.id, metadata: { fullName: trainerUser.fullName, specialization: trainer1Rec?.specialization }, ip: '127.0.0.1', at: daysAgo9(150) },
       { userId: adminUser.id, action: 'TRAINER_UPDATE', entity: 'Trainer', entityId: trainer2Rec?.id, metadata: { fields: ['experienceYears'] }, ip: '127.0.0.1', at: daysAgo9(20) },
       { userId: adminUser.id, action: 'TRAINER_REMOVE', entity: 'Trainer', entityId: trainer3Rec?.id, metadata: { fullName: trainerUser3.fullName, reason: 'Nghỉ việc (chuyển công ty)' }, ip: '127.0.0.1', at: daysAgo9(15) },
-
-      // --- Thiết bị & bảo trì ---
-      { userId: adminUser.id, action: 'EQUIPMENT_CREATE', entity: 'Equipment', entityId: eqSquat?.id, metadata: { code: eqSquat?.code, name: eqSquat?.name }, ip: '127.0.0.1', at: daysAgo9(200) },
-      { userId: staffUser.id, action: 'EQUIPMENT_UPDATE', entity: 'Equipment', entityId: eqSquat?.id, metadata: { fields: ['location', 'condition'] }, ip: '127.0.0.1', at: daysAgo9(100) },
-      { userId: staffUser.id, action: 'EQUIPMENT_STATUS_CHANGE', entity: 'Equipment', entityId: eqSquat?.id, metadata: { from: 'AVAILABLE', to: 'BROKEN', reason: 'Tiếng kêu bất thường khi nâng tạ' }, ip: '127.0.0.1', at: daysAgo9(2) },
-      { userId: adminUser.id, action: 'MAINTENANCE_CREATE', entity: 'EquipmentMaintenance', entityId: null, metadata: { equipmentCode: eqSquat?.code, type: 'INSPECTION' }, ip: '127.0.0.1', at: daysAgo9(1) },
-      { userId: adminUser.id, action: 'MAINTENANCE_COMPLETE', entity: 'EquipmentMaintenance', entityId: null, metadata: { cost: 300000, note: 'Vặn lại bulong khung, đã kiểm tra tải trọng' }, ip: '127.0.0.1', at: daysAgo9(0) },
-      { userId: managerUser.id, action: 'MAINTENANCE_CANCEL', entity: 'EquipmentMaintenance', entityId: null, metadata: { equipmentCode: eqSquat?.code, reason: 'Dời lịch sang tuần sau' }, ip: '127.0.0.1', at: daysAgo9(0) },
-      { userId: adminUser.id, action: 'EQUIPMENT_RETIRE', entity: 'Equipment', entityId: eqOldest?.id, metadata: { code: eqOldest?.code, name: eqOldest?.name, reason: 'Hết hạn sử dụng (>8 năm)' }, ip: '127.0.0.1', at: daysAgo9(40) },
 
       // --- Khuyến mãi ---
       { userId: adminUser.id, action: 'PROMOTION_CREATE', entity: 'Promotion', entityId: null, metadata: { code: 'LUNAR2025', name: 'Khuyến mãi đầu năm' }, ip: '127.0.0.1', at: daysAgo9(60) },
@@ -1417,7 +1268,7 @@ async function main() {
         { userId: m6.userId, action: 'MEMBERSHIP_REGISTER', entity: 'Membership', entityId: null, metadata: { packageName: pkg9_6m?.name, amount: Number(pkg9_6m?.price ?? 0) }, ip: '127.0.0.1', at: daysAgo9(0) },
         { userId: adminUser.id, action: 'PAYMENT_REJECT', entity: 'Payment', entityId: payFail?.id, metadata: { code: 'INV-2026-0099', reason: 'Giao dịch thất bại từ cổng VNPAY' }, ip: '127.0.0.1', at: daysAgo9(0) },
         { userId: adminUser.id, action: 'MEMBERSHIP_STATUS_CHANGE', entity: 'Membership', entityId: ms2?.id, metadata: { from: 'PENDING', to: 'ACTIVE' }, ip: '127.0.0.1', at: daysAgo9(88) },
-        { userId: managerUser.id, action: 'MEMBERSHIP_EXTEND', entity: 'Membership', entityId: ms2?.id, metadata: { extraDays: 7, reason: 'Bù buổi tập do thiết bị bảo trì' }, ip: '127.0.0.1', at: daysAgo9(6) },
+        { userId: managerUser.id, action: 'MEMBERSHIP_EXTEND', entity: 'Membership', entityId: ms2?.id, metadata: { extraDays: 7, reason: 'Bù buổi tập theo yêu cầu hội viên' }, ip: '127.0.0.1', at: daysAgo9(6) },
         { userId: adminUser.id, action: 'PAYMENT_REFUND', entity: 'Payment', entityId: pay6?.id, metadata: { code: 'INV-2026-0006', reason: 'Hội viên hủy trong 7 ngày' }, ip: '127.0.0.1', at: daysAgo9(58) },
         { userId: memberUser.id, action: 'CHECK_IN', entity: 'CheckIn', entityId: null, metadata: { method: 'QR_CODE' }, ip: '127.0.0.1', at: atHour9(daysAgo9(0), 7, 12) },
         { userId: memberUser.id, action: 'CHECK_OUT', entity: 'CheckIn', entityId: null, metadata: { durationMinutes: 65 }, ip: '127.0.0.1', at: atHour9(daysAgo9(0), 8, 17) },

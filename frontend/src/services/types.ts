@@ -110,119 +110,7 @@ export interface Room {
   description?: string | null;
   status: string;
   createdAt?: string;
-  _count?: { equipment: number; schedules: number };
-}
-
-export type EquipmentStatusValue =
-  | 'OPERATIONAL'
-  | 'UNDER_MAINTENANCE'
-  | 'AVAILABLE'
-  | 'IN_USE'
-  | 'MAINTENANCE'
-  | 'BROKEN'
-  | 'RETIRED';
-
-export type EquipmentCategoryValue = 'CARDIO' | 'FREE_WEIGHT' | 'MACHINE' | 'ACCESSORY' | 'OTHER';
-
-export type EquipmentConditionValue = 'EXCELLENT' | 'GOOD' | 'FAIR' | 'POOR';
-
-export interface Equipment {
-  id: string;
-  code: string;
-  name: string;
-  category: string;
-  roomId?: string | null;
-  brand?: string | null;
-  model?: string | null;
-  serialNumber?: string | null;
-  purchaseDate?: string | null;
-  purchasePrice?: string | null;
-  warrantyExpiry?: string | null;
-  status: EquipmentStatusValue;
-  condition: EquipmentConditionValue;
-  lastMaintenanceAt?: string | null;
-  nextMaintenanceAt?: string | null;
-  description?: string | null;
-  createdAt?: string;
-  room?: { id: string; name: string; code?: string | null } | null;
-  maintenances?: EquipmentMaintenance[];
-}
-
-export interface EquipmentMaintenance {
-  id: string;
-  equipmentId: string;
-  type: string;
-  maintenanceDate: string;
-  cost?: string | null;
-  description: string;
-  performedBy?: string | null;
-  status: string;
-  nextDueDate?: string | null;
-  createdAt?: string;
-  equipment?: {
-    id: string;
-    code: string;
-    name: string;
-    status?: string;
-  } | null;
-}
-
-export interface EquipmentListResponse {
-  data: Equipment[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
-
-export interface EquipmentStats {
-  total: number;
-  byStatus: Record<string, number>;
-  byCondition: Record<string, number>;
-  available: number;
-  inUse: number;
-  maintenance: number;
-  broken: number;
-  retired: number;
-  alerts: {
-    overdue: number;
-    upcoming: number;
-    broken: number;
-    warrantyExpiring: number;
-  };
-  maintenanceThisMonth: number;
-}
-
-interface EquipmentAlertItem {
-  id: string;
-  code: string;
-  name: string;
-  status: EquipmentStatusValue;
-  nextMaintenanceAt?: string | null;
-  warrantyExpiry?: string | null;
-  room?: { id: string; name: string } | null;
-}
-
-export interface EquipmentAlerts {
-  counts: {
-    overdue: number;
-    upcoming: number;
-    broken: number;
-    warranty: number;
-    total: number;
-  };
-  overdue: EquipmentAlertItem[];
-  upcoming: EquipmentAlertItem[];
-  broken: EquipmentAlertItem[];
-  warranty: EquipmentAlertItem[];
-}
-
-export interface MaintenanceListResponse {
-  data: EquipmentMaintenance[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
+  _count?: { schedules: number };
 }
 
 interface MemberProfile {
@@ -541,7 +429,7 @@ export interface Promotion {
   maxDiscount: number | string | null;
   minOrderAmount: number | string | null;
   startAt: string;
-  endAt: string;
+  endAt: string | null;
   usageLimit: number | null;
   perMemberLimit: number | null;
   status: 'ACTIVE' | 'INACTIVE' | 'EXPIRED' | string;
@@ -619,7 +507,7 @@ export interface PublicPromotion {
   discountValue: number | string;
   maxDiscount: number | string | null;
   minOrderAmount: number | string | null;
-  endAt: string;
+  endAt: string | null;
 }
 
 // ======================================================
@@ -751,19 +639,6 @@ export interface AttendanceReport {
   byWeekday: { day: number; label: string; count: number }[];
   /** Số lượt theo hình thức check-in (MANUAL / STAFF / QR_CODE / FACE_ID) */
   byMethod: { method: string; count: number }[];
-}
-
-export interface EquipmentStatsReport {
-  total: number;
-  byStatus: Record<string, number>;
-  byCondition: Record<string, number>;
-  available: number;
-  inUse: number;
-  maintenance: number;
-  broken: number;
-  retired: number;
-  alerts: { overdue: number; upcoming: number; broken: number; warrantyExpiring: number };
-  maintenanceThisMonth: number;
 }
 
 export interface MemberStats {

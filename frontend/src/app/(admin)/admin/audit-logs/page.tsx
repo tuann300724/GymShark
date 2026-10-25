@@ -73,7 +73,6 @@ const METADATA_LABELS: Record<string, string> = {
   promotionCode: 'Mã khuyến mãi',
   transactionRef: 'Mã giao dịch',
   newEndDate: 'Hạn mới',
-  equipmentCode: 'Mã thiết bị',
   specialization: 'Chuyên môn',
   role: 'Vai trò',
   email: 'Email',
@@ -87,7 +86,6 @@ const METADATA_LABELS: Record<string, string> = {
   startTime: 'Bắt đầu',
   endTime: 'Kết thúc',
   discountType: 'Loại giảm',
-  newEquipmentStatus: 'Trạng thái thiết bị mới',
   softDeleted: 'Xóa mềm',
   via: 'Thực hiện qua',
 };

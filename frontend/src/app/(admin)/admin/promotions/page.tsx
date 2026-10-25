@@ -315,7 +315,7 @@ export default function PromotionsPage() {
               label: p.status,
               variant: 'outline' as const,
             };
-            const expired = p.endAt < new Date().toISOString();
+            const expired = p.endAt !== null && p.endAt < new Date().toISOString();
             return (
               <Card
                 key={p.id}
@@ -341,7 +341,8 @@ export default function PromotionsPage() {
                     )}
                     <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1 text-[11px] text-muted">
                       <span>
-                        Hiệu lực: {formatDate(p.startAt)} → {formatDate(p.endAt)}
+                        Hiệu lực: {formatDate(p.startAt)} →{' '}
+                        {p.endAt ? formatDate(p.endAt) : 'Không thời hạn'}
                       </span>
                       {p.usageLimit != null && <span>Tối đa {p.usageLimit} lượt</span>}
                       {p.perMemberLimit != null && <span>· {p.perMemberLimit} lượt/hội viên</span>}

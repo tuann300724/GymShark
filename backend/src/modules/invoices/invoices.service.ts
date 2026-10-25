@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InvoiceStatus, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import { InvoiceStatus } from '../../common/constants/db-enums';
 import { PrismaService } from '../../prisma/prisma.service';
 import { InvoiceListQueryDto } from './dto/invoice-list-query.dto';
 
@@ -27,10 +28,10 @@ export class InvoicesService {
     if (query.search) {
       const q = query.search.trim();
       where.OR = [
-        { invoiceNumber: { contains: q, mode: 'insensitive' } },
-        { member: { fullName: { contains: q, mode: 'insensitive' } } },
-        { member: { email: { contains: q, mode: 'insensitive' } } },
-        { member: { code: { contains: q, mode: 'insensitive' } } },
+        { invoiceNumber: { contains: q } },
+        { member: { fullName: { contains: q } } },
+        { member: { email: { contains: q } } },
+        { member: { code: { contains: q } } },
       ];
     }
 

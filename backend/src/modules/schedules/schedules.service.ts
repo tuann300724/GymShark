@@ -5,7 +5,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, SessionType, TrainerStatus } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import { SessionType, TrainerStatus } from '../../common/constants/db-enums';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit-logs/audit-logs.service';
 import {
@@ -230,10 +231,10 @@ export class SchedulesService {
       where.AND = [
         {
           OR: [
-            { title: { contains: search, mode: 'insensitive' } },
-            { member: { fullName: { contains: search, mode: 'insensitive' } } },
-            { member: { code: { contains: search, mode: 'insensitive' } } },
-            { trainer: { user: { fullName: { contains: search, mode: 'insensitive' } } } },
+            { title: { contains: search } },
+            { member: { fullName: { contains: search } } },
+            { member: { code: { contains: search } } },
+            { trainer: { user: { fullName: { contains: search } } } },
           ],
         },
       ];
@@ -603,9 +604,9 @@ export class SchedulesService {
     if (query.type) where.type = query.type;
     if (query.search) {
       where.OR = [
-        { title: { contains: query.search, mode: 'insensitive' } },
-        { member: { fullName: { contains: query.search, mode: 'insensitive' } } },
-        { member: { code: { contains: query.search, mode: 'insensitive' } } },
+        { title: { contains: query.search } },
+        { member: { fullName: { contains: query.search } } },
+        { member: { code: { contains: query.search } } },
       ];
     }
     if (query.from && query.to) {

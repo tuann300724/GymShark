@@ -7,7 +7,7 @@ import {
   IsString,
   MaxLength,
 } from 'class-validator';
-import { PaymentMethod } from '@prisma/client';
+import { PaymentMethod } from '../../../common/constants/db-enums';
 
 /**
  * Lễ tân tạo thẻ tập cho hội viên tại quầy (POST /members/:id/memberships).

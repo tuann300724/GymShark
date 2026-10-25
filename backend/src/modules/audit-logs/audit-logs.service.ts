@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { parseJsonText, serializeJsonText } from '../../common/utils/json-text';
 import { PrismaService } from '../../prisma/prisma.service';
 import { QueryAuditLogsDto } from './dto/query-audit-logs.dto';
 
@@ -31,7 +32,7 @@ export class AuditService {
           action: params.action,
           entity: params.entity,
           entityId: params.entityId ?? null,
-          metadata: (params.metadata as Prisma.InputJsonValue) ?? undefined,
+          metadata: serializeJsonText(params.metadata),
           ip: params.ip ?? null,
         },
       });
@@ -51,9 +52,9 @@ export class AuditService {
     if (query.entity) where.entity = query.entity;
     if (query.search) {
       where.OR = [
-        { action: { contains: query.search, mode: 'insensitive' } },
-        { entity: { contains: query.search, mode: 'insensitive' } },
-        { entityId: { contains: query.search, mode: 'insensitive' } },
+        { action: { contains: query.search } },
+        { entity: { contains: query.search } },
+        { entityId: { contains: query.search } },
       ];
     }
     if (query.from || query.to) {
@@ -92,6 +93,16 @@ export class AuditService {
       orderBy: { action: 'asc' },
     });
 
-    return { data, total, page, limit, totalPages, actions: distinct.map((d) => d.action) };
+    return {
+      data: data.map((entry) => ({
+        ...entry,
+        metadata: parseJsonText<Record<string, unknown>>(entry.metadata),
+      })),
+      total,
+      page,
+      limit,
+      totalPages,
+      actions: distinct.map((d) => d.action),
+    };
   }
 }

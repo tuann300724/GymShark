@@ -3,7 +3,6 @@
 import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { reportApi } from '@/services/report.service';
-import type { EquipmentStatsReport } from '@/services/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatCard } from '@/components/ui/stat-card';
 import { Badge } from '@/components/ui/badge';
@@ -15,25 +14,18 @@ import { ErrorState } from '@/components/ui/error-state';
 import { Tabs } from '@/components/ui/tabs';
 import { BarChart, MethodBars } from '@/components/charts/bar-chart';
 import { useToast } from '@/components/ui/toast';
-import {
-  EQUIPMENT_CONDITION_META,
-  EQUIPMENT_STATUS_META,
-  MEMBERSHIP_STATUS_META,
-  PAYMENT_METHOD_LABEL,
-} from '@/lib/status';
+import { MEMBERSHIP_STATUS_META, PAYMENT_METHOD_LABEL } from '@/lib/status';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
 import {
   Activity,
   BarChart3,
   CalendarCheck2,
   Download,
-  Dumbbell,
   Gauge,
   Layers,
   TrendingUp,
   UserCheck,
   Users,
-  Wrench,
 } from 'lucide-react';
 
 const TABS = [
@@ -43,7 +35,6 @@ const TABS = [
   { value: 'members', label: 'Hội viên' },
   { value: 'memberships', label: 'Gói tập' },
   { value: 'trainers', label: 'HLV' },
-  { value: 'equipment', label: 'Thiết bị' },
 ];
 
 const CSV_TYPES: Record<string, 'revenue' | 'members' | 'attendance' | 'memberships'> = {
@@ -839,131 +830,6 @@ function TrainersTab() {
   );
 }
 
-/* ------------------------------ Thiết bị ------------------------------ */
-function EquipmentTab() {
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['report-equipment'],
-    queryFn: () => reportApi.equipment(),
-    retry: 1,
-  });
-
-  const statusData = useMemo(() => {
-    const d = data as EquipmentStatsReport | undefined;
-    if (!d) return [];
-    return Object.entries(d.byStatus).map(([k, v]) => ({
-      label: EQUIPMENT_STATUS_META[k]?.label || k,
-      value: v,
-    }));
-  }, [data]);
-
-  const conditionData = useMemo(() => {
-    const d = data as EquipmentStatsReport | undefined;
-    if (!d) return [];
-    return Object.entries(d.byCondition).map(([k, v]) => ({
-      label: EQUIPMENT_CONDITION_META[k]?.label || k,
-      value: v,
-    }));
-  }, [data]);
-
-  if (isError)
-    return (
-      <ErrorState
-        title="Không tải được báo cáo"
-        description="Không tải được báo cáo thiết bị."
-        onRetry={() => refetch()}
-      />
-    );
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard
-          title="Tổng thiết bị"
-          value={data?.total ?? 0}
-          subtitle={`${data?.maintenanceThisMonth ?? 0} lượt bảo trì tháng này`}
-          icon={Dumbbell}
-          colorScheme="neon"
-        />
-        <StatCard
-          title="Sẵn sàng"
-          value={data?.available ?? 0}
-          icon={UserCheck}
-          colorScheme="neon"
-        />
-        <StatCard
-          title="Đang dùng / Bảo trì"
-          value={`${data?.inUse ?? 0} / ${data?.maintenance ?? 0}`}
-          icon={Wrench}
-          colorScheme="amber"
-        />
-        <StatCard
-          title="Hỏng / Thanh lý"
-          value={`${data?.broken ?? 0} / ${data?.retired ?? 0}`}
-          icon={Activity}
-          colorScheme="rose"
-        />
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Cảnh báo bảo trì & bảo hành</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <Skeleton className="h-24 w-full" />
-          ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {[
-                ['Quá hạn bảo trì', data?.alerts.overdue ?? 0, 'text-danger'],
-                ['Sắp tới (14 ngày)', data?.alerts.upcoming ?? 0, 'text-amber-400'],
-                ['Đang hỏng', data?.alerts.broken ?? 0, 'text-danger'],
-                ['Hết bảo hành (30 ngày)', data?.alerts.warrantyExpiring ?? 0, 'text-amber-400'],
-              ].map(([label, val, cls]) => (
-                <div
-                  key={String(label)}
-                  className="rounded-lg border border-line bg-ink px-3 py-2.5"
-                >
-                  <p className="text-[11px] text-muted">{label}</p>
-                  <p className={cn('font-display text-xl font-black', String(cls))}>
-                    {String(val)}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Theo trạng thái</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-32 w-full" />
-            ) : (
-              <MethodBars data={statusData} unit=" máy" />
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Theo tình trạng</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-32 w-full" />
-            ) : (
-              <MethodBars data={conditionData} unit=" máy" />
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
-}
-
 /* ------------------------------ Trang chính ------------------------------ */
 export default function ReportsPage() {
   const toast = useToast();
@@ -1013,7 +879,6 @@ export default function ReportsPage() {
       {tab === 'members' && <MembersTab />}
       {tab === 'memberships' && <MembershipsTab />}
       {tab === 'trainers' && <TrainersTab />}
-      {tab === 'equipment' && <EquipmentTab />}
     </div>
   );
 }

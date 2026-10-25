@@ -251,7 +251,7 @@ export class MealPlansService {
     if (query.memberId) where.memberId = query.memberId;
     if (query.status) where.status = query.status;
     if (query.isTemplate !== undefined) where.isTemplate = query.isTemplate;
-    if (query.search) where.title = { contains: query.search.trim(), mode: 'insensitive' };
+    if (query.search) where.title = { contains: query.search.trim() };
 
     const page = Math.max(1, Number(query.page) || 1);
     const limit = Math.min(100, Math.max(1, Number(query.limit) || 20));

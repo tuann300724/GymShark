@@ -59,7 +59,7 @@ export const ASSIGNMENT_STATUS_META: Record<string, { label: string; variant: Ba
 };
 
 // ---------------------------------------------------------------------------
-// STEP 7 — Room / Equipment / Maintenance
+// STEP 7 — Rooms
 // ---------------------------------------------------------------------------
 
 export const ROOM_STATUS_META: Record<string, { label: string; variant: BadgeVariant }> = {
@@ -79,45 +79,6 @@ export const ROOM_TYPE_META: Record<string, string> = {
   OTHER: 'Khác',
 };
 
-export const EQUIPMENT_STATUS_META: Record<string, { label: string; variant: BadgeVariant }> = {
-  OPERATIONAL: { label: 'Hoạt động', variant: 'success' }, // legacy
-  UNDER_MAINTENANCE: { label: 'Đang bảo trì', variant: 'warning' }, // legacy
-  AVAILABLE: { label: 'Sẵn sàng', variant: 'success' },
-  IN_USE: { label: 'Đang sử dụng', variant: 'info' },
-  MAINTENANCE: { label: 'Đang bảo trì', variant: 'warning' },
-  BROKEN: { label: 'Hỏng', variant: 'destructive' },
-  RETIRED: { label: 'Đã thanh lý', variant: 'outline' },
-};
-
-export const EQUIPMENT_CONDITION_META: Record<string, { label: string; variant: BadgeVariant }> = {
-  EXCELLENT: { label: 'Xuất sắc', variant: 'success' },
-  GOOD: { label: 'Tốt', variant: 'info' },
-  FAIR: { label: 'Khá', variant: 'warning' },
-  POOR: { label: 'Kém', variant: 'destructive' },
-};
-
-export const EQUIPMENT_CATEGORY_META: Record<string, string> = {
-  CARDIO: 'Cardio',
-  FREE_WEIGHT: 'Tạ tự do',
-  MACHINE: 'Máy tập',
-  ACCESSORY: 'Phụ kiện',
-  OTHER: 'Khác',
-};
-
-export const MAINTENANCE_STATUS_META: Record<string, { label: string; variant: BadgeVariant }> = {
-  SCHEDULED: { label: 'Đã lên lịch', variant: 'info' },
-  IN_PROGRESS: { label: 'Đang thực hiện', variant: 'warning' },
-  COMPLETED: { label: 'Hoàn thành', variant: 'success' },
-  CANCELLED: { label: 'Đã hủy', variant: 'destructive' },
-};
-
-export const MAINTENANCE_TYPE_META: Record<string, string> = {
-  ROUTINE: 'Định kỳ',
-  REPAIR: 'Sửa chữa',
-  INSPECTION: 'Kiểm tra',
-  REPLACEMENT: 'Thay thế',
-};
-
 // ============ STEP 8 — Khuyến mãi & Thông báo ============
 
 export const PROMOTION_STATUS_META: Record<string, { label: string; variant: BadgeVariant }> = {
@@ -132,7 +93,6 @@ export const NOTIFICATION_TYPE_META: Record<string, { label: string; variant: Ba
   CHECKIN: { label: 'Check-in', variant: 'warning' },
   TRAINING: { label: 'Lịch tập', variant: 'warning' },
   PROMOTION: { label: 'Khuyến mãi', variant: 'info' },
-  EQUIPMENT: { label: 'Thiết bị', variant: 'destructive' },
   SYSTEM: { label: 'Hệ thống', variant: 'default' },
 };
 
@@ -198,15 +158,6 @@ export const AUDIT_ACTION_META: Record<string, { label: string; variant: BadgeVa
   SCHEDULE_COMPLETE: { label: 'Hoàn thành buổi tập', variant: 'success' },
   SCHEDULE_DELETE: { label: 'Xóa buổi tập', variant: 'destructive' },
 
-  // Thiết bị & bảo trì
-  EQUIPMENT_CREATE: { label: 'Thêm thiết bị', variant: 'success' },
-  EQUIPMENT_UPDATE: { label: 'Cập nhật thiết bị', variant: 'default' },
-  EQUIPMENT_STATUS_CHANGE: { label: 'Đổi trạng thái thiết bị', variant: 'warning' },
-  EQUIPMENT_RETIRE: { label: 'Thanh lý thiết bị', variant: 'warning' },
-  MAINTENANCE_CREATE: { label: 'Tạo yêu cầu bảo trì', variant: 'info' },
-  MAINTENANCE_COMPLETE: { label: 'Hoàn tất bảo trì', variant: 'success' },
-  MAINTENANCE_CANCEL: { label: 'Hủy yêu cầu bảo trì', variant: 'destructive' },
-
   // Khuyến mãi
   PROMOTION_CREATE: { label: 'Tạo mã khuyến mãi', variant: 'success' },
   PROMOTION_UPDATE: { label: 'Cập nhật mã khuyến mãi', variant: 'default' },
@@ -224,8 +175,6 @@ export const AUDIT_ENTITY_LABEL: Record<string, string> = {
   CheckIn: 'Check-in',
   Trainer: 'Huấn luyện viên',
   TrainingSchedule: 'Buổi tập',
-  Equipment: 'Thiết bị',
-  EquipmentMaintenance: 'Bảo trì',
   Promotion: 'Khuyến mãi',
   Face: 'Sinh trắc học',
 };

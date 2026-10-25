@@ -4,7 +4,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, UserRole } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import { UserRole } from '../../common/constants/db-enums';
+import { parseJsonText, serializeJsonText } from '../../common/utils/json-text';
 import { PrismaService } from '../../prisma/prisma.service';
 
 export type NotificationTarget = 'ALL' | 'MEMBERS' | 'TRAINERS' | 'STAFF' | 'MANAGERS' | 'ADMIN';
@@ -16,7 +18,6 @@ export const NOTIFICATION_TYPES = [
   'CHECKIN',
   'TRAINING',
   'PROMOTION',
-  'EQUIPMENT',
   'SYSTEM',
   'CHAT',
 ] as const;
@@ -37,6 +38,10 @@ export interface CreateNotificationInput {
 @Injectable()
 export class NotificationsService {
   constructor(private prisma: PrismaService) {}
+
+  private withParsedData<T extends { data: string | null }>(notification: T) {
+    return { ...notification, data: parseJsonText<unknown>(notification.data) };
+  }
 
   // ---------------------------------------------------------------------------
   // Tạo thông báo với chống trùng lặp (referenceType + referenceId + người nhận)
@@ -67,7 +72,7 @@ export class NotificationsService {
         title: input.title,
         content: input.content,
         link: input.link ?? null,
-        data: (input.data as Prisma.InputJsonValue) ?? undefined,
+        data: serializeJsonText(input.data),
         referenceType: input.referenceType ?? null,
         referenceId: input.referenceId ?? null,
       },
@@ -84,47 +89,11 @@ export class NotificationsService {
         title: input.title,
         content: input.content,
         link: input.link ?? null,
-        data: (input.data as Prisma.InputJsonValue) ?? undefined,
+        data: serializeJsonText(input.data),
         referenceType: input.referenceType ?? null,
         referenceId: input.referenceId ?? null,
       },
     });
-  }
-
-  /** Fan-out tới tất cả ADMIN/MANAGER/STAFF (dedupe global theo ref) — dùng cho cảnh báo vận hành */
-  async fanoutToStaff(input: {
-    type: NotificationType;
-    title: string;
-    content: string;
-    link?: string | null;
-    referenceType: string;
-    referenceId: string;
-    data?: Prisma.InputJsonValue;
-  }) {
-    const dup = await this.prisma.notification.findFirst({
-      where: { referenceType: input.referenceType, referenceId: input.referenceId },
-    });
-    if (dup) return { created: 0, skipped: true };
-
-    const staffUsers = await this.prisma.user.findMany({
-      where: { role: { in: [UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF] }, status: 'ACTIVE' },
-      select: { id: true },
-    });
-    if (!staffUsers.length) return { created: 0, skipped: false };
-
-    await this.prisma.notification.createMany({
-      data: staffUsers.map((u) => ({
-        userId: u.id,
-        type: input.type,
-        title: input.title,
-        content: input.content,
-        link: input.link ?? null,
-        referenceType: input.referenceType,
-        referenceId: input.referenceId,
-        data: input.data ?? undefined,
-      })),
-    });
-    return { created: staffUsers.length, skipped: false };
   }
 
   // ---------------------------------------------------------------------------
@@ -162,7 +131,7 @@ export class NotificationsService {
         link: input.link ?? null,
         referenceType: input.referenceType,
         referenceId: input.referenceId,
-        data: (input.data as Prisma.InputJsonValue) ?? undefined,
+        data: serializeJsonText(input.data),
       })),
     });
 
@@ -229,7 +198,7 @@ export class NotificationsService {
       this.prisma.notification.count({ where }),
     ]);
 
-    return { data, unreadCount, readCount, total };
+    return { data: data.map((item) => this.withParsedData(item)), unreadCount, readCount, total };
   }
 
   async getUnreadCount(userId: string) {
@@ -260,7 +229,7 @@ export class NotificationsService {
       where: { id },
       data: { isRead: true, readAt: new Date() },
     });
-    return { message: 'Đã đánh dấu là đã đọc', notification: updated };
+    return { message: 'Đã đánh dấu là đã đọc', notification: this.withParsedData(updated) };
   }
 
   async markAllRead(actorUserId: string, role: string) {
@@ -310,8 +279,8 @@ export class NotificationsService {
     }
     if (query.search) {
       where.OR = [
-        { title: { contains: query.search.trim(), mode: 'insensitive' } },
-        { content: { contains: query.search.trim(), mode: 'insensitive' } },
+        { title: { contains: query.search.trim() } },
+        { content: { contains: query.search.trim() } },
       ];
     }
 
@@ -330,7 +299,7 @@ export class NotificationsService {
       this.prisma.notification.count({ where: { ...where, isRead: false } }),
     ]);
 
-    return { data, total, unreadCount };
+    return { data: data.map((item) => this.withParsedData(item)), total, unreadCount };
   }
 
   /**

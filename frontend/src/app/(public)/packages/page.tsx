@@ -178,7 +178,7 @@ export default function PublicPackagesPage() {
                       </span>
                       <span className="text-xs font-semibold text-chalk">{promoDiscount(p)}</span>
                       <span className="hidden text-[10px] text-muted sm:inline">
-                        đến {formatDate(p.endAt)}
+                        {p.endAt ? `đến ${formatDate(p.endAt)}` : 'không thời hạn'}
                       </span>
                     </div>
                   ))}

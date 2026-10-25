@@ -57,7 +57,7 @@ export class FoodsService {
     const where: Prisma.FoodWhereInput = {};
     if (!query.includeInactive) where.isActive = true;
     if (query.category) where.category = query.category;
-    if (query.search) where.name = { contains: query.search.trim(), mode: 'insensitive' };
+    if (query.search) where.name = { contains: query.search.trim() };
 
     const [data, total] = await this.prisma.$transaction([
       this.prisma.food.findMany({

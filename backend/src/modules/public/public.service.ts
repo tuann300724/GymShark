@@ -61,7 +61,7 @@ export class PublicService {
       where: {
         status: 'ACTIVE',
         startDate: { lte: now },
-        endDate: { gte: now },
+        OR: [{ endDate: null }, { endDate: { gte: now } }],
       },
       orderBy: { endDate: 'asc' },
       take: 20,

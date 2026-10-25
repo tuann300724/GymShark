@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
-import { PaymentMethod } from '@prisma/client';
+import { PaymentMethod } from '../../../common/constants/db-enums';
 
 export class RegisterMembershipDto {
   @ApiProperty({ example: 'b7830a19-4070-4435-9c94-f2116fbd7801', description: 'ID của gói tập' })

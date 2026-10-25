@@ -49,10 +49,6 @@ export const navigationSections = [
     ],
   },
   {
-    title: 'Cơ sở & Thiết bị',
-    items: [{ name: 'Thiết bị máy móc', href: '/admin/equipment', icon: Dumbbell }],
-  },
-  {
     title: 'Hệ thống',
     items: [
       { name: 'Báo cáo thống kê', href: '/admin/reports', icon: BarChart3 },

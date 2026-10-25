@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEnum, IsISO8601, IsOptional, IsString, Matches } from 'class-validator';
-import { Gender } from '@prisma/client';
+import { Gender } from '../../../common/constants/db-enums';
 
 export class UpdateMemberDto {
   @ApiPropertyOptional({ example: 'Nguyễn Văn A', description: 'Họ và tên' })

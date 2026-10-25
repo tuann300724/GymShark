@@ -9,8 +9,8 @@
 Dự án full-stack quản lý phòng tập gym (đồ án tốt nghiệp), toàn bộ giao diện viết bằng **tiếng Việt**:
 
 - **frontend/** — Next.js 14 (App Router) + TypeScript + Tailwind CSS v3, chạy `http://localhost:3000`
-- **backend/** — NestJS + Prisma + PostgreSQL, chạy `http://localhost:3001/api` (Swagger: `http://localhost:3001/api/docs`)
-- **docker-compose.yml** — chỉ chứa PostgreSQL 16 (port 5432, user/pass `postgres`/`postgrespassword`, database `gym_db`) — *máy dev hiện chạy PostgreSQL 17 cài native thay Docker, xem mục 8*
+- **backend/** — NestJS + Prisma + SQL Server, chạy `http://localhost:3001/api` (Swagger: `http://localhost:3001/api/docs`)
+- **docker-compose.yml** — SQL Server 2022 (port 1433); đặt `MSSQL_SA_PASSWORD` trước khi chạy, xem mục 8
 - Frontend gọi REST qua Axios (`src/lib/axios.ts`), baseURL = `NEXT_PUBLIC_API_URL` (mặc định `http://localhost:3001/api`), tự gắn JWT.
 
 ## 2. Lệnh nhanh
@@ -34,10 +34,10 @@ Thư mục `backend/`:
 npm run start:dev    # dev server :3001 (watch)
 npm run build        # nest build
 npm run prisma:seed  # seed dữ liệu mẫu (tài khoản xem prisma/seed.ts)
-npx prisma db push   # sync schema vào DB — dự án KHÔNG có thư mục migrations, đừng chạy `prisma migrate dev`
+npm run prisma:push  # đồng bộ schema vào SQL Server (sao lưu DB trước khi thay đổi)
 ```
 
-Khởi động DB: máy dev hiện dùng **PostgreSQL 17 native** (service `postgresql-x64-17`, xem mục 8) — không cần Docker; máy khác mới `docker compose up -d` ở thư mục gốc.
+Khởi động DB: SQL Server 2022 native hoặc `docker compose up -d` ở thư mục gốc.
 
 ## 3. Cấu trúc frontend
 
@@ -130,12 +130,14 @@ Nếu **browser tools disconnected** → dùng script Playwright ở `C:\Users\U
 - Đường dẫn dự án chứa dấu tiếng Việt (`Đ`, `ữ`...) — luôn quote đường dẫn trong shell.
 - Port 3000 hay kẹt sau khi build production; kiểm tra process đang chiếm port trước khi `npm run dev` (dùng `Get-NetTCPConnection -LocalPort 3000`).
 - **Bẫy webpack cache:** không chạy `npm run build` trong lúc dev server đang dùng chung `.next` → cache corrupt (thiếu `vendor-chunks/*`, chunk 404, hydration fail giết form login). Xử lý: kill process port 3000, xóa `.next`, chạy lại `npm run dev`.
-- **PostgreSQL 17 cài native** trên máy dev (service `postgresql-x64-17`, KHÔNG phải Docker — `docker` không có trong PATH). User `postgres` / **pass `postgres`** / port 5432, database `gym_db` (*pass `postgrespassword` chỉ đúng cho Docker-compose — psql native thử pass này bị auth failed*).
-- `backend/.env` đã tạo local (gitignore) — nếu mất: copy `.env.example` rồi đảm bảo `DATABASE_URL` dùng pass `postgres` (giống `backend/.env` hiện tại). Kiểm tra backend: `GET http://localhost:3001/api/health` → trả `database: "connected"`.
+- SQL Server 2022 native chạy qua service `sqlserver-2022` trên máy dev; không cần Docker. Tài khoản, mật khẩu và database lấy theo `backend/.env` (không commit file này).
+- Nếu mất `backend/.env`, copy `.env.example`, đặt `DATABASE_URL` đúng với SQL Server đang chạy và tạo database `gym_db` trước khi chạy `npm run prisma:push`. Kiểm tra `GET http://localhost:3001/api/health` → `database: "connected"`.
 
 ## 9. Trạng thái & việc dang dở
 
-Chi tiết lịch sử, quyết định, QA workflow: **WORKLOG.md** (gốc dự án) — cập nhật gần nhất: 2026-09-29 (Kỳ 11 — check-in khuôn mặt FACE_ID, 3 đợt).
+Chi tiết lịch sử, quyết định, QA workflow: **WORKLOG.md** (gốc dự án) — cập nhật gần nhất: 2026-10-25 (gỡ tính năng thiết bị/bảo trì).
+
+- **2026-10-25:** Đã gỡ tính năng quản lý thiết bị/bảo trì khỏi backend, frontend, Prisma schema và seed. Migration `backend/prisma/sqlserver-remove-equipment-feature.sql` chỉ xóa hai bảng SQL Server khi chúng rỗng và không có bảng ngoài tham chiếu.
 
 - **ĐÃ COMMIT + PUSH (2026-09-29):** tính năng **Check-in nhận diện khuôn mặt FACE_ID (Kỳ 11 — sinh trắc học 3 đợt)** — schema `FaceEmbedding` (vector `Float[]` **dim 1024** theo model `@vladmandic/human` + `consentAt` + `imageData` **có** lưu ảnh tham chiếu data URL ở mẫu đầu tiên, dùng để lễ tân đối chiếu mặt trước khi ghi lượt tập — cả vector lẫn ảnh đều là dữ liệu cá nhân nhạy cảm nên bắt buộc consent NĐ13/2023) + enum method `FACE_ID`; backend module `faces` (enroll bắt buộc consent / tự rút lui / admin view-delete, audit `FACE_ENROLL`+`FACE_DELETE`) + `POST /checkins/face` (1:1, `FACE_MATCH_THRESHOLD=0.6`, lệch → 400) + `POST /checkins/face-scan` (1:N lễ tân, `FACE_MATCH_THRESHOLD_1N=0.7`, trượt → 404) + reports `byMethod`; FE cài `@vladmandic/human@3.3.6` (model CDN, chạy 100% client-side) + `lib/face.ts` + `components/ui/face-scanner.tsx` (anti-spoof chặn mẫu `real<0.3`) + `/member/face-registration` (consent NĐ13) + tab Khuôn mặt ở `/member/checkin` + dialog Quét khuôn mặt 1:N ở `/admin/checkins` + card trạng thái/xoá ở `/admin/members/[id]` + KPI "Check-in theo hình thức" ở `/admin/reports/attendance` + tab Chuyên cần. **Bẫy mới (chi tiết trong WORKLOG Kỳ 11):** bản server phải alias ESM bundle (`next.config.mjs` + `src/types/human-esm.d.ts` — exports map không có subpath `./dist/*`), `human.webcam.start()` trả chuỗi `"webcam error: ..."` chứ KHÔNG ném exception, mass-checkout đổi CRLF → `format:check` fail (chạy `npm run format`), shell start:dev bị cancel nhưng node child giữ port 3001. QA: smoke API **36/36** + FE 5 check PASS (build **52 routes**) + browser **6 màn 0 console error**; **chưa test camera thật** (máy QA bị deny quyền camera) — cần user quét thử bằng webcam thật. Gộp chung với Kỳ 4–10 — đã push lên `origin/main`.
 

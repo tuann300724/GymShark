@@ -32,12 +32,12 @@ Những yêu cầu này đòi hỏi một kiến trúc **full-stack** ổn đị
 "Tôi chọn kiến trúc **client-server chuẩn**:
 
 - **Frontend**: Next.js 14 (App Router) + TypeScript + Tailwind CSS v3. Đây là công nghệ hiện đại, cho phép server-side rendering (SEO tốt) và hydration mượt.
-- **Backend**: NestJS (Nest + Prisma + PostgreSQL 17 native). Nest cung cấp module hóa rõ ràng; Prisma giúp truy vấn an toàn, không cần viết SQL thô; PostgreSQL 17 đảm bảo tính nhất quán dữ liệu.
+- **Backend**: NestJS + Prisma + SQL Server 2022 (`gym_db`). Nest cung cấp module hóa rõ ràng; Prisma giúp truy vấn có kiểu an toàn; SQL Server lưu trữ dữ liệu và hỗ trợ transaction cho nghiệp vụ.
 - **Giao tiếp**: REST qua Axios ở frontend, tự động gắn JWT; backend có `AllExceptionsFilter`, `helmet`, `throttler`, và CORS allowlist.
 - **Realtime**: Chat hội viên ↔ HLV qua Socket.IO (chat module), không phải polling — tin nhắn thực đơn, thông báo, tin nhắn cá nhân đều đồng bộ ngay.
 
 **Sơ đồ kiến trúc đơn giản:**
-- Client (Next) → API Gateway (Nest) → PostgreSQL
+- Client (Next) → API Gateway (Nest) → SQL Server
 - Chat Socket → Gateway → DB + broadcast
 - File/ảnh → `public/images/` + `next/image`
 
@@ -124,7 +124,7 @@ Những yêu cầu này đòi hỏi một kiến trúc **full-stack** ổn đị
 
 ## 7. KẾT LUẬN & HƯỚNG PHÁT TRIỂN (1 phút)
 
-"Dự án đã hoàn thành các yêu cầu cốt lõi: quản lý hội viên, thanh toán, thực đơn, check-in, báo cáo, audit, và giao tiếp thực thời. Tôi đã dùng PostgreSQL 17 native (không SQL Server), Next.js 14 + NestJS đầy tính năng, và tuân thủ palette thiết kế duy nhất.
+"Dự án đã hoàn thành các yêu cầu cốt lõi: quản lý hội viên, thanh toán, thực đơn, check-in, báo cáo, audit, và giao tiếp thực thời. Backend dùng SQL Server 2022, Next.js 14 + NestJS đầy tính năng, và tuân thủ palette thiết kế duy nhất.
 
 Hướng phát triển tiếp:
 - Thêm module `Exercise` (m bài tập) để chuyển từ dữ liệu tĩnh `programs.ts` sang backend CRUD.
@@ -141,7 +141,7 @@ Cảm ơn thầy/cô đã lắng nghe. Tôi sẵn sàng trả lời câu hỏi."
 1. Tiêu đề + logo GymShark
 2. Vấn đề: phòng tập quản lý rời rạc
 3. Giải pháp: hệ thống một cửa Full-Stack
-4. Kiến trúc: Next 14 + NestJS + PostgreSQL
+4. Kiến trúc: Next 14 + NestJS + SQL Server
 5. Thiết kế: Palette tối + Neon + Font Barlow/Be Vietnam
 6. Hàm năng chính (icon): Hội viên / Thanh toán / Check-in / Thực đơn / Chat / Báo cáo
 7. Check-in khuôn mặt (FACE_ID) — import ảnh + consent

@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { InvoiceStatus } from '@prisma/client';
+import { InvoiceStatus } from '../../../common/constants/db-enums';
 import { Type } from 'class-transformer';
 import { IsEnum, IsISO8601, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 

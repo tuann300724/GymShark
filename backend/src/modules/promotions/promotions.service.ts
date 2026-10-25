@@ -4,7 +4,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { DiscountType, PaymentStatus, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import { DiscountType, PaymentStatus } from '../../common/constants/db-enums';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit-logs/audit-logs.service';
@@ -112,8 +113,8 @@ export class PromotionsService {
     if (query.type) where.discountType = query.type;
     if (query.search) {
       where.OR = [
-        { code: { contains: query.search.trim(), mode: 'insensitive' } },
-        { name: { contains: query.search.trim(), mode: 'insensitive' } },
+        { code: { contains: query.search.trim() } },
+        { name: { contains: query.search.trim() } },
       ];
     }
     if (query.from || query.to) {
@@ -132,7 +133,9 @@ export class PromotionsService {
     const now = new Date();
     const soon = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     const [activeCount, expiringCount, expiredCount, totalUsed] = await Promise.all([
-      this.prisma.promotion.count({ where: { status: 'ACTIVE', endDate: { gte: now } } }),
+      this.prisma.promotion.count({
+        where: { status: 'ACTIVE', OR: [{ endDate: null }, { endDate: { gte: now } }] },
+      }),
       this.prisma.promotion.count({
         where: { status: 'ACTIVE', endDate: { gte: now, lte: soon } },
       }),
@@ -167,7 +170,9 @@ export class PromotionsService {
     const soon = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     const [activeCount, expiringCount, expiredCount, totalUsage, totalDiscount] =
       await Promise.all([
-        this.prisma.promotion.count({ where: { status: 'ACTIVE', endDate: { gte: now } } }),
+        this.prisma.promotion.count({
+          where: { status: 'ACTIVE', OR: [{ endDate: null }, { endDate: { gte: now } }] },
+        }),
         this.prisma.promotion.count({
           where: { status: 'ACTIVE', endDate: { gte: now, lte: soon } },
         }),
@@ -382,7 +387,7 @@ export class PromotionsService {
   async activate(id: string, actorId?: string) {
     const p = await this.prisma.promotion.findUnique({ where: { id } });
     if (!p) throw new NotFoundException('Không tìm thấy mã khuyến mãi');
-    if (p.endDate < new Date()) {
+    if (p.endDate && p.endDate < new Date()) {
       throw new BadRequestException('Mã khuyến mãi đã hết hạn, không thể kích hoạt lại');
     }
     const promotion = await this.prisma.promotion.update({
@@ -434,7 +439,7 @@ export class PromotionsService {
       return { valid: false, message: 'Mã khuyến mãi không tồn tại hoặc chưa kích hoạt' };
     }
     const now = new Date();
-    if (now < promo.startDate || now > promo.endDate) {
+    if (now < promo.startDate || (promo.endDate && now > promo.endDate)) {
       return { valid: false, message: 'Mã khuyến mãi đã hết hạn hoặc chưa có hiệu lực' };
     }
 

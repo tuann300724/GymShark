@@ -9,7 +9,7 @@
 | | |
 | :--- | :--- |
 | **Frontend** | Next.js 14 (App Router) · TypeScript · Tailwind CSS 3 — http://localhost:3000 |
-| **Backend** | NestJS 10 · Prisma 5 · PostgreSQL 16 — http://localhost:3001/api |
+| **Backend** | NestJS 10 · Prisma 5 · SQL Server 2022 — http://localhost:3001/api |
 | **Tài liệu API** | Swagger UI — http://localhost:3001/api/docs |
 | **Kiểm tra sức khoẻ** | `GET /api/health` → `{"status":"ok","database":"connected"}` |
 
@@ -97,7 +97,7 @@
 | Nhóm | Công nghệ |
 | :--- | :--- |
 | Framework | NestJS 10 · TypeScript |
-| ORM / DB | Prisma 5 + PostgreSQL 16 |
+| ORM / DB | Prisma 5 + SQL Server 2022 |
 | Xác thực | Passport + JWT (`@nestjs/jwt`), `bcryptjs` (10 vòng) |
 | Validation | `class-validator` + `class-transformer` (`whitelist`, `forbidNonWhitelisted`, `transform`) |
 | Bảo mật HTTP | `helmet` + `@nestjs/throttler` (rate limit) + CORS allowlist |
@@ -109,21 +109,29 @@
 
 ### Yêu cầu
 - **Node.js ≥ 20** (khuyến nghị 22/24) và **npm ≥ 10**
-- **PostgreSQL ≥ 14** — hoặc dùng Docker
+- **SQL Server 2022** — cài native hoặc dùng Docker Compose
 
 ### Bước 1 — Khởi động cơ sở dữ liệu
 
-**Cách A — Docker (đơn giản nhất):**
+**Cách A — Docker:**
 ```bash
+MSSQL_SA_PASSWORD=Your_Strong_Password_Here docker compose up -d
+```
+PowerShell:
+```powershell
+$env:MSSQL_SA_PASSWORD = "Your_Strong_Password_Here"
 docker compose up -d
 ```
-Sẽ tạo PostgreSQL 16 tại `localhost:5432`, database `gym_db`, user `postgres`, mật khẩu `postgrespassword`.
+Container SQL Server lắng nghe tại `localhost:1433`, tài khoản `sa`. Chỉ tạo `gym_db`
+nếu database chưa tồn tại. Nếu đã có dữ liệu trong database này, không drop hoặc tạo lại.
 
-**Cách B — PostgreSQL cài sẵn trên máy:**
+**Cách B — SQL Server cài sẵn trên máy:**
 ```sql
-CREATE DATABASE gym_db;
+IF DB_ID(N'gym_db') IS NULL
+  CREATE DATABASE gym_db;
 ```
-rồi đảm bảo user/password trong `backend/.env` khớp với PostgreSQL của bạn.
+Đảm bảo SQL Server bật SQL authentication và thông tin đăng nhập trong `backend/.env` hợp lệ.
+Nếu `gym_db` đã có dữ liệu, giữ nguyên database đó và sao lưu trước khi thay đổi schema.
 
 ### Bước 2 — Chạy Backend (cổng 3001)
 ```bash
@@ -132,26 +140,35 @@ npm install
 
 # Tạo file .env từ mẫu
 cp .env.example .env         # Windows PowerShell:  copy .env.example .env
-# Sửa DATABASE_URL + JWT_SECRET trong .env
+# Sửa DATABASE_URL + JWT_SECRET trong .env; DATABASE_URL phải khớp SQL Server đang chạy.
 
-# Đồng bộ schema vào database và sinh Prisma Client
+# Sinh Prisma Client
 npx prisma generate
-npx prisma db push
-
-# Nạp dữ liệu demo (idempotent — chạy lại nhiều lần vẫn an toàn)
-npm run prisma:seed
 
 # Chạy development server
 npm run start:dev
 ```
+
+**Database mới, rỗng:** chỉ trong database mới tạo và còn rỗng, đồng bộ schema bằng
+`npx prisma db push`, chạy `backend/prisma/sqlserver-optional-unique-indexes.sql` trong SSMS,
+rồi nạp dữ liệu mẫu bằng `npm run prisma:seed`.
+
+**Database `gym_db` hiện có dữ liệu:** không chạy `prisma db push`, không seed lại và không
+drop/recreate database. Sao lưu và khôi phục sang database thử nghiệm trước, sau đó chạy toàn bộ
+`backend/prisma/sqlserver-gymdb-preserve-migration.sql` trong SSMS để thêm schema ứng dụng và
+backfill dữ liệu legacy theo mapping có kiểm tra. Script giữ nguyên bảng/cột legacy, nhưng chỉ
+áp dụng lên `gym_db` thật sau khi bản sao đã kiểm thử và có bản backup xác minh được.
+`backend/prisma/sqlserver-membership-package-link.sql` là script cũ, không thay thế migration đầy đủ.
 
 Kiểm tra:
 - API: <http://localhost:3001/api>
 - Swagger: <http://localhost:3001/api/docs>
 - Health: <http://localhost:3001/api/health> → `database: "connected"`
 
-> ⚠️ **Dự án KHÔNG dùng thư mục `prisma/migrations`.** Luôn đồng bộ schema bằng
-> `npx prisma db push` (dev) hoặc `npx prisma migrate deploy` với migration do bạn tự sinh (prod).
+> ⚠️ **Dự án không dùng `prisma/migrate`.** `prisma db push` chỉ dành cho database mới, rỗng.
+> Không dùng lệnh này trực tiếp trên `gym_db` hiện có: schema legacy chưa khớp hoàn toàn và
+> thao tác có thể xóa bảng/cột cũ. Database có dữ liệu phải được cập nhật bằng migration đã
+> rà soát và sao lưu trước.
 
 ### Bước 3 — Chạy Frontend (cổng 3000)
 ```bash
@@ -223,7 +240,7 @@ request body, nên không thể đọc dữ liệu của người khác.
 
 ```text
 Web gym/
-├── docker-compose.yml            # PostgreSQL 16 cho môi trường dev
+├── docker-compose.yml            # SQL Server 2022 cho môi trường dev
 ├── README.md                     # Tài liệu này
 ├── AGENTS.md                     # Quy ước làm việc cho AI agent / developer
 ├── DESIGN_SYSTEM.md              # Chuẩn giao diện (bắt buộc đọc trước khi sửa UI)
@@ -233,7 +250,7 @@ Web gym/
 ├── backend/                      # ── NestJS REST API (:3001) ──
 │   ├── .env.example              # Mẫu biến môi trường (KHÔNG commit .env thật)
 │   ├── prisma/
-│   │   ├── schema.prisma         # 18 model · 21 enum · index
+│   │   ├── schema.prisma         # SQL Server data models
 │   │   └── seed.ts               # Dữ liệu demo idempotent
 │   └── src/
 │       ├── main.ts               # Swagger · CORS · helmet · ValidationPipe · port
@@ -243,7 +260,7 @@ Web gym/
 │       │   ├── decorators/       # @Roles · @CurrentUser · @Public
 │       │   ├── filters/          # AllExceptionsFilter (chuẩn hoá lỗi)
 │       │   └── guards/           # JwtAuthGuard · RolesGuard
-│       └── modules/              # 19 module nghiệp vụ
+│       └── modules/              # 18 module nghiệp vụ
 │           ├── auth/             # Đăng nhập · đăng ký · JWT strategy
 │           ├── users/            # Tài khoản & phân quyền
 │           ├── audit-logs/       # Nhật ký hệ thống (@Global)
@@ -256,7 +273,6 @@ Web gym/
 │           ├── checkins/         # Check-in / check-out
 │           ├── trainers/         # Huấn luyện viên
 │           ├── schedules/        # Lịch tập · lớp học · tiến trình
-│           ├── equipment/        # Thiết bị & bảo trì
 │           ├── promotions/       # Khuyến mãi
 │           ├── notifications/    # Thông báo & ticker
 │           ├── reports/          # Báo cáo tổng hợp (8 nhóm)
@@ -292,10 +308,10 @@ Web gym/
 
 ## 🗄 Mô hình dữ liệu
 
-**18 model**, liên kết bằng khoá ngoại có chủ đích để không mất lịch sử:
+**26 model**, liên kết bằng khoá ngoại có chủ đích để không mất lịch sử:
 
 ```text
-Branch ─┬─ Room ──── Equipment ──── EquipmentMaintenance
+Branch ─┬─ Room
         ├─ User ─┬─ Trainer ─┬─ TrainingSchedule
         │        │           └─ TrainerMember ── TrainingProgress
         │        │           └─ TrainingSchedule
@@ -338,7 +354,7 @@ Biến môi trường bắt buộc (xem `backend/.env.example`):
 ```env
 PORT=3001
 NODE_ENV=development
-DATABASE_URL="postgresql://postgres:MAT_KHAU@localhost:5432/gym_db?schema=public"
+DATABASE_URL="sqlserver://localhost:1433;database=gym_db;user=sa;password=YOUR_PASSWORD;encrypt=true;trustServerCertificate=true"
 JWT_SECRET="CHUOI_NGAU_NHIEN_DAI_IT_NHAT_32_KY_TU"
 JWT_EXPIRES_IN="7d"
 CORS_ORIGIN="http://localhost:3000"
@@ -437,11 +453,11 @@ rate limit 429.
 cd backend
 npm ci
 npm run build
-npx prisma migrate deploy     # dùng migration đã sinh & commit cho production
+npx prisma db push            # đồng bộ schema; sao lưu DB trước khi cập nhật
 NODE_ENV=production node dist/src/main.js
 ```
 Bắt buộc khi deploy:
-- `DATABASE_URL` trỏ tới PostgreSQL quản lý (Heroku/Supabase/Neon/RDS…)
+- `DATABASE_URL` trỏ tới SQL Server được quản lý hoặc máy chủ SQL Server của bạn
 - `JWT_SECRET` ngẫu nhiên ≥ 32 ký tự (VD: `openssl rand -hex 32`)
 - `CORS_ORIGIN` = domain thật của frontend
 - Đặt sau reverse proxy HTTPS (nginx/Caddy) — `helmet` đã bật HSTS

@@ -1,7 +1,7 @@
 {
   "name": "gym-management-backend",
   "version": "1.0.0",
-  "description": "Gym Management & Operations REST API built with NestJS, Prisma & PostgreSQL",
+  "description": "Gym Management & Operations REST API built with NestJS, Prisma & SQL Server",
   "author": "LHU",
   "private": true,
   "license": "UNLICENSED",
@@ -11,9 +11,9 @@
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/src/main",
+    "start:prod": "node dist/src/main.js",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
+    "prisma:push": "prisma db push",
     "prisma:seed": "ts-node prisma/seed.ts",
     "prisma:studio": "prisma studio"
   },

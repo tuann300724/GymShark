@@ -20,7 +20,7 @@ import { RegisterDto } from './dto/register.dto';
 import { MemberRegisterDto } from './dto/member-register.dto';
 import { VerifyMemberRegisterDto } from './dto/verify-member-register.dto';
 import type { GoogleProfile } from './google.strategy';
-import { UserRole } from '@prisma/client';
+import { UserRole } from '../../common/constants/db-enums';
 
 /** Thời hạn của mã xác minh email (phút) */
 const VERIFY_CODE_TTL_MINUTES = 10;

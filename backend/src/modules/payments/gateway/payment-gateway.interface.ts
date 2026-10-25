@@ -1,4 +1,4 @@
-import { PaymentMethod } from '@prisma/client';
+import { PaymentMethod } from '../../../common/constants/db-enums';
 
 /**
  * Khai báo kiểu phương thức thanh toán được gateway hỗ trợ.

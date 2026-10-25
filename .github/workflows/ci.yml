@@ -52,7 +52,7 @@ jobs:
       run:
         working-directory: backend
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/gym_db
+      DATABASE_URL: "sqlserver://localhost:1433;database=gym_db;user=sa;password=NotARealPassword123!;encrypt=true;trustServerCertificate=true"
     steps:
       - uses: actions/checkout@v5
 

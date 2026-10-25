@@ -1,5 +1,5 @@
 datasource db {
-  provider = "postgresql"
+  provider = "sqlserver"
   url      = env("DATABASE_URL")
 }
 
@@ -8,182 +8,32 @@ generator client {
 }
 
 // -------------------------------------------------------------
-// ENUMS
-// -------------------------------------------------------------
-
-enum UserRole {
-  ADMIN
-  MANAGER
-  STAFF
-  TRAINER
-  MEMBER
-}
-
-enum UserStatus {
-  ACTIVE
-  INACTIVE
-  SUSPENDED
-}
-
-enum Gender {
-  MALE
-  FEMALE
-  OTHER
-}
-
-enum MemberStatus {
-  ACTIVE
-  INACTIVE
-  EXPIRED
-  SUSPENDED
-}
-
-enum TrainerStatus {
-  ACTIVE
-  INACTIVE
-  ON_LEAVE
-}
-
-enum PackageType {
-  FIXED_TERM
-  SESSION_BASED
-}
-
-enum MembershipStatus {
-  PENDING
-  ACTIVE
-  EXPIRED
-  CANCELLED
-  SUSPENDED
-}
-
-enum PaymentMethod {
-  CASH
-  CREDIT_CARD
-  BANK_TRANSFER
-  MOMO
-  VNPAY
-}
-
-enum PaymentStatus {
-  PENDING
-  PAID
-  FAILED
-  CANCELLED
-  REFUNDED
-}
-
-enum InvoiceStatus {
-  DRAFT
-  ISSUED
-  PAID
-  CANCELLED
-}
-
-enum CheckInStatus {
-  CHECKED_IN
-  CHECKED_OUT
-}
-
-enum CheckInMethod {
-  MANUAL
-  QR_CODE
-  STAFF
-  FACE_ID
-}
-
-enum ScheduleStatus {
-  SCHEDULED
-  COMPLETED
-  CANCELLED
-  NO_SHOW
-}
-
-enum SessionType {
-  PERSONAL_TRAINING
-  GROUP_CLASS
-  FREE_TRAINING
-}
-
-enum TrainerMemberStatus {
-  ACTIVE
-  INACTIVE
-}
-
-enum DiscountType {
-  PERCENTAGE
-  FIXED_AMOUNT
-}
-
-enum EquipmentStatus {
-  OPERATIONAL // legacy — tương đương AVAILABLE
-  UNDER_MAINTENANCE // legacy — tương đương MAINTENANCE
-  AVAILABLE
-  IN_USE
-  MAINTENANCE
-  BROKEN
-  RETIRED
-}
-
-enum EquipmentCondition {
-  EXCELLENT
-  GOOD
-  FAIR
-  POOR
-}
-
-enum MaintenanceStatus {
-  SCHEDULED
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-}
-
-enum MaintenanceType {
-  ROUTINE
-  REPAIR
-  INSPECTION
-  REPLACEMENT
-}
-
-enum RoomType {
-  GYM_AREA
-  CARDIO
-  WEIGHT_AREA
-  GROUP_CLASS
-  PERSONAL_TRAINING
-  YOGA
-  OTHER
-}
-
-// -------------------------------------------------------------
 // MODELS
 // -------------------------------------------------------------
 
 model Branch {
-  id        String    @id @default(uuid())
-  name      String    @unique
-  address   String?
-  phone     String?
-  status    String    @default("ACTIVE")
+  id        String   @id @default(uuid()) @db.NVarChar(100)
+  name      String   @unique @db.NVarChar(400)
+  address   String?  @db.NVarChar(Max)
+  phone     String?  @db.NVarChar(400)
+  status    String   @default("ACTIVE") @db.NVarChar(400)
   members   Member[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Room {
-  id          String   @id @default(uuid())
-  code        String? @unique // mã phòng duy nhất toàn hệ thống, VD: R-01
-  name        String
-  type        String   @default("GYM_AREA")
+  id          String   @id @default(uuid()) @db.NVarChar(100)
+  code        String?  @unique @db.NVarChar(400) // mã phòng duy nhất toàn hệ thống, VD: R-01
+  name        String   @db.NVarChar(400)
+  type        String   @default("GYM_AREA") @db.NVarChar(400)
   capacity    Int      @default(20)
-  floor       String?
-  description String?
-  status      String   @default("AVAILABLE")
+  floor       String?  @db.NVarChar(400)
+  description String?  @db.NVarChar(Max)
+  status      String   @default("AVAILABLE") @db.NVarChar(400)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  equipment Equipment[]
   schedules TrainingSchedule[]
 
   @@index([status])
@@ -191,23 +41,23 @@ model Room {
 }
 
 model User {
-  id           String     @id @default(uuid())
-  email        String     @unique
-  passwordHash String
-  fullName     String
+  id           String   @id @default(uuid()) @db.NVarChar(100)
+  email        String   @unique @db.NVarChar(400)
+  passwordHash String   @db.NVarChar(400)
+  fullName     String   @db.NVarChar(400)
   /// Số điện thoại là định danh liên hệ của hội viên — 1 số chỉ 1 tài khoản.
   /// NULL vẫn cho phép nhiều tài khoản (nhân viên không bắt buộc khai số).
-  phone        String?    @unique
-  role         UserRole   @default(MEMBER)
-  status       UserStatus @default(ACTIVE)
-  avatarUrl    String?
+  phone        String?  @unique @db.NVarChar(400)
+  role         String   @default("MEMBER") @db.NVarChar(400)
+  status       String   @default("ACTIVE") @db.NVarChar(400)
+  avatarUrl    String?  @db.NVarChar(400)
   /// Kênh đăng nhập: LOCAL (email + mật khẩu) hoặc GOOGLE (OAuth 2.0).
   /// Tài khoản Google lần đầu được tạo với mật khẩu ngẫu nhiên (không dùng tới).
-  provider     String     @default("LOCAL")
-  /// Google `sub` — unique khi có giá trị (PostgreSQL cho phép nhiều NULL).
-  providerId   String?    @unique
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  provider     String   @default("LOCAL") @db.NVarChar(400)
+  /// Google `sub` — mã định danh bên Google, chỉ có với tài khoản OAuth.
+  providerId   String?  @unique @db.NVarChar(100)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   trainer           Trainer?
   member            Member?
@@ -221,20 +71,20 @@ model User {
 }
 
 model Trainer {
-  id              String        @id @default(uuid())
-  userId          String        @unique
-  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  specialization  String
-  certification   String?
-  experienceYears Int           @default(1)
-  bio             String?
-  gender          Gender?
+  id              String    @id @default(uuid()) @db.NVarChar(100)
+  userId          String    @unique @db.NVarChar(100)
+  user            User      @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  specialization  String    @db.NVarChar(400)
+  certification   String?   @db.NVarChar(400)
+  experienceYears Int       @default(1)
+  bio             String?   @db.NVarChar(Max)
+  gender          String?   @db.NVarChar(400)
   dateOfBirth     DateTime?
-  rating          Float         @default(5.0)
-  hourlyRate      Decimal?      @db.Decimal(10, 2)
-  status          TrainerStatus @default(ACTIVE)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  rating          Float     @default(5.0)
+  hourlyRate      Decimal?  @db.Decimal(10, 2)
+  status          String    @default("ACTIVE") @db.NVarChar(400)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   schedules      TrainingSchedule[]
   trainerMembers TrainerMember[]
@@ -248,25 +98,25 @@ model Trainer {
 }
 
 model Member {
-  id               String       @id @default(uuid())
-  code             String       @unique
-  userId           String?      @unique
-  user             User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
-  branchId         String?      // Phòng hiện tại (nullable — 1 chi nhánh có nhiều hội viên)
-  branch           Branch?      @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  fullName         String
-  email            String?
-  phone            String
-  gender           Gender       @default(MALE)
+  id               String    @id @default(uuid()) @db.NVarChar(100)
+  code             String    @unique @db.NVarChar(400)
+  userId           String?   @unique @db.NVarChar(100)
+  user             User?     @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  branchId         String?   @db.NVarChar(100) // Phòng hiện tại (nullable — 1 chi nhánh có nhiều hội viên)
+  branch           Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  fullName         String    @db.NVarChar(400)
+  email            String?   @db.NVarChar(400)
+  phone            String    @db.NVarChar(400)
+  gender           String    @default("MALE") @db.NVarChar(400)
   dateOfBirth      DateTime?
-  address          String?
-  avatarUrl        String?
-  status           MemberStatus @default(ACTIVE)
-  notes            String?
-  emergencyContact String?
-  joinedAt         DateTime     @default(now())
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  address          String?   @db.NVarChar(Max)
+  avatarUrl        String?   @db.NVarChar(400)
+  status           String    @default("ACTIVE") @db.NVarChar(400)
+  notes            String?   @db.NVarChar(Max)
+  emergencyContact String?   @db.NVarChar(Max)
+  joinedAt         DateTime  @default(now())
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   memberships    Membership[]
   payments       Payment[]
@@ -291,16 +141,16 @@ model Member {
 /// `codeHash` là bcrypt hash của mã (không lưu mã dạng rõ) và `passwordHash` là
 /// bcrypt hash của mật khẩu — dòng này bị lộ cũng không lộ bí mật gốc.
 model EmailVerification {
-  id               String    @id @default(uuid())
-  email            String
-  fullName         String
-  phone            String
-  passwordHash     String
-  codeHash         String
-  gender           Gender    @default(MALE)
+  id               String    @id @default(uuid()) @db.NVarChar(100)
+  email            String    @db.NVarChar(400)
+  fullName         String    @db.NVarChar(400)
+  phone            String    @db.NVarChar(400)
+  passwordHash     String    @db.NVarChar(400)
+  codeHash         String    @db.NVarChar(400)
+  gender           String    @default("MALE") @db.NVarChar(400)
   dateOfBirth      DateTime?
-  address          String?
-  emergencyContact String?
+  address          String?   @db.NVarChar(Max)
+  emergencyContact String?   @db.NVarChar(Max)
   /// Số lần nhập sai — chạm ngưỡng thì xoá dòng, buộc người dùng xin mã mới
   attempts         Int       @default(0)
   /// Mốc hết hạn của mã (đếm ngược ở UI đăng ký)
@@ -316,18 +166,18 @@ model EmailVerification {
 }
 
 model MembershipPackage {
-  id              String      @id @default(uuid())
-  code            String      @unique
-  name            String
-  description     String?
-  features        Json?
-  durationDays    Int
-  price           Decimal     @db.Decimal(12, 2)
-  sessions        Int?
-  type            PackageType @default(FIXED_TERM)
-  status          String      @default("ACTIVE")
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  id           String   @id @default(uuid()) @db.NVarChar(100)
+  code         String   @unique @db.NVarChar(400)
+  name         String   @db.NVarChar(400)
+  description  String?  @db.NVarChar(Max)
+  features     String?  @db.NVarChar(Max)
+  durationDays Int
+  price        Decimal  @db.Decimal(12, 2)
+  sessions     Int?
+  type         String   @default("FIXED_TERM") @db.NVarChar(400)
+  status       String   @default("ACTIVE") @db.NVarChar(400)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   memberships Membership[]
 
@@ -336,18 +186,18 @@ model MembershipPackage {
 }
 
 model Membership {
-  id                String            @id @default(uuid())
-  memberId          String
-  member            Member            @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  packageId         String
-  package           MembershipPackage @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  id                String            @id @default(uuid()) @db.NVarChar(100)
+  memberId          String            @db.NVarChar(100)
+  member            Member            @relation(fields: [memberId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  packageId         String            @db.NVarChar(100)
+  package           MembershipPackage @relation(fields: [packageId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   startDate         DateTime
-  endDate           DateTime
+  endDate      DateTime
   price             Decimal           @db.Decimal(12, 2)
   discountAmount    Decimal?          @db.Decimal(12, 2)
   finalAmount       Decimal?          @db.Decimal(12, 2)
   remainingSessions Int?
-  status            MembershipStatus  @default(ACTIVE)
+  status            String            @default("ACTIVE") @db.NVarChar(400)
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
@@ -361,30 +211,30 @@ model Membership {
 }
 
 model Payment {
-  id             String        @id @default(uuid())
-  code           String        @unique
-  memberId       String
-  member         Member        @relation(fields: [memberId], references: [id], onDelete: Restrict)
-  membershipId   String?
-  membership     Membership?   @relation(fields: [membershipId], references: [id], onDelete: SetNull)
-  promotionId    String?
-  promotion      Promotion?    @relation(fields: [promotionId], references: [id], onDelete: SetNull)
-  amount         Decimal       @db.Decimal(12, 2)
+  id             String      @id @default(uuid()) @db.NVarChar(100)
+  code           String      @unique @db.NVarChar(400)
+  memberId       String      @db.NVarChar(100)
+  member         Member      @relation(fields: [memberId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  membershipId   String?     @db.NVarChar(100)
+  membership     Membership? @relation(fields: [membershipId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  promotionId    String?     @db.NVarChar(100)
+  promotion      Promotion?  @relation(fields: [promotionId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  amount         Decimal     @db.Decimal(12, 2)
   // STEP 8 — tiền giảm thực tế tại thời điểm thanh toán (tham chiếu Promotion, không tính lại)
-  discountAmount Decimal?      @db.Decimal(12, 2)
-  currency       String        @default("VND")
-  method         PaymentMethod @default(CASH)
-  status         PaymentStatus @default(PENDING)
+  discountAmount Decimal?    @db.Decimal(12, 2)
+  currency       String      @default("VND") @db.NVarChar(400)
+  method         String      @default("CASH") @db.NVarChar(400)
+  status         String      @default("PENDING") @db.NVarChar(400)
   // Mã giao dịch ngoài (chuyển khoản / cổng thanh toán) — unique nếu có giá trị
-  transactionRef String?       @unique
-  notes          String?
+  transactionRef String?     @unique @db.NVarChar(400)
+  notes          String?     @db.NVarChar(Max)
   // Xác nhận / hoàn tiền: ai đã duyệt, vào lúc nào
-  confirmedById  String?
-  confirmedBy    User?         @relation("PaymentConfirmedBy", fields: [confirmedById], references: [id], onDelete: SetNull)
+  confirmedById  String?     @db.NVarChar(100)
+  confirmedBy    User?       @relation("PaymentConfirmedBy", fields: [confirmedById], references: [id], onDelete: SetNull, onUpdate: NoAction)
   confirmedAt    DateTime?
   paidAt         DateTime?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 
   invoice Invoice?
 
@@ -399,22 +249,22 @@ model Payment {
 
 // Hóa đơn (Invoice) — tài liệu thanh toán, 1-1 với Payment trong flow đăng ký gói
 model Invoice {
-  id            String        @id @default(uuid())
-  invoiceNumber String        @unique
-  memberId      String
-  member        Member        @relation(fields: [memberId], references: [id], onDelete: Restrict)
-  membershipId  String?
-  membership    Membership?   @relation(fields: [membershipId], references: [id], onDelete: SetNull)
-  paymentId     String?       @unique
-  payment       Payment?      @relation(fields: [paymentId], references: [id], onDelete: SetNull)
-  subtotal      Decimal       @db.Decimal(12, 2)
-  discount      Decimal       @default(0) @db.Decimal(12, 2)
-  total         Decimal       @db.Decimal(12, 2)
-  status        InvoiceStatus @default(ISSUED)
-  issuedAt      DateTime      @default(now())
+  id            String      @id @default(uuid()) @db.NVarChar(100)
+  invoiceNumber String      @unique @db.NVarChar(400)
+  memberId      String      @db.NVarChar(100)
+  member        Member      @relation(fields: [memberId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  membershipId  String?     @db.NVarChar(100)
+  membership    Membership? @relation(fields: [membershipId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  paymentId     String?     @unique @db.NVarChar(100)
+  payment       Payment?    @relation(fields: [paymentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  subtotal      Decimal     @db.Decimal(12, 2)
+  discount      Decimal     @default("0") @db.Decimal(12, 2)
+  total         Decimal     @db.Decimal(12, 2)
+  status        String      @default("ISSUED") @db.NVarChar(400)
+  issuedAt      DateTime    @default(now())
   dueDate       DateTime?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 
   @@index([invoiceNumber])
   @@index([memberId])
@@ -424,16 +274,16 @@ model Invoice {
 }
 
 model CheckIn {
-  id           String        @id @default(uuid())
-  memberId     String
-  member       Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  checkInTime  DateTime      @default(now())
+  id           String    @id @default(uuid()) @db.NVarChar(100)
+  memberId     String    @db.NVarChar(100)
+  member       Member    @relation(fields: [memberId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  checkInTime  DateTime  @default(now())
   checkOutTime DateTime?
-  status       CheckInStatus @default(CHECKED_IN)
-  method       CheckInMethod @default(MANUAL)
-  notes        String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  status       String    @default("CHECKED_IN") @db.NVarChar(400)
+  method       String    @default("MANUAL") @db.NVarChar(400)
+  notes        String?   @db.NVarChar(Max)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@index([memberId])
   @@index([status])
@@ -446,12 +296,12 @@ model CheckIn {
 /// Một hội viên có nhiều mẫu (mỗi góc mặt 1 dòng). Ảnh chỉ gắn ở MẪU ĐẦU TIÊN
 /// (imageData != null) để không nhân bản cùng một ảnh ra 5 dòng.
 model FaceEmbedding {
-  id        String   @id @default(uuid())
-  memberId  String
-  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  embedding Float[]
+  id        String   @id @default(uuid()) @db.NVarChar(100)
+  memberId  String   @db.NVarChar(100)
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  embedding String?  @db.NVarChar(Max)
   /// Ảnh khuôn mặt tham chiếu (data URL JPEG base64) — chỉ có ở mẫu đầu tiên
-  imageData String?
+  imageData String?  @db.NVarChar(Max)
   consentAt DateTime
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -460,24 +310,24 @@ model FaceEmbedding {
 }
 
 model TrainingSchedule {
-  id               String         @id @default(uuid())
-  title            String
-  trainerId        String
-  trainer          Trainer        @relation(fields: [trainerId], references: [id], onDelete: Restrict)
-  memberId         String?
-  member           Member?        @relation(fields: [memberId], references: [id], onDelete: SetNull)
-  roomId           String?
-  room             Room?          @relation(fields: [roomId], references: [id], onDelete: SetNull)
-  type             SessionType    @default(PERSONAL_TRAINING)
+  id               String    @id @default(uuid()) @db.NVarChar(100)
+  title            String    @db.NVarChar(400)
+  trainerId        String    @db.NVarChar(100)
+  trainer          Trainer   @relation(fields: [trainerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  memberId         String?   @db.NVarChar(100)
+  member           Member?   @relation(fields: [memberId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  roomId           String?   @db.NVarChar(100)
+  room             Room?     @relation(fields: [roomId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  type             String    @default("PERSONAL_TRAINING") @db.NVarChar(400)
   startTime        DateTime
   endTime          DateTime
-  status           ScheduleStatus @default(SCHEDULED)
-  description      String?
-  notes            String?
-  cancellationNote String?
+  status           String    @default("SCHEDULED") @db.NVarChar(400)
+  description      String?   @db.NVarChar(Max)
+  notes            String?   @db.NVarChar(Max)
+  cancellationNote String?   @db.NVarChar(Max)
   completedAt      DateTime?
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   progressNotes TrainingProgress[]
 
@@ -492,17 +342,17 @@ model TrainingSchedule {
 
 // Phân công HLV ↔ Hội viên (giữ lịch sử: chỉ 1 phân công ACTIVE cho mỗi member)
 model TrainerMember {
-  id        String              @id @default(uuid())
-  trainerId String
-  trainer   Trainer             @relation(fields: [trainerId], references: [id], onDelete: Cascade)
-  memberId  String
-  member    Member              @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  startDate DateTime            @default(now())
+  id        String    @id @default(uuid()) @db.NVarChar(100)
+  trainerId String    @db.NVarChar(100)
+  trainer   Trainer   @relation(fields: [trainerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  memberId  String    @db.NVarChar(100)
+  member    Member    @relation(fields: [memberId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  startDate DateTime  @default(now())
   endDate   DateTime?
-  status    TrainerMemberStatus @default(ACTIVE)
-  note      String?
-  createdAt DateTime            @default(now())
-  updatedAt DateTime            @updatedAt
+  status    String    @default("ACTIVE") @db.NVarChar(400)
+  note      String?   @db.NVarChar(400)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@index([trainerId])
   @@index([memberId])
@@ -512,16 +362,16 @@ model TrainerMember {
 
 // Ghi chú tiến trình buổi tập do HLV đánh giá sau buổi
 model TrainingProgress {
-  id             String           @id @default(uuid())
-  sessionId      String
-  session        TrainingSchedule @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  memberId       String
-  member         Member           @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  trainerId      String
-  trainer        Trainer          @relation(fields: [trainerId], references: [id], onDelete: Cascade)
-  note           String
-  performance    String?
-  recommendation String?
+  id             String           @id @default(uuid()) @db.NVarChar(100)
+  sessionId      String           @db.NVarChar(100)
+  session        TrainingSchedule @relation(fields: [sessionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  memberId       String           @db.NVarChar(100)
+  member         Member           @relation(fields: [memberId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  trainerId      String           @db.NVarChar(100)
+  trainer        Trainer          @relation(fields: [trainerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  note           String           @db.NVarChar(400)
+  performance    String?          @db.NVarChar(Max)
+  recommendation String?          @db.NVarChar(Max)
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
@@ -531,22 +381,22 @@ model TrainingProgress {
 }
 
 model Promotion {
-  id             String       @id @default(uuid())
-  code           String       @unique
-  name           String
-  description    String?
-  discountType   DiscountType @default(PERCENTAGE)
-  discountValue  Decimal      @db.Decimal(12, 2)
-  minOrderValue  Decimal?     @db.Decimal(12, 2)
-  maxDiscount    Decimal?     @db.Decimal(12, 2)
+  id             String   @id @default(uuid()) @db.NVarChar(100)
+  code           String   @unique @db.NVarChar(400)
+  name           String   @db.NVarChar(400)
+  description    String?  @db.NVarChar(Max)
+  discountType   String   @default("PERCENTAGE") @db.NVarChar(400)
+  discountValue  Decimal  @db.Decimal(12, 2)
+  minOrderValue  Decimal? @db.Decimal(12, 2)
+  maxDiscount    Decimal? @db.Decimal(12, 2)
   startDate      DateTime
-  endDate        DateTime
+  endDate        DateTime?
   usageLimit     Int?
   perMemberLimit Int? // STEP 8 — số lần tối đa mỗi hội viên được dùng mã này
-  usedCount      Int          @default(0)
-  status         String       @default("ACTIVE")
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  usedCount      Int      @default(0)
+  status         String   @default("ACTIVE") @db.NVarChar(400)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   payments Payment[]
 
@@ -558,14 +408,14 @@ model Promotion {
 // Nhật ký hoạt động (AuditLog) — ghi lại các hành động quan trọng trong hệ thống
 // Không bao giờ lưu password/token vào bảng này.
 model AuditLog {
-  id        String   @id @default(uuid())
-  userId    String?
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  action    String // VD: AUTH_LOGIN, MEMBER_CREATE, PAYMENT_CONFIRM, CHECK_IN...
-  entity    String // Tên entity: Member, Payment, Schedule...
-  entityId  String?
-  metadata  Json?
-  ip        String?
+  id        String   @id @default(uuid()) @db.NVarChar(100)
+  userId    String?  @db.NVarChar(100)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  action    String   @db.NVarChar(400) // VD: AUTH_LOGIN, MEMBER_CREATE, PAYMENT_CONFIRM, CHECK_IN...
+  entity    String   @db.NVarChar(400) // Tên entity: Member, Payment, Schedule...
+  entityId  String?  @db.NVarChar(100)
+  metadata  String?  @db.NVarChar(Max)
+  ip        String?  @db.NVarChar(400)
   createdAt DateTime @default(now())
 
   @@index([userId])
@@ -575,72 +425,22 @@ model AuditLog {
   @@index([createdAt])
 }
 
-model Equipment {
-  id                String             @id @default(uuid())
-  code              String             @unique
-  name              String
-  category          String
-  roomId            String?
-  room              Room?              @relation(fields: [roomId], references: [id], onDelete: SetNull)
-  brand             String?
-  model             String?
-  serialNumber      String?            @unique
-  purchaseDate      DateTime?
-  purchasePrice     Decimal?           @db.Decimal(12, 2)
-  warrantyExpiry    DateTime?
-  status            EquipmentStatus    @default(AVAILABLE)
-  condition         EquipmentCondition @default(GOOD)
-  lastMaintenanceAt DateTime?
-  nextMaintenanceAt DateTime?
-  description       String?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-
-  maintenances EquipmentMaintenance[]
-
-  @@index([code])
-  @@index([roomId])
-  @@index([status])
-  @@index([category])
-  @@index([nextMaintenanceAt])
-}
-
-model EquipmentMaintenance {
-  id              String            @id @default(uuid())
-  equipmentId     String
-  equipment       Equipment         @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
-  type            MaintenanceType   @default(ROUTINE)
-  maintenanceDate DateTime          @default(now())
-  cost            Decimal?          @db.Decimal(10, 2)
-  description     String
-  performedBy     String?
-  status          MaintenanceStatus @default(COMPLETED)
-  nextDueDate     DateTime?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-
-  @@index([equipmentId])
-  @@index([maintenanceDate])
-  @@index([status])
-  @@index([equipmentId, status])
-}
-
 model Notification {
-  id            String    @id @default(uuid())
-  userId        String?
-  user          User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  memberId      String?
-  member        Member?   @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  title         String
-  content       String
-  type          String    @default("SYSTEM")
+  id            String    @id @default(uuid()) @db.NVarChar(100)
+  userId        String?   @db.NVarChar(100)
+  user          User?     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  memberId      String?   @db.NVarChar(100)
+  member        Member?   @relation(fields: [memberId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  title         String    @db.NVarChar(400)
+  content       String    @db.NVarChar(Max)
+  type          String    @default("SYSTEM") @db.NVarChar(400)
   isRead        Boolean   @default(false)
   readAt        DateTime? // STEP 8 — mốc thời gian đọc thực tế
-  link          String?
+  link          String?   @db.NVarChar(400)
   // STEP 8 — chống trùng lặp / truy vết nguồn sự kiện sinh ra thông báo
-  referenceType String?
-  referenceId   String?
-  data          Json? // STEP 8 — payload mở rộng (giá trị động, meta điều hướng)
+  referenceType String?   @db.NVarChar(400)
+  referenceId   String?   @db.NVarChar(100)
+  data          String?   @db.NVarChar(Max) // STEP 8 — payload mở rộng (giá trị động, meta điều hướng)
   createdAt     DateTime  @default(now())
 
   @@index([userId])
@@ -657,9 +457,9 @@ model Notification {
 /// Chỉ lưu bcrypt hash của mã 6 số, không lưu mã dạng rõ. Hết hạn hoặc dùng
 /// xong thì xoá để bảng không phình. Không liên kết User để tránh lộ userId.
 model PasswordReset {
-  id         String   @id @default(uuid())
-  email      String
-  codeHash   String
+  id         String   @id @default(uuid()) @db.NVarChar(100)
+  email      String   @db.NVarChar(400)
+  codeHash   String   @db.NVarChar(400)
   attempts   Int      @default(0)
   expiresAt  DateTime
   lastSentAt DateTime @default(now())
@@ -674,32 +474,20 @@ model PasswordReset {
 // CHAT REALTIME (HLV ↔ Hội viên) + THỰC ĐƠN DINH DƯỠNG
 // -------------------------------------------------------------
 
-enum ConversationStatus {
-  ACTIVE
-  ARCHIVED
-}
-
-enum MessageType {
-  TEXT
-  IMAGE
-  MEAL_PLAN
-  SYSTEM
-}
-
 /// Cuộc trò chuyện 1-1 giữa HLV và hội viên được phân công (TrainerMember ACTIVE).
 /// Quyền truy cập KHÔNG đọc từ bảng này mà suy ra từ phân công TrainerMember đang ACTIVE.
 model Conversation {
-  id        String             @id @default(uuid())
-  trainerId String
-  trainer   Trainer            @relation(fields: [trainerId], references: [id], onDelete: Cascade)
-  memberId  String
-  member    Member             @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  status    ConversationStatus @default(ACTIVE)
+  id        String  @id @default(uuid()) @db.NVarChar(100)
+  trainerId String  @db.NVarChar(100)
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  memberId  String  @db.NVarChar(100)
+  member    Member  @relation(fields: [memberId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  status    String  @default("ACTIVE") @db.NVarChar(400)
 
   // Bản sao để hiển thị danh sách hội thoại không cần join/aggregate tin nhắn
   lastMessageAt      DateTime?
-  lastMessagePreview String?
-  lastSenderRole     String?
+  lastMessagePreview String?   @db.NVarChar(Max)
+  lastSenderRole     String?   @db.NVarChar(400)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -714,16 +502,16 @@ model Conversation {
 }
 
 model Message {
-  id             String       @id @default(uuid())
-  conversationId String
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  senderId       String
-  sender         User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
-  type           MessageType  @default(TEXT)
-  content        String?
+  id             String       @id @default(uuid()) @db.NVarChar(100)
+  conversationId String       @db.NVarChar(100)
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  senderId       String       @db.NVarChar(100)
+  sender         User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  type           String       @default("TEXT") @db.NVarChar(400)
+  content        String?      @db.NVarChar(Max)
   /// Tin nhắn thực đơn phải trỏ tới bản ghi MealPlan thật (không lưu text suông)
-  mealPlanId     String?
-  mealPlan       MealPlan?    @relation(fields: [mealPlanId], references: [id], onDelete: SetNull)
+  mealPlanId     String?      @db.NVarChar(100)
+  mealPlan       MealPlan?    @relation(fields: [mealPlanId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   isRead         Boolean      @default(false)
   readAt         DateTime?
   editedAt       DateTime?
@@ -742,14 +530,14 @@ model Message {
 /// Ảnh/tệp đính kèm của tin nhắn. Ảnh lưu dạng data URL base64 trong DB —
 /// cùng kiến trúc với ảnh khuôn mặt (dự án không có dịch vụ lưu trữ tập tin).
 model MessageAttachment {
-  id        String   @id @default(uuid())
-  messageId String
-  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  kind      String   @default("IMAGE") // IMAGE | FILE
-  fileName  String?
-  mimeType  String?
+  id        String   @id @default(uuid()) @db.NVarChar(100)
+  messageId String   @db.NVarChar(100)
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  kind      String   @default("IMAGE") @db.NVarChar(400) // IMAGE | FILE
+  fileName  String?  @db.NVarChar(400)
+  mimeType  String?  @db.NVarChar(400)
   sizeBytes Int?
-  dataUrl   String
+  dataUrl   String   @db.NVarChar(Max)
   width     Int?
   height    Int?
   createdAt DateTime @default(now())
@@ -757,35 +545,23 @@ model MessageAttachment {
   @@index([messageId])
 }
 
-enum FoodCategory {
-  PROTEIN
-  CARBOHYDRATE
-  VEGETABLE
-  FRUIT
-  DAIRY
-  FAT
-  DRINK
-  SNACK
-  OTHER
-}
-
 /// Thư viện thực phẩm dùng chung. Dinh dưỡng quy chuẩn trên 100g để quy đổi theo khối lượng.
 model Food {
-  id              String       @id @default(uuid())
-  name            String
-  category        FoodCategory @default(PROTEIN)
-  imageUrl        String?
-  description     String?
-  servingSize     Float        @default(100)
-  servingUnit     String       @default("g")
-  caloriesPer100g Float        @default(0)
-  proteinPer100g  Float        @default(0)
-  carbsPer100g    Float        @default(0)
-  fatPer100g      Float        @default(0)
-  isActive        Boolean      @default(true)
-  createdById     String?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  id              String   @id @default(uuid()) @db.NVarChar(100)
+  name            String   @db.NVarChar(400)
+  category        String   @default("PROTEIN") @db.NVarChar(400)
+  imageUrl        String?  @db.NVarChar(400)
+  description     String?  @db.NVarChar(Max)
+  servingSize     Float    @default(100)
+  servingUnit     String   @default("g") @db.NVarChar(400)
+  caloriesPer100g Float    @default(0)
+  proteinPer100g  Float    @default(0)
+  carbsPer100g    Float    @default(0)
+  fatPer100g      Float    @default(0)
+  isActive        Boolean  @default(true)
+  createdById     String?  @db.NVarChar(100)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   items MealItem[]
 
@@ -794,48 +570,30 @@ model Food {
   @@index([isActive])
 }
 
-enum MealPlanScope {
-  DAY
-  WEEK
-}
-
-enum MealPlanStatus {
-  DRAFT
-  SENT
-  CONFIRMED
-}
-
-enum MealType {
-  BREAKFAST
-  LUNCH
-  DINNER
-  SNACK
-}
-
 /// Thực đơn HLV tạo: theo ngày hoặc theo tuần, gồm nhiều bữa.
 /// `isTemplate` = lưu mẫu để tái sử dụng (memberId null).
 model MealPlan {
-  id            String         @id @default(uuid())
-  trainerId     String
-  trainer       Trainer        @relation(fields: [trainerId], references: [id], onDelete: Cascade)
-  memberId      String?
-  member        Member?        @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  title         String
-  description   String?
-  scope         MealPlanScope  @default(DAY)
+  id            String    @id @default(uuid()) @db.NVarChar(100)
+  trainerId     String    @db.NVarChar(100)
+  trainer       Trainer   @relation(fields: [trainerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  memberId      String?   @db.NVarChar(100)
+  member        Member?   @relation(fields: [memberId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  title         String    @db.NVarChar(400)
+  description   String?   @db.NVarChar(Max)
+  scope         String    @default("DAY") @db.NVarChar(400)
   startDate     DateTime?
-  status        MealPlanStatus @default(SENT)
-  isTemplate    Boolean        @default(false)
-  templateName  String?
-  imageData     String?
-  totalCalories Float          @default(0)
-  totalProtein  Float          @default(0)
-  totalCarbs    Float          @default(0)
-  totalFat      Float          @default(0)
-  version       Int            @default(1)
+  status        String    @default("SENT") @db.NVarChar(400)
+  isTemplate    Boolean   @default(false)
+  templateName  String?   @db.NVarChar(400)
+  imageData     String?   @db.NVarChar(Max)
+  totalCalories Float     @default(0)
+  totalProtein  Float     @default(0)
+  totalCarbs    Float     @default(0)
+  totalFat      Float     @default(0)
+  version       Int       @default(1)
   confirmedAt   DateTime?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   meals    Meal[]
   messages Message[]
@@ -847,15 +605,15 @@ model MealPlan {
 }
 
 model Meal {
-  id            String   @id @default(uuid())
-  mealPlanId    String
-  mealPlan      MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
-  type          MealType
+  id            String   @id @default(uuid()) @db.NVarChar(100)
+  mealPlanId    String   @db.NVarChar(100)
+  mealPlan      MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  type          String   @db.NVarChar(400)
   /// Thực đơn tuần: 0 = Thứ 2 … 6 = Chủ nhật (null nếu theo ngày)
   dayIndex      Int?
-  time          String?
-  note          String?
-  imageData     String?
+  time          String?  @db.NVarChar(400)
+  note          String?  @db.NVarChar(400)
+  imageData     String?  @db.NVarChar(Max)
   totalCalories Float    @default(0)
   totalProtein  Float    @default(0)
   totalCarbs    Float    @default(0)
@@ -872,15 +630,15 @@ model Meal {
 /// Món trong bữa. Lưu snapshot tên/hình/dinh dưỡng tại thời điểm gửi để
 /// thực đơn đã gửi không đổi khi thư viện thực phẩm bị chỉnh sửa/xoá.
 model MealItem {
-  id         String   @id @default(uuid())
-  mealId     String
-  meal       Meal     @relation(fields: [mealId], references: [id], onDelete: Cascade)
-  foodId     String?
-  food       Food?    @relation(fields: [foodId], references: [id], onDelete: SetNull)
-  name       String
-  imageUrl   String?
+  id         String   @id @default(uuid()) @db.NVarChar(100)
+  mealId     String   @db.NVarChar(100)
+  meal       Meal     @relation(fields: [mealId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  foodId     String?  @db.NVarChar(100)
+  food       Food?    @relation(fields: [foodId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  name       String   @db.NVarChar(400)
+  imageUrl   String?  @db.NVarChar(400)
   quantity   Float    @default(100)
-  unit       String   @default("g")
+  unit       String   @default("g") @db.NVarChar(400)
   calories   Float    @default(0)
   protein    Float    @default(0)
   carbs      Float    @default(0)

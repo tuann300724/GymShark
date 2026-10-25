@@ -5,7 +5,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
-import { MemberStatus, PaymentMethod, Prisma, UserRole, UserStatus } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import { MemberStatus, PaymentMethod, UserRole, UserStatus } from '../../common/constants/db-enums';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit-logs/audit-logs.service';
 import { MemberService } from '../member/member.service';
@@ -56,10 +57,10 @@ export class MembersService {
     if (query.search) {
       const q = query.search.trim();
       where.OR = [
-        { fullName: { contains: q, mode: 'insensitive' } },
-        { email: { contains: q, mode: 'insensitive' } },
+        { fullName: { contains: q } },
+        { email: { contains: q } },
         { phone: { contains: q } },
-        { code: { contains: q, mode: 'insensitive' } },
+        { code: { contains: q } },
       ];
     }
 

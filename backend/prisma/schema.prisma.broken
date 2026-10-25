@@ -1,0 +1,716 @@
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+
+// -------------------------------------------------------------
+// MODELS
+// -------------------------------------------------------------
+
+model Branch {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  address   String?
+  phone     String?
+  status    String    @default("ACTIVE")
+  members   Member[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Room {
+  id          String   @id @default(uuid())
+  code        String? @unique // mã phòng duy nhất toàn hệ thống, VD: R-01
+  name        String
+  type        String   @default("GYM_AREA")
+  capacity    Int      @default("20")
+  floor       String?
+  description String?
+  status      String   @default("AVAILABLE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  equipment Equipment[]
+  schedules TrainingSchedule[]
+
+  @@index([status])
+  @@index([type])
+}
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  passwordHash String
+  fullName     String
+  /// Số điện thoại là định danh liên hệ của hội viên — 1 số chỉ 1 tài khoản.
+  /// NULL vẫn cho phép nhiều tài khoản (nhân viên không bắt buộc khai số).
+  phone        String?    @unique
+  role         String   @default("MEMBER")
+  status       String   @default("ACTIVE")
+  avatarUrl    String?
+  /// Kênh đăng nhập: LOCAL (email + mật khẩu) hoặc GOOGLE (OAuth 2.0).
+  /// Tài khoản Google lần đầu được tạo với mật khẩu ngẫu nhiên (không dùng tới).
+  provider     String     @default("LOCAL")
+  /// Google `sub` — dùng filtered unique index để cho phép nhiều giá trị NULL trên SQL Server.
+  providerId   String?    @unique
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  trainer           Trainer?
+  member            Member?
+  notifications     Notification[]
+  confirmedPayments Payment[]      @relation("PaymentConfirmedBy", onUpdate: NoAction)
+  auditLogs         AuditLog[]
+  messages          Message[]      @relation("MessageSender", onUpdate: NoAction)
+
+  @@index([email])
+  @@index([role])
+}
+
+model Trainer {
+  id              String        @id @default(uuid())
+  userId          String        @unique
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  specialization  String
+  certification   String?
+  experienceYears Int           @default("1")
+  bio             String?
+  gender          Gender?
+  dateOfBirth     DateTime?
+  rating          Float         @default(5.0)
+  hourlyRate      Decimal?      @db.Decimal(10, 2)
+  status          String @default("ACTIVE")
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  schedules      TrainingSchedule[]
+  trainerMembers TrainerMember[]
+  progressNotes  TrainingProgress[]
+  conversations  Conversation[]
+  mealPlans      MealPlan[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([specialization])
+}
+
+model Member {
+  id               String       @id @default(uuid())
+  code             String       @unique
+  userId           String?      @unique
+  user             User?        @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  branchId         String?      // Phòng hiện tại (nullable — 1 chi nhánh có nhiều hội viên)
+  branch           Branch?      @relation(fields: [branchId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  fullName         String
+  email            String?
+  phone            String
+  gender           String       @default("MALE")
+  dateOfBirth      DateTime?
+  address          String?
+  avatarUrl        String?
+  status           String @default("ACTIVE")
+  notes            String?
+  emergencyContact String?
+  joinedAt         DateTime     @default(now())
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  memberships    Membership[]
+  payments       Payment[]
+  checkIns       CheckIn[]
+  schedules      TrainingSchedule[]
+  notifications  Notification[]
+  trainerMembers TrainerMember[]
+  progressNotes  TrainingProgress[]
+  invoices       Invoice[]
+  faceEmbeddings FaceEmbedding[]
+  conversations  Conversation[]
+  mealPlans      MealPlan[]
+
+  @@index([code])
+  @@index([phone])
+  @@index([status])
+}
+
+/// ĐĂNG KÝ HỘI VIÊN CHỜ XÁC MINH EMAIL — dữ liệu form đăng ký + mã 6 số đã gửi
+/// qua email. Tài khoản User/Member CHƯA được tạo cho tới khi hội viên nhập đúng mã,
+/// nên email vẫn có thể đăng ký lại khi mã hết hạn và không tạo rác trong bảng User.
+/// `codeHash` là bcrypt hash của mã (không lưu mã dạng rõ) và `passwordHash` là
+/// bcrypt hash của mật khẩu — dòng này bị lộ cũng không lộ bí mật gốc.
+model EmailVerification {
+  id               String    @id @default(uuid())
+  email            String
+  fullName         String
+  phone            String
+  passwordHash     String
+  codeHash         String
+  gender           String    @default("MALE")
+  dateOfBirth      DateTime?
+  address          String?
+  emergencyContact String?
+  /// Số lần nhập sai — chạm ngưỡng thì xoá dòng, buộc người dùng xin mã mới
+  attempts         Int       @default("0")
+  /// Mốc hết hạn của mã (đếm ngược ở UI đăng ký)
+  expiresAt        DateTime
+  /// Lần gửi mã gần nhất — chặn spam bằng @Throttle + khoảng nghỉ tối thiểu
+  lastSentAt       DateTime  @default(now())
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([email])
+  @@index([expiresAt])
+  @@index([lastSentAt])
+}
+
+model MembershipPackage {
+  id              String      @id @default(uuid())
+  code            String      @unique
+  name            String
+  description     String?
+  features        String?
+  durationDays    Int
+  price           Decimal     @db.Decimal(12, 2)
+  sessions        Int?
+  type            String @default("FIXED_TERM")
+  status          String      @default("ACTIVE")
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  memberships Membership[]
+
+  @@index([code])
+  @@index([status])
+}
+
+model Membership {
+  id                String            @id @default(uuid())
+  memberId          String
+  member            Member            @relation(fields: [memberId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  packageId         String
+  package           MembershipPackage @relation(fields: [packageId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  startDate         DateTime
+  endDate           DateTime
+  price             Decimal           @db.Decimal(12, 2)
+  discountAmount    Decimal?          @db.Decimal(12, 2)
+  finalAmount       Decimal?          @db.Decimal(12, 2)
+  remainingSessions Int?
+  status            String  @default("ACTIVE")
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  payments Payment[]
+  invoices Invoice[]
+
+  @@index([memberId])
+  @@index([packageId])
+  @@index([status])
+  @@index([endDate])
+}
+
+model Payment {
+  id             String        @id @default(uuid())
+  code           String        @unique
+  memberId       String
+  member         Member        @relation(fields: [memberId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  membershipId   String?
+  membership     Membership?   @relation(fields: [membershipId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  promotionId    String?
+  promotion      Promotion?    @relation(fields: [promotionId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  amount         Decimal       @db.Decimal(12, 2)
+  // STEP 8 — tiền giảm thực tế tại thời điểm thanh toán (tham chiếu Promotion, không tính lại)
+  discountAmount Decimal?      @db.Decimal(12, 2)
+  currency       String        @default("VND")
+  method         String @default("CASH")
+  status         String @default("PENDING")
+  // Mã giao dịch ngoài (chuyển khoản / cổng thanh toán) — unique nếu có giá trị
+  transactionRef String?       @unique
+  notes          String?
+  // Xác nhận / hoàn tiền: ai đã duyệt, vào lúc nào
+  confirmedById  String?
+  confirmedBy    User?         @relation("PaymentConfirmedBy", fields: [confirmedById], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  confirmedAt    DateTime?
+  paidAt         DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  invoice Invoice?
+
+  @@index([code])
+  @@index([memberId])
+  @@index([membershipId])
+  @@index([status])
+  @@index([promotionId])
+  @@index([createdAt])
+  @@index([paidAt])
+}
+
+// Hóa đơn (Invoice) — tài liệu thanh toán, 1-1 với Payment trong flow đăng ký gói
+model Invoice {
+  id            String        @id @default(uuid())
+  invoiceNumber String        @unique
+  memberId      String
+  member        Member        @relation(fields: [memberId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  membershipId  String?
+  membership    Membership?   @relation(fields: [membershipId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  paymentId     String?       @unique
+  payment       Payment?      @relation(fields: [paymentId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  subtotal      Decimal       @db.Decimal(12, 2)
+  discount      Decimal       @default("0") @db.Decimal(12, 2)
+  total         Decimal       @db.Decimal(12, 2)
+  status        String @default("ISSUED")
+  issuedAt      DateTime      @default(now())
+  dueDate       DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([invoiceNumber])
+  @@index([memberId])
+  @@index([membershipId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model CheckIn {
+  id           String        @id @default(uuid())
+  memberId     String
+  member       Member        @relation(fields: [memberId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  checkInTime  DateTime      @default(now())
+  checkOutTime DateTime?
+  status       String @default("CHECKED_IN")
+  method       String @default("MANUAL")
+  notes        String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([memberId])
+  @@index([status])
+  @@index([checkInTime])
+}
+
+/// DỮ LIỆU SINH TRẮC HỌC — vector embedding + ảnh tham chiếu chụp lúc đăng ký.
+/// Là dữ liệu cá nhân nhạy cảm theo Nghị định 13/2023/NĐ-CP: chỉ lưu khi hội viên
+/// đồng ý tường minh (consentAt), và xoá toàn bộ dòng = rút lui đồng ý.
+/// Một hội viên có nhiều mẫu (mỗi góc mặt 1 dòng). Ảnh chỉ gắn ở MẪU ĐẦU TIÊN
+/// (imageData != null) để không nhân bản cùng một ảnh ra 5 dòng.
+model FaceEmbedding {
+  id        String   @id @default(uuid())
+  memberId  String
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  embedding String?
+  /// Ảnh khuôn mặt tham chiếu (data URL JPEG base64) — chỉ có ở mẫu đầu tiên
+  imageData String?
+  consentAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([memberId])
+}
+
+model TrainingSchedule {
+  id               String         @id @default(uuid())
+  title            String
+  trainerId        String
+  trainer          Trainer        @relation(fields: [trainerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  memberId         String?
+  member           Member?        @relation(fields: [memberId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  roomId           String?
+  room             Room?          @relation(fields: [roomId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  type             String    @default("PERSONAL_TRAINING")
+  startTime        DateTime
+  endTime          DateTime
+  status           String @default("SCHEDULED")
+  description      String?
+  notes            String?
+  cancellationNote String?
+  completedAt      DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  progressNotes TrainingProgress[]
+
+  @@index([trainerId])
+  @@index([memberId])
+  @@index([roomId])
+  @@index([startTime])
+  @@index([endTime])
+  @@index([status])
+  @@index([type])
+}
+
+// Phân công HLV ↔ Hội viên (giữ lịch sử: chỉ 1 phân công ACTIVE cho mỗi member)
+model TrainerMember {
+  id        String              @id @default(uuid())
+  trainerId String
+  trainer   Trainer             @relation(fields: [trainerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  memberId  String
+  member    Member              @relation(fields: [memberId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  startDate DateTime            @default(now())
+  endDate   DateTime?
+  status    String @default("ACTIVE")
+  note      String?
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  @@index([trainerId])
+  @@index([memberId])
+  @@index([status])
+  @@index([trainerId, memberId])
+}
+
+// Ghi chú tiến trình buổi tập do HLV đánh giá sau buổi
+model TrainingProgress {
+  id             String           @id @default(uuid())
+  sessionId      String
+  session        TrainingSchedule @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  memberId       String
+  member         Member           @relation(fields: [memberId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  trainerId      String
+  trainer        Trainer          @relation(fields: [trainerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  note           String
+  performance    String?
+  recommendation String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([sessionId])
+  @@index([memberId])
+  @@index([trainerId])
+}
+
+model Promotion {
+  id             String       @id @default(uuid())
+  code           String       @unique
+  name           String
+  description    String?
+  discountType   String @default("PERCENTAGE")
+  discountValue  Decimal      @db.Decimal(12, 2)
+  minOrderValue  Decimal?     @db.Decimal(12, 2)
+  maxDiscount    Decimal?     @db.Decimal(12, 2)
+  startDate      DateTime
+  endDate        DateTime
+  usageLimit     Int?
+  perMemberLimit Int? // STEP 8 — số lần tối đa mỗi hội viên được dùng mã này
+  usedCount      Int          @default("0")
+  status         String       @default("ACTIVE")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  payments Payment[]
+
+  @@index([code])
+  @@index([status])
+  @@index([status, endDate])
+}
+
+// Nhật ký hoạt động (AuditLog) — ghi lại các hành động quan trọng trong hệ thống
+// Không bao giờ lưu password/token vào bảng này.
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  action    String // VD: AUTH_LOGIN, MEMBER_CREATE, PAYMENT_CONFIRM, CHECK_IN...
+  entity    String // Tên entity: Member, Payment, Schedule...
+  entityId  String?
+  metadata  String?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([entity])
+  @@index([entityId])
+  @@index([createdAt])
+}
+
+model Equipment {
+  id                String             @id @default(uuid())
+  code              String             @unique
+  name              String
+  category          String
+  roomId            String?
+  room              Room?              @relation(fields: [roomId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  brand             String?
+  model             String?
+  serialNumber      String?            @unique
+  purchaseDate      DateTime?
+  purchasePrice     Decimal?           @db.Decimal(12, 2)
+  warrantyExpiry    DateTime?
+  status            String    @default("AVAILABLE")
+  condition         String @default("GOOD")
+  lastMaintenanceAt DateTime?
+  nextMaintenanceAt DateTime?
+  description       String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  maintenances EquipmentMaintenance[]
+
+  @@index([code])
+  @@index([roomId])
+  @@index([status])
+  @@index([category])
+  @@index([nextMaintenanceAt])
+}
+
+model EquipmentMaintenance {
+  id              String            @id @default(uuid())
+  equipmentId     String
+  equipment       Equipment         @relation(fields: [equipmentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  type            String   @default("ROUTINE")
+  maintenanceDate DateTime          @default(now())
+  cost            Decimal?          @db.Decimal(10, 2)
+  description     String
+  performedBy     String?
+  status          String @default("COMPLETED")
+  nextDueDate     DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([equipmentId])
+  @@index([maintenanceDate])
+  @@index([status])
+  @@index([equipmentId, status])
+}
+
+model Notification {
+  id            String    @id @default(uuid())
+  userId        String?
+  user          User?     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  memberId      String?
+  member        Member?   @relation(fields: [memberId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  title         String
+  content       String
+  type          String    @default("SYSTEM")
+  isRead        Boolean   @default("false")
+  readAt        DateTime? // STEP 8 — mốc thời gian đọc thực tế
+  link          String?
+  // STEP 8 — chống trùng lặp / truy vết nguồn sự kiện sinh ra thông báo
+  referenceType String?
+  referenceId   String?
+  data          String? // STEP 8 — payload mở rộng (giá trị động, meta điều hướng)
+  createdAt     DateTime  @default(now())
+
+  @@index([userId])
+  @@index([memberId])
+  @@index([isRead])
+  @@index([referenceType, referenceId])
+  @@index([memberId, isRead])
+  @@index([userId, isRead])
+  @@index([memberId, createdAt])
+  @@index([userId, createdAt])
+}
+
+/// MÃ ĐẶT LẠI MẬT KHẨU — yêu cầu quên mật khẩu qua email (luồng 2 bước).
+/// Chỉ lưu bcrypt hash của mã 6 số, không lưu mã dạng rõ. Hết hạn hoặc dùng
+/// xong thì xoá để bảng không phình. Không liên kết User để tránh lộ userId.
+model PasswordReset {
+  id         String   @id @default(uuid())
+  email      String
+  codeHash   String
+  attempts   Int      @default("0")
+  expiresAt  DateTime
+  lastSentAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([email])
+  @@index([expiresAt])
+}
+
+// -------------------------------------------------------------
+// CHAT REALTIME (HLV ↔ Hội viên) + THỰC ĐƠN DINH DƯỠNG
+// -------------------------------------------------------------
+
+
+
+
+
+/// Cuộc trò chuyện 1-1 giữa HLV và hội viên được phân công (TrainerMember ACTIVE).
+/// Quyền truy cập KHÔNG đọc từ bảng này mà suy ra từ phân công TrainerMember đang ACTIVE.
+model Conversation {
+  id        String             @id @default(uuid())
+  trainerId String
+  trainer   Trainer            @relation(fields: [trainerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  memberId  String
+  member    Member             @relation(fields: [memberId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  status    String @default("ACTIVE")
+
+  // Bản sao để hiển thị danh sách hội thoại không cần join/aggregate tin nhắn
+  lastMessageAt      DateTime?
+  lastMessagePreview String?
+  lastSenderRole     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages Message[]
+
+  @@unique([trainerId, memberId])
+  @@index([trainerId])
+  @@index([memberId])
+  @@index([lastMessageAt])
+  @@index([status])
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  senderId       String
+  sender         User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  type           String  @default("TEXT")
+  content        String?
+  /// Tin nhắn thực đơn phải trỏ tới bản ghi MealPlan thật (không lưu text suông)
+  mealPlanId     String?
+  mealPlan       MealPlan?    @relation(fields: [mealPlanId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  isRead         Boolean      @default("false")
+  readAt         DateTime?
+  editedAt       DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  attachments MessageAttachment[]
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([conversationId, createdAt])
+  @@index([conversationId, isRead])
+  @@index([mealPlanId])
+}
+
+/// Ảnh/tệp đính kèm của tin nhắn. Ảnh lưu dạng data URL base64 trong DB —
+/// cùng kiến trúc với ảnh khuôn mặt (dự án không có dịch vụ lưu trữ tập tin).
+model MessageAttachment {
+  id        String   @id @default(uuid())
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  kind      String   @default("IMAGE") // IMAGE | FILE
+  fileName  String?
+  mimeType  String?
+  sizeBytes Int?
+  dataUrl   String
+  width     Int?
+  height    Int?
+  createdAt DateTime @default(now())
+
+  @@index([messageId])
+}
+
+
+
+/// Thư viện thực phẩm dùng chung. Dinh dưỡng quy chuẩn trên 100g để quy đổi theo khối lượng.
+model Food {
+  id              String       @id @default(uuid())
+  name            String
+  category        String @default("PROTEIN")
+  imageUrl        String?
+  description     String?
+  servingSize     Float        @default("100")
+  servingUnit     String       @default("g")
+  caloriesPer100g Float        @default("0")
+  proteinPer100g  Float        @default("0")
+  carbsPer100g    Float        @default("0")
+  fatPer100g      Float        @default("0")
+  isActive        Boolean      @default("true")
+  createdById     String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  items MealItem[]
+
+  @@index([category])
+  @@index([name])
+  @@index([isActive])
+}
+
+
+
+
+
+
+
+/// Thực đơn HLV tạo: theo ngày hoặc theo tuần, gồm nhiều bữa.
+/// `isTemplate` = lưu mẫu để tái sử dụng (memberId null).
+model MealPlan {
+  id            String         @id @default(uuid())
+  trainerId     String
+  trainer       Trainer        @relation(fields: [trainerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  memberId      String?
+  member        Member?        @relation(fields: [memberId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  title         String
+  description   String?
+  scope         String  @default("DAY")
+  startDate     DateTime?
+  status        String @default("SENT")
+  isTemplate    Boolean        @default("false")
+  templateName  String?
+  imageData     String?
+  totalCalories Float          @default("0")
+  totalProtein  Float          @default("0")
+  totalCarbs    Float          @default("0")
+  totalFat      Float          @default("0")
+  version       Int            @default("1")
+  confirmedAt   DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  meals    Meal[]
+  messages Message[]
+
+  @@index([trainerId])
+  @@index([memberId])
+  @@index([isTemplate])
+  @@index([status])
+}
+
+model Meal {
+  id            String   @id @default(uuid())
+  mealPlanId    String
+  mealPlan      MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  type          MealType
+  /// Thực đơn tuần: 0 = Thứ 2 … 6 = Chủ nhật (null nếu theo ngày)
+  dayIndex      Int?
+  time          String?
+  note          String?
+  imageData     String?
+  totalCalories Float    @default("0")
+  totalProtein  Float    @default("0")
+  totalCarbs    Float    @default("0")
+  totalFat      Float    @default("0")
+  orderIndex    Int      @default("0")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  items MealItem[]
+
+  @@index([mealPlanId])
+}
+
+/// Món trong bữa. Lưu snapshot tên/hình/dinh dưỡng tại thời điểm gửi để
+/// thực đơn đã gửi không đổi khi thư viện thực phẩm bị chỉnh sửa/xoá.
+model MealItem {
+  id         String   @id @default(uuid())
+  mealId     String
+  meal       Meal     @relation(fields: [mealId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  foodId     String?
+  food       Food?    @relation(fields: [foodId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  name       String
+  imageUrl   String?
+  quantity   Float    @default("100")
+  unit       String   @default("g")
+  calories   Float    @default("0")
+  protein    Float    @default("0")
+  carbs      Float    @default("0")
+  fat        Float    @default("0")
+  orderIndex Int      @default("0")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([mealId])
+  @@index([foodId])
+}

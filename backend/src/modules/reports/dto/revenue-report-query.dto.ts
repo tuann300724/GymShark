@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { PaymentMethod } from '@prisma/client';
+import { PaymentMethod } from '../../../common/constants/db-enums';
 import { IsEnum, IsISO8601, IsOptional, IsString } from 'class-validator';
 
 export class RevenueReportQueryDto {

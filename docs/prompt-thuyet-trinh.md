@@ -63,10 +63,9 @@ chuyên viên nào đã sửa/xoá dữ liệu hội viên khi có khiếu nại
 Frontend : Next.js 14 (App Router) + TypeScript + Tailwind CSS 3   — port 3000
            Lý do: SSR/SSG tăng tốc độ tải, App Router gom data-fetching vào server
            component, TypeScript bắt lỗi trước khi lên production.
-Backend  : NestJS 10 + Prisma 5 + PostgreSQL                        — port 3001
+Backend  : NestJS 10 + Prisma 5 + SQL Server 2022 (`gym_db`)       — port 3001
            Lý do: NestJS có hệ thống module + Dependency Injection + Guard/Interceptor
-           sẵn — phù hợp hệ thống nhiều phân quyền; Prisma sinh type an toàn, diễn
-           dịch lỗi DB về thông báo dễ hiểu; PostgreSQL chuẩn ACID, có transaction
+           sẵn — phù hợp hệ thống nhiều phân quyền; Prisma sinh type an toàn,            dịch lỗi DB về thông báo dễ hiểu; SQL Server hỗ trợ transaction
            cho nghiệp vụ tiền (thanh toán).
 Khác      : Axios (gắn JWT qua interceptor), Swagger tự sinh từ decorator,
            helmet + @nestjs/throttler (rate limit), nodemailer (SMTP xác minh email),
@@ -144,7 +143,7 @@ Khác      : Axios (gắn JWT qua interceptor), Swagger tự sinh từ decorator
 --- HẠN CHẾ (phải nói thẳng, không giấu — điểm này gây ấn tượng tốt) ---
 - Chưa có test tự động dạng unit/integration (Jest) — kiểm thử hiện dùng script
   smoke test và Playwright chạy thủ công
-- Chưa triển khai lên môi trường thật (mới chạy ở localhost, PostgreSQL native)
+- Chưa triển khai lên môi trường thật (mới chạy ở localhost, SQL Server native)
 - Chưa phân tán tải / chưa có cache Redis / chưa triển khai Docker cho production
 - Nhận dạng khuôn mặt chạy trên trình duyệt nên phụ thuộc độ mạnh máy tính
   của thiết bị quầy

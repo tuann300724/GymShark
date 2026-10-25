@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { Gender, TrainerStatus } from '@prisma/client';
+import { Gender, TrainerStatus } from '../../../common/constants/db-enums';
 import { Type } from 'class-transformer';
 import {
   IsDateString,

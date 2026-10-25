@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { ScheduleStatus, SessionType } from '@prisma/client';
+import { ScheduleStatus, SessionType } from '../../../common/constants/db-enums';
 import { Type } from 'class-transformer';
 import {
   IsDateString,

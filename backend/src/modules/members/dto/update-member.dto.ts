@@ -6,7 +6,7 @@ import {
   IsString,
   MaxLength,
 } from 'class-validator';
-import { Gender, MemberStatus } from '@prisma/client';
+import { Gender, MemberStatus } from '../../../common/constants/db-enums';
 
 /** DTO dành riêng cho Admin/Staff cập nhật hồ sơ hoặc trạng thái hội viên */
 export class UpdateMemberDto {

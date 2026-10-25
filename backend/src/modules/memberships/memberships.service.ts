@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InvoiceStatus, PaymentStatus } from '@prisma/client';
+import { InvoiceStatus, PaymentStatus } from '../../common/constants/db-enums';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit-logs/audit-logs.service';
 import { UpdateMembershipStatusDto } from './dto/update-membership-status.dto';

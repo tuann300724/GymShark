@@ -6,7 +6,6 @@ import { NotificationsService, NotificationType } from './notifications.service'
  * STEP 8 — quét định kỳ (không cần cron, dùng setInterval nội bộ) để sinh thông báo:
  * - Membership sắp hết hạn (3 ngày) / vừa hết hạn
  * - Promotion sắp kết thúc (3 ngày)
- * - Thiết bị đến hạn bảo trì / quá hạn / hỏng
  * Dedupe bằng referenceType + referenceId → không gửi trùng.
  */
 @Injectable()
@@ -35,7 +34,6 @@ export class NotificationTickerService implements OnModuleInit, OnModuleDestroy 
     try {
       await this.checkMembershipExpiry();
       await this.checkPromotionEnding();
-      await this.checkEquipmentMaintenance();
     } catch (err) {
       this.logger.error('Notification ticker error', (err as Error)?.stack || String(err));
     }
@@ -120,46 +118,4 @@ export class NotificationTickerService implements OnModuleInit, OnModuleDestroy 
     }
   }
 
-  /** Thiết bị: đến hạn bảo trì / quá hạn / hỏng → thông báo ADMIN/MANAGER/STAFF */
-  private async checkEquipmentMaintenance() {
-    const now = new Date();
-    const soon = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
-
-    const due = await this.prisma.equipment.findMany({
-      where: {
-        status: { in: ['AVAILABLE', 'IN_USE', 'OPERATIONAL'] },
-        nextMaintenanceAt: { lte: soon },
-      },
-      select: { id: true, code: true, name: true, nextMaintenanceAt: true },
-    });
-    for (const e of due) {
-      await this.notificationsService.fanoutToStaff({
-        type: 'EQUIPMENT',
-        title: 'Thiết bị cần bảo trì 🛠️',
-        content: `${e.name} (${e.code}) ${
-          e.nextMaintenanceAt && e.nextMaintenanceAt < now
-            ? `đã QUÁ HẠN bảo trì từ ${e.nextMaintenanceAt.toLocaleDateString('vi-VN')}`
-            : `đến hạn bảo trì ${e.nextMaintenanceAt?.toLocaleDateString('vi-VN')}`
-        }.`,
-        link: '/admin/equipment',
-        referenceType: 'EQUIPMENT_MAINTENANCE',
-        referenceId: e.id,
-      });
-    }
-
-    const broken = await this.prisma.equipment.findMany({
-      where: { status: 'BROKEN' },
-      select: { id: true, code: true, name: true },
-    });
-    for (const e of broken) {
-      await this.notificationsService.fanoutToStaff({
-        type: 'EQUIPMENT',
-        title: 'Thiết bị hỏng 🚨',
-        content: `${e.name} (${e.code}) đang trong tình trạng HỎNG. Kiểm tra và lên lịch sửa chữa.`,
-        link: '/admin/equipment',
-        referenceType: 'EQUIPMENT_BROKEN',
-        referenceId: e.id,
-      });
-    }
-  }
 }

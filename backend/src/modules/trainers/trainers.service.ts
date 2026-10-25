@@ -6,7 +6,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { TrainerStatus, UserRole, UserStatus } from '@prisma/client';
+import { TrainerStatus, UserRole, UserStatus } from '../../common/constants/db-enums';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateTrainerDto, TrainerQueryDto, UpdateTrainerDto } from './dto/trainer.dto';
@@ -54,13 +54,13 @@ export class TrainersService {
     const where: any = {};
     if (search) {
       where.OR = [
-        { user: { fullName: { contains: search, mode: 'insensitive' } } },
-        { user: { email: { contains: search, mode: 'insensitive' } } },
-        { user: { phone: { contains: search, mode: 'insensitive' } } },
+        { user: { fullName: { contains: search } } },
+        { user: { email: { contains: search } } },
+        { user: { phone: { contains: search } } },
       ];
     }
     if (status) where.status = status;
-    if (specialization) where.specialization = { contains: specialization, mode: 'insensitive' };
+    if (specialization) where.specialization = { contains: specialization };
 
     const [data, total] = await Promise.all([
       this.prisma.trainer.findMany({

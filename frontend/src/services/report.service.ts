@@ -1,7 +1,6 @@
 import apiClient from '@/lib/axios';
 import type {
   AttendanceReport,
-  EquipmentStatsReport,
   MembersReport,
   MembershipsReport,
   OverviewReport,
@@ -50,11 +49,6 @@ export const reportApi = {
 
   attendance: async (params: ReportFilters = {}): Promise<AttendanceReport> => {
     const res = await apiClient.get<AttendanceReport>('/reports/attendance', { params });
-    return res.data;
-  },
-
-  equipment: async (): Promise<EquipmentStatsReport> => {
-    const res = await apiClient.get<EquipmentStatsReport>('/reports/equipment');
     return res.data;
   },
 

@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit-logs/audit-logs.service';
 import { EnrollFaceDto } from './dto/faces.dto';
+import { parseJsonText } from '../../common/utils/json-text';
 
 export interface FaceMatchResult {
   memberId: string;
@@ -86,6 +87,19 @@ export class FacesService {
   /** Kiểm tra 1 mẫu vector đơn lẻ cho mục đích đăng ký */
   private sanitizeSample(embedding: unknown): number[] {
     return this.assertValidEmbedding(embedding, 'mẫu khuôn mặt');
+  }
+
+  private parseStoredEmbedding(value: string | null): number[] {
+    const embedding = parseJsonText<unknown>(value);
+    if (!embedding) return [];
+    if (!Array.isArray(embedding)) {
+      throw new Error('Stored face embedding is invalid (not array).');
+    }
+    const values = embedding
+      .map((v) => (typeof v === 'number' && Number.isFinite(v) ? v : Number(v)))
+      .filter((v) => Number.isFinite(v));
+    // Nếu array bị cắt ngắn hoặc thiếu số → trả rỗng thay vì crash server
+    return values.length >= 64 ? values : [];
   }
 
   /** Ảnh đã được DTO validate; kiểm tra lại ở service rồi mới ghi DB */
@@ -184,7 +198,7 @@ export class FacesService {
       this.prisma.faceEmbedding.createMany({
         data: samples.map((embedding, index) => ({
           memberId: member.id,
-          embedding,
+          embedding: JSON.stringify(embedding),
           // Ảnh chỉ gắn ở mẫu ĐẦU TIÊN → không nhân bản cùng một ảnh ra mọi dòng
           imageData: index === 0 ? imageData : null,
           consentAt,
@@ -304,7 +318,7 @@ export class FacesService {
 
     let best = -1;
     for (const sample of samples) {
-      const sim = this.cosine(probe, sample.embedding);
+      const sim = this.cosine(probe, this.parseStoredEmbedding(sample.embedding));
       if (sim > best) best = sim;
     }
     return best >= this.thresholdSelf ? { similarity: best } : null;
@@ -325,7 +339,7 @@ export class FacesService {
 
     let best: { memberId: string; memberCode: string; similarity: number } | null = null;
     for (const row of rows) {
-      const sim = this.cosine(probe, row.embedding);
+      const sim = this.cosine(probe, this.parseStoredEmbedding(row.embedding));
       if (sim >= this.thresholdGlobal && (!best || sim > best.similarity)) {
         best = { memberId: row.memberId, memberCode: row.member.code, similarity: sim };
       }

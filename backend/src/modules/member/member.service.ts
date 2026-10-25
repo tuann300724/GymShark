@@ -6,7 +6,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
-import { InvoiceStatus, PaymentMethod, PaymentStatus, Prisma, UserRole } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import { InvoiceStatus, PaymentMethod, PaymentStatus, UserRole } from '../../common/constants/db-enums';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit-logs/audit-logs.service';
 import { BANK_INFO } from '../payments/bank-info';

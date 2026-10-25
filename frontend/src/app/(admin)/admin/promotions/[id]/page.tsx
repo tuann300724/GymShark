@@ -158,7 +158,9 @@ export default function PromotionDetailPage() {
               <CalendarDays className="size-3.5 text-neon" /> Hiệu lực
             </p>
             <p className="text-sm font-semibold text-chalk">{formatDateTime(promo.startAt)}</p>
-            <p className="text-sm font-semibold text-chalk">→ {formatDateTime(promo.endAt)}</p>
+            <p className="text-sm font-semibold text-chalk">
+              → {promo.endAt ? formatDateTime(promo.endAt) : 'Không thời hạn'}
+            </p>
           </CardContent>
         </Card>
         <Card>

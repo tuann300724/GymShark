@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEmail, IsEnum, IsISO8601, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
-import { Gender } from '@prisma/client';
+import { Gender } from '../../../common/constants/db-enums';
 
 /**
  * Bước 1 — thông tin đăng ký hội viên tự phục vụ.

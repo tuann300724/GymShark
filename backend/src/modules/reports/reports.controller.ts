@@ -130,13 +130,6 @@ export class ReportsController {
     return this.reportsService.getDashboard();
   }
 
-  @Get('equipment')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
-  @ApiOperation({ summary: 'Thá»‘ng kÃª thiáº¿t bá»‹ há»‡ thá»‘ng.' })
-  getEquipment() {
-    return this.reportsService.getEquipmentStats();
-  }
-
   @Get('checkins/daily')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
   getCheckInsDaily(@Query() query: DailyReportQueryDto) {

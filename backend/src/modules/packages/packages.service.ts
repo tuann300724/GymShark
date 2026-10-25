@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { parseJsonText, serializeJsonText } from '../../common/utils/json-text';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreatePackageDto } from './dto/create-package.dto';
 import { UpdatePackageDto } from './dto/update-package.dto';
@@ -13,9 +14,13 @@ import { UpdatePackageDto } from './dto/update-package.dto';
 export class PackagesService {
   constructor(private prisma: PrismaService) {}
 
+  private withFeatures<T extends { features: string | null }>(pkg: T) {
+    return { ...pkg, features: parseJsonText<{ title?: string; items: string[] }>(pkg.features) };
+  }
+
   /** Danh sách gói tập (admin: trả tất cả kèm số lượng đã bán) */
   async findAll() {
-    return this.prisma.membershipPackage.findMany({
+    const packages = await this.prisma.membershipPackage.findMany({
       include: {
         _count: {
           select: { memberships: true },
@@ -23,6 +28,7 @@ export class PackagesService {
       },
       orderBy: { createdAt: 'desc' },
     });
+    return packages.map((pkg) => this.withFeatures(pkg));
   }
 
   async findOne(id: string) {
@@ -33,7 +39,7 @@ export class PackagesService {
       },
     });
     if (!pkg) throw new NotFoundException('Không tìm thấy gói tập');
-    return pkg;
+    return this.withFeatures(pkg);
   }
 
   /** Tạo gói tập mới — backend tự sinh mã gói, không tin frontend */
@@ -52,12 +58,12 @@ export class PackagesService {
       }
     }
 
-    return this.prisma.membershipPackage.create({
+    const pkg = await this.prisma.membershipPackage.create({
       data: {
         code,
         name: dto.name,
         description: dto.description ?? null,
-        features: (dto.features as any) ?? Prisma.JsonNull,
+        features: serializeJsonText(dto.features),
         durationDays: dto.durationDays,
         price: new Prisma.Decimal(dto.price.toFixed(2)),
         sessions: dto.sessions ?? null,
@@ -65,6 +71,7 @@ export class PackagesService {
         status: dto.status || 'ACTIVE',
       },
     });
+    return this.withFeatures(pkg);
   }
 
   /** Cập nhật gói tập */
@@ -82,7 +89,8 @@ export class PackagesService {
     if (dto.type !== undefined) data.type = dto.type;
     if (dto.status !== undefined) data.status = dto.status;
 
-    return this.prisma.membershipPackage.update({ where: { id }, data });
+    const updated = await this.prisma.membershipPackage.update({ where: { id }, data });
+    return this.withFeatures(updated);
   }
 
   /** Xoá gói tập — chỉ khi gói CHƯA được bán cho bất kỳ membership nào */

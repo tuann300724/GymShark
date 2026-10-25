@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { MessageType } from '@prisma/client';
+import { MessageType } from '../../../common/constants/db-enums';
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,

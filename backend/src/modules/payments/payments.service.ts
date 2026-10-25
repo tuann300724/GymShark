@@ -9,7 +9,8 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InvoiceStatus, PaymentMethod, PaymentStatus, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import { InvoiceStatus, PaymentMethod, PaymentStatus } from '../../common/constants/db-enums';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit-logs/audit-logs.service';
 import { Role } from '../../common/enums/role.enum';
@@ -132,13 +133,13 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     if (query.search) {
       const q = query.search.trim();
       where.OR = [
-        { code: { contains: q, mode: 'insensitive' } },
-        { transactionRef: { contains: q, mode: 'insensitive' } },
-        { member: { fullName: { contains: q, mode: 'insensitive' } } },
-        { member: { email: { contains: q, mode: 'insensitive' } } },
-        { member: { phone: { contains: q, mode: 'insensitive' } } },
-        { member: { code: { contains: q, mode: 'insensitive' } } },
-        { invoice: { invoiceNumber: { contains: q, mode: 'insensitive' } } },
+        { code: { contains: q } },
+        { transactionRef: { contains: q } },
+        { member: { fullName: { contains: q } } },
+        { member: { email: { contains: q } } },
+        { member: { phone: { contains: q } } },
+        { member: { code: { contains: q } } },
+        { invoice: { invoiceNumber: { contains: q } } },
       ];
     }
 

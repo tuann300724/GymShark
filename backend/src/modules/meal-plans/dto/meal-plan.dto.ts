@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { MealPlanScope, MealPlanStatus, MealType } from '@prisma/client';
+import { MealPlanScope, MealPlanStatus, MealType } from '../../../common/constants/db-enums';
 import { Type } from 'class-transformer';
 import {
   ArrayMinSize,

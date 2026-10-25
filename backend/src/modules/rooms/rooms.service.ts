@@ -14,7 +14,7 @@ export class RoomsService {
 
   private buildRoomInclude() {
     return {
-      _count: { select: { equipment: true, schedules: true } },
+      _count: { select: { schedules: true } },
     } satisfies Prisma.RoomInclude;
   }
 
@@ -119,13 +119,10 @@ export class RoomsService {
     const room = await this.prisma.room.findUnique({ where: { id }, select: { id: true } });
     if (!room) throw new NotFoundException('Không tìm thấy phòng tập.');
 
-    const [equipmentCount, scheduleCount] = await Promise.all([
-      this.prisma.equipment.count({ where: { roomId: id } }),
-      this.prisma.trainingSchedule.count({ where: { roomId: id } }),
-    ]);
-    if (equipmentCount > 0 || scheduleCount > 0) {
+    const scheduleCount = await this.prisma.trainingSchedule.count({ where: { roomId: id } });
+    if (scheduleCount > 0) {
       throw new BadRequestException(
-        `Không thể xóa phòng còn ${equipmentCount} thiết bị và ${scheduleCount} buổi tập liên quan. Hãy chuyển sang trạng thái INACTIVE.`,
+        `Không thể xóa phòng còn ${scheduleCount} buổi tập liên quan. Hãy chuyển sang trạng thái INACTIVE.`,
       );
     }
 

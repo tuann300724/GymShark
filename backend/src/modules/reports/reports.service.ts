@@ -2,14 +2,10 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RevenueReportQueryDto } from './dto/revenue-report-query.dto';
-import { EquipmentService } from '../equipment/equipment.service';
 
 @Injectable()
 export class ReportsService {
-  constructor(
-    private prisma: PrismaService,
-    private readonly equipmentService: EquipmentService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   async getSummary() {
     const now = new Date();
@@ -302,15 +298,6 @@ export class ReportsService {
     return { stats, recentRegistrations, pendingPayments };
   }
 
-  // ---------------------------------------------------------------------------
-  // Equipment stats (cho dashboard / báo cáo)
-  // ---------------------------------------------------------------------------
-
-  /** GET /reports/equipment — tổng quan thiết bị hệ thống (ủy quyền EquipmentService) */
-  async getEquipmentStats() {
-    return this.equipmentService.getStats();
-  }
-
   /** GET /reports/checkins/daily — số lượt check-in / check-out theo từng ngày */
   async getCheckInsDaily(from?: string, to?: string) {
     const toDate = to ? this.endOfDay(new Date(to)) : new Date();
@@ -392,8 +379,8 @@ export class ReportsService {
     const whereMember: Prisma.MemberWhereInput = search
       ? {
           OR: [
-            { fullName: { contains: search, mode: 'insensitive' } },
-            { code: { contains: search, mode: 'insensitive' } },
+            { fullName: { contains: search } },
+            { code: { contains: search } },
             { phone: { contains: search } },
           ],
         }
@@ -460,8 +447,8 @@ export class ReportsService {
     }
     if (query.search) {
       memberWhere.OR = [
-        { fullName: { contains: query.search.trim(), mode: 'insensitive' } },
-        { code: { contains: query.search.trim(), mode: 'insensitive' } },
+        { fullName: { contains: query.search.trim() } },
+        { code: { contains: query.search.trim() } },
       ];
     }
 

@@ -4,7 +4,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { CheckInMethod, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import { CheckInMethod } from '../../common/constants/db-enums';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit-logs/audit-logs.service';
 import { FacesService } from '../faces/faces.service';
@@ -657,8 +658,8 @@ export class CheckinsService {
       if (term) {
         where.member = {
           OR: [
-            { fullName: { contains: term, mode: 'insensitive' } },
-            { code: { contains: term, mode: 'insensitive' } },
+            { fullName: { contains: term } },
+            { code: { contains: term } },
             { phone: { contains: term } },
           ],
         };

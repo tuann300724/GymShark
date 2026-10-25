@@ -115,19 +115,19 @@ Em phân tích yêu cầu thành sáu nhóm, và mỗi nhóm có tính chất k�
 FRONTEND                    BACKEND
 Next.js 14 (App Router)     NestJS 10
 TypeScript                  Prisma 5
-Tailwind CSS 3              PostgreSQL
+Tailwind CSS 3              SQL Server 2022
 
 LÝ DO CHỌN (không chọn theo sở thích)
   App Router  → gom data-fetching vào Server Component, SSR/SSG nhanh hơn
   TypeScript  → bắt lỗi kiểu dữ liệu TRƯỚC khi lên production
   NestJS      → có sẵn Module + DI + Guard/Interceptor → hợp RBAC nhiều vai trò
   Prisma      → sinh type từ schema, lỗi DB dịch thành thông báo dễ hiểu
-  PostgreSQL  → ACID + transaction cho nghiệp vụ tiền
+  SQL Server  → transaction + ràng buộc dữ liệu cho nghiệp vụ tiền
   Swagger     → tự sinh từ decorator, tài liệu luôn khớp code
 ```
 
 **Lời nói**
-Em chọn Next.js 14 và NestJS 10, và đây là chọn có lý do. App Router gom data-fetching vào Server Component nên phần dữ liệu nhiều không phải gửi hết xuống trình duyệt. TypeScript bắt lỗi kiểu dữ liệu lúc viết code. NestJS có sẵn module, dependency injection, guard và interceptor — nền tảng để làm phân quyền mà không phải tự viết lại. Prisma sinh type từ schema. PostgreSQL em chọn vì cần transaction cho nghiệp vụ tiền.
+Em chọn Next.js 14 và NestJS 10, và đây là chọn có lý do. App Router gom data-fetching vào Server Component nên phần dữ liệu nhiều không phải gửi hết xuống trình duyệt. TypeScript bắt lỗi kiểu dữ liệu lúc viết code. NestJS có sẵn module, dependency injection, guard và interceptor — nền tảng để làm phân quyền mà không phải tự viết lại. Prisma sinh type từ schema. SQL Server là cơ sở dữ liệu của hệ thống; transaction giúp các bước thu tiền và cập nhật hóa đơn được thực hiện nhất quán.
 
 **Gợi ý trình chiếu:** Logo các công nghệ + sơ đồ 3 tầng (Client → API → DB).
 
@@ -151,14 +151,14 @@ Em chọn Next.js 14 và NestJS 10, và đây là chọn có lý do. App Router 
 └──────────────────┬──────────────────────────────┘
                    │ Prisma ORM
 ┌──────────────────▼──────────────────────────────┐
-│  POSTGRESQL  ·  20 model ·  21 enum              │
+│  SQL SERVER  ·  20 model                         │
 └─────────────────────────────────────────────────┘
 
 MÔ HÌNH MODULAR MONOLITH — 12 module nghiệp vụ, tách bạch bằng interface
 ```
 
 **Lời nói**
-Kiến trúc gồm ba tầng: giao diện Next.js, API NestJS, và PostgreSQL. Em giải thích luồng một request: Controller tiếp nhận, Guard kiểm tra phân quyền — không đủ quyền thì dừng ngay tại đây — rồi Interceptor xử lý log, tới Service mới chạy nghiệp vụ. Nếu có lỗi, nó không trả lỗi lung tung từ tầng nào mà đi qua một bộ lọc thống nhất. Em chọn modular monolith — 12 module tách bạch bằng interface — vì quy mô đồ án chưa cần phân tán, nhưng tách sẵn để sau tách service riêng được.
+Kiến trúc gồm ba tầng: giao diện Next.js, API NestJS, và SQL Server. Em giải thích luồng một request: Controller tiếp nhận, Guard kiểm tra phân quyền — không đủ quyền thì dừng ngay tại đây — rồi Interceptor xử lý log, tới Service mới chạy nghiệp vụ. Nếu có lỗi, nó không trả lỗi lung tung từ tầng nào mà đi qua một bộ lọc thống nhất. Em chọn modular monolith — 12 module tách bạch bằng interface — vì quy mô đồ án chưa cần phân tán, nhưng tách sẵn để sau tách service riêng được.
 
 **Gợi ý trình chiếu:** Sơ đồ khối, tô đậm đường đi của request, chiếu animation
 từng bước.
@@ -578,7 +578,7 @@ NHỮNG PHẦN CHƯA HOÀN THIỆN — em nói thẳng
 ✗ Chưa có test tự động dạng unit/integration (Jest)
    → hiện kiểm thử bằng script smoke + Playwright, chạy thủ công
 ✗ Chưa triển khai môi trường thật
-   → mới chạy localhost + PostgreSQL native, chưa có HTTPS
+   → mới chạy localhost + SQL Server native, chưa có HTTPS
 ✗ Chưa có Redis / cache / chống tải phân tán
    → báo cáo tổng hợp trực tiếp từ DB
 ✗ MoMo / VNPay mới ở mức stub, chưa nối API cổng thật
@@ -769,13 +769,13 @@ tra quyền sẽ lặp lại ở từng route và rất dễ sót. Với NestJS 
 `@Roles` ngay trên controller, guard lo phần kiểm tra. Nếu quy mô nhỏ hơn nhiều
 thì em cũng sẽ chọn Express để đơn giản hơn.
 
-### 2. Vì sao chọn PostgreSQL mà không dùng MySQL?
+### 2. Vì sao dự án dùng SQL Server?
 
-Ba lý do. Một là hỗ trợ transaction và cách ly mức tốt — quan trọng với nghiệp vụ
-tiền. Hai là ràng buộc `unique` cho phép nhiều giá trị NULL cùng tồn tại, đúng nhu
-cầu "nhân viên không bắt buộc khai số điện thoại". Ba là hỗ trợ JSONB tốt, phục vụ
-trường `metadata` của nhật ký hệ thống. Nếu quen MySQL hơn thì em có thể chuyển,
-vì Prisma che gần hết khác biệt.
+SQL Server được chọn cho môi trường chạy của dự án và hỗ trợ transaction cùng
+các ràng buộc quan hệ cần cho nghiệp vụ thanh toán. Schema Prisma và truy vấn đã
+được điều chỉnh theo khả năng của connector SQL Server; các giá trị enum của ứng
+dụng được quản lý bằng constant trong TypeScript. Database `gym_db` hiện có dữ
+liệu nên được giữ nguyên, không tạo lại khi cập nhật schema.
 
 ### 3. Tại sao không dùng machine learning để kiểm tra đeo kính?
 

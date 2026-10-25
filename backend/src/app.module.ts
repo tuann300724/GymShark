@@ -17,7 +17,6 @@ import { PaymentsModule } from './modules/payments/payments.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
 import { SchedulesModule } from './modules/schedules/schedules.module';
 import { PromotionsModule } from './modules/promotions/promotions.module';
-import { EquipmentModule } from './modules/equipment/equipment.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { PublicModule } from './modules/public/public.module';
@@ -60,7 +59,6 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     InvoicesModule,
     SchedulesModule,
     PromotionsModule,
-    EquipmentModule,
     NotificationsModule,
     ReportsModule,
     PublicModule,

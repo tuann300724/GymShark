@@ -4,7 +4,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { MessageType, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import { MessageType } from '../../common/constants/db-enums';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit-logs/audit-logs.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -116,10 +117,15 @@ export class ChatService {
       select: { memberId: true },
     });
     if (!assignments.length) return;
-    await this.prisma.conversation.createMany({
-      data: assignments.map((a) => ({ trainerId, memberId: a.memberId })),
-      skipDuplicates: true,
-    });
+    await this.prisma.$transaction(
+      assignments.map((a) =>
+        this.prisma.conversation.upsert({
+          where: { trainerId_memberId: { trainerId, memberId: a.memberId } },
+          create: { trainerId, memberId: a.memberId },
+          update: {},
+        }),
+      ),
+    );
   }
 
   private async syncMemberConversations(memberId: string) {
@@ -128,10 +134,15 @@ export class ChatService {
       select: { trainerId: true },
     });
     if (!assignments.length) return;
-    await this.prisma.conversation.createMany({
-      data: assignments.map((a) => ({ trainerId: a.trainerId, memberId })),
-      skipDuplicates: true,
-    });
+    await this.prisma.$transaction(
+      assignments.map((a) =>
+        this.prisma.conversation.upsert({
+          where: { trainerId_memberId: { trainerId: a.trainerId, memberId } },
+          create: { trainerId: a.trainerId, memberId },
+          update: {},
+        }),
+      ),
+    );
   }
 
   private async ensureConversation(trainerId: string, memberId: string) {
@@ -182,7 +193,7 @@ export class ChatService {
       actor.kind === 'TRAINER' ? { trainerId: actor.trainerId } : { memberId: actor.memberId };
 
     if (actor.kind === 'TRAINER' && query.search) {
-      where.member = { fullName: { contains: query.search.trim(), mode: 'insensitive' } };
+      where.member = { fullName: { contains: query.search.trim() } };
     }
 
     const page = Math.max(1, Number(query.page) || 1);
@@ -296,7 +307,7 @@ export class ChatService {
     return this.mapConversation(row as ConversationRow, actor, user.id);
   }
 
-  private previewOf(message: { type: MessageType; content: string | null }): string {
+  private previewOf(message: { type: string; content: string | null }): string {
     const text = (message.content ?? '').trim();
     if (text) return text.length > 140 ? `${text.slice(0, 140)}…` : text;
     if (message.type === 'IMAGE') return '[Hình ảnh]';

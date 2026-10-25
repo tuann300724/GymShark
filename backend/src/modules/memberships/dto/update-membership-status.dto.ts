@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
-import { MembershipStatus } from '@prisma/client';
+import { MembershipStatus } from '../../../common/constants/db-enums';
 
 export class UpdateMembershipStatusDto {
   @ApiProperty({ enum: MembershipStatus, example: 'SUSPENDED' })

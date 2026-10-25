@@ -9,7 +9,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
-import { Gender } from '@prisma/client';
+import { Gender } from '../../../common/constants/db-enums';
 
 /**
  * DTO lễ tân/quản trị tạo hội viên mới tại quầy.

@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { DiscountType, PaymentMethod } from '@prisma/client';
+import { DiscountType, PaymentMethod } from '../../../common/constants/db-enums';
 import {
   IsDateString,
   IsEnum,

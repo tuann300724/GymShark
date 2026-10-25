@@ -5,6 +5,14 @@
 
 ---
 
+## 2026-10-25 — Gỡ tính năng thiết bị và bảo trì
+
+- Đã gỡ module/API/backend, trang admin, báo cáo/dashboard, notification ticker, Prisma models, seed và các type/status liên quan. Giữ nguyên mô tả thiết bị tập luyện trong nội dung bài tập.
+- Đã backup `gym_db` bằng `COPY_ONLY` và xác minh backup. Migration `backend/prisma/sqlserver-remove-equipment-feature.sql` kiểm tra bảng rỗng và khóa ngoại ngoài trước khi xóa; áp dụng thành công trên database thật.
+- SQL Server hiện không còn `Equipment`/`EquipmentMaintenance`; dữ liệu còn lại được giữ nguyên (3 members, 2 memberships, 3 payments, 2 invoices). Prisma đọc được **26/26 models**.
+- Kiểm tra: Prisma generate/validate, backend build + `tsc --noEmit`, frontend typecheck/lint/format:check đều PASS. Lint còn warning có sẵn ở các trang check-in/kiosk. Health/public API 200; API thiết bị/bảo trì và `/admin/equipment` trả 404.
+- Backend đang chạy trên cổng 3001. Chưa commit/push.
+
 ## 2026-10-18 — Kỳ 13: Nâng cấp UI toàn diện — Three.js + Framer Motion + hệ thống trạng thái
 
 > Trạng thái: **CHƯA COMMIT** — code + QA xong, chờ commit/push. Backend/API/auth không đổi.
@@ -663,18 +671,16 @@ member chỉ thao tác dữ liệu của mình qua JWT (`@CurrentUser('id')`), D
 
 ### 🎯 Mục tiêu
 
-Hoàn thiện flow đăng ký/thu phí chạy thật với PostgreSQL qua API (không mock):
+Hoàn thiện flow đăng ký/thu phí chạy thật qua API (không mock):
 đăng ký gói → **Membership PENDING + Payment PENDING** → admin **approve** → **PAID/ACTIVE**
 (transaction); có hủy / tạm khóa / gia hạn; **backend tự tính giá** từ DB (`original − discount = finalAmount`),
 không tin frontend; DTO không nhận `memberId/price/amount/role` từ client.
 
-### ✅ Schema + DB (đã làm, DB đã recreate + reseed)
+### ✅ Schema + DB (đã đồng bộ và seed dữ liệu mẫu)
 
 - `MembershipStatus` thêm `SUSPENDED`; `PaymentStatus` đổi `COMPLETED → PAID` + thêm `CANCELLED`;
   Membership thêm `discountAmount` + `finalAmount`; Payment default `PENDING`.
-- `prisma db push --accept-data-loss` fail vì enum cast → **drop + recreate `gym_db`**
-  (`prisma db execute` nối DB `postgres`, pass `postgrespassword`) → push → seed OK.
-- **LƯU Ý:** `backend/.env` dùng pass **`postgrespassword`** (khác AGENTS.md mục 8 đang ghi `postgres` — đã sửa ở mục docs bên dưới phần AGENTS.md).
+- Trên database có dữ liệu, không chạy `prisma db push --accept-data-loss`; dùng migration SQL có kiểm tra để giữ các bảng/cột legacy.
 - Seed: `SUMMER2026` (15% PERCENTAGE) — trong QA đã cập nhật `endDate → 2027-12-31` trong DB dev để test luồng giảm giá.
 - Demo users cũ giữ nguyên: `admin|manager|staff|trainer@gym.com` + `member@gym.com` (1 membership ACTIVE + payment PAID).
 
@@ -720,27 +726,22 @@ không tin frontend; DTO không nhận `memberId/price/amount/role` từ client.
 - Fix overlay search + drawer admin bị gói trong header `backdrop-blur` → portal ra `document.body`.
 - Nút "Quay lại trang chủ" ở trang `/login` và `/register` (commit `3478804`).
 
-### ✅ Backend đã dựng lại trên máy này (info quan trọng)
+### ✅ Backend dùng SQL Server 2022 trên máy này
 
-- **PostgreSQL 17 cài NATIVE** (service `postgresql-x64-17`) — KHÔNG phải Docker, `docker` không có trong PATH.
-  User/pass: `postgres` / `postgres`, port 5432.
-- `backend/.env` đã tạo (copy `.env.example` nhưng `DATABASE_URL` đổi mật khẩu thành `postgres`).
-  File này gitignore — nếu mất thì tạo lại theo trên.
-- **Dự án dùng `prisma db push`, KHÔNG có thư mục `prisma/migrations`** — đừng chạy `prisma migrate dev`.
-- Đã tạo DB `gym_db` + push schema + seed thành công. Cách làm lại từ đầu:
+- Backend kết nối database SQL Server `gym_db` hiện có, cổng 1433.
+- Cấu hình kết nối local nằm trong `backend/.env` đã gitignore; không ghi credentials vào tài liệu hoặc commit.
+- Giữ dữ liệu hiện có trong `gym_db`. Không drop/recreate database hoặc chạy `prisma db push` khi chưa rà soát diff.
+- Sao lưu database trước, sau đó chạy `backend/prisma/sqlserver-membership-package-link.sql` để bổ sung liên kết package mà không xóa cột/bảng legacy.
 
   ```powershell
   cd backend
-  # tạo DB (chạy 1 lần): $env:DATABASE_URL='postgresql://postgres:postgres@localhost:5432/postgres?schema=public'; 'CREATE DATABASE gym_db;' | npx prisma db execute --stdin --schema prisma/schema.prisma
-  npx prisma db push     # sync schema + generate client
-  npm run prisma:seed    # seed dữ liệu mẫu
+  npx prisma generate
   npm run start:dev      # chạy backend :3001
   ```
 
-- Kiểm tra backend sống: `GET http://localhost:3001/api/health` → phải trả `database: "connected"`.
-  Swagger: `http://localhost:3001/api/docs` (49 endpoint).
-- Tài khoản seed (mật khẩu pattern `Tên@123456`): `admin@` `manager@` `staff@` `trainer@` `member@gym.com`
-  → chi tiết xem `backend/prisma/seed.ts`.
+- Kiểm tra backend: `GET http://localhost:3001/api/health` => `database: "connected"`.
+  Swagger: `http://localhost:3001/api/docs`.
+- Tài khoản seed được ghi trong `backend/prisma/seed.ts`.
 
 ### ✅ Tính năng: Trang chi tiết chương trình tập — **ĐÃ COMMIT (2026-09-29)**
 

@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { FoodCategory } from '@prisma/client';
+import { FoodCategory } from '../../../common/constants/db-enums';
 import { Type } from 'class-transformer';
 import {
   IsBoolean,

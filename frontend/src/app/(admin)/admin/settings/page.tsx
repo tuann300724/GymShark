@@ -103,7 +103,7 @@ export default function SettingsPage() {
                 Cơ sở dữ liệu
               </span>
               <p className="font-medium text-chalk flex items-center gap-1.5">
-                <Database className="size-3.5 text-muted" /> PostgreSQL 16 + Prisma ORM
+                <Database className="size-3.5 text-muted" /> SQL Server 2022 + Prisma ORM
               </p>
             </div>
           </CardContent>

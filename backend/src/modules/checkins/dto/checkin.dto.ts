@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { CheckInMethod, CheckInStatus } from '@prisma/client';
+import { CheckInMethod, CheckInStatus } from '../../../common/constants/db-enums';
 import { Type } from 'class-transformer';
 import {
   IsArray,

@@ -1,23 +1,22 @@
 version: '3.8'
-
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: gym_postgres
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: gym_sqlserver
     restart: always
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgrespassword
-      POSTGRES_DB: gym_db
+      ACCEPT_EULA: Y
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD before starting SQL Server}
+      MSSQL_PID: Developer
+      MSSQL_TCP_ENABLED: 1
     ports:
-      - '5432:5432'
+      - '1433:1433'
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - sqlserver_data:/var/opt/mssql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d gym_db"]
-      interval: 5s
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$${MSSQL_SA_PASSWORD}\" -Q 'SELECT 1' || exit 1"]
+      interval: 10s
       timeout: 5s
       retries: 5
-
 volumes:
-  postgres_data:
+  sqlserver_data:
