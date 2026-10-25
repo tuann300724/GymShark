@@ -5,7 +5,6 @@ import { PaymentGatewayService } from './gateway/payment-gateway.service';
 import { CashGateway } from './gateway/cash.gateway';
 import { BankTransferGateway } from './gateway/bank-transfer.gateway';
 import { MomoGateway } from './gateway/momo.gateway';
-import { VnpayGateway } from './gateway/vnpay.gateway';
 import { MemberModule } from '../member/member.module';
 import { CassoModule } from '../casso/casso.module';
 
@@ -18,7 +17,6 @@ import { CassoModule } from '../casso/casso.module';
     CashGateway,
     BankTransferGateway,
     MomoGateway,
-    VnpayGateway,
   ],
   exports: [PaymentsService, PaymentGatewayService],
 })
