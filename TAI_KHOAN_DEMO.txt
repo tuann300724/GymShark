@@ -1,0 +1,17 @@
+TAI KHOAN DEMO / TEST — GYMSHARK
+======================================
+Ghi chú: Tài khoản DEMO cho đồ án tốt nghiệp. Không dùng cho môi trường sản xuất.
+Không commit file này lên repo (đã có .gitignore cho .env; thêm file này vào .gitignore nếu cần).
+
+Vai trò          | Email                  | Mật khẩu
+-----------------|------------------------|-------------
+Quản trị viên    | admin@gymshark.com     | Admin@12345
+Hội viên         | test1@gym.local        | Member@12345
+Nhân viên        | staff@gym.local        | Staff@12345
+Huấn luyện viên  | trainer@gym.local      | Trainer@12345
+
+--- Lưu ý bảo mật ---
+- Đổi mật khẩu sau khi test xong.
+- Xóa tài khoản demo trước khi triển khai thật (xem README.md phần Tài khoản demo).
+- JWT_SECRET và DATABASE_URL phải khác với .env.example khi deploy.
+- Không đẩy file chứa mật khẩu lên github.

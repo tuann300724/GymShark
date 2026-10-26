@@ -1,0 +1,77 @@
+ĐÁNH GIÁ & ĐỀ XUẤT THÊM TÍNH NĂNG — GYM MASTER PRO
+======================================================
+Ngày: 26/10/2026 | Nền: Next.js 14 + NestJS + Prisma + SQL Server | Giao diện tiếng Việt
+
+--- HIỆN TRẠNG ĐÃ CÓ ---
+- 26 model (Member, Membership, Payment, Invoice, CheckIn, Trainer, Schedule, Promotion, Notification, AuditLog, FaceEmbedding...)
+- Full RBAC (ADMIN/MANAGER/STAFF/TRAINER/MEMBER)
+- Check-in FACE_ID (1:1 + 1:N) + QR
+- Thanh toán thật (CASH / BANK_TRANSFER), hóa đơn INV-YYYY-NNNNNN
+- Nhật ký hệ thống (AuditLog) 34/40 action, 41 dòng seed
+- Design system riêng (DESIGN_SYSTEM.md), responsive 6 viewport, dark cinematic
+- CI (typecheck + lint + format + build), smoke test 76/76, QA Playwright 294/294
+- Đã push main (STEP 9 + 10 + 10b)
+
+--- HẠN CHẾ ĐÃ GHI NHẬN (README) ---
+1. Bài tập = dữ liệu tĩnh (frontend/src/lib/programs.ts) — chưa có model Exercise + CRUD
+2. MoMo / VNPay = stub
+3. Email / SMS chưa tích hợp (Notification chỉ lưu DB)
+4. Chưa có test tự động (unit/e2e runner)
+5. Refresh token chưa có
+6. Chỉ số cơ thể / tiến trình tập = chưa có
+
+--- ĐỀ XUẤT THÊM (4 NHÓM) ---
+
+NHÓM 1: NÊN THÊM NGAY (dễ, phù hợp nền hiện có)
+  1. Exercise (model) + ProgramExercise (bảng trung gian) — đóng lỗ hổng dữ liệu tĩnh
+  2. ClassBooking + đăng ký buổi TrainingSchedule — tương tác hội viên chủ động
+  3. BodyMetric (cân nặng, vòng eo, % mỡ) + biểu đồ tiến trình — đặc trưng gym
+  4. Referral / Mã giới thiệu — tính năng kinh doanh thực tế
+
+NHÓM 2: ĐIỂM CAO THÊM (kỹ thuật / chuyên sâu)
+  5. Webhook thanh toán thật (MoMo/VNPay) — bảo mật + bất đồng bộ
+  6. Gửi email thật (SMTP) cho xác minh, hóa đơn, thông báo
+  7. WebSocket / SSE — thông báo thời gian thực không reload
+  8. PWA (manifest + service worker) — offline cache
+  9. Test tự động Playwright / Jest — chất lượng phần mềm
+
+NHÓM 3: "ĐẶC SẢN" ĐỒ ÁN (dễ gây ấn tượng)
+ 10. Bản đồ chi nhánh (Branch + map pin) — dữ liệu địa lý
+ 11. TrainingProgress (ghi nhật ký buổi tập: weight, reps, cảm nhận)
+ 12. BlogPost quản trị (CRUD bài viết, DRAFT/PUBLISHED)
+
+NHÓM 4: KHÔNG NÊN THÊM
+  - AI / ML đề xuất bài tập (quá phức tạp, khó đánh giá)
+  - Chatbot LLM (tốn token, không liên quan gym)
+  - Video streaming (cần CDN, đã có ảnh tĩnh đủ)
+  - App native (ngoài phạm vi web full-stack; chỉ cần PWA)
+  - Tích hợp IoT (không có thiết bị thực tế)
+
+--- COMBO ĐỀ XUẤT THỰC HIỆN (nếu đồng ý) ---
+Combo A (đóng lỗ + đa dạng dữ liệu):
+  -> 1. Exercise + ProgramExercise
+  -> 3. BodyMetric + biểu đồ tiến trình
+  -> 4. Referral
+
+Combo B (tương tác + kỹ thuật):
+  -> 2. ClassBooking
+  -> 5. Webhook thanh toán
+  -> 7. WebSocket/SSE
+
+Combo C (chất lượng + chuyên nghiệp):
+  -> 9. Test tự động Playwright
+  -> 8. PWA
+  -> 6. Email SMTP
+
+--- LƯU Ý THỰC HIỆN ---
+- Chỉ sửa khi người dùng yêu cầu cụ thể (theo AGENTS.md)
+- Kiểm tra trước khi báo xong: typecheck + lint + format:check + build
+- Không tự commit/push khi chưa được đồng ý
+- File tiếng Việt: sửa bằng write/edit, không dùng PowerShell (tránh BOM/double-encoding)
+- Nếu thêm model mới: chạy npx prisma generate + npx prisma db push (DB mới/rỗng) hoặc migration SQL (DB có dữ liệu)
+
+--- TRANG THÁI GIT ---
+Repo: https://github.com/tuann300724/GymShark | Nhánh: main
+Commit chuẩn: Conventional Commits (feat(frontend): ..., fix(admin): ...)
+
+(Tài liệu này tổng hợp từ AGENTS.md + WORKLOG.md + README.md + DESIGN_SYSTEM.md + đánh giá cấu trúc frontend/backend hiện tại — không tự thực hiện sửa đổi.)
