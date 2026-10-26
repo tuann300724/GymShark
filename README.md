@@ -45,7 +45,8 @@
 
 ### Khu vực hội viên `/member` — vai trò `MEMBER`
 - Dashboard cá nhân: gói tập hiện tại, số buổi tập tháng này, PT phụ trách, thanh toán gần nhất
-- **Đăng ký / gia hạn gói tập** online (áp dụng mã khuyến mãi, chọn CASH / BANK_TRANSFER / MoMo / VNPay)
+- **Đăng ký / gia hạn gói tập** online (áp dụng mã khuyến mãi, chọn CASH / BANK_TRANSFER / MoMo / VNPay);
+  thấy ngay **gói đã gia hạn sắp kích hoạt** và tự **hủy yêu cầu đang chờ thanh toán** nếu chưa chuyển tiền
 - **Check-in / Check-out** tự phục vụ (QR) hoặc lễ tân hỗ trợ
 - Lịch sử check-in, lịch tập cá nhân, huấn luyện viên phụ trách
 - Hóa đơn: danh sách + chi tiết + **in biên lao**
@@ -65,10 +66,10 @@
 - Lịch dạy, danh sách học viên phụ trách, ghi nhận tiến trình tập, hồ sơ cá nhân
 
 ### Nhật ký hệ thống (Audit Log) — *tính năng STEP 9*
-- Ghi lại **40 loại hành động** trên 12 entity: đăng nhập, đổi mật khẩu, tạo/cập nhật hội viên,
+- Ghi lại **46 loại hành động** trên 14 entity: đăng nhập, đổi mật khẩu, tạo/cập nhật hội viên,
   đăng ký hội viên kèm mã xác minh email (gửi / gửi lại / sai mã), đổi trạng thái & gia hạn thẻ,
-  xác nhận/từ chối/hoàn tiền, check-in/out, sinh trắc học khuôn mặt, thao tác HLV,
-  tạo/sửa/hủy/hoàn thành lịch tập, thiết bị & bảo trì, khuyến mãi
+  hội viên tự hủy yêu cầu thanh toán, xác nhận/từ chối/hoàn tiền, check-in/out, sinh trắc học
+  khuôn mặt, thao tác HLV, tạo/sửa/hủy/hoàn thành lịch tập, khuyến mãi, hội thoại & kế hoạch dinh dưỡng
 - **Không bao giờ** ghi mật khẩu, `passwordHash` hay token
 - Trang `/admin/audit-logs`: lọc theo người dùng / hành động / entity / từ ngày / đến ngày /
   tìm kiếm nội dung, phân trang, xem metadata dạng JSON — chỉ `ADMIN` & `MANAGER`

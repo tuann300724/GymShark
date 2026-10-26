@@ -5,6 +5,63 @@
 
 ---
 
+## 2026-10-26 — Kỳ 14: Fix 4 lỗi người dùng báo (gia hạn, gán PT, filter gói, P2023) + tự hủy yêu cầu
+
+> Trạng thái: **ĐÃ COMMIT + PUSH** — `2f4241c` (fix, 13 files) + `77115cb` (docs, 4 files).
+
+### 🎯 Đợt này làm gì
+
+- **Môi trường**: `backend/.env` trỏ SQL Server cục bộ `ASUS\SQLEXPRESS` (Windows Integrated Auth,
+  database `gym_db`, `encrypt=true;trustServerCertificate=true`) — dữ liệu lấy 100% từ bảng SQL
+  Server, không lấy nguồn cũ. Health `/api/health` → `database: "connected"`.
+- **Lỗi 1 — Đã gia hạn nhưng hội viên vẫn báo "sắp hết hạn"**: `MemberService.getMemberships()`
+  trả thêm `upcoming` (gói `ACTIVE` có `startDate > now`, lấy cái sớm nhất) → trang
+  `/member/membership` hiện card **"Gói đã gia hạn — sắp có hiệu lực"** (badge *Sắp kích hoạt*);
+  `expiringSoon` bị tắt khi đã có `upcoming`; `NotificationTickerService.checkMembershipExpiry`
+  bỏ qua hội viên đã có gói `ACTIVE` bắt đầu ở tương lai (log "bỏ qua N đã gia hạn").
+- **Lỗi 2 — Admin gán PT không tìm thấy hội viên**: `MembersService.findAll` bỏ `where.OR contains`
+  (Prisma so khớp theo collation của DB nên gõ "pham"/"vu duc thanh" không ra) → `$queryRaw` với
+  `COLLATE Latin1_General_100_CI_AI` trên `fullName/email/phone/code`, vẫn parameterized, escape
+  `%_[]` bằng `ESCAPE '\'`; `AssignMemberDialog` tải danh sách ngay khi mở dialog (không ép gõ) +
+  `searchSeq` chống response về trễ ghi đè; `MemberCombobox` ở `session-form-dialog` luôn mở danh sách.
+- **Bổ sung**:
+  - Hội viên tự hủy yêu cầu: `POST /member/payments/:id/cancel` (MEMBER) → Payment + Membership +
+    Invoice → `CANCELLED`, tạo notification + audit `MEMBERSHIP_CANCEL_REQUEST`; nút **"Hủy yêu
+    cầu"** + dialog xác nhận trên `/member/membership`.
+  - `AllExceptionsFilter`: map Prisma `P2023` (id sai định dạng, DB đang là `uniqueidentifier`)
+    → **404** thay vì 500.
+  - `/packages`: `key={typeFilter}` cho `<StaggerGroup>` — sửa lỗi chuyển tab mất card
+    (`whileInView` + `viewportOnce` để `opacity: 0`); `PublicService.getPackages()` parse JSON `features`.
+  - Badge trạng thái gói dùng `MEMBERSHIP_STATUS_META` thay vì text thô `ACTIVE`.
+- **Dữ liệu gói**: 8 gói mới giá thị trường VN (PKG-1M 450k/30d, PKG-3M 1.2tr/90d, PKG-6M 2.1tr/180d,
+  PKG-12M 3.6tr/365d, PKG-DROPIN 80k, PKG-10S/20S/50S) — script tái chạy
+  `backend/scripts/update-packages.ts`; 3 gói cũ hỏng đặt `INACTIVE` (5 membership còn tham chiếu).
+
+### 🐞 Bẫy đã gặp (ghi lại để khỏi rơi lại)
+
+- Collation SQL Server `Vietnamese_100_CI_AI` / `Vietnamese_CI_AI` **không khớp** `ê`/`ứ` với chuỗi
+  không dấu — đã test thật; phải dùng `Latin1_General_100_CI_AI`.
+- Prisma không hỗ trợ `COLLATE` trong `where` → bắt buộc `$queryRaw`.
+- `prisma db pull --force` làm hỏng `schema.prisma` → không chạy lại; khôi phục
+  `git checkout backend/prisma/schema.prisma` rồi `prisma generate`.
+- QA measuring: `waitForTimeout` cố định ra `textLen = 0` (Next stream) → dùng
+  `waitForFunction(() => innerText.trim().length >= 40)`; `/auth/login` rate limit 10/60s →
+  đăng nhập 1 lần/role rồi tái dùng `storageState`.
+
+### ✅ Kiểm tra cuối
+
+- Backend `tsc --noEmit` 0 lỗi; frontend `typecheck` 0, `lint` 0 error (chỉ warning có sẵn ở
+  face-scan/kiosk), `prettier --check` các file đã sửa PASS.
+- Browser QA: tab `/packages` ra 4/4/8 card; hủy yêu cầu → 201, Payment/Membership/Invoice
+  `CANCELLED` + notification + audit; tìm "vu duc thanh" → MEM-0003; 0 console error.
+- Đã push `origin/main`: `2f4241c` + `77115cb` (gồm cả 4 file txt/sql ở gốc, theo yêu cầu).
+
+### 📌 Việc dang dở / cần quyết
+
+- Thông báo cũ "Gói tập sắp hết hạn ⏰" (tạo **trước** khi sửa ticker) chưa xóa — chờ xác nhận.
+- README còn 3 dòng nhắc thiết bị/bảo trì (mục bảng admin, seed, bảng phân quyền) đã lỗi thời từ
+  đợt gỡ tính năng 2026-10-25 — đợt này chưa đụng tới.
+
 ## 2026-10-25 — Gỡ tính năng thiết bị và bảo trì
 
 - Đã gỡ module/API/backend, trang admin, báo cáo/dashboard, notification ticker, Prisma models, seed và các type/status liên quan. Giữ nguyên mô tả thiết bị tập luyện trong nội dung bài tập.
