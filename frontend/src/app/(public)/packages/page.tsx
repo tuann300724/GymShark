@@ -197,7 +197,10 @@ export default function PublicPackagesPage() {
           ) : isError ? (
             <ErrorState className="mt-8" onRetry={() => refetch()} />
           ) : (
-            <StaggerGroup className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <StaggerGroup
+              key={typeFilter}
+              className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3"
+            >
               {filtered.map((pkg) => {
                 const isActive = pkg.status === 'ACTIVE';
                 return (

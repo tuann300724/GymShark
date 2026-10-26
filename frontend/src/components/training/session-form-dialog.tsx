@@ -434,10 +434,13 @@ function MemberCombobox({
             className="h-11 w-full rounded-sm border border-line bg-ink pl-9 pr-3.5 text-sm text-chalk placeholder:text-muted/70 focus:border-neon/70 focus:outline-none focus:ring-2 focus:ring-neon/70"
           />
           {searching && <p className="mt-1 text-xs text-muted">Đang tìm...</p>}
-          {!searching && query && (
+          {/* Luôn mở danh sách (đã tải sẵn khi mở dialog) — không ép phải gõ mới thấy tên */}
+          {!searching && (
             <div className="absolute z-20 mt-1 max-h-52 w-full overflow-auto rounded-xl border border-line bg-surface p-1 shadow-xl">
               {members.length === 0 ? (
-                <p className="px-3 py-2 text-xs text-muted">Không tìm thấy hội viên</p>
+                <p className="px-3 py-2 text-xs text-muted">
+                  {query ? 'Không tìm thấy hội viên' : 'Không có hội viên đang hoạt động'}
+                </p>
               ) : (
                 members.map((m) => (
                   <button

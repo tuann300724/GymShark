@@ -21,6 +21,7 @@ import {
   Wallet,
   ChevronRight,
   CheckCircle2,
+  XCircle,
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { MEMBERSHIP_STATUS_META } from '@/lib/status';
@@ -41,6 +42,7 @@ export default function MemberMembershipPage() {
   const [renewOpen, setRenewOpen] = useState(false);
   const [selectedMethod, setSelectedMethod] = useState('CASH');
   const [selectedPackageId, setSelectedPackageId] = useState<string>('');
+  const [cancelOpen, setCancelOpen] = useState(false);
 
   const { data: membershipData, isLoading } = useQuery({
     queryKey: ['member-memberships'],
@@ -57,7 +59,12 @@ export default function MemberMembershipPage() {
 
   const current = membershipData?.current;
   const pending = membershipData?.pending;
+  /** Gói đã gia hạn, chưa tới ngày kích hoạt — không cảnh báo "sắp hết hạn" nữa */
+  const upcoming = membershipData?.upcoming;
   const history = membershipData?.history || [];
+
+  /** Payment PENDING gắn với yêu cầu đang chờ — dùng để hủy */
+  const pendingPaymentId = pending?.payments?.find((p) => p.status === 'PENDING')?.id;
 
   const remainingDays = current
     ? Math.max(
@@ -65,7 +72,8 @@ export default function MemberMembershipPage() {
         Math.ceil((new Date(current.endDate).getTime() - Date.now()) / (24 * 60 * 60 * 1000)),
       )
     : 0;
-  const expiringSoon = !!current && remainingDays <= EXPIRING_SOON_DAYS;
+  // Chỉ nhắc khi THẬT SỰ sắp hết hạn và CHƯA gia hạn gói tiếp nối
+  const expiringSoon = !!current && remainingDays <= EXPIRING_SOON_DAYS && !upcoming;
 
   const progress = current
     ? Math.min(
@@ -101,6 +109,22 @@ export default function MemberMembershipPage() {
     onError: (err: any) => {
       const msg = err.response?.data?.message || 'Gia hạn thất bại';
       toast.error('Gia hạn thất bại', Array.isArray(msg) ? msg.join(', ') : msg);
+    },
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: () => membershipApi.cancelPendingPayment(pendingPaymentId || ''),
+    onSuccess: () => {
+      toast.success('Đã hủy yêu cầu', 'Bạn có thể đăng ký gói khác bất cứ lúc nào.');
+      setCancelOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['member-memberships'] });
+      queryClient.invalidateQueries({ queryKey: ['member-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['member-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['member-notif-badge'] });
+    },
+    onError: (err: any) => {
+      const msg = err.response?.data?.message || 'Không thể hủy yêu cầu';
+      toast.error('Hủy thất bại', Array.isArray(msg) ? msg.join(', ') : msg);
     },
   });
 
@@ -147,7 +171,7 @@ export default function MemberMembershipPage() {
                   tự động kích hoạt sau khi được xác nhận.
                 </p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center justify-center gap-3">
                 <Badge variant="warning">
                   <Wallet className="mr-1 size-3.5" /> Đang chờ thanh toán
                 </Badge>
@@ -156,6 +180,11 @@ export default function MemberMembershipPage() {
                     Xem gói khác
                   </Button>
                 </Link>
+                {pendingPaymentId && (
+                  <Button variant="danger" size="sm" onClick={() => setCancelOpen(true)}>
+                    <XCircle className="size-3.5" /> Hủy yêu cầu
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>
@@ -225,7 +254,9 @@ export default function MemberMembershipPage() {
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">
                         Trạng thái
                       </p>
-                      <p className="font-bold text-neon">{current.status}</p>
+                      <p className="font-bold text-neon">
+                        {MEMBERSHIP_STATUS_META[current.status]?.label || current.status}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -244,6 +275,33 @@ export default function MemberMembershipPage() {
               </div>
             </div>
           </Card>
+
+          {/* Gói ĐÃ gia hạn — chưa tới ngày kích hoạt */}
+          {upcoming && (
+            <Card className="overflow-hidden border-neon/30 bg-neon/5">
+              <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-neon/25 bg-neon/10">
+                    <CheckCircle2 className="size-5 text-neon" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="meta-label">Gói đã gia hạn — sắp có hiệu lực</p>
+                    <h3 className="mt-1 font-display text-lg font-bold uppercase text-chalk">
+                      {upcoming.package?.name || 'Gói tập'}
+                    </h3>
+                    <p className="mt-1 text-xs text-muted">
+                      Tự động kích hoạt {formatDate(upcoming.startDate)} →{' '}
+                      {formatDate(upcoming.endDate)} ·{' '}
+                      {formatCurrency(upcoming.finalAmount || upcoming.price)}
+                    </p>
+                  </div>
+                </div>
+                <Badge variant="success" className="w-fit shrink-0">
+                  Sắp kích hoạt
+                </Badge>
+              </CardContent>
+            </Card>
+          )}
 
           {/* History */}
           <Card>
@@ -366,6 +424,47 @@ export default function MemberMembershipPage() {
             >
               <RefreshCw className="size-4" />
               Xác nhận gia hạn
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+
+      {/* Cancel pending request dialog */}
+      <Dialog
+        open={cancelOpen}
+        onClose={() => setCancelOpen(false)}
+        title="Hủy yêu cầu đăng ký?"
+        description="Yêu cầu đang chờ thanh toán sẽ bị hủy và bạn có thể đăng ký lại bất cứ lúc nào."
+        className="max-w-md"
+      >
+        <div className="space-y-4 text-sm">
+          {pending && (
+            <div className="rounded-xl border border-line bg-ink p-4">
+              <p className="text-xs text-muted">Gói tập</p>
+              <p className="font-semibold text-chalk">{pending.package?.name || 'Gói tập'}</p>
+              <p className="mt-2 text-xs text-muted">Số tiền</p>
+              <p className="font-display text-lg font-extrabold text-neon">
+                {pending.finalAmount ? formatCurrency(pending.finalAmount) : '—'}
+              </p>
+            </div>
+          )}
+          <p className="text-xs text-muted">
+            Nếu bạn đã chuyển khoản nhưng chưa thấy kích hoạt, hãy{' '}
+            <b className="text-chalk">không hủy</b> mà liên hệ lễ tân để được đối soát.
+          </p>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button type="button" variant="ghost" onClick={() => setCancelOpen(false)}>
+              Giữ lại
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              isLoading={cancelMutation.isPending}
+              disabled={!pendingPaymentId}
+              onClick={() => cancelMutation.mutate()}
+            >
+              <XCircle className="size-4" />
+              Hủy yêu cầu
             </Button>
           </div>
         </div>

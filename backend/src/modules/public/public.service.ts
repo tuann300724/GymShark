@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { parseJsonText } from '../../common/utils/json-text';
 
 @Injectable()
 export class PublicService {
@@ -7,10 +8,14 @@ export class PublicService {
 
   /** Membership packages cho trang public (chỉ lấy gói ACTIVE) */
   async getPackages() {
-    return this.prisma.membershipPackage.findMany({
+    const packages = await this.prisma.membershipPackage.findMany({
       where: { status: 'ACTIVE' },
       orderBy: { price: 'asc' },
     });
+    return packages.map((pkg) => ({
+      ...pkg,
+      features: parseJsonText<{ title?: string; items: string[] }>(pkg.features),
+    }));
   }
 
   /** Huấn luyện viên đang hoạt động cho trang public */

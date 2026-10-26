@@ -132,6 +132,7 @@ export const AUDIT_ACTION_META: Record<string, { label: string; variant: BadgeVa
   MEMBERSHIP_EXTEND: { label: 'Gia hạn gói tập', variant: 'info' },
   MEMBERSHIP_REGISTER: { label: 'Hội viên đăng ký gói', variant: 'info' },
   MEMBERSHIP_RENEW: { label: 'Hội viên gia hạn gói', variant: 'info' },
+  MEMBERSHIP_CANCEL_REQUEST: { label: 'Hội viên hủy yêu cầu', variant: 'destructive' },
 
   // Thanh toán
   PAYMENT_CONFIRM: { label: 'Xác nhận thanh toán', variant: 'success' },

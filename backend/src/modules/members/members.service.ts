@@ -56,12 +56,23 @@ export class MembersService {
 
     if (query.search) {
       const q = query.search.trim();
-      where.OR = [
-        { fullName: { contains: q } },
-        { email: { contains: q } },
-        { phone: { contains: q } },
-        { code: { contains: q } },
-      ];
+      if (q) {
+        // Tìm KHÔNG phân biệt HOA/thường và DẤU tiếng Việt (collation Latin1_General_100_CI_AI):
+        // "pham" => "Phạm", "le hoang anh" => "Lê Hoàng Anh", "Nguyen Anh Tuan" => "nguyen anh tuan".
+        // Lưu ý: collation Vietnamese_* KHÔNG dùng được (ê/ứ không khớp) — đã test thực tế.
+        // Prisma không hỗ trợ COLLATE nên phải query thô; vẫn parameterized (không injection).
+        const like = `%${q.replace(/[\\%_[\]]/g, (c) => `\\${c}`)}%`;
+        const rows = await this.prisma.$queryRaw<{ id: string }[]>`
+          SELECT [id]
+          FROM [Member]
+          WHERE [fullName] COLLATE Latin1_General_100_CI_AI LIKE ${like} COLLATE Latin1_General_100_CI_AI ESCAPE '\\'
+             OR [email]    COLLATE Latin1_General_100_CI_AI LIKE ${like} COLLATE Latin1_General_100_CI_AI ESCAPE '\\'
+             OR [phone]    COLLATE Latin1_General_100_CI_AI LIKE ${like} COLLATE Latin1_General_100_CI_AI ESCAPE '\\'
+             OR [code]     COLLATE Latin1_General_100_CI_AI LIKE ${like} COLLATE Latin1_General_100_CI_AI ESCAPE '\\'
+        `;
+        // id IN () với mảng rỗng => Prisma tự trả về rổng (đúng nghĩa "không khớp ai")
+        where.id = { in: rows.map((r) => r.id) };
+      }
     }
 
     if (query.status && query.status !== 'ALL') {

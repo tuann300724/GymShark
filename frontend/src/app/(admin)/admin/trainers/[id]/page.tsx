@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -593,20 +593,35 @@ function AssignMemberDialog({
   const [members, setMembers] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
   const [selected, setSelected] = useState<any | null>(null);
+  // Đánh số request để response về trễ không ghi đè kết quả mới hơn
+  const searchSeq = useRef(0);
 
   const search = async (q: string) => {
+    const seq = ++searchSeq.current;
     setSearching(true);
     try {
       const res = await apiClient.get('/members', {
         params: { search: q, limit: 8, status: 'ACTIVE' },
       });
+      if (seq !== searchSeq.current) return;
       setMembers(res.data?.data || []);
     } catch {
+      if (seq !== searchSeq.current) return;
       setMembers([]);
     } finally {
-      setSearching(false);
+      if (seq === searchSeq.current) setSearching(false);
     }
   };
+
+  // Mở dialog là tải danh sách hội viên ngay — không ép người dùng phải gõ mới thấy tên
+  useEffect(() => {
+    if (open) {
+      setQuery('');
+      setSelected(null);
+      void search('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const assignment = useMutation({
     mutationFn: () => trainerApi.assignMember(trainerId, selected.id),
@@ -669,7 +684,11 @@ function AssignMemberDialog({
         ) : (
           <div className="max-h-64 space-y-1 overflow-auto">
             {members.length === 0 ? (
-              <p className="py-6 text-center text-xs text-muted">Nhập từ khóa để tìm hội viên.</p>
+              <p className="py-6 text-center text-xs text-muted">
+                {query
+                  ? 'Không tìm thấy hội viên phù hợp. Thử tìm theo tên, mã hoặc SĐT.'
+                  : 'Không có hội viên đang hoạt động.'}
+              </p>
             ) : (
               members.map((m) => {
                 const assigned = existingActive.includes(m.id);

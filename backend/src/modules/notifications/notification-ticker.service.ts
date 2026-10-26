@@ -54,7 +54,21 @@ export class NotificationTickerService implements OnModuleInit, OnModuleDestroy 
         member: { select: { fullName: true } },
       },
     });
+
+    // Hội viên ĐÃ gia hạn (có gói ACTIVE bắt đầu ở tương lai) thì không nhắc "gia hạn ngay" nữa
+    const renewedMemberIds = new Set(
+      (
+        await this.prisma.membership.findMany({
+          where: { status: 'ACTIVE', startDate: { gt: now } },
+          select: { memberId: true },
+        })
+      ).map((r) => r.memberId),
+    );
+
+    let expiringNotified = 0;
     for (const m of expiring) {
+      if (renewedMemberIds.has(m.memberId)) continue;
+      expiringNotified++;
       await this.notificationsService.create({
         memberId: m.memberId,
         type: 'MEMBERSHIP' as NotificationType,
@@ -89,8 +103,10 @@ export class NotificationTickerService implements OnModuleInit, OnModuleDestroy 
       }
     }
 
-    if (expiring.length || expiredRows.length) {
-      this.logger.log(`Ticker memberships: ${expiring.length} sắp hết hạn, ${expiredRows.length} đã hết hạn`);
+    if (expiringNotified || expiredRows.length) {
+      this.logger.log(
+        `Ticker memberships: ${expiringNotified} sắp hết hạn (bỏ qua ${expiring.length - expiringNotified} đã gia hạn), ${expiredRows.length} đã hết hạn`,
+      );
     }
   }
 

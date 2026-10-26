@@ -94,6 +94,19 @@ export class MemberController {
     return this.memberService.renewMembership(userId, dto);
   }
 
+  @Post('payments/:id/cancel')
+  @Roles(Role.MEMBER)
+  @ApiOperation({
+    summary:
+      'Hội viên tự hủy yêu cầu đang chờ thanh toán: Payment + Membership + Invoice → CANCELLED',
+  })
+  @ApiResponse({ status: 200, description: 'Đã hủy yêu cầu' })
+  @ApiResponse({ status: 400, description: 'Không ở trạng thái PENDING' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy hoặc không thuộc hội viên này' })
+  cancelPendingPayment(@CurrentUser('id') userId: string, @Param('id') id: string) {
+    return this.memberService.cancelPendingRequest(userId, id);
+  }
+
   // ---------------- Check-ins ----------------
 
   @Get('checkins')

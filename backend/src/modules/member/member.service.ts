@@ -319,7 +319,9 @@ export class MemberService {
 
   async getMemberships(userId: string) {
     const member = await this.resolveMember(userId);
-    if (!member) return { current: null, pending: null, history: [], memberId: undefined };
+    if (!member) {
+      return { current: null, pending: null, upcoming: null, history: [], memberId: undefined };
+    }
 
     await this.syncExpiredMemberships(member.id);
 
@@ -338,9 +340,15 @@ export class MemberService {
     const current =
       all.find((m) => m.status === 'ACTIVE' && m.startDate <= now && m.endDate >= now) || null;
     const pending = all.find((m) => m.status === 'PENDING') || null;
+    // Gói ĐÃ gia hạn nhưng chưa tới ngày kích hoạt (ACTIVE, startDate > now).
+    // Phải trả riêng nếu không hội viên sẽ không thấy gói mới đã cộng thêm.
+    const upcoming =
+      all
+        .filter((m) => m.status === 'ACTIVE' && m.startDate > now)
+        .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())[0] || null;
     const history = all; // lịch sử: toàn bộ gói đã đăng ký
 
-    return { current, pending, history, memberId: member.id };
+    return { current, pending, upcoming, history, memberId: member.id };
   }
 
   async getCurrentMembership(userId: string) {
@@ -614,6 +622,84 @@ export class MemberService {
       membership: result.membership,
       payment: result.payment,
     };
+  }
+
+  /**
+   * Hội viên tự hủy yêu cầu đăng ký / gia hạn đang chờ thanh toán.
+   * Payment PENDING → CANCELLED, Membership PENDING → CANCELLED, Invoice ISSUED → CANCELLED.
+   * Chỉ chấp nhận payment thuộc chính hội viên đó (không được hủy của người khác).
+   */
+  async cancelPendingRequest(userId: string, paymentId: string) {
+    const member = await this.resolveMember(userId);
+    if (!member) throw new ForbiddenException('Chỉ hội viên mới có thể hủy yêu cầu');
+
+    const payment = await this.prisma.payment.findFirst({
+      where: { id: paymentId, memberId: member.id },
+      include: { membership: { include: { package: true } } },
+    });
+    if (!payment) throw new NotFoundException('Không tìm thấy yêu cầu thanh toán');
+    if (payment.status !== PaymentStatus.PENDING) {
+      throw new BadRequestException('Chỉ yêu cầu đang chờ thanh toán mới hủy được');
+    }
+
+    const packageName = payment.membership?.package?.name || 'gói tập';
+    const now = new Date();
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: PaymentStatus.CANCELLED,
+          confirmedById: userId,
+          confirmedAt: now,
+          notes: [payment.notes, 'Hội viên tự hủy yêu cầu'].filter(Boolean).join(' | '),
+        },
+      });
+
+      let cancelledMembership = null;
+      if (payment.membership && payment.membership.status === 'PENDING') {
+        cancelledMembership = await tx.membership.update({
+          where: { id: payment.membership.id },
+          data: { status: 'CANCELLED' },
+          include: { package: true },
+        });
+      }
+
+      await tx.invoice.updateMany({
+        where: { paymentId: payment.id, status: InvoiceStatus.ISSUED },
+        data: { status: InvoiceStatus.CANCELLED },
+      });
+
+      await tx.notification.create({
+        data: {
+          memberId: member.id,
+          title: 'Đã hủy yêu cầu đăng ký 🗑️',
+          content: `Yêu cầu cho ${packageName} (${payment.code}) đã được hủy. Bạn có thể đăng ký gói khác bất cứ lúc nào.`,
+          type: 'PAYMENT',
+          link: '/member/membership',
+          referenceType: 'PAYMENT_CANCELLED_BY_MEMBER',
+          referenceId: payment.id,
+        },
+      });
+
+      return { payment: updated, membership: cancelledMembership };
+    });
+
+    await this.auditService.log({
+      userId,
+      action: 'MEMBERSHIP_CANCEL_REQUEST',
+      entity: 'Membership',
+      entityId: payment.membershipId ?? payment.id,
+      metadata: {
+        packageName,
+        paymentCode: payment.code,
+        amount: payment.amount,
+        memberCode: member.code,
+        via: 'self',
+      },
+    });
+
+    return { message: `Đã hủy yêu cầu ${packageName}`, ...result };
   }
 
   // ---------------------------------------------------------------------------

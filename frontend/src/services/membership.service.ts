@@ -5,6 +5,8 @@ export const membershipApi = {
   getMyMemberships: async (): Promise<{
     current: Membership | null;
     pending: Membership | null;
+    /** Gói ĐÃ gia hạn nhưng chưa tới ngày kích hoạt (ACTIVE, startDate > hôm nay) */
+    upcoming: Membership | null;
     history: Membership[];
     memberId?: string;
   }> => {
@@ -34,6 +36,12 @@ export const membershipApi = {
     notes?: string;
   }) => {
     const res = await apiClient.post('/member/memberships/renew', payload);
+    return res.data;
+  },
+
+  /** Hội viên tự hủy yêu cầu đang chờ thanh toán (Payment + Membership + Invoice → CANCELLED) */
+  cancelPendingPayment: async (paymentId: string) => {
+    const res = await apiClient.post(`/member/payments/${paymentId}/cancel`);
     return res.data;
   },
 };

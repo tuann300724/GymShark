@@ -16,7 +16,7 @@ import { Request, Response } from 'express';
  * - Giữ nguyên shape chuẩn của NestJS (HttpException / ValidationPipe) để FE không phải đổi.
  * - KHÔNG expose stack trace / thông tin database / secret ra ngoài.
  * - Lỗi 5xx được log chi tiết phía server (log file / console) và trả message thân thiện.
- * - Bản đồ lỗi Prisma KnownRequestError sang HTTP status phù hợp (P2002 -> 409, P2025 -> 404, P2003 -> 400).
+ * - Bản đồ lỗi Prisma KnownRequestError sang HTTP status phù hợp (P2002 -> 409, P2025 -> 404, P2003 -> 400, P2023 -> 404).
  */
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -55,6 +55,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
         status = HttpStatus.BAD_REQUEST;
         message = 'Dữ liệu tham chiếu không hợp lệ';
         error = 'Bad Request';
+      } else if (exception.code === 'P2023') {
+        // Id sai định dạng (DB đang lưu uniqueidentifier) → coi như không tồn tại thay vì 500.
+        status = HttpStatus.NOT_FOUND;
+        message = 'Không tìm thấy bản ghi yêu cầu';
+        error = 'Not Found';
       }
     } else if (exception instanceof Prisma.PrismaClientValidationError) {
       status = HttpStatus.BAD_REQUEST;
