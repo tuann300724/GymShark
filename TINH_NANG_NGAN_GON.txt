@@ -1,0 +1,42 @@
+DANH SÁCH TÍNH NĂNG THÊM (8 MỤC) — GYM MASTER PRO
+=========================================
+Ghi chú: Chỉ thêm khi được yêu cầu cụ thể. Kiểm tra typecheck + lint + format trước khi báo xong.
+
+1. Exercise + ProgramExercise
+   - Model: tên, tiếng Anh, nhóm cơ, dụng cụ, mô tả
+   - Bảng trung gian liên kết Program ↔ Exercise (sets, reps, rest, order)
+   - FE: /admin/exercises (CRUD), /member/program/[slug] hiển thị động
+
+2. ClassBooking (đăng ký buổi)
+   - Model: memberId, scheduleId, status (BOOKED / ATTENDED / NO_SHOW)
+   - FE: /member/schedule có nút đăng ký; admin xem danh sách người tham gia buổi
+
+3. BodyMetric (chỉ số cơ thể)
+   - Model: weight, bodyFat%, vòng ngực/eo/mông/tay/đùi; lịch sử theo ngày
+   - FE: /member/progress/body biểu đồ đường SVG; admin xem chi tiết hội viên
+
+4. Referral (mã giới thiệu)
+   - Model: ReferralCode (code, memberId tạo), ReferralUsage (referrer, referred, reward)
+   - FE: /member/referral (hiển thị mã + số lần dùng); áp mã khi đăng ký mới
+
+6. Email SMTP thật
+   - Tích hợp nodemailer / @nestjs-modules/mailer
+   - Gửi: xác minh 6 số, hóa đơn PDF, thông báo; tạo EmailTemplate
+   - Dùng EventEmitter / Queue để không chặn API
+
+10. Bản đồ chi nhánh
+    - Thêm lat/lng vào Branch; FE /branches hoặc /contact hiển thị pin bản đồ
+    - Hội viên chọn chi nhánh mặc định khi đăng ký
+
+11. TrainingProgress (nhật ký tập)
+    - Hội viên ghi: weight, reps, cảm nhận sau buổi (POST /member/progress)
+    - Admin xem biểu đồ tiến trình theo bài tập (/admin/members/[id]/progress)
+
+12. BlogPost (admin duyệt nội dung)
+    - Model: title, slug, content, authorId, status (DRAFT / PUBLISHED), ảnh đại diện
+    - FE: /admin/blog (CRUD); công khai /blog hiển thị bài đã PUBLISHED
+
+--- COMBO GỢI Ý ---
+Combo A (dữ liệu đa dạng): 1 + 3 + 4 + 11
+Combo B (tương tác + kỹ thuật): 2 + 6 + 10
+Combo C (chất lượng): 12 + (thêm test tự động nếu muốn)
