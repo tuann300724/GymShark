@@ -91,6 +91,7 @@ model Trainer {
   progressNotes  TrainingProgress[]
   conversations  Conversation[]
   mealPlans      MealPlan[]
+  programs       Program[]
 
   @@index([userId])
   @@index([status])
@@ -129,6 +130,7 @@ model Member {
   faceEmbeddings FaceEmbedding[]
   conversations  Conversation[]
   mealPlans      MealPlan[]
+  programs       Program[]
 
   @@index([code])
   @@index([phone])
@@ -361,6 +363,65 @@ model TrainerMember {
 }
 
 // Ghi chú tiến trình buổi tập do HLV đánh giá sau buổi
+model Program {
+  id        String   @id @default(uuid()) @db.NVarChar(100)
+  slug      String   @unique @db.NVarChar(400)
+  name      String   @db.NVarChar(400)
+  group     String?  @db.NVarChar(400)
+  duration  Int?
+  summary   String?  @db.NVarChar(Max)
+  img       String?  @db.NVarChar(400)
+  alt       String?  @db.NVarChar(400)
+  trainerId String?  @db.NVarChar(100)
+  trainer   Trainer? @relation(fields: [trainerId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  memberId  String?  @db.NVarChar(100)
+  member    Member?  @relation(fields: [memberId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  status    String   @default("DRAFT") @db.NVarChar(400)
+  isTemplate Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  programExercises ProgramExercise[]
+  @@index([slug])
+  @@index([trainerId])
+  @@index([memberId])
+  @@index([status])
+}
+
+model Exercise {
+  id          String    @id @default(uuid()) @db.NVarChar(100)
+  name        String    @db.NVarChar(400)
+  enName      String?   @db.NVarChar(400)
+  group       String    @db.NVarChar(400)
+  equipment   String?   @db.NVarChar(400)
+  description String?   @db.NVarChar(Max)
+  imageUrl    String?   @db.NVarChar(400)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  programExercises ProgramExercise[]
+
+  @@index([name])
+  @@index([group])
+}
+
+model ProgramExercise {
+  id         String    @id @default(uuid()) @db.NVarChar(100)
+  programId  String    @db.NVarChar(100)
+  exerciseId String    @db.NVarChar(100)
+  exercise   Exercise  @relation(fields: [exerciseId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  program    Program   @relation(fields: [programId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  sets       Int       @default(3)
+  reps       String    @db.NVarChar(100)
+  rest       String?   @db.NVarChar(400)
+  orderIndex Int       @default(0)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([programId])
+  @@index([exerciseId])
+  @@unique([programId, orderIndex])
+}
+
 model TrainingProgress {
   id             String           @id @default(uuid()) @db.NVarChar(100)
   sessionId      String           @db.NVarChar(100)

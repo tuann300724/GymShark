@@ -190,7 +190,12 @@ export class ChatService {
     else await this.syncMemberConversations(actor.memberId);
 
     const where: Prisma.ConversationWhereInput =
-      actor.kind === 'TRAINER' ? { trainerId: actor.trainerId } : { memberId: actor.memberId };
+      actor.kind === 'TRAINER'
+        ? {
+            trainerId: actor.trainerId,
+            member: { trainerMembers: { some: { trainerId: actor.trainerId, status: 'ACTIVE' } } },
+          }
+        : { memberId: actor.memberId };
 
     if (actor.kind === 'TRAINER' && query.search) {
       where.member = { fullName: { contains: query.search.trim() } };
@@ -513,6 +518,63 @@ export class ChatService {
         conversationId: conversation.id,
         lastMessageAt: created.createdAt,
         lastMessagePreview: params.preview,
+      });
+    }
+
+    await this.notifyRecipient(detailed, created, actor);
+    return created;
+  }
+
+  /**
+   * Gửi tin nhắn bài tập (TEXT, kèm đầy đủ danh sách bài tập) vào cuộc trò chuyện HLV ↔ hội viên.
+   * Dùng bởi ProgramsService khi PT bấm "Gửi cho hội viên".
+   * Chỉ chạy khi giữa HLV và hội viên còn phân công ACTIVE (assertAssignment trong ensureConversation).
+   */
+  async sendProgramMessage(params: {
+    trainerUserId: string;
+    memberId: string;
+    programId: string;
+    content: string;
+  }) {
+    const trainer = await this.prisma.trainer.findUnique({
+      where: { userId: params.trainerUserId },
+      select: { id: true },
+    });
+    if (!trainer) throw new ForbiddenException('Tài khoản chưa gắn hồ sơ huấn luyện viên.');
+
+    const conversation = await this.ensureConversation(trainer.id, params.memberId);
+    const actor: ChatActor = { kind: 'TRAINER', userId: params.trainerUserId, trainerId: trainer.id };
+
+    const created = await this.prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        senderId: params.trainerUserId,
+        type: MessageType.TEXT,
+        content: params.content,
+      },
+      include: messageInclude,
+    });
+
+    const preview = this.previewOf(created);
+    await this.prisma.conversation.update({
+      where: { id: conversation.id },
+      data: { lastMessageAt: created.createdAt, lastMessagePreview: preview },
+    });
+
+    const detailed = await this.prisma.conversation.findUniqueOrThrow({
+      where: { id: conversation.id },
+      include: {
+        trainer: { select: { id: true, userId: true, user: { select: { fullName: true, avatarUrl: true } } } },
+        member: { select: { id: true, userId: true, fullName: true, avatarUrl: true } },
+      },
+    });
+
+    for (const uid of [detailed.trainer.userId, detailed.member.userId]) {
+      this.gateway.emitToUser(uid, 'message:new', { conversationId: conversation.id, message: created });
+      this.gateway.emitToUser(uid, 'conversation:updated', {
+        conversationId: conversation.id,
+        lastMessageAt: created.createdAt,
+        lastMessagePreview: preview,
       });
     }
 
