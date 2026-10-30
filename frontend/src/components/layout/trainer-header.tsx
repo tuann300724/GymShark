@@ -23,6 +23,7 @@ import {
   ChevronDown,
   MessageSquare,
   Utensils,
+  ClipboardList,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -32,6 +33,7 @@ const NAV_ITEMS = [
   { name: 'Hội viên', href: '/trainer/members', icon: Users },
   { name: 'Tin nhắn', href: '/trainer/messages', icon: MessageSquare },
   { name: 'Thực đơn', href: '/trainer/meal-plans', icon: Utensils },
+  { name: 'Bài tập', href: '/trainer/programs/builder', icon: ClipboardList },
 ];
 
 const NAV_LINK_CLASSES =

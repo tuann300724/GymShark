@@ -36,6 +36,7 @@ export const navigationSections = [
       { name: 'Hội viên', href: '/admin/members', icon: Users },
       { name: 'Thẻ hội viên', href: '/admin/memberships', icon: CreditCard },
       { name: 'Gói tập Gym', href: '/admin/membership-packages', icon: Package },
+      { name: 'Bài tập', href: '/admin/exercises', icon: Dumbbell },
       { name: 'Huấn luyện viên (PT)', href: '/admin/trainers', icon: UserCheck },
       { name: 'Lịch tập & Lớp học', href: '/admin/schedules', icon: CalendarDays },
     ],
