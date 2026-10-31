@@ -37,6 +37,7 @@ const registerSchema = z
     dateOfBirth: z.string().optional(),
     gender: z.enum(['MALE', 'FEMALE', 'OTHER']).default('MALE'),
     address: z.string().optional(),
+    referralCode: z.string().optional(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: 'Mật khẩu xác nhận không khớp',
@@ -133,6 +134,7 @@ export default function RegisterPage() {
         gender: values.gender,
         dateOfBirth: values.dateOfBirth || undefined,
         address: values.address || undefined,
+        referralCode: values.referralCode || undefined,
       });
 
       setTargetEmail(res.email);
@@ -357,6 +359,11 @@ export default function RegisterPage() {
                     placeholder="Quận 9, TP. Hồ Chí Minh"
                     error={errors.address?.message}
                     {...register('address')}
+                  />
+                  <Input
+                    label="Mã giới thiệu (không bắt buộc)"
+                    placeholder="VD: GYM-XXXX"
+                    {...register('referralCode')}
                   />
 
                   {/* Nhắc hội viên biết bước 2 ngay từ đầu để không thấy bất ngờ */}

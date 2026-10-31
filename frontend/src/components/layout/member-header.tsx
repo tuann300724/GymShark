@@ -37,6 +37,8 @@ const NAV_ITEMS = [
   { name: 'Gói tập của tôi', href: '/member/membership', icon: CreditCard },
   { name: 'Lịch sử check-in', href: '/member/checkins', icon: LogIn },
   { name: 'Thanh toán', href: '/member/payments', icon: Receipt },
+  { name: 'Tiến trình', href: '/member/progress', icon: Dumbbell },
+  { name: 'Giới thiệu', href: '/member/referral', icon: User },
 ];
 
 const NAV_LINK_CLASSES =
