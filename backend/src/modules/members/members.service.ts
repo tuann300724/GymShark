@@ -7,6 +7,7 @@ import {
 import * as bcrypt from 'bcryptjs';
 import { Prisma } from '@prisma/client';
 import { MemberStatus, PaymentMethod, UserRole, UserStatus } from '../../common/constants/db-enums';
+import { uniqueReferralCode } from '../../common/utils/referral-code';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit-logs/audit-logs.service';
 import { MemberService } from '../member/member.service';
@@ -387,6 +388,7 @@ export class MembersService {
           dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : null,
           address: dto.address?.trim() || null,
           emergencyContact: dto.emergencyContact?.trim() || null,
+          referralCode: await uniqueReferralCode(tx),
         },
         select: {
           id: true,

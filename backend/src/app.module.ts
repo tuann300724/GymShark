@@ -28,6 +28,8 @@ import { MealPlansModule } from './modules/meal-plans/meal-plans.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { ExercisesModule } from './modules/exercises/exercises.module';
 import { ProgramsModule } from './modules/programs/programs.module';
+import { ClassBookingsModule } from './modules/class-bookings/class-bookings.module';
+import { BodyMetricsModule } from './modules/body-metrics/body-metrics.module';
 import { CassoModule } from './modules/casso/casso.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
@@ -72,6 +74,8 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     CassoModule,
     ExercisesModule,
     ProgramsModule,
+    ClassBookingsModule,
+    BodyMetricsModule,
   ],
   providers: [
     // Rate limiting: áp dụng cho mọi request

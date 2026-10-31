@@ -15,6 +15,7 @@ import { UpdateMemberDto } from './dto/update-member.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { RegisterMembershipDto } from './dto/register-membership.dto';
 import { MemberQrService } from '../../common/services/member-qr.service';
+import { uniqueReferralCode } from '../../common/utils/referral-code';
 
 @Injectable()
 export class MemberService {
@@ -64,6 +65,50 @@ export class MemberService {
   // ---------------------------------------------------------------------------
   // Profile
   // ---------------------------------------------------------------------------
+
+  /** Mã giới thiệu của tôi + thống kê người đã giới thiệu */
+  async getMyReferral(userId: string) {
+    const member = await this.resolveMember(userId);
+    if (!member) {
+      throw new ForbiddenException('Tài khoản chưa gắn hồ sơ hội viên.');
+    }
+
+    // Hội viên cũ chưa có mã → sinh ngay khi mở trang
+    let referralCode = member.referralCode;
+    if (!referralCode) {
+      referralCode = await uniqueReferralCode(this.prisma);
+      await this.prisma.member.update({
+        where: { id: member.id },
+        data: { referralCode },
+      });
+    }
+
+    const referrals = await this.prisma.member.findMany({
+      where: { referredById: member.id },
+      select: {
+        id: true,
+        fullName: true,
+        joinedAt: true,
+        _count: { select: { memberships: { where: { status: 'ACTIVE' } } } },
+      },
+      orderBy: { joinedAt: 'desc' },
+      take: 50,
+    });
+
+    return {
+      referralCode,
+      bonusDays: 7,
+      rewarded: !!member.referralRewardedAt,
+      totalReferred: referrals.length,
+      activeReferred: referrals.filter((r) => r._count.memberships > 0).length,
+      referrals: referrals.map((r) => ({
+        id: r.id,
+        fullName: r.fullName,
+        joinedAt: r.joinedAt,
+        hasActivePack: r._count.memberships > 0,
+      })),
+    };
+  }
 
   async getMe(userId: string) {
     const user = await this.prisma.user.findUnique({

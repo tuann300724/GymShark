@@ -5,9 +5,11 @@ import {
   IsDateString,
   IsEnum,
   IsISO8601,
+  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
   Min,
   MinLength,
@@ -59,6 +61,18 @@ export class CreateSessionDto {
   @IsString()
   @MaxLength(1000)
   notes?: string;
+
+  @ApiPropertyOptional({
+    description: 'Sức chứa ca nhóm (chỉ loại GROUP_CLASS, ví dụ 10) — hội viên tự đăng ký qua app',
+    minimum: 1,
+    maximum: 500,
+    example: 10,
+  })
+  @IsOptional()
+  @IsInt({ message: 'Sức chứa phải là số nguyên' })
+  @Min(1, { message: 'Sức chứa tối thiểu 1' })
+  @Max(500, { message: 'Sức chứa tối đa 500' })
+  capacity?: number;
 }
 
 export class UpdateSessionDto extends PartialType(CreateSessionDto) {}

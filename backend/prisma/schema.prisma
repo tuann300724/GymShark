@@ -116,6 +116,11 @@ model Member {
   notes            String?   @db.NVarChar(Max)
   emergencyContact String?   @db.NVarChar(Max)
   joinedAt         DateTime  @default(now())
+  referralCode       String?   @unique @db.NVarChar(400) // Mã giới thiệu cá nhân
+  referredById       String?   @db.NVarChar(100) // Hội viên đã giới thiệu người này
+  referredBy         Member?   @relation("Referral", fields: [referredById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  referrals          Member[]  @relation("Referral")
+  referralRewardedAt DateTime? // Chưa thưởng / đã thưởng khi người được giới thiệu kích hoạt gói đầu tiên
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
@@ -131,6 +136,8 @@ model Member {
   conversations  Conversation[]
   mealPlans      MealPlan[]
   programs       Program[]
+  classBookings  ClassBooking[]
+  bodyMetrics    BodyMetric[]
 
   @@index([code])
   @@index([phone])
@@ -328,10 +335,12 @@ model TrainingSchedule {
   notes            String?   @db.NVarChar(Max)
   cancellationNote String?   @db.NVarChar(Max)
   completedAt      DateTime?
+  capacity         Int?      // Sức chứa ca nhóm (null = buổi 1:1 PT, hội viên không cần đăng ký)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
   progressNotes TrainingProgress[]
+  bookings      ClassBooking[]
 
   @@index([trainerId])
   @@index([memberId])
@@ -340,6 +349,38 @@ model TrainingSchedule {
   @@index([endTime])
   @@index([status])
   @@index([type])
+}
+
+// Đăng ký ca nhóm: hội viên tự book chỗ trong buổi GROUP_CLASS có sức chứa
+model ClassBooking {
+  id         String           @id @default(uuid()) @db.NVarChar(100)
+  scheduleId String           @db.NVarChar(100)
+  schedule   TrainingSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  memberId   String           @db.NVarChar(100)
+  member     Member           @relation(fields: [memberId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  createdAt  DateTime         @default(now())
+
+  @@unique([scheduleId, memberId])
+  @@index([memberId])
+}
+
+// Số đo cơ thể hội viên tự theo dõi (cân nặng, % mỡ, vòng eo...) — biểu đồ tiến trình
+model BodyMetric {
+  id             String   @id @default(uuid()) @db.NVarChar(100)
+  memberId       String   @db.NVarChar(100)
+  member         Member   @relation(fields: [memberId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  recordedAt     DateTime @default(now())
+  weightKg       Float?
+  bodyFatPercent Float?
+  waistCm        Float?
+  chestCm        Float?
+  armCm          Float?
+  thighCm        Float?
+  note           String?  @db.NVarChar(Max)
+  createdAt      DateTime @default(now())
+
+  @@index([memberId])
+  @@index([recordedAt])
 }
 
 // Phân công HLV ↔ Hội viên (giữ lịch sử: chỉ 1 phân công ACTIVE cho mỗi member)

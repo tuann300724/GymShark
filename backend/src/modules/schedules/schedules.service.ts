@@ -19,7 +19,7 @@ import {
 } from './dto/session.dto';
 
 /** Các vai trò được quản lý lịch (create/edit/cancel/complete) */
-const MANAGE_ROLES = ['ADMIN', 'MANAGER', 'STAFF'];
+const MANAGE_ROLES = ['ADMIN', 'MANAGER', 'STAFF', 'TRAINER'];
 /** Chỉ ADMIN/MANAGER mới được tạo lịch trong quá khứ */
 const PAST_ALLOWED_ROLES = ['ADMIN', 'MANAGER'];
 
@@ -267,6 +267,7 @@ export class SchedulesService {
         select: { id: true, code: true, fullName: true, phone: true, avatarUrl: true },
       },
       room: { select: { id: true, name: true, capacity: true } },
+      _count: { select: { bookings: true } },
     } satisfies Prisma.TrainingScheduleInclude;
   }
 
@@ -294,7 +295,14 @@ export class SchedulesService {
     }
     if (role === 'MEMBER' && userId) {
       const member = await this.resolveMemberByUserId(userId);
-      if (session.memberId !== member.id) {
+      // Hội viên được xem cả ca nhóm mình đã đăng ký (memberId của ca nhóm = null)
+      const isBooked =
+        session.memberId === member.id ||
+        !!(await this.prisma.classBooking.findUnique({
+          where: { scheduleId_memberId: { scheduleId: id, memberId: member.id } },
+          select: { id: true },
+        }));
+      if (!isBooked) {
         throw new ForbiddenException('Bạn chỉ được xem lịch tập của chính mình.');
       }
     }
@@ -330,6 +338,9 @@ export class SchedulesService {
     if (member) await this.checkMemberConflict(member.id, start, end);
     await this.checkTrainerConflict(dto.trainerId, start, end);
 
+    // Sức chứa chỉ có ý nghĩa với ca nhóm (GROUP_CLASS)
+    const capacity = type === SessionType.GROUP_CLASS ? (dto.capacity ?? null) : null;
+
     const roomId = dto.roomId ?? null;
 
     if (roomId) {
@@ -344,6 +355,7 @@ export class SchedulesService {
         memberId: member?.id ?? null,
         roomId,
         type,
+        capacity,
         startTime: start,
         endTime: end,
         status: 'SCHEDULED',
@@ -427,6 +439,25 @@ export class SchedulesService {
       await this.checkRoomConflict(roomId, start, end, id);
     }
 
+    // Sức chứa ca nhóm: không đổi kiểu khi còn đăng ký, không thu nhỏ dưới số đã đăng ký
+    const capacity =
+      type === SessionType.GROUP_CLASS
+        ? dto.capacity !== undefined
+          ? dto.capacity
+          : existing.capacity
+        : null;
+    const bookedNow = await this.prisma.classBooking.count({ where: { scheduleId: id } });
+    if (bookedNow > 0 && type !== SessionType.GROUP_CLASS) {
+      throw new BadRequestException(
+        `Ca tập còn ${bookedNow} hội viên đăng ký, không thể đổi sang buổi riêng.`,
+      );
+    }
+    if (capacity !== null && capacity < bookedNow) {
+      throw new BadRequestException(
+        `Ca tập đã có ${bookedNow} hội viên đăng ký, sức chứa không được nhỏ hơn.`,
+      );
+    }
+
     const session = await this.prisma.trainingSchedule.update({
       where: { id },
       data: {
@@ -434,6 +465,7 @@ export class SchedulesService {
         memberId: member?.id ?? null,
         roomId,
         type,
+        capacity,
         title: dto.title ?? existing.title,
         description: dto.description !== undefined ? dto.description : existing.description,
         notes: dto.notes !== undefined ? dto.notes : existing.notes,
@@ -552,17 +584,21 @@ export class SchedulesService {
   async getMySessions(userId: string, query: SessionQueryDto = {}) {
     const member = await this.resolveMemberByUserId(userId);
 
-    const where: Prisma.TrainingScheduleWhereInput = { memberId: member.id };
+    // Lịch của tôi: buổi được gán thẳng + ca nhóm tôi đã đăng ký
+    const and: Prisma.TrainingScheduleWhereInput[] = [
+      { OR: [{ memberId: member.id }, { bookings: { some: { memberId: member.id } } }] },
+    ];
+    const where: Prisma.TrainingScheduleWhereInput = { AND: and };
     if (query.status) where.status = query.status;
 
     if (query.from && query.to) {
-      where.OR = [
-        { startTime: { lt: new Date(query.to) }, endTime: { gt: new Date(query.from) } },
-      ];
+      and.push({
+        OR: [{ startTime: { lt: new Date(query.to) }, endTime: { gt: new Date(query.from) } }],
+      });
     } else if (query.from) {
-      where.OR = [{ endTime: { gte: new Date(query.from) } }];
+      and.push({ endTime: { gte: new Date(query.from) } });
     } else if (query.to) {
-      where.OR = [{ startTime: { lte: new Date(query.to) } }];
+      and.push({ startTime: { lte: new Date(query.to) } });
     }
 
     const data = await this.prisma.trainingSchedule.findMany({
@@ -583,7 +619,12 @@ export class SchedulesService {
     const now = new Date();
 
     const data = await this.prisma.trainingSchedule.findMany({
-      where: { memberId: member.id, startTime: { gte: now }, status: 'SCHEDULED' },
+      where: {
+        AND: [
+          { OR: [{ memberId: member.id }, { bookings: { some: { memberId: member.id } } }] },
+          { startTime: { gte: now }, status: 'SCHEDULED' },
+        ],
+      },
       include: this.sessionInclude(),
       orderBy: { startTime: 'asc' },
       take: 50,

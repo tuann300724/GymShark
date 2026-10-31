@@ -26,6 +26,12 @@ export class MemberController {
     return this.memberService.getMe(userId);
   }
 
+  @Get('me/referral')
+  @ApiOperation({ summary: 'Mã giới thiệu cá nhân + thống kê những người đã giới thiệu' })
+  getMyReferral(@CurrentUser('id') userId: string) {
+    return this.memberService.getMyReferral(userId);
+  }
+
   @Get('qr')
   @ApiOperation({
     summary: 'Mã QR cá nhân của hội viên (thẻ ra vào — lễ tân quét để check-in)',

@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsEnum, IsISO8601, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsEnum, IsISO8601, IsNotEmpty, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { Gender } from '../../../common/constants/db-enums';
 
 /**
@@ -49,4 +49,13 @@ export class MemberRegisterDto {
   @IsOptional()
   @IsString()
   emergencyContact?: string;
+
+  @ApiPropertyOptional({
+    example: 'GYM-A1B2C3D4',
+    description: 'Mã giới thiệu của hội viên đã giới thiệu bạn (không bắt buộc)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40, { message: 'Mã giới thiệu không hợp lệ' })
+  referralCode?: string;
 }

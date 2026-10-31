@@ -19,6 +19,7 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { MemberRegisterDto } from './dto/member-register.dto';
 import { VerifyMemberRegisterDto } from './dto/verify-member-register.dto';
+import { uniqueReferralCode } from '../../common/utils/referral-code';
 import type { GoogleProfile } from './google.strategy';
 import { UserRole } from '../../common/constants/db-enums';
 
@@ -127,6 +128,18 @@ export class AuthService {
     const email = this.normalizeEmail(dto.email);
     await this.assertEmailAvailable(email);
     await this.assertPhoneAvailable(dto.phone?.trim() ?? '');
+
+    // Kiểm tra sớm mã giới thiệu (nếu có) để báo lỗi ngay ở bước 1
+    const refCodeStep1 = dto.referralCode?.trim().toUpperCase();
+    if (refCodeStep1) {
+      const referrerStep1 = await this.prisma.member.findUnique({
+        where: { referralCode: refCodeStep1 },
+        select: { id: true },
+      });
+      if (!referrerStep1) {
+        throw new BadRequestException('Mã giới thiệu không tồn tại. Bỏ trống nếu bạn không có mã.');
+      }
+    }
 
     // Dọn yêu cầu cũ đã hết hạn từ lâu (nếu không bảng sẽ phình vô hạn)
     await this.prisma.emailVerification.deleteMany({
@@ -320,6 +333,19 @@ export class AuthService {
       );
     }
 
+    // Mã giới thiệu: kiểm tra lại ở bước xác nhận (trước khi tạo thật)
+    const refCode = dto.referralCode?.trim().toUpperCase() || null;
+    let referrer: { id: string; fullName: string } | null = null;
+    if (refCode) {
+      referrer = await this.prisma.member.findUnique({
+        where: { referralCode: refCode },
+        select: { id: true, fullName: true },
+      });
+      if (!referrer) {
+        throw new BadRequestException('Mã giới thiệu không tồn tại. Bỏ trống nếu bạn không có mã.');
+      }
+    }
+
     const result = await this.prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
@@ -351,6 +377,8 @@ export class AuthService {
           dateOfBirth: pending.dateOfBirth,
           address: pending.address,
           emergencyContact: pending.emergencyContact,
+          referralCode: await uniqueReferralCode(tx),
+          referredById: referrer?.id ?? null,
         },
         select: {
           id: true,
@@ -361,6 +389,19 @@ export class AuthService {
           status: true,
         },
       });
+
+      // Báo cho người giới thiệu biết có người dùng mã của mình
+      if (referrer) {
+        await tx.notification.create({
+          data: {
+            memberId: referrer.id,
+            title: 'Có người dùng mã giới thiệu của bạn!',
+            content: `${pending.fullName} đã đăng ký hội viên bằng mã ${refCode}. Khi họ kích hoạt gói tập đầu tiên, bạn được cộng thêm 7 ngày tập.`,
+            type: 'SYSTEM',
+            link: '/member/referral',
+          },
+        });
+      }
 
       await tx.notification.create({
         data: {
@@ -682,6 +723,7 @@ export class AuthService {
           fullName: profile.fullName,
           email,
           phone: `G-${profile.providerId.slice(0, 15)}`,
+          referralCode: await uniqueReferralCode(tx),
         },
         select: { id: true, code: true },
       });

@@ -313,9 +313,50 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
         },
       });
 
+      // Thưởng giới thiệu: khi người được giới thiệu kích hoạt gói đầu tiên,
+      // người giới thiệu có gói hiệu lực được cộng thêm 7 ngày tập (1 lần duy nhất)
+      if (activatedMembership) {
+        const referred = await tx.member.findUnique({
+          where: { id: activatedMembership.memberId },
+          select: { id: true, fullName: true, referredById: true, referralRewardedAt: true },
+        });
+        if (referred?.referredById && !referred.referralRewardedAt) {
+          const BONUS_DAYS = 7;
+          const referrerPack = await tx.membership.findFirst({
+            where: {
+              memberId: referred.referredById,
+              status: 'ACTIVE',
+              endDate: { gte: new Date() },
+            },
+            orderBy: { endDate: 'desc' },
+          });
+          if (referrerPack && referrerPack.endDate) {
+            const newEndDate = new Date(
+              referrerPack.endDate.getTime() + BONUS_DAYS * 86400_000,
+            );
+            await tx.membership.update({
+              where: { id: referrerPack.id },
+              data: { endDate: newEndDate },
+            });
+            await tx.member.update({
+              where: { id: referred.id },
+              data: { referralRewardedAt: new Date() },
+            });
+            await tx.notification.create({
+              data: {
+                memberId: referred.referredById,
+                title: 'Giới thiệu thành công — cộng 7 ngày tập!',
+                content: `${referred.fullName} đã kích hoạt gói tập qua mã của bạn. Gói tập hiện tại được cộng thêm ${BONUS_DAYS} ngày, hiệu lực đến ${newEndDate.toLocaleDateString('vi-VN')}.`,
+                type: 'SYSTEM',
+                link: '/member/referral',
+              },
+            });
+          }
+        }
+      }
+
       return { payment: updated, membership: activatedMembership };
     });
-
     await this.auditService.log({
       userId: actor?.id ?? null,
       action: 'PAYMENT_CONFIRM',

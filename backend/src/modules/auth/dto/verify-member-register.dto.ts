@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, Matches } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsEmail, IsNotEmpty, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
 
 /**
  * Bước 2 — xác minh mã 6 số đã gửi qua email để hoàn tất đăng ký hội viên.
@@ -15,4 +15,13 @@ export class VerifyMemberRegisterDto {
   @IsNotEmpty({ message: 'Mã xác minh không được để trống' })
   @Matches(/^\d{6}$/, { message: 'Mã xác minh phải gồm đúng 6 chữ số' })
   code: string;
+
+  @ApiPropertyOptional({
+    example: 'GYM-A1B2C3D4',
+    description: 'Mã giới thiệu (điền ở bước 1, xác nhận lại ở bước này)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40, { message: 'Mã giới thiệu không hợp lệ' })
+  referralCode?: string;
 }
