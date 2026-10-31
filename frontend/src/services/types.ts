@@ -1,4 +1,4 @@
-// Shared API types (khớp với response backend)
+/* Shared API types (khớp với response backend) */
 
 interface UserInfo {
   id: string;
@@ -24,6 +24,8 @@ export interface MemberRegisterPayload {
   gender?: 'MALE' | 'FEMALE' | 'OTHER';
   address?: string;
   emergencyContact?: string;
+  /** Mã giới thiệu của hội viên đã giới thiệu (không bắt buộc) */
+  referralCode?: string;
 }
 
 /** Bước 2 đăng ký hội viên — nhập mã xác minh để tạo tài khoản */
@@ -126,6 +128,31 @@ interface MemberProfile {
   emergencyContact?: string | null;
   status: string;
   joinedAt: string;
+}
+
+export interface BodyMetric {
+  id?: string;
+  weightKg?: number;
+  bodyFatPercent?: number;
+  waistCm?: number;
+  chestCm?: number;
+  armCm?: number;
+  thighCm?: number;
+  note?: string;
+  recordedAt?: string;
+}
+
+export interface ClassBookingRecord {
+  id: string;
+  title: string;
+  type: 'PERSONAL_TRAINING' | 'GROUP_CLASS' | 'FREE_TRAINING';
+  startTime: string;
+  endTime: string;
+  status: 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
+  description?: string | null;
+  notes?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface MemberMe {
@@ -236,7 +263,7 @@ export interface CurrentlyInsideRecord {
   method?: string;
 }
 
-interface DailyAttendanceItem {
+export interface DailyAttendanceItem {
   date: string;
   checkIns: number;
   checkOuts: number;
@@ -263,7 +290,7 @@ export interface HourlyAttendanceReport {
   peakCount: number;
 }
 
-interface MemberAttendanceRow {
+export interface MemberAttendanceRow {
   member: {
     id: string;
     code: string;
@@ -353,7 +380,6 @@ export interface Invoice {
   } | null;
 }
 
-/** Response GET /payments (admin) */
 export interface AdminPaymentList {
   data: Payment[];
   total: number;
@@ -382,7 +408,6 @@ export interface BankInfo {
   gateways: { method: string; manualConfirmation: boolean; integrated: boolean }[];
 }
 
-/** Response GET /reports/revenue */
 export interface RevenueReport {
   stats: {
     revenueToday: string;
@@ -415,9 +440,17 @@ export interface RevenueReport {
   data: { amount: string; createdAt: string }[];
 }
 
-// ======================================================
-// STEP 8 — Khuyến mãi (Promotion)
-// ======================================================
+export interface PublicPromotion {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  discountType: string;
+  discountValue: number | string;
+  maxDiscount: number | string | null;
+  minOrderAmount: number | string | null;
+  endAt: string | null;
+}
 
 export interface Promotion {
   id: string;
@@ -498,22 +531,6 @@ export interface PromotionUsageResponse {
   data: PromotionUsageRecord[];
 }
 
-export interface PublicPromotion {
-  id: string;
-  code: string;
-  name: string;
-  description: string | null;
-  discountType: string;
-  discountValue: number | string;
-  maxDiscount: number | string | null;
-  minOrderAmount: number | string | null;
-  endAt: string | null;
-}
-
-// ======================================================
-// STEP 8 — Thông báo (Notification)
-// ======================================================
-
 export interface NotificationItem {
   id: string;
   title: string;
@@ -539,10 +556,6 @@ export interface NotificationListResponse {
 export interface UnreadCountResponse {
   count: number;
 }
-
-// ======================================================
-// STEP 8 — Báo cáo (Reporting)
-// ======================================================
 
 export interface ReportSummary {
   totalMembers: number;
@@ -684,6 +697,14 @@ export interface MemberStats {
   } | null;
 }
 
+interface SessionMemberInfo {
+  id: string;
+  code: string;
+  fullName: string;
+  phone?: string | null;
+  avatarUrl?: string | null;
+}
+
 // ---------------------------------------------------------------------------
 // Trainer / Training Sessions (Step 5)
 // ---------------------------------------------------------------------------
@@ -702,10 +723,7 @@ export interface TrainerPublic {
   user: TrainerUser;
 }
 
-type SessionType = 'PERSONAL_TRAINING' | 'GROUP_CLASS' | 'FREE_TRAINING';
-type ScheduleStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
-
-interface TrainerUser {
+export interface TrainerUser {
   id: string;
   email?: string;
   fullName: string;
@@ -729,7 +747,7 @@ export interface TrainerListResponse {
   totalPages: number;
 }
 
-interface TrainerMemberSummary {
+export interface TrainerMemberSummary {
   id: string;
   code: string;
   fullName: string;
@@ -767,13 +785,8 @@ export interface TrainerDetail extends TrainerPublic {
   };
 }
 
-interface SessionMemberInfo {
-  id: string;
-  code: string;
-  fullName: string;
-  phone?: string | null;
-  avatarUrl?: string | null;
-}
+type SessionType = 'PERSONAL_TRAINING' | 'GROUP_CLASS' | 'FREE_TRAINING';
+type ScheduleStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
 
 interface SessionTrainerInfo {
   id: string;
@@ -815,6 +828,24 @@ export interface SessionDetail extends TrainingSession {
   progressNotes?: SessionProgress[];
 }
 
+export interface ClassSessionItem {
+  id: string;
+  title: string;
+  type: SessionType;
+  startTime: string;
+  endTime: string;
+  status: ScheduleStatus;
+  description?: string | null;
+  notes?: string | null;
+  capacity: number;
+  bookedCount: number;
+  slotsLeft: number;
+  booked: boolean;
+  myBookingId?: string | null;
+  trainer?: SessionTrainerInfo | null;
+  room?: { id: string; name: string; capacity?: number | null } | null;
+}
+
 export interface SessionsListResponse {
   data: TrainingSession[];
   total: number;
@@ -835,10 +866,6 @@ export interface TrainerSessionsResponse {
     completed: number;
   };
 }
-
-/* -------------------------------------------------------------------------- */
-/* Nhật ký hoạt động (Audit log — ADMIN/MANAGER)                               */
-/* -------------------------------------------------------------------------- */
 
 interface AuditLogUser {
   id: string;

@@ -34,6 +34,11 @@ export const memberApi = {
     return res.data;
   },
 
+  getMyReferral: async (): Promise<any> => {
+    const res = await apiClient.get('/member/me/referral');
+    return res.data;
+  },
+
   changePassword: async (currentPassword: string, newPassword: string) => {
     const res = await apiClient.put('/member/change-password', { currentPassword, newPassword });
     return res.data;

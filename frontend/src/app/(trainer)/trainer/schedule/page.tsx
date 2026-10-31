@@ -17,10 +17,15 @@ import { formatDateTime } from '@/lib/utils';
 import type { TrainingSession } from '@/services/types';
 import { CalendarDays } from 'lucide-react';
 
+import { SessionFormDialog } from '@/components/training/session-form-dialog';
+import { PlusCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+
 export default function TrainerSchedulePage() {
   const [view, setView] = useState<CalendarView>('month');
   const [date, setDate] = useState(() => new Date());
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
 
   const range = useMemo(() => {
     const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -62,13 +67,18 @@ export default function TrainerSchedulePage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="font-display text-2xl font-bold uppercase tracking-tight text-chalk sm:text-3xl">
-          Lịch dạy
-        </h1>
-        <p className="mt-1 text-sm text-muted">
-          Xem và quản lý các buổi tập của bạn theo ngày / tuần / tháng.
-        </p>
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <h1 className="font-display text-2xl font-bold uppercase tracking-tight text-chalk sm:text-3xl">
+            Lịch dạy
+          </h1>
+          <p className="mt-1 text-sm text-muted">
+            Xem và quản lý các buổi tập của bạn theo ngày / tuần / tháng.
+          </p>
+        </div>
+        <Button variant="primary" size="sm" onClick={() => setFormOpen(true)}>
+          <PlusCircle className="size-4" /> Tạo buổi tập
+        </Button>
       </div>
 
       {/* Mini stats */}
@@ -129,6 +139,13 @@ export default function TrainerSchedulePage() {
               </button>
             ))}
       </div>
+
+      <SessionFormDialog
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        onSaved={() => {}}
+        defaultDate={date.toISOString().split('T')[0]}
+      />
 
       <SessionDetailDialog
         sessionId={detailId}

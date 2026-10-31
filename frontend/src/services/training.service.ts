@@ -39,6 +39,7 @@ export const trainingApi = {
     type: string;
     title: string;
     description?: string;
+    capacity?: number;
     startTime: string;
     endTime: string;
     notes?: string;
@@ -55,7 +56,8 @@ export const trainingApi = {
       roomId: string | null;
       type: string;
       title: string;
-      description: string;
+      description?: string;
+      capacity?: number;
       startTime: string;
       endTime: string;
       notes: string;

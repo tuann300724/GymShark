@@ -1,13 +1,16 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { trainingApi } from '@/services/training.service';
 import { trainerApi } from '@/services/trainer.service';
+import { classBookingApi } from '@/services/class-booking.service';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
+import { useToast } from '@/components/ui/toast';
 import { SessionDetailDialog } from '@/components/training/session-detail-dialog';
 import { SessionStatusBadge, SessionTypeBadge } from '@/components/training/session-badges';
 import { formatDateTime, formatTime } from '@/lib/utils';
@@ -23,6 +26,7 @@ import {
   UserRound,
   History,
   PlusCircle,
+  Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -136,6 +140,9 @@ export default function MemberSchedulePage() {
         />
         <MiniStat icon={History} label="Tổng số buổi" value={sessions.length} accent="purple" />
       </div>
+
+      {/* Ca nhóm mở đăng ký — tự book/hủy chỗ */}
+      <ClassBookingSection />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
         {/* Calendar */}
@@ -301,6 +308,114 @@ export default function MemberSchedulePage() {
 
       <SessionDetailDialog sessionId={detailId} onClose={() => setDetailId(null)} />
     </div>
+  );
+}
+
+/** Ca nhóm mở đăng ký — hội viên tự book/hủy chỗ */
+function ClassBookingSection() {
+  const toast = useToast();
+  const queryClient = useQueryClient();
+  const { data, isLoading } = useQuery({
+    queryKey: ['class-bookings-open'],
+    queryFn: classBookingApi.listOpen,
+    retry: 0,
+  });
+
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['class-bookings-open'] });
+    queryClient.invalidateQueries({ queryKey: ['member-sessions'] });
+  };
+
+  const bookMutation = useMutation({
+    mutationFn: (scheduleId: string) => classBookingApi.create(scheduleId),
+    onSuccess: () => {
+      toast.success('Đã đăng ký ca tập');
+      refresh();
+    },
+    onError: (e: any) => toast.error('Không thể đăng ký', e?.response?.data?.message || e?.message),
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: (bookingId: string) => classBookingApi.cancel(bookingId),
+    onSuccess: () => {
+      toast.success('Đã hủy đăng ký');
+      refresh();
+    },
+    onError: (e: any) => toast.error('Không thể hủy', e?.response?.data?.message || e?.message),
+  });
+
+  const sessions = data?.data || [];
+
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-bold uppercase tracking-tight text-chalk">
+          <Users className="size-5 text-neon" />
+          Ca nhóm mở đăng ký
+        </h2>
+        {isLoading ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Skeleton className="h-24 rounded-xl" />
+            <Skeleton className="h-24 rounded-xl" />
+          </div>
+        ) : sessions.length === 0 ? (
+          <p className="text-sm text-muted">Hiện chưa có ca nhóm nào mở đăng ký.</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {sessions.map((s) => (
+              <div
+                key={s.id}
+                className="flex flex-col gap-3 rounded-xl border border-line bg-surface/60 p-3"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-bold text-chalk">{s.title}</span>
+                  <SessionTypeBadge type={s.type} />
+                  {s.booked ? (
+                    <Badge variant="outline" className="border-neon/40 text-neon">
+                      Đã đăng ký
+                    </Badge>
+                  ) : s.slotsLeft <= 0 ? (
+                    <Badge variant="outline" className="border-danger/40 text-danger">
+                      Đã đủ chỗ
+                    </Badge>
+                  ) : null}
+                </div>
+                <p className="text-xs text-muted">
+                  {formatDateTime(s.startTime)} – {formatTime(s.endTime)}
+                  {s.trainer?.user ? ` · ${s.trainer.user.fullName}` : ''}
+                  {s.room ? ` · ${s.room.name}` : ''}
+                </p>
+                <div className="mt-auto flex items-center justify-between gap-2">
+                  <span className="text-xs text-muted">
+                    {s.bookedCount}/{s.capacity} chỗ
+                  </span>
+                  {s.booked && s.myBookingId ? (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      isLoading={cancelMutation.isPending}
+                      onClick={() => cancelMutation.mutate(s.myBookingId!)}
+                    >
+                      Hủy đăng ký
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      disabled={s.slotsLeft <= 0}
+                      isLoading={bookMutation.isPending}
+                      onClick={() => bookMutation.mutate(s.id)}
+                    >
+                      Đăng ký
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

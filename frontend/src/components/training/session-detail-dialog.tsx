@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
 import { trainingApi } from '@/services/training.service';
+import { classBookingApi } from '@/services/class-booking.service';
 import { formatDateTime } from '@/lib/utils';
 import { SessionStatusBadge, SessionTypeBadge } from './session-badges';
 import {
@@ -62,6 +63,13 @@ export function SessionDetailDialog({
     queryKey: ['session-progress', sessionId],
     queryFn: () => trainingApi.getProgress(sessionId!),
     enabled: !!sessionId,
+    retry: 0,
+  });
+
+  const { data: bookings } = useQuery({
+    queryKey: ['class-bookings-session', sessionId],
+    queryFn: () => classBookingApi.listBySession(sessionId!),
+    enabled: !!sessionId && session?.type === 'GROUP_CLASS',
     retry: 0,
   });
 
@@ -142,6 +150,27 @@ export function SessionDetailDialog({
             <InfoRow icon={Clock} label="Thời lượng" value={`${formatDateTime(session.endTime)}`} />
             <InfoRow icon={MapPin} label="Phòng" value={session.room?.name || '--'} />
           </div>
+
+          {session.type === 'GROUP_CLASS' && bookings?.data && (
+            <div>
+              <h4 className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted">
+                <Users className="size-3.5 text-neon" /> Đăng ký ca nhóm ({bookings.data.length})
+              </h4>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {bookings.data.map((b) => (
+                  <div
+                    key={b.id}
+                    className="rounded-xl border border-line bg-surface/60 p-3 text-sm"
+                  >
+                    <div className="font-semibold text-chalk">{b.member?.fullName || '--'}</div>
+                    <div className="text-xs text-muted">
+                      {b.member?.code} · {b.member?.phone || '--'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="flex flex-wrap items-center gap-2">
             <SessionTypeBadge type={session.type} />

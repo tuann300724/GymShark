@@ -31,6 +31,7 @@ const sessionSchema = z
     startTime: z.string().min(1, 'Chọn giờ bắt đầu'),
     endTime: z.string().min(1, 'Chọn giờ kết thúc'),
     notes: z.string().optional(),
+    capacity: z.number().min(1, 'Tối thiểu 1').max(50, 'Tối đa 50').optional(),
   })
   .refine((v) => !v.startTime || !v.endTime || v.endTime > v.startTime, {
     message: 'Giờ kết thúc phải sau giờ bắt đầu',
@@ -196,6 +197,12 @@ export function SessionFormDialog({
         type: values.type,
         title: values.title,
         description: values.description || undefined,
+        capacity:
+          values.type === 'GROUP_CLASS'
+            ? values.capacity !== undefined
+              ? values.capacity
+              : undefined
+            : undefined,
         startTime: startIso,
         endTime: endIso,
         notes: values.notes || undefined,
@@ -311,6 +318,17 @@ export function SessionFormDialog({
             placeholder="VD: PT - Tăng cơ toàn thân"
             error={errors.title?.message}
             {...register('title')}
+          />
+
+          <Input
+            label={watchType === 'GROUP_CLASS' ? 'Sức chứa (ca)' : undefined}
+            placeholder={watchType === 'GROUP_CLASS' ? 'VD: 15' : ''}
+            type="number"
+            min={1}
+            max={50}
+            disabled={watchType !== 'GROUP_CLASS'}
+            error={watchType === 'GROUP_CLASS' ? errors.capacity?.message : undefined}
+            {...register('capacity', { valueAsNumber: true })}
           />
 
           <Select
