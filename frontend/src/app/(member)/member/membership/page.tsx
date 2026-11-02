@@ -34,7 +34,7 @@ const PAYMENT_METHODS = [
   { value: 'CREDIT_CARD', label: 'Thẻ tín dụng / ghi nợ', desc: 'Visa, Mastercard...' },
 ];
 
-const EXPIRING_SOON_DAYS = 30;
+const EXPIRING_SOON_DAYS = 7;
 
 export default function MemberMembershipPage() {
   const toast = useToast();
