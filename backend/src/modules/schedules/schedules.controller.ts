@@ -117,7 +117,7 @@ export class TrainingSessionsController {
   }
 
   @Post()
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
   @ApiOperation({ summary: 'Táº¡o buá»•i táº­p (kiá»ƒm tra trÃ¹ng lá»‹ch HLV/member, khÃ´ng táº¡o quÃ¡ khá»© náº¿u khÃ´ng pháº£i Admin)' })
   createSession(
     @Body() dto: CreateSessionDto,

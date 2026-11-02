@@ -16,6 +16,7 @@ import { trainingApi } from '@/services/training.service';
 import { trainerApi } from '@/services/trainer.service';
 import { roomApi } from '@/services/room.service';
 import { formatDateTime } from '@/lib/utils';
+import { getStoredUser } from '@/lib/auth';
 import type { TrainingSession } from '@/services/types';
 import { Search, UserPlus, CheckCircle2, AlertTriangle } from 'lucide-react';
 
@@ -31,7 +32,11 @@ const sessionSchema = z
     startTime: z.string().min(1, 'Chọn giờ bắt đầu'),
     endTime: z.string().min(1, 'Chọn giờ kết thúc'),
     notes: z.string().optional(),
-    capacity: z.number().min(1, 'Tối thiểu 1').max(50, 'Tối đa 50').optional(),
+    // valueAsNumber trên ô disabled/rỗng trả về NaN → preprocess về undefined để .optional() chấp nhận
+    capacity: z.preprocess(
+      (v) => (typeof v === 'number' && Number.isNaN(v) ? undefined : v),
+      z.number().min(1, 'Tối thiểu 1').max(50, 'Tối đa 50').optional(),
+    ),
   })
   .refine((v) => !v.startTime || !v.endTime || v.endTime > v.startTime, {
     message: 'Giờ kết thúc phải sau giờ bắt đầu',
@@ -135,13 +140,44 @@ export function SessionFormDialog({
     queryFn: () => trainerApi.list({ limit: 100, status: 'ACTIVE' }),
     enabled: open,
   });
+
+  // Khi PT mở form — tự động lấy trainerId của chính mình để điền vào
+  const isTrainer = getStoredUser()?.role === 'TRAINER';
+  const { data: myTrainerProfile } = useQuery({
+    queryKey: ['trainer-my-profile-form'],
+    queryFn: () => trainerApi.myProfile(),
+    enabled: open && isTrainer && !editing,
+  });
+
+  useEffect(() => {
+    if (open && !editing && isTrainer && myTrainerProfile?.id) {
+      setValue('trainerId', myTrainerProfile.id, { shouldValidate: true });
+    }
+  }, [open, editing, isTrainer, myTrainerProfile, setValue]);
   const trainers = useMemo(() => {
     const list = trainersData?.data || [];
+    const extra: Array<(typeof list)[number] | NonNullable<TrainingSession['trainer']>> = [];
     if (editing?.trainer && !list.some((t) => t.id === editing.trainer!.id)) {
-      return [editing.trainer, ...list];
+      extra.push(editing.trainer);
     }
-    return list;
-  }, [trainersData, editing]);
+    // Đảm bảo HLV hiện tại luôn có trong dropdown (kể cả khi list chưa load kịp)
+    if (
+      isTrainer &&
+      myTrainerProfile?.id &&
+      !list.some((t) => t.id === myTrainerProfile.id) &&
+      !extra.some((t) => t.id === myTrainerProfile.id)
+    ) {
+      extra.push({
+        id: myTrainerProfile.id,
+        user: myTrainerProfile.user,
+        specialization: myTrainerProfile.specialization,
+        experienceYears: myTrainerProfile.experienceYears,
+        rating: myTrainerProfile.rating,
+        status: myTrainerProfile.status,
+      } as any);
+    }
+    return [...extra, ...list];
+  }, [trainersData, editing, isTrainer, myTrainerProfile]);
 
   const { data: roomsData } = useQuery({
     queryKey: ['rooms-form'],
@@ -230,6 +266,13 @@ export function SessionFormDialog({
     mutation.mutate(values);
   };
 
+  // Validation fail → hiện toast thay vì "im lặng" (trường lỗi có thể bị scroll ẩn)
+  const onInvalid = (errs: typeof errors) => {
+    const first = Object.values(errs)[0];
+    const msg = first?.message || 'Vui lòng kiểm tra lại các trường bắt buộc.';
+    toast.error('Chưa thể tạo buổi tập', msg);
+  };
+
   const ptNotAssigned =
     watchType === 'PERSONAL_TRAINING' &&
     !!watchMemberId &&
@@ -249,7 +292,7 @@ export function SessionFormDialog({
       }
       className="max-w-2xl"
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <Select
