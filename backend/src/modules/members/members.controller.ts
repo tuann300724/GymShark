@@ -19,6 +19,7 @@ import { MembersService, StaffActor } from './members.service';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { CreateMemberDto } from './dto/create-member.dto';
 import { RegisterCardDto } from './dto/register-card.dto';
+import { ChangePackageDto } from './dto/change-package.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -111,5 +112,18 @@ export class MembersController {
   @ApiResponse({ status: 409, description: 'Hội viên đang có gói hoạt động hoặc gói chờ xác nhận' })
   registerCard(@Param('id') id: string, @Body() dto: RegisterCardDto, @CurrentUser() actor: StaffActor) {
     return this.membersService.registerCard(id, dto, actor);
+  }
+
+  @Post(':id/change-package')
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @ApiOperation({
+    summary: 'Đổi gói tập hội viên tại quầy, khấu trừ giá trị thời gian chưa sử dụng',
+  })
+  changePackage(
+    @Param('id') id: string,
+    @Body() dto: ChangePackageDto,
+    @CurrentUser() actor: StaffActor,
+  ) {
+    return this.membersService.changePackage(id, dto, actor);
   }
 }

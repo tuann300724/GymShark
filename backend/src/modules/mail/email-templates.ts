@@ -29,7 +29,10 @@ export function escapeHtml(value: string): string {
 }
 
 /** Khung email dùng chung: nền tối, container 560px, footer nhãn hệ thống. */
-function layout(content: string): string {
+function layout(
+  content: string,
+  footerText = 'Nếu bạn không yêu cầu đăng ký tài khoản này, hãy bỏ qua email và không cần làm gì.',
+): string {
   return `<!DOCTYPE html>
 <html lang="vi">
   <head>
@@ -60,7 +63,7 @@ function layout(content: string): string {
             <tr>
               <td style="padding:20px 32px;border-top:1px solid ${BRAND.line};font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.7;color:${BRAND.muted};">
                 Email tự động từ hệ thống GymMaster Pro — vui lòng không trả lời email này.<br />
-                Nếu bạn không yêu cầu đăng ký tài khoản này, hãy bỏ qua email và không cần làm gì.
+                ${escapeHtml(footerText)}
               </td>
             </tr>
           </table>
@@ -75,6 +78,81 @@ export interface VerificationCodeEmail {
   subject: string;
   html: string;
   text: string;
+}
+
+export interface InvoiceEmailParams {
+  memberName: string;
+  invoiceNumber: string;
+  packageName: string;
+  amount: number;
+  creditAmount: number;
+  paymentMethod: string;
+  paidAt: Date;
+  transactionRef?: string | null;
+  upgradeDescription: string;
+}
+
+export function packageChangeInvoiceEmail(params: InvoiceEmailParams): VerificationCodeEmail {
+  const memberName = escapeHtml(params.memberName);
+  const invoiceNumber = escapeHtml(params.invoiceNumber);
+  const packageName = escapeHtml(params.packageName);
+  const paymentMethod = escapeHtml(params.paymentMethod);
+  const transactionRef = params.transactionRef ? escapeHtml(params.transactionRef) : '';
+  const upgradeDescription = escapeHtml(params.upgradeDescription);
+  const formatMoney = (value: number) => `${new Intl.NumberFormat('vi-VN').format(value)} VND`;
+  const total = formatMoney(params.amount);
+  const credit = formatMoney(params.creditAmount);
+  const paidAt = params.paidAt.toLocaleString('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+  });
+
+  return {
+    subject: `Hóa đơn thanh toán ${invoiceNumber} — GymMaster Pro`,
+    html: layout(
+      `
+      <h1 style="margin:0 0 12px;font-size:20px;line-height:1.4;color:${BRAND.chalk};">
+        Xin chào ${memberName},
+      </h1>
+      <p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:${BRAND.muted};">
+        GymMaster Pro xác nhận đã nhận thanh toán nâng cấp gói tập của bạn. Hóa đơn được gửi để bạn lưu lại.
+      </p>
+      <div style="margin:20px 0;padding:18px;background:${BRAND.ink};border:1px solid ${BRAND.line};border-radius:12px;">
+        <p style="margin:0 0 8px;font-size:12px;color:${BRAND.muted};">Mã hóa đơn</p>
+        <p style="margin:0;font-family:'Courier New',monospace;font-size:16px;font-weight:700;color:${BRAND.neon};">${invoiceNumber}</p>
+      </div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.7;color:${BRAND.chalk};">
+        <tr><td style="padding:8px 0;color:${BRAND.muted};">Nội dung</td><td align="right" style="padding:8px 0;">${upgradeDescription}</td></tr>
+        <tr><td style="padding:8px 0;color:${BRAND.muted};">Gói mới</td><td align="right" style="padding:8px 0;">${packageName}</td></tr>
+        <tr><td style="padding:8px 0;color:${BRAND.muted};">Giá trị gói mới</td><td align="right" style="padding:8px 0;">${formatMoney(params.amount + params.creditAmount)}</td></tr>
+        <tr><td style="padding:8px 0;color:${BRAND.muted};">Khấu trừ giá trị còn lại</td><td align="right" style="padding:8px 0;">− ${credit}</td></tr>
+        <tr><td style="padding:12px 0;border-top:1px solid ${BRAND.line};font-weight:700;">Đã thanh toán</td><td align="right" style="padding:12px 0;border-top:1px solid ${BRAND.line};font-weight:700;color:${BRAND.neon};">${total}</td></tr>
+        <tr><td style="padding:8px 0;color:${BRAND.muted};">Phương thức</td><td align="right" style="padding:8px 0;">${paymentMethod}</td></tr>
+        ${transactionRef ? `<tr><td style="padding:8px 0;color:${BRAND.muted};">Mã giao dịch</td><td align="right" style="padding:8px 0;">${transactionRef}</td></tr>` : ''}
+        <tr><td style="padding:8px 0;color:${BRAND.muted};">Thời gian thanh toán</td><td align="right" style="padding:8px 0;">${escapeHtml(paidAt)}</td></tr>
+      </table>
+      <p style="margin:20px 0 0;font-size:12px;line-height:1.7;color:${BRAND.muted};">
+        Nếu có thắc mắc về hóa đơn, vui lòng liên hệ lễ tân phòng tập.
+      </p>
+    `,
+      'Nếu cần hỗ trợ về hóa đơn này, vui lòng liên hệ lễ tân phòng tập.',
+    ),
+    text: [
+      `Xin chào ${params.memberName},`,
+      '',
+      'GymMaster Pro xác nhận đã nhận thanh toán nâng cấp gói tập.',
+      `Mã hóa đơn: ${params.invoiceNumber}`,
+      `Nội dung: ${params.upgradeDescription}`,
+      `Gói mới: ${params.packageName}`,
+      `Giá trị gói mới: ${formatMoney(params.amount + params.creditAmount)}`,
+      `Khấu trừ giá trị còn lại: ${formatMoney(params.creditAmount)}`,
+      `Đã thanh toán: ${total}`,
+      `Phương thức: ${params.paymentMethod}`,
+      ...(params.transactionRef ? [`Mã giao dịch: ${params.transactionRef}`] : []),
+      `Thời gian: ${paidAt}`,
+      '',
+      'Vui lòng lưu email này để đối chiếu khi cần.',
+    ].join('\n'),
+  };
 }
 
 /**
