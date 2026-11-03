@@ -18,7 +18,7 @@ export class AuditLogsController {
   @Roles(Role.ADMIN, Role.MANAGER)
   @ApiOperation({
     summary:
-      'Nháº­t kÃ½ hoáº¡t Ä‘á»™ng toÃ n há»‡ thá»‘ng (lá»c theo user/action/entity/ngÃ y, phÃ¢n trang) â€” chá»‰ ADMIN & MANAGER',
+      'Nhật ký hoạt động toàn hệ thống (lọc theo user/action/entity/ngày, phân trang) — chỉ ADMIN & MANAGER',
   })
   findAll(@Query() query: QueryAuditLogsDto) {
     return this.auditService.findAll(query);

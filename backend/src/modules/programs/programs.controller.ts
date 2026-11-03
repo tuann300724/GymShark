@@ -18,42 +18,42 @@ export class ProgramsController {
 
   @Get()
   @Roles(Role.TRAINER)
-  @ApiOperation({ summary: 'Danh sáº±ch bá»«i tÃªm do HLV' })
+  @ApiOperation({ summary: 'Danh sách buổi tập của HLV' })
   listForTrainer(@CurrentUser() user: { id: string; role: string }, @Query() query?: any) {
     return this.programsService.listForTrainer(user.id, query);
   }
 
   @Post()
   @Roles(Role.TRAINER)
-  @ApiOperation({ summary: 'HLV lÃ m bÃ i tÃªm' })
+  @ApiOperation({ summary: 'HLV tạo buổi tập mới' })
   create(@CurrentUser() user: { id: string; role: string }, @Body() dto: CreateProgramDto) {
     return this.programsService.create(user, dto);
   }
 
   @Get(':id')
   @Roles(Role.TRAINER, Role.MEMBER, Role.ADMIN, Role.STAFF, Role.MANAGER)
-  @ApiOperation({ summary: 'Chi tiáº¿t bá»«i tÃªm' })
+  @ApiOperation({ summary: 'Chi tiết buổi tập' })
   findOne(@CurrentUser() user: { id: string; role: string }, @Param('id') id: string) {
     return this.programsService.findOne(user, id);
   }
 
   @Patch(':id')
   @Roles(Role.TRAINER)
-  @ApiOperation({ summary: 'Chá»‰nh sá»­a bá»«i tÃªm (thay danh sáº½ chá»¬a)' })
+  @ApiOperation({ summary: 'Chỉnh sửa buổi tập (thay danh sách bài tập)' })
   update(@CurrentUser() user: { id: string; role: string }, @Param('id') id: string, @Body() dto: any) {
     return this.programsService.update(user, id, dto);
   }
 
   @Delete(':id')
   @Roles(Role.TRAINER)
-  @ApiOperation({ summary: 'Xoá bá»«i tÃªm' })
+  @ApiOperation({ summary: 'Xóa buổi tập' })
   remove(@CurrentUser() user: { id: string; role: string }, @Param('id') id: string) {
     return this.programsService.remove(user, id);
   }
 
   @Post(':id/duplicate')
   @Roles(Role.TRAINER)
-  @ApiOperation({ summary: 'Nhá»›n bá»«i tÃªm (saá»·a) hoáº·c lÃºu máº«u cho há»™i viá»n)' })
+  @ApiOperation({ summary: 'Nhân bản buổi tập (sửa) hoặc lưu mẫu cho hội viên' })
   duplicate(@CurrentUser() user: { id: string; role: string }, @Param('id') id: string, @Body() dto?: any) {
     return this.programsService.duplicate(user, id, dto);
   }
@@ -67,7 +67,7 @@ export class ProgramsController {
 
   @Post(':id/confirm')
   @Roles(Role.MEMBER)
-  @ApiOperation({ summary: 'Há»™i viá»n xÃ¡c nháº­n bá»«i tÃªm' })
+  @ApiOperation({ summary: 'Hội viên xác nhận buổi tập' })
   confirm(@CurrentUser() user: { id: string; role: string }, @Param('id') id: string) {
     return this.programsService.confirm(user, id);
   }

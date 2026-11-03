@@ -29,7 +29,7 @@ export class ReportsController {
   @Get('summary')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
   @ApiOperation({
-    summary: 'BÃ¡o cÃ¡o tá»•ng quan sá»‘ liá»‡u há»‡ thá»‘ng (Há»™i viÃªn, HLV, Check-in, Doanh thu).',
+    summary: 'Báo cáo tổng quan số liệu hệ thống (Hội viên, HLV, Check-in, Doanh thu).',
   })
   getSummary() {
     return this.reportsService.getSummary();
@@ -39,7 +39,7 @@ export class ReportsController {
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
   @ApiOperation({
     summary:
-      'BÃ¡o cÃ¡o doanh thu: hÃ´m nay/tuáº§n/thÃ¡ng/nÄƒm, theo ngÃ y, theo thÃ¡ng, theo phÆ°Æ¡ng thá»©c, theo gÃ³i táº­p. Chá»‰ tÃ­nh PAID; REFUNDED háº¡ch toÃ¡n riÃªng.',
+      'Báo cáo doanh thu: hôm nay/tuần/tháng/năm, theo ngày, theo tháng, theo phương thức, theo gói tập. Chỉ tính PAID; REFUNDED hạch toán riêng.',
   })
   getRevenue(@Query() query: RevenueReportQueryDto) {
     return this.reportsService.getRevenue(query);
@@ -49,7 +49,7 @@ export class ReportsController {
   @Roles(Role.ADMIN, Role.MANAGER)
   @ApiOperation({
     summary:
-      'Tá»•ng há»£p nhanh toÃ n há»‡ thá»‘ng (STEP 8): summary + doanh thu (today/week/month/year/total) + chuyÃªn cáº§n (total/peak/avgPerDay).',
+      'Tổng hợp nhanh toàn hệ thống (STEP 8): summary + doanh thu (today/week/month/year/total) + chuyên cần (total/peak/avgPerDay).',
   })
   getOverview() {
     return this.reportsService.getOverview();
@@ -59,7 +59,7 @@ export class ReportsController {
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
   @ApiOperation({
     summary:
-      'BÃ¡o cÃ¡o há»™i viÃªn (STEP 8): tá»•ng/Ä‘ang hoáº¡t Ä‘á»™ng/chá» duyá»‡t, tráº¡ng thÃ¡i, tÄƒng trÆ°á»Ÿng theo thÃ¡ng, danh sÃ¡ch gáº§n nháº¥t.',
+      'Báo cáo hội viên (STEP 8): tổng/đang hoạt động/chờ duyệt, trạng thái, tăng trưởng theo tháng, danh sách gần nhất.',
   })
   getMembers(
     @Query('from') from?: string,
@@ -73,7 +73,7 @@ export class ReportsController {
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
   @ApiOperation({
     summary:
-      'BÃ¡o cÃ¡o gÃ³i táº­p (STEP 8): phá»• biáº¿n nháº¥t, tráº¡ng thÃ¡i membership, sá»‘ Ä‘Äƒng kÃ½ theo thÃ¡ng.',
+      'Báo cáo gói tập (STEP 8): phổ biến nhất, trạng thái membership, số đăng ký theo tháng.',
   })
   getMemberships(
     @Query('from') from?: string,
@@ -87,7 +87,7 @@ export class ReportsController {
   @Roles(Role.ADMIN, Role.MANAGER)
   @ApiOperation({
     summary:
-      'BÃ¡o cÃ¡o HLV (STEP 8): sá»‘ há»™i viÃªn Ä‘ang phá»¥ trÃ¡ch, sá»‘ buá»•i táº­p, sá»‘ buá»•i hoÃ n thÃ nh.',
+      'Báo cáo HLV (STEP 8): số hội viên đang phụ trách, số buổi tập, số buổi hoàn thành.',
   })
   getTrainers() {
     return this.reportsService.getTrainersReport();
@@ -97,7 +97,7 @@ export class ReportsController {
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
   @ApiOperation({
     summary:
-      'BÃ¡o cÃ¡o chuyÃªn cáº§n tá»•ng há»£p (STEP 8): cards + theo ngÃ y / giá» / thá»© trong tuáº§n / hÃ¬nh thá»©c check-in.',
+      'Báo cáo chuyên cần tổng hợp (STEP 8): cards + theo ngày / giờ / thứ trong tuần / hình thức check-in.',
   })
   getAttendance(@Query('from') from?: string, @Query('to') to?: string) {
     return this.reportsService.getAttendanceReport({ from, to });
@@ -107,7 +107,7 @@ export class ReportsController {
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
   @ApiOperation({
     summary:
-      'Xuáº¥t CSV (STEP 8): type=revenue|members|attendance|memberships (+ cÃ¡c filter chung). File cÃ³ BOM cho Excel.',
+      'Xuất CSV (STEP 8): type=revenue|members|attendance|memberships (+ các filter chung). File có BOM cho Excel.',
   })
   @ApiQuery({ name: 'type', required: true, enum: ['revenue', 'members', 'attendance', 'memberships'] })
   async exportCsv(
@@ -124,7 +124,7 @@ export class ReportsController {
   @Get('dashboard')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
   @ApiOperation({
-    summary: 'Dá»¯ liá»‡u Dashboard admin: summary + Ä‘Äƒng kÃ½ gáº§n Ä‘Ã¢y + thanh toÃ¡n chá» xÃ¡c nháº­n.',
+    summary: 'Dữ liệu Dashboard admin: summary + đăng ký gần đây + thanh toán chờ xác nhận.',
   })
   getDashboard() {
     return this.reportsService.getDashboard();

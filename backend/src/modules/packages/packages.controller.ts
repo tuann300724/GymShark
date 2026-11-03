@@ -17,40 +17,40 @@ export class PackagesController {
 
   @Get()
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
-  @ApiOperation({ summary: 'Láº¥y danh sÃ¡ch cÃ¡c gÃ³i táº­p gym (Membership Packages)' })
+  @ApiOperation({ summary: 'Lấy danh sách các gói tập gym (Membership Packages)' })
   findAll() {
     return this.packagesService.findAll();
   }
 
   @Get(':id')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
-  @ApiOperation({ summary: 'Láº¥y chi tiáº¿t má»™t gÃ³i táº­p' })
+  @ApiOperation({ summary: 'Lấy chi tiết một gói tập' })
   findOne(@Param('id') id: string) {
     return this.packagesService.findOne(id);
   }
 
   @Post()
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
-  @ApiOperation({ summary: 'Táº¡o gÃ³i táº­p má»›i (backend tá»± sinh mÃ£ gÃ³i)' })
-  @ApiResponse({ status: 201, description: 'Táº¡o gÃ³i thÃ nh cÃ´ng' })
-  @ApiResponse({ status: 400, description: 'Dá»¯ liá»‡u khÃ´ng há»£p lá»‡' })
+  @ApiOperation({ summary: 'Tạo gói tập mới (backend tự sinh mã gói)' })
+  @ApiResponse({ status: 201, description: 'Tạo gói thành công' })
+  @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
   create(@Body() dto: CreatePackageDto) {
     return this.packagesService.create(dto);
   }
 
   @Patch(':id')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
-  @ApiOperation({ summary: 'Cáº­p nháº­t gÃ³i táº­p (giÃ¡, thá»i háº¡n, tÃ­nh nÄƒng, tráº¡ng thÃ¡i...)' })
-  @ApiResponse({ status: 200, description: 'Cáº­p nháº­t thÃ nh cÃ´ng' })
+  @ApiOperation({ summary: 'Cập nhật gói tập (giá, thời hạn, tính năng, trạng thái...)' })
+  @ApiResponse({ status: 200, description: 'Cập nhật thành công' })
   update(@Param('id') id: string, @Body() dto: UpdatePackageDto) {
     return this.packagesService.update(id, dto);
   }
 
   @Delete(':id')
   @Roles(Role.ADMIN, Role.MANAGER)
-  @ApiOperation({ summary: 'XoÃ¡ gÃ³i táº­p (chá»‰ khi chÆ°a Ä‘Æ°á»£c há»™i viÃªn nÃ o Ä‘Äƒng kÃ½)' })
-  @ApiResponse({ status: 200, description: 'ÄÃ£ xoÃ¡ gÃ³i táº­p' })
-  @ApiResponse({ status: 409, description: 'GÃ³i Ä‘Ã£ Ä‘Æ°á»£c sá»­ dá»¥ng, khÃ´ng thá»ƒ xoÃ¡' })
+  @ApiOperation({ summary: 'Xoá gói tập (chỉ khi chưa được hội viên nào đăng ký)' })
+  @ApiResponse({ status: 200, description: 'Đã xoá gói tập' })
+  @ApiResponse({ status: 409, description: 'Gói đã được sử dụng, không thể xoá' })
   remove(@Param('id') id: string) {
     return this.packagesService.remove(id);
   }

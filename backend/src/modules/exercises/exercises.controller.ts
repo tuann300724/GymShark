@@ -18,26 +18,26 @@ export class ExercisesController {
 
   @Post()
   @Roles(Role.TRAINER, Role.ADMIN)
-  @ApiOperation({ summary: 'Táº¡o bÃ i tÃªm (HLV / ADMIN)' })
+  @ApiOperation({ summary: 'Tạo bài tập (HLV / ADMIN)' })
   create(@Body() d: CreateExerciseDto) { return this.svc.create(d); }
 
   @Get()
   @Roles(Role.TRAINER, Role.ADMIN)
-  @ApiOperation({ summary: 'Danh sáº±ch bÃ i tÃªm (danh sáº½ cÃ³ sáº½n)' })
+  @ApiOperation({ summary: 'Danh sách bài tập (danh mục có sẵn)' })
   findAll() { return this.svc.findAll(); }
 
   @Get(':id')
   @Roles(Role.TRAINER, Role.ADMIN)
-  @ApiOperation({ summary: 'Chi tiáº¿t bÃ i tÃªm' })
+  @ApiOperation({ summary: 'Chi tiết bài tập' })
   findOne(@Param('id') id: string) { return this.svc.findOne(id); }
 
   @Put(':id')
   @Roles(Role.TRAINER, Role.ADMIN)
-  @ApiOperation({ summary: 'Chá»‰nh sá»­a bÃ i tÃªm' })
+  @ApiOperation({ summary: 'Chỉnh sửa bài tập' })
   update(@Param('id') id: string, @Body() d: UpdateExerciseDto) { return this.svc.update(id, d); }
 
   @Delete(':id')
   @Roles(Role.TRAINER, Role.ADMIN)
-  @ApiOperation({ summary: 'Xoá bÃ i tÃªm' })
+  @ApiOperation({ summary: 'Xóa bài tập' })
   remove(@Param('id') id: string) { return this.svc.remove(id); }
 }

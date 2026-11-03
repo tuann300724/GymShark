@@ -26,7 +26,7 @@ import { Role } from '../../common/enums/role.enum';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 // ---------------------------------------------------------------------------
-// Controller cÅ© (back-compat): GET /schedules, GET /schedules/:id
+// Controller cũ (back-compat): GET /schedules, GET /schedules/:id
 // ---------------------------------------------------------------------------
 
 @ApiTags('Training Schedules')
@@ -38,21 +38,21 @@ export class SchedulesController {
 
   @Get()
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
-  @ApiOperation({ summary: '[CÅ©] Láº¥y danh sÃ¡ch lá»‹ch táº­p luyá»‡n & lá»›p há»c PT' })
+  @ApiOperation({ summary: '[Cũ] Lấy danh sách lịch tập luyện & lớp học PT' })
   findAll() {
     return this.schedulesService.findAll();
   }
 
   @Get(':id')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
-  @ApiOperation({ summary: '[CÅ©] Láº¥y chi tiáº¿t má»™t lá»‹ch táº­p' })
+  @ApiOperation({ summary: '[Cũ] Lấy chi tiết một lịch tập' })
   findOne(@Param('id') id: string) {
     return this.schedulesService.findOne(id);
   }
 }
 
 // ---------------------------------------------------------------------------
-// Controller má»›i: /training-sessions
+// Controller mới: /training-sessions
 // ---------------------------------------------------------------------------
 
 @ApiTags('Training Sessions')
@@ -64,28 +64,28 @@ export class TrainingSessionsController {
 
   @Get('me/upcoming')
   @Roles(Role.MEMBER)
-  @ApiOperation({ summary: 'Buá»•i táº­p sáº¯p tá»›i cá»§a há»™i viÃªn Ä‘ang Ä‘Äƒng nháº­p' })
+  @ApiOperation({ summary: 'Buổi tập sắp tới của hội viên đang đăng nhập' })
   getMyUpcoming(@CurrentUser('id') userId: string) {
     return this.schedulesService.getMyUpcoming(userId);
   }
 
   @Get('me')
   @Roles(Role.MEMBER)
-  @ApiOperation({ summary: 'ToÃ n bá»™ lá»‹ch táº­p (sáº¯p tá»›i + lá»‹ch sá»­) cá»§a há»™i viÃªn Ä‘ang Ä‘Äƒng nháº­p' })
+  @ApiOperation({ summary: 'Toàn bộ lịch tập (sắp tới + lịch sử) của hội viên đang đăng nhập' })
   getMySessions(@CurrentUser('id') userId: string, @Query() query: SessionQueryDto) {
     return this.schedulesService.getMySessions(userId, query);
   }
 
   @Get('trainer/me')
   @Roles(Role.TRAINER)
-  @ApiOperation({ summary: 'Lá»‹ch dáº¡y cá»§a HLV Ä‘ang Ä‘Äƒng nháº­p (kÃ¨m thá»‘ng kÃª hÃ´m nay/sáº¯p tá»›i/Ä‘Ã£ xong)' })
+  @ApiOperation({ summary: 'Lịch dạy của HLV đang đăng nhập (kèm thống kê hôm nay/sắp tới/đã xong)' })
   getTrainerSessions(@CurrentUser('id') userId: string, @Query() query: SessionQueryDto) {
     return this.schedulesService.getTrainerSessions(userId, query);
   }
 
   @Get()
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
-  @ApiOperation({ summary: 'Danh sÃ¡ch buá»•i táº­p (lá»c theo trainer/member/status/type/time)' })
+  @ApiOperation({ summary: 'Danh sách buổi tập (lọc theo trainer/member/status/type/time)' })
   findAllSessions(
     @Query() query: SessionQueryDto,
     @CurrentUser('role') role: string,
@@ -96,7 +96,7 @@ export class TrainingSessionsController {
 
   @Get(':id/progress')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER, Role.MEMBER)
-  @ApiOperation({ summary: 'Ghi chÃº tiáº¿n trÃ¬nh cá»§a má»™t buá»•i táº­p' })
+  @ApiOperation({ summary: 'Ghi chú tiến trình của một buổi tập' })
   getProgress(
     @Param('id') id: string,
     @CurrentUser('role') role: string,
@@ -107,7 +107,7 @@ export class TrainingSessionsController {
 
   @Get(':id')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER, Role.MEMBER)
-  @ApiOperation({ summary: 'Chi tiáº¿t buá»•i táº­p (backend tá»± kiá»ƒm tra quyá»n sá»Ÿ há»¯u)' })
+  @ApiOperation({ summary: 'Chi tiết buổi tập (backend tự kiểm tra quyền sở hữu)' })
   findOneSession(
     @Param('id') id: string,
     @CurrentUser('role') role: string,
@@ -118,7 +118,7 @@ export class TrainingSessionsController {
 
   @Post()
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
-  @ApiOperation({ summary: 'Táº¡o buá»•i táº­p (kiá»ƒm tra trÃ¹ng lá»‹ch HLV/member, khÃ´ng táº¡o quÃ¡ khá»© náº¿u khÃ´ng pháº£i Admin)' })
+  @ApiOperation({ summary: 'Tạo buổi tập (kiểm tra trùng lịch HLV/member, không tạo quá khứ nếu không phải Admin)' })
   createSession(
     @Body() dto: CreateSessionDto,
     @CurrentUser('role') role: string,
@@ -129,7 +129,7 @@ export class TrainingSessionsController {
 
   @Patch(':id')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
-  @ApiOperation({ summary: 'Chá»‰nh sá»­a buá»•i táº­p (chá»‰ khi SCHEDULED, tá»± kiá»ƒm tra láº¡i trÃ¹ng lá»‹ch)' })
+  @ApiOperation({ summary: 'Chỉnh sửa buổi tập (chỉ khi SCHEDULED, tự kiểm tra lại trùng lịch)' })
   updateSession(
     @Param('id') id: string,
     @Body() dto: UpdateSessionDto,
@@ -141,7 +141,7 @@ export class TrainingSessionsController {
 
   @Post(':id/cancel')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
-  @ApiOperation({ summary: 'Há»§y buá»•i táº­p (giá»¯ lá»‹ch sá»­ + lÆ°u lÃ½ do há»§y)' })
+  @ApiOperation({ summary: 'Hủy buổi tập (giữ lịch sử + lưu lý do hủy)' })
   cancelSession(
     @Param('id') id: string,
     @Body() dto: CancelSessionDto,
@@ -153,7 +153,7 @@ export class TrainingSessionsController {
 
   @Post(':id/complete')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
-  @ApiOperation({ summary: 'ÄÃ¡nh dáº¥u buá»•i táº­p hoÃ n thÃ nh' })
+  @ApiOperation({ summary: 'Đánh dấu buổi tập hoàn thành' })
   completeSession(
     @Param('id') id: string,
     @CurrentUser('role') role: string,
@@ -164,7 +164,7 @@ export class TrainingSessionsController {
 
   @Post(':id/progress')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
-  @ApiOperation({ summary: 'ThÃªm ghi chÃº tiáº¿n trÃ¬nh cho buá»•i táº­p (HLV/truy cáº­p quáº£n trá»‹)' })
+  @ApiOperation({ summary: 'Thêm ghi chú tiến trình cho buổi tập (HLV/truy cập quản trị)' })
   addProgress(
     @Param('id') id: string,
     @Body() dto: CreateProgressDto,
@@ -176,7 +176,7 @@ export class TrainingSessionsController {
 
   @Delete(':id')
   @Roles(Role.ADMIN)
-  @ApiOperation({ summary: 'XÃ³a háº³n buá»•i táº­p (chá»‰ Admin)' })
+  @ApiOperation({ summary: 'Xóa hẳn buổi tập (chỉ Admin)' })
   removeSession(@Param('id') id: string, @CurrentUser('id') actorId: string) {
     return this.schedulesService.removeSession(id, actorId);
   }
@@ -195,7 +195,7 @@ export class TrainingProgressController {
 
   @Patch(':id')
   @Roles(Role.ADMIN, Role.MANAGER, Role.TRAINER)
-  @ApiOperation({ summary: 'Chá»‰nh sá»­a ghi chÃº tiáº¿n trÃ¬nh (HLV chá»‰ sá»­a ghi chÃº cá»§a mÃ¬nh)' })
+  @ApiOperation({ summary: 'Chỉnh sửa ghi chú tiến trình (HLV chỉ sửa ghi chú của mình)' })
   updateProgress(
     @Param('id') id: string,
     @Body() dto: UpdateProgressDto,

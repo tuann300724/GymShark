@@ -18,31 +18,31 @@ export class MembershipsController {
 
   @Get()
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
-  @ApiOperation({ summary: 'Láº¥y danh sÃ¡ch cÃ¡c há»£p Ä‘á»“ng/tháº» há»™i viÃªn' })
+  @ApiOperation({ summary: 'Lấy danh sách các hợp đồng/thẻ hội viên' })
   findAll() {
     return this.membershipsService.findAll();
   }
 
   @Get(':id')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
-  @ApiOperation({ summary: 'Láº¥y chi tiáº¿t má»™t há»£p Ä‘á»“ng/tháº» há»™i viÃªn' })
+  @ApiOperation({ summary: 'Lấy chi tiết một hợp đồng/thẻ hội viên' })
   findOne(@Param('id') id: string) {
     return this.membershipsService.findOne(id);
   }
 
   @Patch(':id/status')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
-  @ApiOperation({ summary: 'Cáº­p nháº­t tráº¡ng thÃ¡i: SUSPENDED / ACTIVE / CANCELLED / EXPIRED' })
-  @ApiResponse({ status: 200, description: 'Cáº­p nháº­t thÃ nh cÃ´ng' })
-  @ApiResponse({ status: 409, description: 'Tráº¡ng thÃ¡i chuyá»ƒn Ä‘á»•i khÃ´ng há»£p lá»‡' })
+  @ApiOperation({ summary: 'Cập nhật trạng thái: SUSPENDED / ACTIVE / CANCELLED / EXPIRED' })
+  @ApiResponse({ status: 200, description: 'Cập nhật thành công' })
+  @ApiResponse({ status: 409, description: 'Trạng thái chuyển đổi không hợp lệ' })
   updateStatus(@Param('id') id: string, @Body() dto: UpdateMembershipStatusDto, @CurrentUser('id') actorId: string) {
     return this.membershipsService.updateStatus(id, dto, actorId);
   }
 
   @Patch(':id/extend')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
-  @ApiOperation({ summary: 'Gia háº¡n thÃªm N ngÃ y (táº¡o hÃ³a Ä‘Æ¡n chá» thu tiá»n)' })
-  @ApiResponse({ status: 200, description: 'Gia háº¡n thÃ nh cÃ´ng' })
+  @ApiOperation({ summary: 'Gia hạn thêm N ngày (tạo hóa đơn chờ thu tiền)' })
+  @ApiResponse({ status: 200, description: 'Gia hạn thành công' })
   extend(@Param('id') id: string, @Body() dto: ExtendMembershipDto, @CurrentUser('id') actorId: string) {
     return this.membershipsService.extend(id, dto, actorId);
   }

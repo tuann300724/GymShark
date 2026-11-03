@@ -3,73 +3,73 @@ import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class ProgramExerciseItemDto {
-  @ApiProperty({ description: 'Id bÃ i tÃªm' })
+  @ApiProperty({ description: 'ID bài tập' })
   @IsString()
   exerciseId: string;
 
-  @ApiPropertyOptional({ description: 'SÃ¡t luyá»‘n', required: false })
+  @ApiPropertyOptional({ description: 'Số hiệp (sets)', required: false })
   @IsOptional()
   @IsInt()
   @Min(1)
   sets?: number;
 
-  @ApiPropertyOptional({ description: 'LÃºyá»“t', required: false })
+  @ApiPropertyOptional({ description: 'Số lần (reps)', required: false })
   @IsOptional()
   @IsInt()
   reps?: number;
 
-  @ApiPropertyOptional({ description: 'ThÃ g giÃ¬i', required: false })
+  @ApiPropertyOptional({ description: 'Thời gian nghỉ giữa các hiệp (giây)', required: false })
   @IsOptional()
   @IsInt()
   restSeconds?: number;
 
-  @ApiPropertyOptional({ description: 'ThÃ ng hÃ­nh (0 = cÃ¡ch cÃ y theo thÃ ng kÃ©o vÃ eo)', required: false })
+  @ApiPropertyOptional({ description: 'Thứ tự hiển thị của bài tập (0 = tự động theo thứ tự thêm)', required: false })
   @IsOptional()
   @IsInt()
   order?: number;
 }
 
 export class CreateProgramDto {
-  @ApiProperty({ description: 'Slug tÃ¬nh danh' })
+  @ApiProperty({ description: 'Slug định danh của buổi tập' })
   @IsString()
   slug: string;
 
-  @ApiProperty({ description: 'TÃªn bÃ i tÃªm' })
+  @ApiProperty({ description: 'Tên buổi tập' })
   @IsString()
   name: string;
 
-  @ApiPropertyOptional({ description: 'NhÃªn nhÃ£n kÃ¶ thÃºc vÃ o bÃ i tÃªm', required: false })
+  @ApiPropertyOptional({ description: 'Nhóm phân loại (vd: Lưng xô / Tay trước)', required: false })
   @IsOptional()
   @IsString()
   group?: string;
 
-  @ApiPropertyOptional({ description: 'ThÃ g sÃ¡t (tuÃ i mÃºt)', required: false })
+  @ApiPropertyOptional({ description: 'Thời lượng buổi tập (phút)', required: false })
   @IsOptional()
   @IsInt()
   @Min(1)
   duration?: number;
 
-  @ApiPropertyOptional({ description: 'MÃ¬nh nghÃ­a' })
+  @ApiPropertyOptional({ description: 'Mô tả ngắn gọn' })
   @IsOptional()
   @IsString()
   summary?: string;
 
-  @ApiPropertyOptional({ description: 'HÌ¹nhÃ nh vÃ o bÃ i tÃªm' })
+  @ApiPropertyOptional({ description: 'Ảnh minh họa của buổi tập' })
   @IsOptional()
   @IsString()
   img?: string;
 
-  @ApiPropertyOptional({ description: 'Trang vÃ eo bÃ i tÃªm' })
+  @ApiPropertyOptional({ description: 'Văn bản thay thế cho ảnh (alt)' })
   @IsOptional()
   @IsString()
   alt?: string;
 
-  @ApiPropertyOptional({ description: 'NgÆ°á»©ng hÃ ng ngÃ¼a (ặng bài tÃ m lÃºi)' })
+  @ApiPropertyOptional({ description: 'Đánh dấu lưu làm mẫu (template)' })
   @IsOptional()
   @IsBoolean()
   isTemplate?: boolean;
 
-  @ApiProperty({ description: 'CÃ¡c bÃ i tÃªm nÃ³i lÃºi', type: [ProgramExerciseItemDto] })
+  @ApiProperty({ description: 'Danh sách bài tập trong buổi tập (exerciseId, sets, reps, restSeconds, order)', type: [ProgramExerciseItemDto] })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ProgramExerciseItemDto)

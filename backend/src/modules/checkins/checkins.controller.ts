@@ -33,13 +33,13 @@ export class CheckinsController {
   constructor(private readonly checkinsService: CheckinsService) {}
 
   // ---------------------------------------------------------------------------
-  // Admin / Staff â€” toÃ n há»‡ thá»‘ng
+  // Admin / Staff — toàn hệ thống
   // ---------------------------------------------------------------------------
 
   @Get()
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
   @ApiOperation({
-    summary: 'Lá»‹ch sá»­ check-in toÃ n há»‡ thá»‘ng (tÃ¬m kiáº¿m, lá»c, sáº¯p xáº¿p, phÃ¢n trang)',
+    summary: 'Lịch sử check-in toàn hệ thống (tìm kiếm, lọc, sắp xếp, phân trang)',
   })
   findAll(@Query() query: GetCheckinsQueryDto) {
     return this.checkinsService.findAll(query);
@@ -47,7 +47,7 @@ export class CheckinsController {
 
   @Get('currently-inside')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
-  @ApiOperation({ summary: 'Danh sÃ¡ch há»™i viÃªn Ä‘ang cÃ³ máº·t trong phÃ²ng gym' })
+  @ApiOperation({ summary: 'Danh sách hội viên đang có mặt trong phòng gym' })
   currentlyInside() {
     return this.checkinsService.currentlyInside();
   }
@@ -56,7 +56,7 @@ export class CheckinsController {
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
   @ApiOperation({
     summary:
-      'Lá»… tÃ¢n check-in giÃºp há»™i viÃªn (theo memberId, khÃ´ng tin client)',
+      'Lễ tân check-in giúp hội viên (theo memberId, không tin client)',
   })
   staffCheckIn(
     @Body() dto: StaffCheckInDto,
@@ -70,7 +70,7 @@ export class CheckinsController {
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
   @ApiOperation({
     summary:
-      'Lá»… tÃ¢n quÃ©t khuÃ´n máº·t 1:N táº¡i quáº§y â€” server tá»± nháº­n diá»‡n há»™i viÃªn (vector) rá»“i check-in',
+      'Lễ tân quét khuôn mặt 1:N tại quầy — server tự nhận diện hội viên (vector) rồi check-in',
   })
   faceScan(
     @Body() dto: FaceScanDto,
@@ -83,7 +83,7 @@ export class CheckinsController {
   @Get('qr/lookup')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
   @ApiOperation({
-    summary: 'Lá»… tÃ¢n nháº­p/dÃ¡n mÃ£ QR há»™i viÃªn Ä‘á»ƒ Ä‘á»‘i chiáº¿u há»“ sÆ¡ trÆ°á»›c khi check-in',
+    summary: 'Lễ tân nhập/dán mã QR hội viên để đối chiếu hồ sơ trước khi check-in',
   })
   lookupByQr(@Query() query: QrLookupQueryDto) {
     return this.checkinsService.lookupByQr(query.token);
@@ -92,7 +92,7 @@ export class CheckinsController {
   @Post('qr')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
   @ApiOperation({
-    summary: 'Check-in cho há»™i viÃªn báº±ng mÃ£ QR (ghi method = QR_CODE, Ä‘i qua cÃ¹ng kiá»ƒm tra tháº» táº­p)',
+    summary: 'Check-in cho hội viên bằng mã QR (ghi method = QR_CODE, đi qua cùng kiểm tra thẻ tập)',
   })
   checkInByQr(
     @Body() dto: QrCheckInDto,
@@ -106,7 +106,7 @@ export class CheckinsController {
   @Roles(Role.MEMBER, Role.TRAINER)
   @ApiOperation({
     summary:
-      'Há»™i viÃªn tá»± quÃ©t khuÃ´n máº·t Ä‘á»ƒ check-in (1:1 â€” so vector vá»›i máº«u Ä‘Ã£ Ä‘Äƒng kÃ½, khÃ´ng gá»­i áº£nh)',
+      'Hội viên tự quét khuôn mặt để check-in (1:1 — so vector với mẫu đã đăng ký, không gửi ảnh)',
   })
   faceCheckIn(@CurrentUser('id') userId: string, @Body() dto: FaceCheckInDto) {
     return this.checkinsService.faceCheckIn(userId, dto);
@@ -114,25 +114,25 @@ export class CheckinsController {
 
   @Post(':id/checkout')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
-  @ApiOperation({ summary: 'Admin/Staff chá»§ Ä‘á»™ng check-out cho má»™t phiÃªn táº­p Ä‘ang má»Ÿ' })
+  @ApiOperation({ summary: 'Admin/Staff chủ động check-out cho một phiên tập đang mở' })
   checkoutById(@Param('id') id: string, @CurrentUser('id') actorId: string) {
     return this.checkinsService.checkoutById(id, actorId);
   }
 
   // ---------------------------------------------------------------------------
-  // Member â€” chá»‰ dá»¯ liá»‡u cá»§a chÃ­nh mÃ¬nh
+  // Member — chỉ dữ liệu của chính mình
   // ---------------------------------------------------------------------------
 
   @Get('me/current')
   @Roles(Role.MEMBER, Role.TRAINER)
-  @ApiOperation({ summary: 'Tráº¡ng thÃ¡i check-in hiá»‡n táº¡i cá»§a há»™i viÃªn Ä‘ang Ä‘Äƒng nháº­p' })
+  @ApiOperation({ summary: 'Trạng thái check-in hiện tại của hội viên đang đăng nhập' })
   getMyCurrent(@CurrentUser('id') userId: string) {
     return this.checkinsService.getCurrent(userId);
   }
 
   @Get('me/history')
   @Roles(Role.MEMBER, Role.TRAINER)
-  @ApiOperation({ summary: 'Lá»‹ch sá»­ check-in cÃ¡ nhÃ¢n + thá»‘ng kÃª (thÃ¡ng/tuáº§n/trung bÃ¬nh)' })
+  @ApiOperation({ summary: 'Lịch sử check-in cá nhân + thống kê (tháng/tuần/trung bình)' })
   getMyHistory(@CurrentUser('id') userId: string, @Query() query: MyHistoryQueryDto) {
     return this.checkinsService.getMyHistory(userId, query);
   }
@@ -140,7 +140,7 @@ export class CheckinsController {
   @Post()
   @Roles(Role.MEMBER, Role.TRAINER)
   @ApiOperation({
-    summary: 'Há»™i viÃªn tá»± check-in (láº¥y há»™i viÃªn tá»« JWT)',
+    summary: 'Hội viên tự check-in (lấy hội viên từ JWT)',
   })
   checkIn(@CurrentUser('id') userId: string, @Body() dto: CheckInDto) {
     return this.checkinsService.checkIn(userId, dto.method);
@@ -148,7 +148,7 @@ export class CheckinsController {
 
   @Post('checkout')
   @Roles(Role.MEMBER, Role.TRAINER)
-  @ApiOperation({ summary: 'Há»™i viÃªn tá»± check-out phiÃªn táº­p Ä‘ang má»Ÿ cá»§a mÃ¬nh' })
+  @ApiOperation({ summary: 'Hội viên tự check-out phiên tập đang mở của mình' })
   checkOut(@CurrentUser('id') userId: string) {
     return this.checkinsService.checkOut(userId);
   }
@@ -157,7 +157,7 @@ export class CheckinsController {
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
   @ApiOperation({
     summary:
-      'Lá»… tÃ¢n quÃ©t khuÃ´n máº·t Ä‘á»ƒ check-out (1:N â€” server tá»± nháº­n diá»‡n rá»“i check-out náº¿u Ä‘ang má»Ÿ)',
+      'Lễ tân quét khuôn mặt để check-out (1:N — server tự nhận diện rồi check-out nếu đang mở)',
   })
   faceCheckOut(
     @Body() dto: FaceScanDto,

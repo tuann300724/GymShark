@@ -26,13 +26,13 @@ import { NotificationListQueryDto } from './dto/notification-query.dto';
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
-  // ---------------- CÃ¡ nhÃ¢n ----------------
+  // ---------------- Cá nhân ----------------
 
   @Get('me')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER, Role.MEMBER)
   @ApiOperation({
     summary:
-      'ThÃ´ng bÃ¡o cá»§a tÃ i khoáº£n Ä‘ang Ä‘Äƒng nháº­p (tab all/unread/read, lá»c theo type). Member chá»‰ tháº¥y cá»§a chÃ­nh mÃ¬nh.',
+      'Thông báo của tài khoản đang đăng nhập (tab all/unread/read, lọc theo type). Member chỉ thấy của chính mình.',
   })
   getMine(@CurrentUser('id') userId: string, @Query() query: NotificationListQueryDto) {
     return this.notificationsService.getMine(userId, query);
@@ -40,7 +40,7 @@ export class NotificationsController {
 
   @Get('me/unread')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER, Role.MEMBER)
-  @ApiOperation({ summary: 'Sá»‘ thÃ´ng bÃ¡o chÆ°a Ä‘á»c (cho bell icon)' })
+  @ApiOperation({ summary: 'Số thông báo chưa đọc (cho bell icon)' })
   async getUnread(@CurrentUser('id') userId: string) {
     const count = await this.notificationsService.getUnreadCount(userId);
     return { count };
@@ -48,14 +48,14 @@ export class NotificationsController {
 
   @Patch('read-all')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER, Role.MEMBER)
-  @ApiOperation({ summary: 'ÄÃ¡nh dáº¥u táº¥t cáº£ Ä‘Ã£ Ä‘á»c' })
+  @ApiOperation({ summary: 'Đánh dấu tất cả đã đọc' })
   markAllRead(@CurrentUser('id') userId: string, @CurrentUser('role') role: string) {
     return this.notificationsService.markAllRead(userId, role);
   }
 
   @Patch(':id/read')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER, Role.MEMBER)
-  @ApiOperation({ summary: 'ÄÃ¡nh dáº¥u má»™t thÃ´ng bÃ¡o Ä‘Ã£ Ä‘á»c (chá»‰ cá»§a chÃ­nh mÃ¬nh / admin)' })
+  @ApiOperation({ summary: 'Đánh dấu một thông báo đã đọc (chỉ của chính mình / admin)' })
   markRead(
     @CurrentUser('id') userId: string,
     @CurrentUser('role') role: string,
@@ -66,7 +66,7 @@ export class NotificationsController {
 
   @Delete(':id')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER, Role.MEMBER)
-  @ApiOperation({ summary: 'XÃ³a thÃ´ng bÃ¡o (chá»‰ cá»§a chÃ­nh mÃ¬nh / admin)' })
+  @ApiOperation({ summary: 'Xóa thông báo (chỉ của chính mình / admin)' })
   remove(
     @CurrentUser('id') userId: string,
     @CurrentUser('role') role: string,
@@ -80,7 +80,7 @@ export class NotificationsController {
   @Get()
   @Roles(Role.ADMIN, Role.MANAGER)
   @ApiOperation({
-    summary: 'Danh sÃ¡ch thÃ´ng bÃ¡o toÃ n há»‡ thá»‘ng (lá»c type/ngÃ y/unread/role) â€” dÃ nh cho admin',
+    summary: 'Danh sách thông báo toàn hệ thống (lọc type/ngày/unread/role) — dành cho admin',
   })
   findAllAdmin(@Query() query: NotificationListQueryDto) {
     return this.notificationsService.findAllAdmin(query);
@@ -90,7 +90,7 @@ export class NotificationsController {
   @Roles(Role.ADMIN, Role.MANAGER)
   @ApiOperation({
     summary:
-      'Táº¡o thÃ´ng bÃ¡o hÃ ng loáº¡t (announcement) â€” target ALL/MEMBERS/TRAINERS',
+      'Tạo thông báo hàng loạt (announcement) — target ALL/MEMBERS/TRAINERS',
   })
   announce(@Body() dto: AnnouncementDto) {
     return this.notificationsService.announce(dto);

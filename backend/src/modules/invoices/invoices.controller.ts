@@ -17,28 +17,28 @@ export class InvoicesController {
 
   @Get()
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
-  @ApiOperation({ summary: 'Danh sÃ¡ch hÃ³a Ä‘Æ¡n (admin) â€” filter, search, phÃ¢n trang' })
+  @ApiOperation({ summary: 'Danh sách hóa đơn (admin) — filter, search, phân trang' })
   findAll(@Query() query: InvoiceListQueryDto) {
     return this.invoicesService.findAll(query);
   }
 
   @Get('me')
   @Roles(Role.MEMBER)
-  @ApiOperation({ summary: 'Lá»‹ch sá»­ hÃ³a Ä‘Æ¡n cá»§a há»™i viÃªn Ä‘ang Ä‘Äƒng nháº­p' })
+  @ApiOperation({ summary: 'Lịch sử hóa đơn của hội viên đang đăng nhập' })
   getMyInvoices(@CurrentUser('id') userId: string, @Query() query: InvoiceListQueryDto) {
     return this.invoicesService.getMemberInvoices(userId, query);
   }
 
   @Get('me/:id')
   @Roles(Role.MEMBER)
-  @ApiOperation({ summary: 'Chi tiáº¿t hÃ³a Ä‘Æ¡n cá»§a há»™i viÃªn (chá»‰ xem Ä‘Æ°á»£c cá»§a chÃ­nh mÃ¬nh)' })
+  @ApiOperation({ summary: 'Chi tiết hóa đơn của hội viên (chỉ xem được của chính mình)' })
   getMyInvoice(@CurrentUser('id') userId: string, @Param('id') id: string) {
     return this.invoicesService.getMemberInvoice(userId, id);
   }
 
   @Get(':id')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
-  @ApiOperation({ summary: 'Chi tiáº¿t má»™t hÃ³a Ä‘Æ¡n (admin)' })
+  @ApiOperation({ summary: 'Chi tiết một hóa đơn (admin)' })
   findOne(@Param('id') id: string) {
     return this.invoicesService.findOne(id);
   }
