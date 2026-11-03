@@ -175,3 +175,286 @@ export function memberVerificationCodeEmail(params: {
     ].join('\n'),
   };
 }
+
+// ===========================================================================
+// NHÓM B — template cho email chạy nền (hóa đơn, thông báo, chào mừng...)
+// ===========================================================================
+
+/** Định dạng tiền VND: 1500000 → "1.500.000 ₫". */
+function formatVnd(amount: number): string {
+  return `${Math.round(amount).toLocaleString('vi-VN')} ₫`;
+}
+
+/** Định dạng ngày giờ Việt Nam: "15:30 02/11/2026". */
+function formatDateTimeVi(date: Date): string {
+  const d = new Date(date);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(d.getHours())}:${pad(d.getMinutes())} ${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+}
+
+/** Định dạng ngày (không giờ): "02/11/2026". */
+function formatDateVi(date: Date): string {
+  const d = new Date(date);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+}
+
+/** Một dòng bảng thông tin (label trái, value phải) — dùng cho hóa đơn/thông báo. */
+function kvRow(label: string, value: string, highlight = false): string {
+  return `
+    <tr>
+      <td style="padding:10px 0;font-size:13px;line-height:1.6;color:${BRAND.muted};border-bottom:1px solid ${BRAND.line};">${label}</td>
+      <td align="right" style="padding:10px 0;font-size:13px;line-height:1.6;border-bottom:1px solid ${BRAND.line};color:${highlight ? BRAND.neon : BRAND.chalk};font-weight:${highlight ? 700 : 400};">${value}</td>
+    </tr>`;
+}
+
+/**
+ * Email hóa đơn — gửi kèm file PDF đính kèm (do InvoicePdfService sinh ra).
+ * Gửi sau khi thanh toán được xác nhận (chạy nền, best-effort).
+ */
+export function invoiceEmail(params: {
+  fullName: string;
+  invoiceNumber: string;
+  packageName: string;
+  amount: number;
+  issuedAt: Date;
+}): VerificationCodeEmail {
+  const fullName = escapeHtml(params.fullName.trim());
+  const invoiceNumber = escapeHtml(params.invoiceNumber);
+  const packageName = escapeHtml(params.packageName);
+
+  return {
+    subject: `Hóa đơn ${params.invoiceNumber} — GymMaster Pro`,
+    html: layout(`
+      <h1 style="margin:0 0 12px;font-size:20px;line-height:1.4;color:${BRAND.chalk};">
+        Hóa đơn thanh toán
+      </h1>
+      <p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:${BRAND.muted};">
+        Cảm ơn <strong style="color:${BRAND.chalk};">${fullName}</strong> — hóa đơn chi tiết
+        được đính kèm file PDF trong email này.
+      </p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 20px;">
+        ${kvRow('Số hóa đơn', invoiceNumber)}
+        ${kvRow('Gói hội viên', packageName)}
+        ${kvRow('Ngày phát hành', formatDateTimeVi(params.issuedAt))}
+        ${kvRow('Tổng cộng', formatVnd(params.amount), true)}
+      </table>
+      <p style="margin:0;font-size:13px;line-height:1.7;color:${BRAND.muted};">
+        Bạn cũng có thể xem và in hóa đơn bất kỳ lúc nào tại mục <strong style="color:${BRAND.chalk};">Thanh toán</strong> trong tài khoản.
+      </p>
+    `),
+    text: [
+      `Xin chào ${params.fullName.trim()},`,
+      '',
+      'Hóa đơn thanh toán GymMaster Pro (đính kèm PDF):',
+      '',
+      `    Số hóa đơn   : ${params.invoiceNumber}`,
+      `    Gói hội viên  : ${params.packageName}`,
+      `    Ngày phát hành: ${formatDateTimeVi(params.issuedAt)}`,
+      `    Tổng cộng     : ${formatVnd(params.amount)}`,
+      '',
+      'Bạn cũng xem hóa đơn tại mục Thanh toán trong tài khoản.',
+    ].join('\n'),
+  };
+}
+
+/**
+ * Email xác nhận thanh toán thành công (gửi kèm/gần hóa đơn PDF).
+ * Khác invoiceEmail ở chỗ tập trung vào việc "đã nhận được tiền" + trạng thái.
+ */
+export function paymentConfirmedEmail(params: {
+  fullName: string;
+  invoiceNumber: string;
+  packageName: string;
+  amount: number;
+  paidAt: Date;
+  method: string;
+}): VerificationCodeEmail {
+  const fullName = escapeHtml(params.fullName.trim());
+  const invoiceNumber = escapeHtml(params.invoiceNumber);
+  const packageName = escapeHtml(params.packageName);
+  const METHOD_LABELS: Record<string, string> = {
+    CASH: 'Tiền mặt',
+    BANK_TRANSFER: 'Chuyển khoản',
+    MOMO: 'Ví MoMo',
+    VNPAY: 'VNPay',
+  };
+  const method = escapeHtml(METHOD_LABELS[params.method] || params.method);
+
+  return {
+    subject: 'Thanh toán thành công — GymMaster Pro',
+    html: layout(`
+      <div style="margin:0 0 16px;padding:10px 16px;background:${BRAND.ink};border:1px solid ${BRAND.neon};border-radius:10px;display:inline-block;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:${BRAND.neon};">
+        ✓ Đã xác nhận
+      </div>
+      <h1 style="margin:0 0 12px;font-size:20px;line-height:1.4;color:${BRAND.chalk};">
+        Thanh toán thành công
+      </h1>
+      <p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:${BRAND.muted};">
+        Cảm ơn <strong style="color:${BRAND.chalk};">${fullName}</strong> — chúng tôi đã xác nhận
+        khoản thanh toán của bạn cho gói <strong style="color:${BRAND.chalk};">${packageName}</strong>.
+        Hội viên của bạn đã được kích hoạt/gia hạn.
+      </p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 20px;">
+        ${kvRow('Mã hóa đơn', invoiceNumber)}
+        ${kvRow('Số tiền', formatVnd(params.amount), true)}
+        ${kvRow('Phương thức', method)}
+        ${kvRow('Thời gian', formatDateTimeVi(params.paidAt))}
+      </table>
+      <p style="margin:0;font-size:13px;line-height:1.7;color:${BRAND.muted};">
+        Hóa đơn chi tiết (PDF) được gửi kèm email này / trong mục <strong style="color:${BRAND.chalk};">Thanh toán</strong>.
+      </p>
+    `),
+    text: [
+      `Xin chào ${params.fullName.trim()},`,
+      '',
+      'Thanh toán GymMaster Pro đã được xác nhận:',
+      '',
+      `    Mã hóa đơn : ${params.invoiceNumber}`,
+      `    Gói hội viên : ${params.packageName}`,
+      `    Số tiền      : ${formatVnd(params.amount)}`,
+      `    Phương thức  : ${METHOD_LABELS[params.method] || params.method}`,
+      `    Thời gian   : ${formatDateTimeVi(params.paidAt)}`,
+    ].join('\n'),
+  };
+}
+
+/**
+ * Email cảnh báo gói hội viên sắp hết hạn (≤7 ngày).
+ * Nhắc gia hạn kèm ngày hết hạn để hội viên không bị gián đoạn tập luyện.
+ */
+export function membershipExpiringEmail(params: {
+  fullName: string;
+  packageName: string;
+  expiresAt: Date;
+  daysLeft: number;
+}): VerificationCodeEmail {
+  const fullName = escapeHtml(params.fullName.trim());
+  const packageName = escapeHtml(params.packageName);
+
+  return {
+    subject: `Gói hội viên sắp hết hạn (${params.daysLeft} ngày) — GymMaster Pro`,
+    html: layout(`
+      <h1 style="margin:0 0 12px;font-size:20px;line-height:1.4;color:${BRAND.chalk};">
+        Gói hội viên sắp hết hạn
+      </h1>
+      <p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:${BRAND.muted};">
+        Chào <strong style="color:${BRAND.chalk};">${fullName}</strong> — gói
+        <strong style="color:${BRAND.chalk};">${packageName}</strong> của bạn sẽ hết hạn sau
+        <strong style="color:${BRAND.neon};">${params.daysLeft} ngày</strong>. Gia hạn để không bị gián đoạn tập luyện.
+      </p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 20px;">
+        ${kvRow('Gói hội viên', packageName)}
+        ${kvRow('Ngày hết hạn', formatDateVi(params.expiresAt))}
+        ${kvRow('Còn lại', `${params.daysLeft} ngày`, true)}
+      </table>
+      <p style="margin:0;font-size:13px;line-height:1.7;color:${BRAND.muted};">
+        Đăng nhập và chọn <strong style="color:${BRAND.chalk};">Gia hạn gói</strong> trong mục Hội viên để tiếp tục tập luyện.
+      </p>
+    `),
+    text: [
+      `Chào ${params.fullName.trim()},`,
+      '',
+      `Gói ${params.packageName} của bạn sắp hết hạn:`,
+      '',
+      `    Ngày hết hạn : ${formatDateVi(params.expiresAt)}`,
+      `    Còn lại      : ${params.daysLeft} ngày`,
+      '',
+      'Gia hạn trong mục Hội viên để không bị gián đoạn tập luyện.',
+    ].join('\n'),
+  };
+}
+
+/**
+ * Email chào mừng sau khi đăng ký hội viên thành công (sau khi đã xác minh OTP).
+ * Không kèm dữ liệu nhạy cảm — chỉ mã hội viên + lời chào.
+ */
+export function welcomeEmail(params: {
+  fullName: string;
+  memberCode: string;
+}): VerificationCodeEmail {
+  const fullName = escapeHtml(params.fullName.trim());
+  const memberCode = escapeHtml(params.memberCode);
+
+  return {
+    subject: 'Chào mừng bạn đến với GymMaster Pro',
+    html: layout(`
+      <h1 style="margin:0 0 12px;font-size:20px;line-height:1.4;color:${BRAND.chalk};">
+        Chào mừng ${fullName}! 🎉
+      </h1>
+      <p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:${BRAND.muted};">
+        Tài khoản hội viên của bạn đã được tạo thành công. Dưới đây là mã hội viên — dùng khi
+        tiếp nhận tại lễ tân hoặc liên hệ bộ phận hỗ trợ.
+      </p>
+      <div style="margin:24px 0;padding:22px 20px;background:${BRAND.ink};border:1px solid ${BRAND.neon};border-radius:14px;text-align:center;">
+        <div style="font-family:'Courier New',Courier,monospace;font-size:30px;font-weight:700;letter-spacing:6px;color:${BRAND.neon};text-indent:6px;">
+          ${memberCode}
+        </div>
+      </div>
+      <p style="margin:0;font-size:13px;line-height:1.7;color:${BRAND.muted};">
+        Chọn gói hội viên phù hợp và đăng ký buổi tập đầu tiên ngay trong tài khoản nhé!
+      </p>
+    `),
+    text: [
+      `Chào mừng ${params.fullName.trim()} đến với GymMaster Pro!`,
+      '',
+      `Mã hội viên của bạn: ${params.memberCode}`,
+      '',
+      'Chọn gói hội viên và đăng ký buổi tập đầu tiên ngay trong tài khoản.',
+    ].join('\n'),
+  };
+}
+
+/**
+ * Email xác nhận đăng ký buổi tập thành công (lớp nhóm / kèm riêng PT).
+ * Gửi nền ngay sau khi booking được tạo — kèm thời gian + phòng + HLV.
+ */
+export function bookingConfirmedEmail(params: {
+  fullName: string;
+  title: string;
+  startTime: Date;
+  endTime: Date;
+  roomName?: string | null;
+  trainerName?: string | null;
+}): VerificationCodeEmail {
+  const fullName = escapeHtml(params.fullName.trim());
+  const title = escapeHtml(params.title);
+  const roomName = params.roomName ? escapeHtml(params.roomName) : 'Chưa xếp phòng';
+  const trainerName = params.trainerName ? escapeHtml(params.trainerName) : 'Chưa phân công';
+
+  return {
+    subject: `Đã xác nhận đăng ký buổi tập: ${params.title} — GymMaster Pro`,
+    html: layout(`
+      <div style="margin:0 0 16px;padding:10px 16px;background:${BRAND.ink};border:1px solid ${BRAND.neon};border-radius:10px;display:inline-block;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:${BRAND.neon};">
+        ✓ Đã xếp lịch
+      </div>
+      <h1 style="margin:0 0 12px;font-size:20px;line-height:1.4;color:${BRAND.chalk};">
+        Đăng ký buổi tập thành công
+      </h1>
+      <p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:${BRAND.muted};">
+        Chào <strong style="color:${BRAND.chalk};">${fullName}</strong> — bạn đã đăng ký
+        <strong style="color:${BRAND.chalk};">${title}</strong> thành công. Có mặt trước giờ tập 10 phút nhé!
+      </p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 20px;">
+        ${kvRow('Buổi tập', title)}
+        ${kvRow('Thời gian', `${formatDateTimeVi(params.startTime)} – ${formatDateTimeVi(params.endTime)}`)}
+        ${kvRow('Phòng tập', roomName)}
+        ${kvRow('Huấn luyện viên', trainerName)}
+      </table>
+      <p style="margin:0;font-size:13px;line-height:1.7;color:${BRAND.muted};">
+        Bạn có thể xem lại lịch trong mục <strong style="color:${BRAND.chalk};">Lịch tập</strong> của tài khoản.
+      </p>
+    `),
+    text: [
+      `Chào ${params.fullName.trim()},`,
+      '',
+      `Bạn đã đăng ký buổi tập "${params.title}" thành công:`,
+      '',
+      `    Thời gian : ${formatDateTimeVi(params.startTime)} – ${formatDateTimeVi(params.endTime)}`,
+      `    Phòng tập : ${params.roomName || 'Chưa xếp phòng'}`,
+      `    HLV       : ${params.trainerName || 'Chưa phân công'}`,
+      '',
+      'Có mặt trước giờ tập 10 phút. Xem lại trong mục Lịch tập.',
+    ].join('\n'),
+  };
+}

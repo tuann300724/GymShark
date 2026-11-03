@@ -2,27 +2,39 @@ import { Injectable, Logger, OnModuleInit, ServiceUnavailableException } from '@
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
-import { memberVerificationCodeEmail, passwordResetCodeEmail } from './email-templates';
+import {
+  bookingConfirmedEmail,
+  invoiceEmail,
+  memberVerificationCodeEmail,
+  membershipExpiringEmail,
+  passwordResetCodeEmail,
+  paymentConfirmedEmail,
+  welcomeEmail,
+} from './email-templates';
 
 export interface SendMailOptions {
   to: string;
   subject: string;
   html: string;
   text: string;
+  /** File đính kèm (hiện dùng cho hóa đơn PDF). */
+  attachments?: Array<{ filename: string; content: Buffer; contentType: string }>;
 }
 
 /**
- * MailService — kênh gửi email ra ngoài hệ thống (hiện phục vụ mã xác minh
- * đăng ký hội viên).
+ * MailService — kênh gửi email ra ngoài hệ thống.
  *
  * Cấu hình qua biến môi trường (xem .env.example):
  *   SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS, SMTP_REQUIRE_TLS, MAIL_FROM_NAME
  *   (địa chỉ From lấy luôn từ SMTP_USER — không có biến riêng cho địa chỉ From)
  *
- * Hợp đồng quan trọng — KHÁC với AuditService (best-effort, nuốt lỗi):
- *   send() ném lỗi khi gửi thất bại để nghiệp vụ gọi nó có thể dừng lại.
- *   Đăng ký hội viên phải bị chặn nếu mã xác minh không tới được người dùng —
- *   nếu nuốt lỗi thì hệ thống sẽ tạo tài khoản mà người đó không kiểm soát được email.
+ * Hợp đồng quan trọng — 2 phương thức với 2 hành vi RÕ RÀNG:
+ *   send()     — NÉM LỖI khi gửi thất bại. Dùng cho Nhóm A (mã OTP xác minh,
+ *                mã đặt lại mật khẩu): người dùng không nhận được mã thì PHẢI báo
+ *                lỗi để họ thử lại — nuốt lỗi sẽ tạo tài khoản không kiểm soát được email.
+ *   sendSafe() — nuốt lỗi, chỉ ghi log (best-effort). Dùng cho Nhóm B (hóa đơn,
+ *                thông báo sắp hết hạn, chào mừng, xác nhận buổi tập) chạy nền
+ *                qua EventEmitter: email trễ/fail không được phá vỡ nghiệp vụ chính.
  */
 @Injectable()
 export class MailService implements OnModuleInit {
@@ -75,6 +87,7 @@ export class MailService implements OnModuleInit {
         subject: options.subject,
         html: options.html,
         text: options.text,
+        attachments: options.attachments,
       });
       this.logger.log(`Đã gửi email "${options.subject}" tới ${options.to}`);
     } catch (e) {
@@ -83,6 +96,23 @@ export class MailService implements OnModuleInit {
       throw new ServiceUnavailableException(
         'Không gửi được mã xác minh. Vui lòng kiểm tra lại địa chỉ email hoặc thử lại sau.',
       );
+    }
+  }
+
+  /**
+   * Gửi best-effort KHÔNG ném lỗi (Nhóm B — email chạy nền qua EventEmitter).
+   * Trả true nếu gửi thành công; false nếu fail (đã ghi log). Dùng cho hóa đơn,
+   * thông báo sắp hết hạn, chào mừng, xác nhận buổi tập — email này fail không
+   * được ảnh hưởng tới API đã trả kết quả thành công cho người dùng.
+   */
+  async sendSafe(options: SendMailOptions): Promise<boolean> {
+    try {
+      await this.send(options);
+      return true;
+    } catch (e) {
+      const detail = e instanceof Error ? e.message : String(e);
+      this.logger.warn(`Email nền "${options.subject}" tới ${options.to} không gửi được: ${detail}`);
+      return false;
     }
   }
 
@@ -110,6 +140,84 @@ export class MailService implements OnModuleInit {
   }): Promise<void> {
     const mail = passwordResetCodeEmail(params);
     await this.send({ to: params.email, ...mail });
+  }
+
+  // =========================================================================
+  // NHÓM B — hàm nghiệp vụ cho email chạy nền (gọi từ MailListener qua sendSafe)
+  // =========================================================================
+
+  /** Hóa đơn PDF — gửi kèm file .pdf đính kèm. */
+  async sendInvoiceEmail(params: {
+    email: string;
+    fullName: string;
+    invoiceNumber: string;
+    packageName: string;
+    amount: number;
+    issuedAt: Date;
+    pdf: Buffer;
+  }): Promise<boolean> {
+    const mail = invoiceEmail(params);
+    return this.sendSafe({
+      to: params.email,
+      ...mail,
+      attachments: [
+        {
+          filename: `Hoa-don-${params.invoiceNumber}.pdf`,
+          content: params.pdf,
+          contentType: 'application/pdf',
+        },
+      ],
+    });
+  }
+
+  /** Xác nhận thanh toán thành công (không kèm PDF — PDF gửi riêng qua sendInvoiceEmail). */
+  async sendPaymentConfirmedEmail(params: {
+    email: string;
+    fullName: string;
+    invoiceNumber: string;
+    packageName: string;
+    amount: number;
+    paidAt: Date;
+    method: string;
+  }): Promise<boolean> {
+    const mail = paymentConfirmedEmail(params);
+    return this.sendSafe({ to: params.email, ...mail });
+  }
+
+  /** Cảnh báo gói hội viên sắp hết hạn (≤7 ngày). */
+  async sendMembershipExpiringEmail(params: {
+    email: string;
+    fullName: string;
+    packageName: string;
+    expiresAt: Date;
+    daysLeft: number;
+  }): Promise<boolean> {
+    const mail = membershipExpiringEmail(params);
+    return this.sendSafe({ to: params.email, ...mail });
+  }
+
+  /** Email chào mừng sau đăng ký hội viên thành công. */
+  async sendWelcomeEmail(params: {
+    email: string;
+    fullName: string;
+    memberCode: string;
+  }): Promise<boolean> {
+    const mail = welcomeEmail(params);
+    return this.sendSafe({ to: params.email, ...mail });
+  }
+
+  /** Xác nhận đăng ký buổi tập thành công. */
+  async sendBookingConfirmedEmail(params: {
+    email: string;
+    fullName: string;
+    title: string;
+    startTime: Date;
+    endTime: Date;
+    roomName?: string | null;
+    trainerName?: string | null;
+  }): Promise<boolean> {
+    const mail = bookingConfirmedEmail(params);
+    return this.sendSafe({ to: params.email, ...mail });
   }
 
   /** Dựng transporter từ biến môi trường; trả về null + ghi log nếu thiếu cấu hình. */

@@ -4,18 +4,24 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { MAIL_EVENTS } from '../mail/mail.events';
 
 /**
  * Đăng ký ca nhóm (ClassBooking).
  * - Hội viên tự đăng ký chỗ trong các buổi GROUP_CLASS có sức chứa (capacity).
  * - Chỉ mở khi: buổi SCHEDULED, chưa bắt đầu, còn chỗ, hội viên có gói hiệu lực.
  * - Hủy = xóa đăng ký, chỉ được trước khi buổi bắt đầu.
+ * - Đăng ký thành công → email xác nhận chạy nền (Nhóm B, EventEmitter).
  */
 @Injectable()
 export class ClassBookingsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private eventEmitter: EventEmitter2,
+  ) {}
 
   private async resolveMember(userId: string) {
     const member = await this.prisma.member.findUnique({ where: { userId } });
@@ -95,11 +101,13 @@ export class ClassBookingsService {
     }
 
     const now = new Date();
+    // Lưu ý: Membership.endDate là DateTime BẮT BUỘC (không nullable) —
+    // filter `endDate: null` sẽ bị PrismaClientValidationError.
     const activePack = await this.prisma.membership.findFirst({
       where: {
         memberId: member.id,
         status: 'ACTIVE',
-        OR: [{ endDate: null }, { endDate: { gte: now } }],
+        endDate: { gte: now },
       },
     });
     if (!activePack) {
@@ -110,6 +118,11 @@ export class ClassBookingsService {
 
     const session = await this.prisma.trainingSchedule.findUnique({
       where: { id: dto.scheduleId },
+      // Lấy tên phòng + tên HLV để gửi email xác nhận xếp lịch
+      include: {
+        room: { select: { name: true } },
+        trainer: { include: { user: { select: { fullName: true } } } },
+      },
     });
     if (!session) throw new NotFoundException('Không tìm thấy ca tập.');
     if (session.type !== 'GROUP_CLASS' || !session.capacity) {
@@ -140,6 +153,21 @@ export class ClassBookingsService {
     const booking = await this.prisma.classBooking.create({
       data: { scheduleId: session.id, memberId: member.id },
     });
+
+    // Email xác nhận xếp lịch (Nhóm B — nền): emit KHÔNG await, MailListener xử lý.
+    // Hội viên không có email trong hồ sơ thì bỏ qua — đăng ký vẫn thành công.
+    if (member.email) {
+      this.eventEmitter.emit(MAIL_EVENTS.SESSION_BOOKED, {
+        userId,
+        email: member.email,
+        fullName: member.fullName,
+        title: session.title,
+        startTime: session.startTime,
+        endTime: session.endTime,
+        roomName: session.room?.name ?? null,
+        trainerName: session.trainer?.user?.fullName ?? null,
+      });
+    }
 
     return {
       booking,

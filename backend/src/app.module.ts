@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -47,6 +48,8 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
         limit: 300,
       },
     ]),
+    // EventEmitter nội bộ: gửi email nền (hóa đơn, thông báo...) không chặn API
+    EventEmitterModule.forRoot(),
     PrismaModule,
     MailModule,
     HealthModule,
