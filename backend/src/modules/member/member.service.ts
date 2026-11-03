@@ -10,6 +10,7 @@ import { Prisma } from '@prisma/client';
 import { InvoiceStatus, PaymentMethod, PaymentStatus, UserRole } from '../../common/constants/db-enums';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit-logs/audit-logs.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { BANK_INFO } from '../payments/bank-info';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -23,6 +24,7 @@ export class MemberService {
     private prisma: PrismaService,
     private auditService: AuditService,
     private qrService: MemberQrService,
+    private notificationsService: NotificationsService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -541,6 +543,21 @@ export class MemberService {
       },
     });
 
+    // Báo cho tổ quản trị: có yêu cầu thanh toán mới cần xác nhận (chuông admin)
+    await this.notificationsService.notifyAdmins(
+      {
+        type: 'PAYMENT',
+        title: 'Yêu cầu thanh toán mới cần xác nhận 💳',
+        content: `Hội viên ${member.fullName} (${member.code}) vừa gửi yêu cầu ${
+          ctx.via === 'staff' ? 'đăng ký tại quầy' : 'đăng ký'
+        } gói ${pkg.name} — mã ${paymentCode}, số tiền ${Number(final).toLocaleString('vi-VN')}đ. Vào /admin/payments để xác nhận.`,
+        link: '/admin/payments',
+        referenceType: 'PAYMENT_REQUEST',
+        referenceId: result.payment.id,
+      },
+      ctx.actorUserId,
+    );
+
     return {
       message: 'Đã gửi yêu cầu đăng ký. Gói tập sẽ kích hoạt sau khi thanh toán được xác nhận.',
       membership: result.membership,
@@ -662,6 +679,19 @@ export class MemberService {
       },
     });
 
+    // Báo cho tổ quản trị: có yêu cầu gia hạn mới cần xác nhận (chuông admin)
+    await this.notificationsService.notifyAdmins(
+      {
+        type: 'PAYMENT',
+        title: 'Yêu cầu gia hạn gói mới cần xác nhận 💳',
+        content: `Hội viên ${member.fullName} (${member.code}) vừa gửi yêu cầu gia hạn gói ${pkg.name} — mã ${paymentCode}, số tiền ${Number(final).toLocaleString('vi-VN')}đ. Vào /admin/payments để xác nhận.`,
+        link: '/admin/payments',
+        referenceType: 'PAYMENT_REQUEST',
+        referenceId: result.payment.id,
+      },
+      userId,
+    );
+
     return {
       message: 'Đã gửi yêu cầu gia hạn. Gói mới sẽ có hiệu lực từ ngày gói hiện tại hết hạn.',
       membership: result.membership,
@@ -743,6 +773,19 @@ export class MemberService {
         via: 'self',
       },
     });
+
+    // Hội viên tự hủy yêu cầu → báo tổ quản trị để không chờ xác nhận vô ích
+    await this.notificationsService.notifyAdmins(
+      {
+        type: 'PAYMENT',
+        title: 'Hội viên đã hủy yêu cầu thanh toán 🗑️',
+        content: `Hội viên ${member.fullName} (${member.code}) đã tự hủy yêu cầu ${packageName} — mã ${payment.code}. Không cần xác nhận nữa.`,
+        link: '/admin/payments',
+        referenceType: 'PAYMENT_REQUEST_CANCELLED',
+        referenceId: payment.id,
+      },
+      userId,
+    );
 
     return { message: `Đã hủy yêu cầu ${packageName}`, ...result };
   }

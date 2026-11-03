@@ -6,6 +6,7 @@ import {
 import { InvoiceStatus, PaymentStatus } from '../../common/constants/db-enums';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit-logs/audit-logs.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { UpdateMembershipStatusDto } from './dto/update-membership-status.dto';
 import { ExtendMembershipDto } from './dto/extend-membership.dto';
 
@@ -14,6 +15,7 @@ export class MembershipsService {
   constructor(
     private prisma: PrismaService,
     private auditService: AuditService,
+    private notificationsService: NotificationsService,
   ) {}
 
   async findAll() {
@@ -129,6 +131,17 @@ export class MembershipsService {
       metadata: { from: cur, to: next, reason: dto.reason ?? null, memberName: membership.member.fullName },
     });
 
+    // Báo tổ quản trị: gói tập đổi trạng thái (loại người vừa thao tác)
+    await this.notificationsService.notifyAdmins(
+      {
+        type: 'MEMBERSHIP',
+        title: `Gói tập chuyển trạng thái: ${next} ⚠️`,
+        content: `Gói ${membership.package.name} của hội viên ${membership.member.fullName} chuyển từ ${cur} sang ${next}${dto.reason ? ` — lý do: ${dto.reason}` : ''}.`,
+        link: '/admin/memberships',
+      },
+      actorId,
+    );
+
     return { message: `Đã cập nhật trạng thái thành ${next}`, membership: result };
   }
 
@@ -137,7 +150,7 @@ export class MembershipsService {
     const membership = await this.prisma.membership.findUnique({
       where: { id },
       include: {
-        member: { select: { id: true } },
+        member: { select: { id: true, code: true, fullName: true } },
         package: { select: { id: true, name: true, price: true } },
       },
     });
@@ -150,6 +163,7 @@ export class MembershipsService {
     const newEndDate = new Date(membership.endDate.getTime() + dto.days * 24 * 60 * 60 * 1000);
 
     const code = await this.genPaymentCode();
+    let createdPaymentId = '';
 
     const result = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.membership.update({
@@ -172,6 +186,7 @@ export class MembershipsService {
           notes: `Gia hạn bởi quản trị viên (+${dto.days} ngày)${dto.reason ? ` - ${dto.reason}` : ''}`,
         },
       });
+      createdPaymentId = createdPayment.id;
 
       // Hóa đơn đi kèm (1-1 với payment)
       await tx.invoice.create({
@@ -209,6 +224,19 @@ export class MembershipsService {
       entityId: id,
       metadata: { days: dto.days, newEndDate: newEndDate.toISOString(), paymentCode: code, reason: dto.reason ?? null },
     });
+
+    // Báo tổ quản trị: có payment PENDING phát sinh từ gia hạn tại quầy (loại người vừa tạo)
+    await this.notificationsService.notifyAdmins(
+      {
+        type: 'PAYMENT',
+        title: 'Cần thu tiền gia hạn gói 💳',
+        content: `Lễ tân đã gia hạn +${dto.days} ngày cho hội viên ${membership.member.fullName} (${membership.member.code}) — gói ${membership.package.name}, mã ${code}, số tiền ${Number(membership.package.price).toLocaleString('vi-VN')}đ chờ thu. Vào /admin/payments để xác nhận.`,
+        link: '/admin/payments',
+        referenceType: 'PAYMENT_REQUEST',
+        referenceId: createdPaymentId,
+      },
+      actorId,
+    );
 
     return {
       message: `Đã gia hạn thêm ${dto.days} ngày (hạn mới: ${newEndDate.toLocaleDateString('vi-VN')})`,

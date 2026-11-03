@@ -10,6 +10,7 @@ import { MemberStatus, PaymentMethod, UserRole, UserStatus } from '../../common/
 import { uniqueReferralCode } from '../../common/utils/referral-code';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit-logs/audit-logs.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { MemberService } from '../member/member.service';
 import { PaymentsService } from '../payments/payments.service';
 import { UpdateMemberDto } from './dto/update-member.dto';
@@ -42,6 +43,7 @@ export class MembersService {
     private auditService: AuditService,
     private memberService: MemberService,
     private paymentsService: PaymentsService,
+    private notificationsService: NotificationsService,
   ) {}
 
   /**
@@ -428,6 +430,19 @@ export class MembersService {
         tempPassword: isTempPassword,
       },
     });
+
+    // Báo tổ quản trị: có hội viên mới tạo tại quầy (loại lễ tân vừa tạo)
+    await this.notificationsService.notifyAdmins(
+      {
+        type: 'SYSTEM',
+        title: 'Hội viên mới được tạo tại quầy 🙌',
+        content: `${member.fullName} (${member.code}) vừa được lễ tân tạo tài khoản — ${email}.`,
+        link: `/admin/members/${member.id}`,
+        referenceType: 'MEMBER_REGISTERED',
+        referenceId: member.id,
+      },
+      actor.id,
+    );
 
     return {
       message: 'Đã tạo hội viên mới',

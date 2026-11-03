@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InvoiceStatus, PaymentMethod, PaymentStatus } from '../../common/constants/db-enums';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit-logs/audit-logs.service';
@@ -21,6 +22,8 @@ import { RefundPaymentDto } from './dto/refund-payment.dto';
 import { PaymentListQueryDto } from './dto/payment-list-query.dto';
 import { CassoService } from '../casso/casso.service';
 import { BANK_INFO } from './bank-info';
+import { MAIL_EVENTS } from '../mail/mail.events';
+import { NotificationsService } from '../notifications/notifications.service';
 
 interface Actor {
   id: string;
@@ -42,6 +45,8 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     private auditService: AuditService,
     private cassoService: CassoService,
     private configService: ConfigService,
+    private eventEmitter: EventEmitter2,
+    private notificationsService: NotificationsService,
   ) {
     this.cassoAutoReconcile =
       this.configService.get<string>('CASSO_AUTO_RECONCILE')?.trim().toLowerCase() === 'true';
@@ -235,7 +240,17 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       where: { id },
       include: {
         membership: { include: { package: true } },
-        member: { select: { id: true, code: true, fullName: true } },
+        // Số hóa đơn chính thức (INV-...) để gửi email
+        invoice: { select: { invoiceNumber: true } },
+        // Lấy luôn email hội viên (qua user) để gửi hóa đơn PDF nền
+        member: {
+          select: {
+            id: true,
+            code: true,
+            fullName: true,
+            user: { select: { email: true } },
+          },
+        },
       },
     });
     if (!payment) throw new NotFoundException('Không tìm thấy giao dịch thanh toán');
@@ -372,6 +387,40 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       },
     });
 
+    // Email nền (Nhóm B): phát event KHÔNG await — MailListener sinh PDF +
+    // gửi hóa đơn/ xác nhận thanh toán. Fail chỉ ghi log, không ảnh hưởng API.
+    const payerEmail = payment.member.user?.email;
+    if (payerEmail) {
+      this.eventEmitter.emit(MAIL_EVENTS.PAYMENT_CONFIRMED, {
+        userId: payment.member.id,
+        email: payerEmail,
+        fullName: payment.member.fullName,
+        memberCode: payment.member.code,
+        // Ưu tiên số hóa đơn chính thức (INV-...); fallback mã giao dịch
+        invoiceNumber: payment.invoice?.invoiceNumber ?? payment.code,
+        packageName: payment.membership?.package?.name ?? 'Gói hội viên',
+        membershipEndDate: payment.membership?.endDate ?? null,
+        amount: Number(payment.amount),
+        paidAt: now,
+        method: payment.method,
+      });
+    }
+
+    // Báo tổ quản trị: thanh toán đã xác nhận (tự đối soát CASSO → actor null → báo tất cả)
+    await this.notificationsService.notifyAdmins(
+      {
+        type: 'PAYMENT',
+        title: 'Đã xác nhận thanh toán ✅',
+        content: `Hóa đơn ${payment.code} — ${payment.member.fullName} (${payment.member.code}) — ${Number(payment.amount).toLocaleString('vi-VN')}đ${
+          actor ? ` được xác nhận bởi ${actor.fullName ?? actor.role}` : ' được đối soát tự động qua CASSO'
+        }.`,
+        link: `/admin/payments/${id}`,
+        referenceType: 'PAYMENT_CONFIRMED',
+        referenceId: payment.id,
+      },
+      actor?.id,
+    );
+
     return { message: 'Xác nhận thanh toán thành công', ...result };
   }
 
@@ -452,7 +501,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       where: { id },
       include: {
         membership: { include: { package: true } },
-        member: { select: { id: true, fullName: true } },
+        member: { select: { id: true, code: true, fullName: true } },
       },
     });
     if (!payment) throw new NotFoundException('Không tìm thấy giao dịch thanh toán');
@@ -513,6 +562,19 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       metadata: { code: payment.code, amount: payment.amount, reason: reason ?? null, memberName: payment.member.fullName },
     });
 
+    // Báo tổ quản trị: hóa đơn bị từ chối/hủy (loại người vừa thao tác)
+    await this.notificationsService.notifyAdmins(
+      {
+        type: 'PAYMENT',
+        title: 'Hóa đơn đã bị từ chối/hủy ⚠️',
+        content: `Hóa đơn ${payment.code} — ${payment.member.fullName} (${payment.member.code}) — ${Number(payment.amount).toLocaleString('vi-VN')}đ đã bị từ chối${reason ? ` (${reason})` : ''}.`,
+        link: `/admin/payments/${id}`,
+        referenceType: 'PAYMENT_REJECTED',
+        referenceId: payment.id,
+      },
+      actor.id,
+    );
+
     return { message: 'Đã hủy/từ chối hóa đơn', ...result };
   }
 
@@ -530,7 +592,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       where: { id },
       include: {
         membership: { include: { package: true } },
-        member: { select: { id: true, fullName: true } },
+        member: { select: { id: true, code: true, fullName: true } },
       },
     });
     if (!payment) throw new NotFoundException('Không tìm thấy giao dịch thanh toán');
@@ -601,6 +663,19 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
         memberName: payment.member.fullName,
       },
     });
+
+    // Báo tổ quản trị: giao dịch đã hoàn tiền (loại người vừa thao tác)
+    await this.notificationsService.notifyAdmins(
+      {
+        type: 'PAYMENT',
+        title: 'Đã hoàn tiền giao dịch 💸',
+        content: `Hóa đơn ${payment.code} — ${payment.member.fullName} (${payment.member.code}) — ${Number(payment.amount).toLocaleString('vi-VN')}đ đã được hoàn tiền${dto.reason ? ` (${dto.reason})` : ''}.`,
+        link: `/admin/payments/${id}`,
+        referenceType: 'PAYMENT_REFUNDED',
+        referenceId: payment.id,
+      },
+      actor.id,
+    );
 
     return { message: 'Đã hoàn tiền', ...result };
   }

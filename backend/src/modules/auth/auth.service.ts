@@ -12,9 +12,12 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 import type { Prisma } from '@prisma/client';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit-logs/audit-logs.service';
 import { MailService } from '../mail/mail.service';
+import { MAIL_EVENTS } from '../mail/mail.events';
+import { NotificationsService } from '../notifications/notifications.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { MemberRegisterDto } from './dto/member-register.dto';
@@ -41,6 +44,8 @@ export class AuthService {
     private jwtService: JwtService,
     private auditService: AuditService,
     private mailService: MailService,
+    private eventEmitter: EventEmitter2,
+    private notificationsService: NotificationsService,
   ) {}
 
   async validateUser(email: string, pass: string): Promise<any> {
@@ -432,6 +437,25 @@ export class AuthService {
       ip,
     });
 
+    // Email chào mừng (Nhóm B — nền): phát event KHÔNG await, MailListener xử lý.
+    // Đăng ký đã thành công ở bước này — email fail không được ảnh hưởng kết quả.
+    this.eventEmitter.emit(MAIL_EVENTS.MEMBER_REGISTERED, {
+      userId: result.user.id,
+      email: result.user.email,
+      fullName: result.user.fullName,
+      memberCode: result.member.code,
+    });
+
+    // Báo tổ quản trị: có hội viên mới đăng ký (chuông admin)
+    await this.notificationsService.notifyAdmins({
+      type: 'SYSTEM',
+      title: 'Hội viên mới đã đăng ký 🙌',
+      content: `${result.member.fullName} (${result.member.code}) vừa xác minh email và tạo tài khoản — ${result.user.email}.`,
+      link: `/admin/members/${result.member.id}`,
+      referenceType: 'MEMBER_REGISTERED',
+      referenceId: result.member.id,
+    });
+
     return {
       message: 'Tạo tài khoản hội viên thành công',
       user: result.user,
@@ -738,17 +762,27 @@ export class AuthService {
         },
       });
 
-      return created;
+      return { user: created, member };
     });
 
     await this.auditService.log({
-      userId: user.id,
+      userId: user.user.id,
       action: 'MEMBER_REGISTER',
       entity: 'Member',
       metadata: { email, provider: 'GOOGLE', emailVerified: true },
     });
 
-    return user;
+    // Báo tổ quản trị: hội viên mới đăng nhập Google (chuông admin)
+    await this.notificationsService.notifyAdmins({
+      type: 'SYSTEM',
+      title: 'Hội viên mới đã đăng ký 🙌',
+      content: `${profile.fullName} (${user.member.code}) vừa tạo tài khoản qua đăng nhập Google — ${email}.`,
+      link: `/admin/members/${user.member.id}`,
+      referenceType: 'MEMBER_REGISTERED',
+      referenceId: user.member.id,
+    });
+
+    return user.user;
   }
 
   async register(registerDto: RegisterDto) {

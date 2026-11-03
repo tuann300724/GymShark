@@ -8,6 +8,7 @@ import { Prisma } from '@prisma/client';
 import { CheckInMethod } from '../../common/constants/db-enums';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit-logs/audit-logs.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { FacesService } from '../faces/faces.service';
 import { FaceCheckInDto, FaceScanDto, QrCheckInDto } from './dto/checkin.dto';
 import { MemberQrService } from '../../common/services/member-qr.service';

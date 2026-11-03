@@ -163,6 +163,47 @@ export class NotificationsService {
   }
 
   // ---------------------------------------------------------------------------
+  // Bên quản trị: chuông admin cho mọi hoạt động nghiệp vụ
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Fan-out thông báo tới TẤT CẢ tài khoản vận hành (ADMIN / MANAGER / STAFF đang ACTIVE)
+   * — chính là các role dùng chuông ở admin header, nên chỉ cần tạo dòng cho user
+   * là badge chưa đọc tự sáng (không phải sửa frontend).
+   *
+   * Dedupe theo (referenceType + referenceId + userId): một sự kiện chỉ báo đúng
+   * 1 lần cho mỗi người — an toàn khi gọi lại (ticker chạy lặp, retry...).
+   * Không truyền reference thì luôn tạo mới (hành động lặp được như đổi trạng thái
+   * vẫn phải báo mỗi lần diễn ra).
+   *
+   * `excludeUserId` loại người vừa thực hiện hành động — tránh "tự báo cho mình".
+   * Không bao giờ ném lỗi ra caller: thông báo phụ không được làm hỏng luồng chính.
+   */
+  async notifyAdmins(
+    input: Omit<CreateNotificationInput, 'userId' | 'memberId'>,
+    excludeUserId?: string,
+  ): Promise<void> {
+    try {
+      const admins = await this.prisma.user.findMany({
+        where: {
+          role: { in: [UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF] },
+          status: 'ACTIVE',
+          ...(excludeUserId ? { id: { not: excludeUserId } } : {}),
+        },
+        select: { id: true },
+      });
+
+      for (const admin of admins) {
+        await this.create({ ...input, userId: admin.id });
+      }
+    } catch (err) {
+      // Báo lỗi ra log nhưng không chặn luồng nghiệp vụ đang chạy
+      // eslint-disable-next-line no-console
+      console.error('[notifyAdmins]', err instanceof Error ? err.message : err);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Cá nhân: me / unread / read / read-all / delete
   // ---------------------------------------------------------------------------
 
