@@ -53,6 +53,7 @@ export const navigationSections = [
     title: 'Hệ thống',
     items: [
       { name: 'Báo cáo thống kê', href: '/admin/reports', icon: BarChart3 },
+      { name: 'Thiết bị', href: '/admin/reports/equipment', icon: Dumbbell },
       { name: 'Thông báo', href: '/admin/notifications', icon: Bell },
       { name: 'Nhật ký hệ thống', href: '/admin/audit-logs', icon: ScrollText },
       { name: 'Thư viện thực phẩm', href: '/admin/foods', icon: UtensilsCrossed },

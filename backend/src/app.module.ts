@@ -32,6 +32,7 @@ import { ProgramsModule } from './modules/programs/programs.module';
 import { ClassBookingsModule } from './modules/class-bookings/class-bookings.module';
 import { BodyMetricsModule } from './modules/body-metrics/body-metrics.module';
 import { CassoModule } from './modules/casso/casso.module';
+import { EquipmentModule } from './modules/equipment/equipment.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 @Module({
@@ -51,6 +52,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     // EventEmitter nội bộ: gửi email nền (hóa đơn, thông báo...) không chặn API
     EventEmitterModule.forRoot(),
     PrismaModule,
+    EquipmentModule,
     MailModule,
     HealthModule,
     AuthModule,

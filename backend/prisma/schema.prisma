@@ -285,6 +285,8 @@ model Invoice {
 model CheckIn {
   id           String    @id @default(uuid()) @db.NVarChar(100)
   memberId     String    @db.NVarChar(100)
+  equipmentId  String?   @db.NVarChar(100)
+  equipment    Equipment? @relation("EquipmentCheckIns", fields: [equipmentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   member       Member    @relation(fields: [memberId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   checkInTime  DateTime  @default(now())
   checkOutTime DateTime?
@@ -295,6 +297,7 @@ model CheckIn {
   updatedAt    DateTime  @updatedAt
 
   @@index([memberId])
+  @@index([equipmentId])
   @@index([status])
   @@index([checkInTime])
 }
@@ -752,3 +755,36 @@ model MealItem {
   @@index([mealId])
   @@index([foodId])
 }
+
+// ==================== EQUIPMENT ====================
+model Equipment {
+  id          String   @id @default(uuid())
+  name        String   @db.NVarChar(400)
+  code        String   @unique @db.NVarChar(400) // mã duy nhất toàn hệ thống, VD: R-01, TREADMILL-01
+  type        String   @default("CARDIO") @db.NVarChar(400) // CARDIO, WEIGHT, FREESTYLE, GROUP_CLASS
+  status      String   @default("AVAILABLE") @db.NVarChar(400) // AVAILABLE, INACTIVE, MAINTENANCE, BROKEN
+  capacity    Int?     // chỉ dùng cho GROUP_CLASS
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  maintenance EquipmentMaintenance[] @relation("EquipmentMaintenance")
+  checkIns    CheckIn[]        @relation("EquipmentCheckIns")
+}
+
+// ==================== EQUIPMENT MAINTENANCE ====================
+model EquipmentMaintenance {
+  id              String   @id @default(uuid())
+  equipmentId     String
+  equipment       Equipment @relation("EquipmentMaintenance", fields: [equipmentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  status          String   @default("PENDING") @db.NVarChar(400) // PENDING, IN_PROGRESS, COMPLETE, CANCELLED
+  startDate       DateTime
+  endDate         DateTime?
+  description     String?  @db.NVarChar(Max)
+  notes           String?  @db.NVarChar(Max)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([equipmentId])
+  @@index([status])
+}
+

@@ -557,6 +557,18 @@ export interface UnreadCountResponse {
   count: number;
 }
 
+export interface EquipmentStats {
+  status: string;
+  count: number;
+}
+
+export interface EquipmentUsage {
+  equipmentId: string;
+  name: string;
+  type: string;
+  usageCount: number;
+}
+
 export interface ReportSummary {
   totalMembers: number;
   activeMembers: number;
