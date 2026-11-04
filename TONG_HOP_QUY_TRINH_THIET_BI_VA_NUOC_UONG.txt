@@ -1,0 +1,290 @@
+================================================================================
+TỔNG HỢP QUY TRÌNH TRIỂN KHAI: QUẢN LÍ THIẾT BỊ VÀ NƯỚC UỐNG (BÁN LẺ)
+Dự án: GymShark (Next.js 14 + NestJS + Prisma + SQL Server)
+Ngày lập: 03/11/2026
+Trạng thái: CHỈ BÁO CÁO — CHƯA THỰC HIỆN SỬA FILE NÀO
+================================================================================
+
+MỤC TIÊU
+--------
+Thêm vào hệ thống GymShark 2 nhóm chức năng:
+1. Quản lý thiết bị & dụng cụ tập (Equipment & EquipmentMaintenance)
+2. Quản lý nước uống / bán lẻ tại quầy gym (Retail POS)
+
+Hai nhóm này chạy độc lập nhưng đều gắn vào hệ thống báo cáo (Reports) và sidebar admin hiện có.
+
+================================================================================
+PHẦN A: QUẢN LÍ THIẾT BỊ & DỤNG CỤ TẬP
+================================================================================
+
+A1. Database (Prisma Schema) — Thêm 2 model mới
+------------------------------------------------
+File: backend/prisma/schema.prisma
+
+Model Equipment:
+- id: String @id @default(uuid())
+- code: String @unique (mã thiết bị, vd: EQ-01)
+- name: String (tên thiết bị)
+- type: String (CARDIO / WEIGHT / FREESTYLE / GROUP_CLASS)
+- status: String (AVAILABLE / INACTIVE / MAINTENANCE / BROKEN)
+- capacity: Int? (sức chứa, chỉ dùng cho dụng cụ nhóm)
+- createdAt, updatedAt: DateTime
+
+Model EquipmentMaintenance:
+- id: String @id @default(uuid())
+- equipmentId: String @db.NVarChar(100)
+- equipment: Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+- status: String (PENDING / IN_PROGRESS / COMPLETE / CANCELLED)
+- startDate: DateTime
+- endDate: DateTime?
+- description, notes: String?
+- createdAt, updatedAt: DateTime
+
+Relation ngược: Equipment.maintenance -> EquipmentMaintenance[]
+Index: @@index([status]) trên cả 2 model.
+
+A2. Backend Module: equipment
+-----------------------------
+Thư mục: backend/src/modules/equipment/
+File mới (4 file):
+1. equipment.module.ts         -> import vào app.module.ts
+2. equipment.service.ts        -> CRUD + stats (findAll, findOne, create, update, delete, getStats, getUsage)
+3. equipment.controller.ts     -> @Controller('equipment'), routes: /, /:id, /stats, /usage
+4. dto/equipment.dto.ts        -> CreateEquipmentDto, UpdateEquipmentDto, StatusDto
+
+A3. Mở rộng Reports Service cho thiết bị
+-----------------------------------------
+File: backend/src/modules/reports/reports.service.ts
+- Thêm getEquipmentSummary()
+- Thêm getEquipmentUsage() (đếm liên kết từ CheckIn nếu có)
+- Thêm getEquipmentMaintenance() (timeline bảo trì)
+
+File: backend/src/modules/reports/reports.controller.ts
+- GET /reports/equipment/stats
+- GET /reports/equipment/usage
+
+A4. Kiểm tra ràng buộc Schedule (tùy chọn)
+------------------------------------------
+File: backend/src/modules/schedules/schedules.service.ts
+- Khi tạo TrainingSchedule, kiểm tra room.status và equipment.status (nếu có liên kết thiết bị).
+
+A5. Frontend — Sidebar admin
+-----------------------------
+File: frontend/src/components/layout/admin-sidebar.tsx
+- Thêm item menu: "Thiết bị" (icon Dumbbell hoặc tương tự) dưới mục "Hệ thống" hoặc mục mới.
+
+A6. Frontend — Reports Page: Tab thiết bị
+------------------------------------------
+File: frontend/src/app/(admin)/admin/reports/page.tsx
+- Thêm { value: 'equipment', label: 'Thiết bị & Dụng cụ' } vào mảng TABS.
+- Tạo component EquipmentTab():
+  * StatCards: tổng thiết bị, đang hoạt động, đang bảo trì, tỷ lệ sẵn sàng.
+  * Chart: phân bố trạng thái (MethodBars), lịch sử bảo trì (BarChart).
+
+File kèm: frontend/src/services/report.service.ts
+- Thêm equipment() và equipmentUsage() gọi API /reports/equipment/*.
+
+A7. Frontend — Dashboard: StatCard thiết bị
+--------------------------------------------
+File: frontend/src/app/(admin)/admin/dashboard/page.tsx
+- Thêm StatCard: "Thiết bị sẵn sàng" / "Thiết bị bảo trì".
+
+================================================================================
+PHẦN B: QUẢN LÍ NƯỚC UỐNG / BÁN LẺ (RETAIL POS)
+================================================================================
+
+B1. Database (Prisma Schema) — Thêm 7 model mới
+------------------------------------------------
+File: backend/prisma/schema.prisma
+
+Model ProductCategory:
+- id, name(@unique), label(ví dụ: "Nước uống"), sortOrder
+
+Model Product:
+- id, sku(@unique), name, categoryId, unit("chai"/"hộp"/"cái"), salePrice, costPrice?, imageUrl?, isActive
+- Relation: category -> ProductCategory, inventory -> Inventory?, saleItems -> SaleItem[]
+
+Model Inventory:
+- id, productId(@unique), quantity, lowStockThreshold, location?, lastStockInAt?, updatedAt
+
+Model StockIn:
+- id, code(@unique), supplier?, note?, createdById, createdAt
+- Relation: items -> StockInItem[], createdBy -> User
+
+Model StockInItem:
+- id, stockInId, productId, quantity, unitCost
+
+Model Sale:
+- id, code(@unique), memberId?, staffId, paymentId(@unique)?, invoiceId(@unique)?, subtotal, discount, total, note, createdAt
+- Relation: items -> SaleItem[], member -> Member?, staff -> User
+
+Model SaleItem:
+- id, saleId, productId, quantity, unitPrice, lineTotal
+
+B2. Backend Module: retail
+--------------------------
+Thư mục: backend/src/modules/retail/
+File mới:
+1. retail.module.ts          -> import vào app.module.ts
+2. retail.controller.ts      -> @Controller('retail'), routes chi tiết dưới B3
+3. retail.service.ts         -> các hàm nghiệp vụ (xem B4)
+4. dto/product.dto.ts
+5. dto/sale.dto.ts           (SaleCreateDto: items: [{productId, quantity, note?}])
+6. dto/stock-in.dto.ts
+
+B3. Danh sách API Endpoints (retail.controller.ts)
+---------------------------------------------------
+GET    /retail/products          -> Danh sách sản phẩm (filter category, active, search)
+POST   /retail/products          -> Tạo sản phẩm mới
+PATCH  /retail/products/:id      -> Cập nhật sản phẩm (giá, tên, status...)
+GET    /retail/inventory         -> Danh sách tồn kho + cờ low-stock
+POST   /retail/stock-in          -> Tạo phiếu nhập kho (tăng tồn kho)
+GET    /retail/stock-in          -> Lịch sử nhập kho
+POST   /retail/sales             -> TẠO ĐƠN BÁN POS (quan trọng nhất, xem B4)
+GET    /retail/sales             -> Lịch sử bán hàng
+GET    /retail/sales/:id         -> Chi tiết một đơn bán
+POST   /retail/sales/:id/refund  -> Hoàn tiền / Trả hàng
+GET    /retail/reports           -> Báo cáo bán lẻ (doanh thu, top SP...)
+GET    /retail/reports/top       -> Top sản phẩm bán chạy
+
+B4. Tích hợp Payment & Invoice hiện có
+---------------------------------------
+File: backend/src/modules/retail/retail.service.ts (hàm createSale)
+
+Luồng tạo đơn bán (transaction):
+1. Tạo Sale record (code, staffId, memberId? nếu có hội viên)
+2. Tạo SaleItem[] cho mỗi sản phẩm (quantity, unitPrice, lineTotal)
+3. Tính subtotal, discount, total
+4. Tạo Payment:
+   - amount = total
+   - method = CASH (mặc định) hoặc từ DTO
+   - status = PAID nếu CASH, PENDING nếu BANK_TRANSFER/MOMO/VNPAY
+5. Tạo Invoice:
+   - invoiceNumber tự sinh (INV-YYYY-NNNNNN)
+   - subtotal, discount, total, status = ISSUED (PAID nếu thanh toán ngay)
+6. Trừ Inventory.quantity (nếu thanh toán thành công / PAID)
+7. Kiểm tra low-stock sau khi trừ → nếu <= lowStockThreshold, tạo Notification cảnh báo
+
+File: backend/src/modules/payments/payments.service.ts (tùy chọn)
+- Khi confirm Payment, nếu liên kết Sale thì đảm bảo Sale.total khớp.
+
+B5. Frontend — Màn hình POS (bán hàng)
+---------------------------------------
+File mới: frontend/src/app/(admin)/admin/retail/pos/page.tsx
+- Giao diện đơn giản:
+  * Ô tìm kiếm sản phẩm (tên / SKU) + danh sách sản phẩm sẵn có
+  * Click "Thêm" → đẩy vào giỏ hàng (bên phải)
+  * Giỏ hàng: hiển thị sản phẩm, số lượng, đơn giá, tổng thành tiền
+  * Chọn hội viên (dropdown, tùy chọn — null = khách vãng lai)
+  * Chọn phương thức thanh toán (CASH / BANK_TRANSFER)
+  * Nút "Xác nhận bán"
+- Sau khi xác nhận: hiển thị Sale.code, Payment.id, tổng tiền, nút "In phiếu" (window.print).
+
+File component: frontend/src/components/ui/retail-cart.tsx
+- Hiển thị giỏ hàng, tính tổng, xóa mục, áp dụng giảm giá (nếu có).
+
+B6. Frontend — Sản phẩm & Tồn kho
+----------------------------------
+File mới:
+1. frontend/src/app/(admin)/admin/retail/products/page.tsx
+   -> Bảng CRUD sản phẩm (tạo, sửa, bật/tắt active)
+2. frontend/src/app/(admin)/admin/retail/inventory/page.tsx
+   -> Bảng tồn kho, nút "Nhập kho" (dialog nhập số lượng + giá nhập)
+   -> Cảnh báo màu đỏ nếu quantity <= lowStockThreshold
+3. frontend/src/app/(admin)/admin/retail/sales/page.tsx
+   -> Bảng lịch sử bán hàng, tìm theo Sale.code, member.code, ngày
+4. frontend/src/app/(admin)/admin/retail/sales/[id]/page.tsx
+   -> Chi tiết đơn bán (danh sách sản phẩm, tổng tiền, hội viên, nhân viên, trạng thái)
+
+B7. Frontend — Sidebar & Navigation
+------------------------------------
+File: frontend/src/components/layout/admin-sidebar.tsx
+- Thêm section mới hoặc vào mục "Tài chính & Ưu đãi":
+  { name: 'POS Bán lẻ', href: '/admin/retail/pos', icon: ShoppingCart }
+  { name: 'Sản phẩm', href: '/admin/retail/products', icon: Package }
+  { name: 'Tồn kho', href: '/admin/retail/inventory', icon: Warehouse }
+  { name: 'Lịch sử bán', href: '/admin/retail/sales', icon: Receipt }
+
+B8. Frontend — Reports: Tab Bán lẻ
+-----------------------------------
+File: frontend/src/app/(admin)/admin/reports/page.tsx
+- Thêm { value: 'retail', label: 'Bán lẻ' } vào mảng TABS.
+- Tạo RetailTab():
+  * StatCards: Doanh thu bán lẻ hôm nay / tuần / tháng.
+  * BarChart: Doanh thu theo ngày.
+  * MethodBars: Top sản phẩm theo doanh thu.
+  * Bảng: Tồn kho thấp (liên kết đến /admin/retail/inventory).
+
+File: frontend/src/services/report.service.ts
+- Thêm retail() và retailTop() gọi API /retail/reports.
+
+================================================================================
+PHẦN C: TÍCH HỢP CHUNG (Cả hai phần)
+================================================================================
+
+C1. Audit Log
+-------------
+Ghi hành động: RETAIL_SALE, STOCK_IN, PRODUCT_UPDATE, REFUND, EQUIPMENT_CREATE, EQUIPMENT_MAINTENANCE
+Entity: 'Sale', 'Product', 'StockIn', 'Equipment', 'EquipmentMaintenance'
+
+C2. Notification — Cảnh báo tồn kho thấp
+----------------------------------------
+Khi Inventory.quantity <= lowStockThreshold sau khi bán hoặc nhập kho:
+Tự tạo Notification cho ADMIN / MANAGER:
+- Title: "Tồn kho thấp: {Product.name}"
+- Content: "Còn {quantity} {unit}. Vui lòng nhập kho."
+
+C3. Design System
+-----------------
+- Giữ nguyên màu token: ink / surface / neon / chalk / muted / line / danger
+- Icon dùng lucide-react (ShoppingCart, Warehouse, PackageOpen, Dumbbell, BarChart3...)
+- Animation dùng component Reveal (nếu cần)
+- Không thêm package mới mà chưa hỏi người dùng (theo AGENTS.md)
+
+================================================================================
+D. KIỂM TRA (QA Checklist) — Sau khi hoàn thành từng phần
+================================================================================
+
+D1. Thiết bị (Phần A)
+- [ ] GET /equipment trả đúng danh sách
+- [ ] GET /equipment/stats phân nhóm theo status và type
+- [ ] GET /equipment/usage đếm đúng số lần sử dụng
+- [ ] Tạo EquipmentMaintenance -> GET /equipment phản ánh status đúng
+- [ ] format:check, lint, build PASS
+
+D2. Nước uống / Bán lẻ (Phần B)
+- [ ] POST /retail/sales -> Inventory.quantity giảm đúng
+- [ ] POST /retail/sales -> Tạo Sale + SaleItem + Payment + Invoice, số tiền khớp
+- [ ] POST /retail/sales/:id/refund -> Payment.status = REFUNDED, tồn kho cộng lại
+- [ ] GET /retail/reports trả doanh thu tổng và top sản phẩm
+- [ ] GET /retail/inventory hiển thị lowStockThreshold (màu đỏ nếu thấp)
+- [ ] Màn hình POS (/admin/retail/pos) hoạt động desktop và mobile 390px
+- [ ] typecheck, lint, format:check, build PASS
+
+================================================================================
+THỨ TỰ TRIỂN KHAI ĐỀ XUẤT
+================================================================================
+
+| Bước | Việc | File chính | Thời gian dự kiến |
+|------|------|------------|-------------------|
+| 1 | Schema: 2 model Equipment + 7 model Retail | prisma/schema.prisma | 0.5 ngày |
+| 2 | Module Equipment (backend) | modules/equipment/* | 2 ngày |
+| 3 | Module Retail (backend) + transaction Sale | modules/retail/* | 3 ngày |
+| 4 | Reports Service mở rộng | reports.service.ts | 1 ngày |
+| 5 | Sidebar + Reports tab (FE) | admin-sidebar.tsx, reports/page.tsx | 1.5 ngày |
+| 6 | POS + Products + Inventory (FE) | retail/* (pages + components) | 3 ngày |
+| 7 | Integration (Audit, Notification, Dashboard card) | audit-logs, notifications | 1 ngày |
+| 8 | QA + format/build check | typecheck, lint, format, build | 1 ngày |
+| TỔNG | | | ≈ 13 ngày |
+
+LƯU Ý QUAN TRỌNG
+----------------
+- Không tự commit/push khi chưa được đồng ý (theo AGENTS.md).
+- Trước khi sửa file tiếng Việt, dùng tool write/edit, tránh PowerShell (lỗi encoding/BOM).
+- Chỉ cài package mới khi đã hỏi người dùng.
+- Sau khi sửa UI, chạy: npm run typecheck && npm run lint && npm run format:check.
+- Nước uống ở đây = nước uống bán tại quầy gym (retail POS), không phải hệ thống lọc nước / máy lạnh.
+
+================================================================================
+KẾT THÚC TÀI LIỆU BÁO CÁO
+================================================================================

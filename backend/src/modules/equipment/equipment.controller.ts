@@ -7,6 +7,7 @@ import { Equipment } from '@prisma/client';
 import { CreateEquipmentDto } from './dto/create-equipment.dto';
 import { UpdateEquipmentDto } from './dto/update-equipment.dto';
 import { EquipmentStats, EquipmentUsage } from './dto/equipment-stats.dto';
+import { CreateMaintenanceDto, UpdateMaintenanceDto } from './dto/create-maintenance.dto';
 import { EquipmentService } from './equipment.service';
 
 @Controller('equipment')
@@ -18,6 +19,20 @@ export class EquipmentController {
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
   async findAll(): Promise<Equipment[]> {
     return this.equipmentService.findAll();
+  }
+
+  // Equipment stats (stats API) — PHẢI khai TRƯỚC @Get(':id') nếu không sẽ bị nuốt
+  @Get('stats')
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
+  async getStats(): Promise<EquipmentStats[]> {
+    return this.equipmentService.getStats();
+  }
+
+  // Equipment usage (usage API) — PHẢI khai TRƯỚC @Get(':id')
+  @Get('usage')
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
+  async getUsage(): Promise<EquipmentUsage[]> {
+    return this.equipmentService.getUsage();
   }
 
   @Get(':id')
@@ -44,22 +59,33 @@ export class EquipmentController {
     await this.equipmentService.remove(id);
   }
 
-  // Equipment stats (stats API)
-  @Get('stats')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
-  async getStats(@Param('id') id?: string): Promise<EquipmentStats[]> {
-    if (id) {
-      // just return stats for that one
-      const eq = await this.equipmentService.findOne(id);
-      return [{ status: eq.status, count: 1 }];
-    }
-    return this.equipmentService.getStats();
+  // ==================== BẢO TRÌ & SỬA CHỮA ====================
+
+  @Post(':id/maintenance')
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  async addMaintenance(
+    @Param('id') id: string,
+    @Body() dto: CreateMaintenanceDto,
+  ) {
+    return this.equipmentService.addMaintenance(id, dto);
   }
 
-  // Equipment usage (usage API)
-  @Get('usage')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
-  async getUsage(): Promise<EquipmentUsage[]> {
-    return this.equipmentService.getUsage();
+  @Patch(':id/maintenance/:maintenanceId')
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  async updateMaintenance(
+    @Param('id') id: string,
+    @Param('maintenanceId') maintenanceId: string,
+    @Body() dto: UpdateMaintenanceDto,
+  ) {
+    return this.equipmentService.updateMaintenance(id, maintenanceId, dto);
+  }
+
+  @Post(':id/complete-maintenance')
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  async completeMaintenance(
+    @Param('id') id: string,
+    @Body() body?: { maintenanceId?: string },
+  ) {
+    return this.equipmentService.completeMaintenance(id, body?.maintenanceId);
   }
 }

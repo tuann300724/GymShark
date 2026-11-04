@@ -64,7 +64,7 @@ export function AdminHeader() {
     ? 'Đã kết nối API'
     : isError
       ? 'Mất kết nối API'
-      : 'Đang kiểm tra API...';
+      : 'Đang kiểm tra kết nối...';
 
   return (
     <header className="h-16 px-4 md:px-6 border-b border-line bg-ink/85 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between">
@@ -95,7 +95,7 @@ export function AdminHeader() {
           className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-colors bg-ink border-line shrink-0"
         >
           <span className={`size-2 rounded-full shrink-0 ${statusDot}`} />
-          <span className="text-muted">{statusText}</span>
+          <span className={isError ? 'text-danger' : 'text-muted'}>{statusText}</span>
         </div>
 
         {/* Notification Bell */}
