@@ -11,11 +11,14 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/components/ui/toast';
 import { FaceScanner } from '@/components/ui/face-scanner';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { Spinner } from '@/components/ui/spinner';
+import { MemberChangePackageDialog } from '@/components/admin/member-change-package-dialog';
+import type { ChangePackageResult } from '@/services/admin-member.service';
 import { faceApi } from '@/services/face.service';
 import {
   formatCurrency,
@@ -46,6 +49,7 @@ import {
   Dumbbell,
   ScanFace,
   Trash2,
+  ArrowRightLeft,
 } from 'lucide-react';
 
 const SAMPLE_TARGET = 5;
@@ -75,6 +79,7 @@ export default function MemberDetailPage() {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<any>({});
+  const [changePackageMembership, setChangePackageMembership] = useState<any>(null);
 
   const invalidateMember = (id: string) => {
     queryClient.invalidateQueries({ queryKey: ['member-detail', id] });
@@ -423,6 +428,12 @@ export default function MemberDetailPage() {
       {/* Tab Contents */}
       {activeTab === 'memberships' && (
         <div className="space-y-4">
+          {member.memberships?.some((membership: any) => membership.status === 'PENDING') && (
+            <p className="rounded-xl border border-line bg-surface px-4 py-3 text-xs text-muted">
+              Hội viên đang có gói chờ xác nhận. Hãy xử lý hóa đơn trước khi tạo yêu cầu đổi gói
+              khác.
+            </p>
+          )}
           {member.memberships && member.memberships.length > 0 ? (
             member.memberships.map((m: any) => {
               const msMeta = MEMBERSHIP_STATUS_META[m.status] || {
@@ -430,6 +441,25 @@ export default function MemberDetailPage() {
                 variant: 'outline',
               };
               const pendingPayment = m.payments?.find((p: any) => p.status === 'PENDING');
+              const startTime = new Date(m.startDate).getTime();
+              const endTime = new Date(m.endDate).getTime();
+              const totalDays = Math.max(1, Math.ceil((endTime - startTime) / 86400000));
+              const remainingDays =
+                m.status === 'ACTIVE'
+                  ? Math.max(0, Math.ceil((endTime - Date.now()) / 86400000))
+                  : null;
+              const usedDays =
+                remainingDays === null ? null : Math.max(0, totalDays - remainingDays);
+              const progress =
+                m.status === 'ACTIVE'
+                  ? Math.min(
+                      100,
+                      Math.max(
+                        0,
+                        Math.round(((Date.now() - startTime) / (endTime - startTime)) * 100),
+                      ),
+                    )
+                  : 0;
               return (
                 <Card key={m.id}>
                   <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -452,8 +482,27 @@ export default function MemberDetailPage() {
                       </div>
                       <p className="text-xs text-muted mt-1">
                         Hiệu lực: {formatDate(m.startDate)} đến {formatDate(m.endDate)} •{' '}
-                        {PAYMENT_METHOD_LABEL[m.payments?.[0]?.method] || 'Thanh toán tại quầy'}
+                        {PAYMENT_METHOD_LABEL[m.payments?.[0]?.method] ||
+                          (Number(m.finalAmount ?? m.price) === 0
+                            ? 'Quy đổi giá trị còn lại'
+                            : 'Thanh toán tại quầy')}
                       </p>
+                      {m.status === 'ACTIVE' && (
+                        <div className="mt-3 w-full max-w-md space-y-1.5">
+                          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs">
+                            <span className="text-muted">
+                              Đã sử dụng{' '}
+                              <strong className="text-chalk">
+                                {Math.min(totalDays, usedDays ?? 0)} / {totalDays} ngày
+                              </strong>
+                            </span>
+                            <span className="font-semibold text-neon">
+                              Còn {remainingDays} ngày
+                            </span>
+                          </div>
+                          <Progress value={progress} />
+                        </div>
+                      )}
                     </div>
                     <div className="text-right">
                       <p className="text-xs text-muted">Giá trị hợp đồng</p>
@@ -476,6 +525,19 @@ export default function MemberDetailPage() {
                           <CheckCircle2 className="size-3.5 mr-1" /> Xác nhận thanh toán
                         </Button>
                       )}
+                      {m.status === 'ACTIVE' &&
+                        !member.memberships.some(
+                          (membership: any) => membership.status === 'PENDING',
+                        ) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="mt-2 text-xs"
+                            onClick={() => setChangePackageMembership(m)}
+                          >
+                            <ArrowRightLeft className="size-3.5 mr-1" /> Đổi gói
+                          </Button>
+                        )}
                     </div>
                   </CardContent>
                 </Card>
@@ -486,6 +548,21 @@ export default function MemberDetailPage() {
               icon={CreditCard}
               title="Chưa có gói tập"
               description="Hội viên này chưa đăng ký gói tập nào. Đăng ký gói tại trang Thanh toán để tạo thẻ tập."
+            />
+          )}
+          {changePackageMembership && (
+            <MemberChangePackageDialog
+              open={!!changePackageMembership}
+              onClose={() => setChangePackageMembership(null)}
+              memberId={id}
+              memberCode={member.code}
+              currentMembership={changePackageMembership}
+              onSuccess={(result: ChangePackageResult) => {
+                invalidateMember(id);
+                if (result.payment) {
+                  queryClient.invalidateQueries({ queryKey: ['admin-payments'] });
+                }
+              }}
             />
           )}
         </div>

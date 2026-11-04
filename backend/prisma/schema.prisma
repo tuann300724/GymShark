@@ -12,14 +12,15 @@ generator client {
 // -------------------------------------------------------------
 
 model Branch {
-  id        String   @id @default(uuid()) @db.NVarChar(100)
-  name      String   @unique @db.NVarChar(400)
-  address   String?  @db.NVarChar(Max)
-  phone     String?  @db.NVarChar(400)
-  status    String   @default("ACTIVE") @db.NVarChar(400)
-  members   Member[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String       @id @default(uuid()) @db.NVarChar(100)
+  name        String       @unique @db.NVarChar(400)
+  address     String?      @db.NVarChar(Max)
+  phone       String?      @db.NVarChar(400)
+  status      String       @default("ACTIVE") @db.NVarChar(400)
+  members     Member[]
+  staffShifts StaffShift[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 }
 
 model Room {
@@ -241,6 +242,8 @@ model Payment {
   confirmedById  String?     @db.NVarChar(100)
   confirmedBy    User?       @relation("PaymentConfirmedBy", fields: [confirmedById], references: [id], onDelete: SetNull, onUpdate: NoAction)
   confirmedAt    DateTime?
+  staffShiftId   String?     @db.UniqueIdentifier
+  staffShift     StaffShift? @relation(fields: [staffShiftId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Payment_StaffShift")
   paidAt         DateTime?
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
@@ -252,8 +255,34 @@ model Payment {
   @@index([membershipId])
   @@index([status])
   @@index([promotionId])
+  @@index([staffShiftId, status, paidAt], map: "IX_Payment_StaffShift_Status_PaidAt")
   @@index([createdAt])
   @@index([paidAt])
+}
+
+model StaffShift {
+  id        String    @id @default(dbgenerated("newsequentialid()")) @db.UniqueIdentifier
+  /// Database FK to dbo.User; kept scalar because User.id is mapped as NVARCHAR elsewhere in this schema.
+  staffId   String    @db.UniqueIdentifier
+  branchId  String?   @db.NVarChar(100)
+  branch    Branch?   @relation(fields: [branchId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_StaffShift_Branch")
+  title     String    @db.NVarChar(255)
+  startTime DateTime
+  endTime   DateTime
+  status    String    @default("SCHEDULED") @db.NVarChar(20)
+  notes     String?   @db.NVarChar(Max)
+  cashExpected  Decimal?  @db.Decimal(12, 2)
+  cashCounted   Decimal?  @db.Decimal(12, 2)
+  cashDifference Decimal? @db.Decimal(12, 2)
+  closedById    String?   @db.UniqueIdentifier
+  closedAt      DateTime?
+  closeNotes    String?   @db.NVarChar(1000)
+  createdAt DateTime  @default(dbgenerated("sysdatetime()"))
+  updatedAt DateTime  @default(dbgenerated("sysdatetime()"))
+  payments  Payment[]
+
+  @@index([branchId, startTime], map: "IX_StaffShift_Branch_StartTime")
+  @@index([staffId, startTime], map: "IX_StaffShift_Staff_StartTime")
 }
 
 // Hóa đơn (Invoice) — tài liệu thanh toán, 1-1 với Payment trong flow đăng ký gói
@@ -425,6 +454,7 @@ model Program {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   programExercises ProgramExercise[]
+
   @@index([slug])
   @@index([trainerId])
   @@index([memberId])
@@ -758,7 +788,7 @@ model MealItem {
 
 // ==================== EQUIPMENT ====================
 model Equipment {
-  id          String   @id @default(uuid())
+  id          String   @id @default(uuid()) @db.NVarChar(100)
   name        String   @db.NVarChar(400)
   code        String   @unique @db.NVarChar(400) // mã duy nhất toàn hệ thống, VD: R-01, TREADMILL-01
   type        String   @default("CARDIO") @db.NVarChar(400) // CARDIO, WEIGHT, FREESTYLE, GROUP_CLASS
@@ -773,8 +803,8 @@ model Equipment {
 
 // ==================== EQUIPMENT MAINTENANCE ====================
 model EquipmentMaintenance {
-  id              String   @id @default(uuid())
-  equipmentId     String
+  id              String    @id @default(uuid()) @db.NVarChar(100)
+  equipmentId     String    @db.NVarChar(100)
   equipment       Equipment @relation("EquipmentMaintenance", fields: [equipmentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   status          String   @default("PENDING") @db.NVarChar(400) // PENDING, IN_PROGRESS, COMPLETE, CANCELLED
   startDate       DateTime
@@ -787,4 +817,3 @@ model EquipmentMaintenance {
   @@index([equipmentId])
   @@index([status])
 }
-

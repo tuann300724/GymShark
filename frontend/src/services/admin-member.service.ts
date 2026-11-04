@@ -40,6 +40,29 @@ export interface RegisterCardResult {
   payment: { id: string; code: string; amount?: string | number | null; status?: string };
 }
 
+export interface ChangePackagePayload {
+  newPackageId: string;
+  paymentMethod?: 'CASH' | 'BANK_TRANSFER';
+}
+
+export interface ChangePackageResult {
+  message: string;
+  activated: boolean;
+  membership: { id: string; status: string };
+  payment: {
+    id: string;
+    code: string;
+    amount: string | number;
+    method: 'CASH' | 'BANK_TRANSFER';
+    status?: string;
+  } | null;
+  remainingDays: number;
+  creditAmount: number;
+  priceToPay: number;
+  refundAmount: number;
+  invoiceEmailSent?: boolean | null;
+}
+
 /** API quản trị dùng tại quầy: tạo hội viên mới + tạo thẻ tập */
 export const adminMemberApi = {
   create: async (payload: CreateMemberPayload): Promise<CreateMemberResult> => {
@@ -53,6 +76,17 @@ export const adminMemberApi = {
   ): Promise<RegisterCardResult> => {
     const res = await apiClient.post<RegisterCardResult>(
       `/members/${memberId}/memberships`,
+      payload,
+    );
+    return res.data;
+  },
+
+  changePackage: async (
+    memberId: string,
+    payload: ChangePackagePayload,
+  ): Promise<ChangePackageResult> => {
+    const res = await apiClient.post<ChangePackageResult>(
+      `/members/${memberId}/change-package`,
       payload,
     );
     return res.data;

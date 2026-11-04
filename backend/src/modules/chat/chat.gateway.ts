@@ -17,6 +17,17 @@ interface WsUser {
   role: string;
 }
 
+interface StaffShiftUpdatePayload {
+  id: string;
+  staffId: string;
+  staffName: string;
+  title: string;
+  branchName: string | null;
+  status: string;
+  action: 'STARTED' | 'COMPLETED';
+  actorId: string;
+}
+
 /**
  * ChatGateway — kênh realtime Socket.IO.
  * - Xác thực JWT ngay khi kết nối (không tin dữ liệu client).
@@ -60,12 +71,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       });
 
       if (!user || user.status !== 'ACTIVE') throw new Error('Tài khoản không hợp lệ hoặc đã bị khoá.');
-      if (user.role !== 'TRAINER' && user.role !== 'MEMBER') {
-        throw new Error('Vai trò này không hỗ trợ trò chuyện.');
+      if (!['ADMIN', 'MANAGER', 'STAFF', 'TRAINER', 'MEMBER'].includes(user.role)) {
+        throw new Error('Vai trò tài khoản không hợp lệ.');
       }
 
       client.data.user = { id: user.id, role: user.role } satisfies WsUser;
       await client.join(`user:${user.id}`);
+      if (user.role === 'ADMIN' || user.role === 'MANAGER') {
+        await client.join('staff-shift:admins');
+      }
       client.emit('ws:ready', { userId: user.id });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Xác thực thất bại.';
@@ -83,6 +97,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   emitToUser(userId: string | null | undefined, event: string, payload: unknown) {
     if (!userId || !this.server) return;
     this.server.to(`user:${userId}`).emit(event, payload);
+  }
+
+  emitStaffShiftUpdated(payload: StaffShiftUpdatePayload) {
+    if (!this.server) return;
+    this.server.to(['staff-shift:admins', `user:${payload.staffId}`]).emit('staff-shift:updated', payload);
   }
 
   /**

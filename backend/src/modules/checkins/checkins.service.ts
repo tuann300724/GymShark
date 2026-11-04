@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ForbiddenException,
+  InternalServerErrorException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -122,6 +123,19 @@ export class CheckinsService {
     phone: true,
     avatarUrl: true,
   } satisfies Prisma.MemberSelect;
+
+  private resolveCheckInMember<T extends { id: string }>(
+    membersById: Map<string, T>,
+    checkIn: { id: string; memberId: string },
+  ): T {
+    const member = membersById.get(checkIn.memberId.toLowerCase());
+    if (!member) {
+      throw new InternalServerErrorException(
+        'Dữ liệu check-in đang tham chiếu đến hội viên không tồn tại.',
+      );
+    }
+    return member;
+  }
 
   private computeDurationMinutes(checkInTime: Date, checkOutTime?: Date | null): number | null {
     if (!checkOutTime) return null;
@@ -657,13 +671,17 @@ export class CheckinsService {
     if (query.search) {
       const term = query.search.trim();
       if (term) {
-        where.member = {
-          OR: [
-            { fullName: { contains: term } },
-            { code: { contains: term } },
-            { phone: { contains: term } },
-          ],
-        };
+        const matchingMembers = await this.prisma.member.findMany({
+          where: {
+            OR: [
+              { fullName: { contains: term } },
+              { code: { contains: term } },
+              { phone: { contains: term } },
+            ],
+          },
+          select: { id: true },
+        });
+        where.memberId = { in: matchingMembers.map((member) => member.id) };
       }
     }
 
@@ -684,15 +702,21 @@ export class CheckinsService {
     const [data, total] = await Promise.all([
       this.prisma.checkIn.findMany({
         where,
-        include: {
-          member: { select: CheckinsService.memberSelect },
-        },
         orderBy: { [sortBy]: sortOrder },
         skip,
         take: limit,
       }),
       this.prisma.checkIn.count({ where }),
     ]);
+
+    const memberIds = [...new Set(data.map((checkIn) => checkIn.memberId))];
+    const members = await this.prisma.member.findMany({
+      where: { id: { in: memberIds } },
+      select: CheckinsService.memberSelect,
+    });
+    const membersById = new Map(
+      members.map((member) => [member.id.toLowerCase(), member]),
+    );
 
     return {
       data: data.map((c) => ({
@@ -704,7 +728,7 @@ export class CheckinsService {
         method: c.method,
         notes: c.notes,
         durationMinutes: this.computeDurationMinutes(c.checkInTime, c.checkOutTime),
-        member: c.member,
+        member: this.resolveCheckInMember(membersById, c),
       })),
       total,
       page,
@@ -716,32 +740,38 @@ export class CheckinsService {
   async currentlyInside() {
     const rows = await this.prisma.checkIn.findMany({
       where: { status: 'CHECKED_IN' },
-      include: {
-        member: {
-          select: {
-            ...CheckinsService.memberSelect,
-            memberships: {
-              where: { status: 'ACTIVE' },
-              include: { package: { select: { id: true, name: true } } },
-              orderBy: { endDate: 'desc' },
-              take: 1,
-            },
-          },
-        },
-      },
       orderBy: { checkInTime: 'asc' },
     });
+    const memberIds = [...new Set(rows.map((checkIn) => checkIn.memberId))];
+    const members = await this.prisma.member.findMany({
+      where: { id: { in: memberIds } },
+      select: {
+        ...CheckinsService.memberSelect,
+        memberships: {
+          where: { status: 'ACTIVE' },
+          include: { package: { select: { id: true, name: true } } },
+          orderBy: { endDate: 'desc' },
+          take: 1,
+        },
+      },
+    });
+    const membersById = new Map(
+      members.map((member) => [member.id.toLowerCase(), member]),
+    );
 
     const now = new Date();
-    return rows.map((c) => ({
-      id: c.id,
-      memberId: c.memberId,
-      member: c.member,
-      packageName: c.member.memberships[0]?.package?.name ?? null,
-      checkInTime: c.checkInTime,
-      durationMinutes: this.computeDurationMinutes(c.checkInTime, now),
-      method: c.method,
-    }));
+    return rows.map((c) => {
+      const member = this.resolveCheckInMember(membersById, c);
+      return {
+        id: c.id,
+        memberId: c.memberId,
+        member,
+        packageName: member.memberships[0]?.package?.name ?? null,
+        checkInTime: c.checkInTime,
+        durationMinutes: this.computeDurationMinutes(c.checkInTime, now),
+        method: c.method,
+      };
+    });
   }
 
   // ---------------------------------------------------------------------------

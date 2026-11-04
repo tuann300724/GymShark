@@ -88,6 +88,10 @@ const METADATA_LABELS: Record<string, string> = {
   discountType: 'Loại giảm',
   softDeleted: 'Xóa mềm',
   via: 'Thực hiện qua',
+  expectedCash: 'Tiền mặt dự kiến',
+  cashCounted: 'Tiền mặt thực đếm',
+  cashDifference: 'Chênh lệch quỹ',
+  note: 'Ghi chú chốt ca',
 };
 
 function MetadataList({ item }: { item: AuditLogItem }) {

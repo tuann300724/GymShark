@@ -56,10 +56,17 @@
 | Nhóm | Màn hình |
 | :--- | :--- |
 | Tổng quan | Dashboard KPI, biểu đồ lượt tập theo giờ |
-| Hội viên & vận hành | Lượt check-in (quét thẻ), hội viên (+ chi tiết/tab lịch sử), thẻ hội viên, gói tập, HLV, lịch tập & lớp học |
+| Hội viên & vận hành | Lượt check-in (quét thẻ), hội viên (+ chi tiết/tab lịch sử), thẻ hội viên, gói tập, HLV, lịch tập & lớp học, **ca làm & doanh thu theo ca** |
 | Tài chính | Hóa đơn & thu phí (+ xác nhận / từ chối / hoàn tiền), báo cáo doanh thu, khuyến mãi & voucher |
 | Cơ sở & thiết bị | Thiết bị máy móc (+ lịch sử bảo trì), chi nhánh, phòng tập |
 | Hệ thống | Báo cáo thống kê (8 tab), thông báo, **nhật ký hệ thống**, cài đặt & phân quyền |
+
+### Ca làm & doanh thu — `/admin/shifts`
+- ADMIN/MANAGER phân công, sửa, xóa ca chưa bắt đầu hoặc hủy ca; không cho phân công trùng giờ cho cùng nhân viên.
+- STAFF xem ca của mình, bắt đầu ca và chốt ca bằng cách nhập tiền mặt thực đếm. Hệ thống đối chiếu với tổng giao dịch CASH đã xác nhận; nếu thiếu/thừa thì bắt buộc ghi lý do. Còn giao dịch tiền mặt POS chờ xác nhận thì chưa cho chốt. Giao dịch tạo tại quầy được gắn với đúng nhân viên và ca tại thời điểm tạo; CASSO có thể hoàn tất giao dịch chuyển khoản đến muộn vào chính ca đó, nhưng không gán sang ca mới hoặc ca đã hủy. Thanh toán hội viên tự thực hiện online không bị gán nhầm vào ca quầy.
+- Khi nhân viên vào ca hoặc chốt ca, trang ca làm của nhân viên và quản lý cập nhật ngay qua Socket.IO; ADMIN/MANAGER đang trực tuyến nhận thông báo tức thì, không cần tải lại trang.
+- Báo cáo lọc theo ngày, nhân viên, chi nhánh và trạng thái; chỉ tính Payment `PAID`, tổng hợp doanh thu, số giao dịch và hội viên duy nhất theo ca/ngày/nhân viên/chi nhánh.
+- Ca dùng các trạng thái `SCHEDULED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`. Chỉ hoàn tất trạng thái `COMPLETED` sau khi lưu chốt quỹ; ca đã chốt/hủy không thể ghi nhận thanh toán mới. Các cột chốt quỹ được bổ sung vào bảng `StaffShift` hiện có bằng `backend/prisma/sqlserver-add-staff-shift-settlement.sql` (script idempotent, không tạo bảng mới).
 
 ### Khu vực huấn luyện viên `/trainer` — vai trò `TRAINER`
 - Dashboard: lịch dạy hôm nay, số học viên, tổng buổi đã hoàn thành

@@ -168,8 +168,14 @@ export class EquipmentService {
       select: { equipmentId: true },
       where: { equipmentId: { not: null } },
     });
-    const idSet = new Set(checkIns.map((c) => c.equipmentId).filter(Boolean));
-    const ids = Array.from(idSet) as string[];
+    const ids = [
+      ...new Set(
+        checkIns
+          .map((checkIn) => checkIn.equipmentId)
+          .filter((id): id is string => id !== null)
+          .map((id) => id.toLowerCase()),
+      ),
+    ];
     if (ids.length === 0) return [];
 
     const equipments = await this.prisma.equipment.findMany({
@@ -184,7 +190,8 @@ export class EquipmentService {
     });
     for (const d of detail) {
       if (d.equipmentId) {
-        counts.set(d.equipmentId, (counts.get(d.equipmentId) ?? 0) + 1);
+        const key = d.equipmentId.toLowerCase();
+        counts.set(key, (counts.get(key) ?? 0) + 1);
       }
     }
 
@@ -192,7 +199,7 @@ export class EquipmentService {
       equipmentId: e.id,
       name: e.name,
       type: e.type,
-      usageCount: counts.get(e.id) ?? 0,
+      usageCount: counts.get(e.id.toLowerCase()) ?? 0,
     }));
   }
 }

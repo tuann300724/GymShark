@@ -164,6 +164,14 @@ export const AUDIT_ACTION_META: Record<string, { label: string; variant: BadgeVa
   PROMOTION_UPDATE: { label: 'Cập nhật mã khuyến mãi', variant: 'default' },
   PROMOTION_ACTIVATE: { label: 'Kích hoạt khuyến mãi', variant: 'success' },
   PROMOTION_DEACTIVATE: { label: 'Ngừng khuyến mãi', variant: 'warning' },
+
+  // Ca làm & chốt quỹ
+  STAFF_SHIFT_CREATE: { label: 'Phân công ca làm', variant: 'success' },
+  STAFF_SHIFT_UPDATE: { label: 'Cập nhật ca làm', variant: 'default' },
+  STAFF_SHIFT_DELETE: { label: 'Xóa ca làm', variant: 'destructive' },
+  STAFF_SHIFT_CANCEL: { label: 'Hủy ca làm', variant: 'destructive' },
+  STAFF_SHIFT_START: { label: 'Bắt đầu ca làm', variant: 'info' },
+  STAFF_SHIFT_SETTLE: { label: 'Kiểm quỹ và chốt ca', variant: 'success' },
 };
 
 /** Nhãn cho loại đối tượng bị tác động */
@@ -178,6 +186,7 @@ export const AUDIT_ENTITY_LABEL: Record<string, string> = {
   TrainingSchedule: 'Buổi tập',
   Promotion: 'Khuyến mãi',
   Face: 'Sinh trắc học',
+  StaffShift: 'Ca làm',
 };
 
 /** Nhãn vai trò người thực hiện (hiển thị trong nhật ký) */

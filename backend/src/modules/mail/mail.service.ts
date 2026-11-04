@@ -10,6 +10,7 @@ import {
   passwordResetCodeEmail,
   paymentConfirmedEmail,
   welcomeEmail,
+  packageChangeInvoiceEmail,
 } from './email-templates';
 
 export interface SendMailOptions {
@@ -218,6 +219,23 @@ export class MailService implements OnModuleInit {
   }): Promise<boolean> {
     const mail = bookingConfirmedEmail(params);
     return this.sendSafe({ to: params.email, ...mail });
+  }
+
+  /** Gửi hóa đơn xác nhận thanh toán nâng cấp gói hội viên. */
+  async sendPackageChangeInvoiceEmail(params: {
+    email: string;
+    memberName: string;
+    invoiceNumber: string;
+    packageName: string;
+    amount: number;
+    creditAmount: number;
+    paymentMethod: string;
+    paidAt: Date;
+    transactionRef?: string | null;
+    upgradeDescription: string;
+  }): Promise<void> {
+    const { email, ...invoice } = params;
+    await this.send({ to: email, ...packageChangeInvoiceEmail(invoice) });
   }
 
   /** Dựng transporter từ biến môi trường; trả về null + ghi log nếu thiếu cấu hình. */

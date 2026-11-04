@@ -22,6 +22,7 @@ import {
   ClipboardCheck,
   ScrollText,
   UtensilsCrossed,
+  Clock3,
 } from 'lucide-react';
 
 export const navigationSections = [
@@ -40,6 +41,7 @@ export const navigationSections = [
       { name: 'Bài tập', href: '/admin/exercises', icon: Dumbbell },
       { name: 'Huấn luyện viên (PT)', href: '/admin/trainers', icon: UserCheck },
       { name: 'Lịch tập & Lớp học', href: '/admin/schedules', icon: CalendarDays },
+      { name: 'Ca làm & doanh thu', href: '/admin/shifts', icon: Clock3 },
     ],
   },
   {

@@ -33,6 +33,7 @@ import { ClassBookingsModule } from './modules/class-bookings/class-bookings.mod
 import { BodyMetricsModule } from './modules/body-metrics/body-metrics.module';
 import { CassoModule } from './modules/casso/casso.module';
 import { EquipmentModule } from './modules/equipment/equipment.module';
+import { StaffShiftsModule } from './modules/staff-shifts/staff-shifts.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 @Module({
@@ -81,6 +82,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     ProgramsModule,
     ClassBookingsModule,
     BodyMetricsModule,
+    StaffShiftsModule,
   ],
   providers: [
     // Rate limiting: áp dụng cho mọi request

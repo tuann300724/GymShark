@@ -22,6 +22,17 @@ interface IncomingMessagePayload {
   content?: string | null;
 }
 
+interface StaffShiftUpdatePayload {
+  id: string;
+  staffId: string;
+  staffName: string;
+  title: string;
+  branchName: string | null;
+  status: string;
+  action: 'STARTED' | 'COMPLETED';
+  actorId: string;
+}
+
 export function ChatSocketProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -100,14 +111,31 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
       queryClient.invalidateQueries({ queryKey: ['chat-unread'] });
     };
 
+    const onStaffShiftUpdated = (payload?: StaffShiftUpdatePayload) => {
+      queryClient.invalidateQueries({ queryKey: ['staff-shifts'] });
+      queryClient.invalidateQueries({ queryKey: ['staff-shift-settlement-preview'] });
+
+      const myId = getStoredUser()?.id;
+      if (!payload || (myId && payload.actorId === myId)) return;
+
+      const started = payload.action === 'STARTED';
+      toast({
+        type: 'info',
+        title: started ? 'Nhân viên đã vào ca' : 'Nhân viên đã kết ca',
+        description: `${payload.staffName} · ${payload.title}${payload.branchName ? ` · ${payload.branchName}` : ''}`,
+      });
+    };
+
     socket.on('message:new', onMessageNew);
     socket.on('conversation:updated', onConversationUpdated);
     socket.on('messages:read', onMessagesRead);
+    socket.on('staff-shift:updated', onStaffShiftUpdated);
 
     return () => {
       socket.off('message:new', onMessageNew);
       socket.off('conversation:updated', onConversationUpdated);
       socket.off('messages:read', onMessagesRead);
+      socket.off('staff-shift:updated', onStaffShiftUpdated);
       // Không disconnect toàn cục — trang khác có thể cần.
     };
   }, [queryClient, toast, pathname]);

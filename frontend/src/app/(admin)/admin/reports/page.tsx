@@ -27,7 +27,7 @@ import {
   UserCheck,
   Users,
 } from 'lucide-react';
-import { EquipmentTab } from './EquipmentTab';
+import { EquipmentReportTab } from './EquipmentReportTab';
 
 const TABS = [
   { value: 'overview', label: 'Tổng quan' },
@@ -881,7 +881,7 @@ export default function ReportsPage() {
       {tab === 'members' && <MembersTab />}
       {tab === 'memberships' && <MembershipsTab />}
       {tab === 'trainers' && <TrainersTab />}
-      {tab === 'equipment' && <EquipmentTab />}
+      {tab === 'equipment' && <EquipmentReportTab />}
     </div>
   );
 }

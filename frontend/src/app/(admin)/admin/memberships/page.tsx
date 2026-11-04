@@ -1,39 +1,22 @@
 'use client';
 
-import React, { useState } from 'react';
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/axios';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { Spinner } from '@/components/ui/spinner';
 import { useToast } from '@/components/ui/toast';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import { MEMBERSHIP_STATUS_META, PAYMENT_METHOD_LABEL } from '@/lib/status';
-import {
-  CreditCard,
-  CheckCircle2,
-  XCircle,
-  Lock,
-  Unlock,
-  CalendarPlus,
-  Eye,
-  Clock,
-  Ban,
-} from 'lucide-react';
+import { CreditCard, CheckCircle2, XCircle, Lock, Unlock, Eye, Clock, Ban } from 'lucide-react';
 
 export default function MembershipsPage() {
   const toast = useToast();
   const queryClient = useQueryClient();
-
-  const [extendTarget, setExtendTarget] = useState<any>(null);
-  const [extendDays, setExtendDays] = useState('30');
-  const [extendReason, setExtendReason] = useState('');
 
   const {
     data: memberships,
@@ -84,23 +67,6 @@ export default function MembershipsPage() {
     },
   });
 
-  const extendMutation = useMutation({
-    mutationFn: async ({ id, days, reason }: { id: string; days: number; reason?: string }) => {
-      const res = await apiClient.patch(`/memberships/${id}/extend`, { days, reason });
-      return res.data;
-    },
-    onSuccess: (res: any) => {
-      toast.success('Gia hạn thành công', res.message);
-      setExtendTarget(null);
-      setExtendReason('');
-      invalidate();
-    },
-    onError: (err: any) => {
-      const msg = err.response?.data?.message || 'Gia hạn thất bại';
-      toast.error('Thất bại', Array.isArray(msg) ? msg.join(', ') : msg);
-    },
-  });
-
   const handleApprove = (m: any) => {
     if (window.confirm('Xác nhận thanh toán cho hợp đồng này? Gói tập sẽ được kích hoạt.')) {
       const pendingPayment = m.payments?.find((p: any) => p.status === 'PENDING');
@@ -137,7 +103,7 @@ export default function MembershipsPage() {
             Hợp Đồng & Thẻ Hội Viên
           </h1>
           <p className="text-xs text-muted mt-1">
-            Xác nhận thanh toán, kích hoạt, tạm khóa, gia hạn và hủy hợp đồng thẻ tập
+            Xác nhận thanh toán, kích hoạt, tạm khóa và hủy hợp đồng thẻ tập
           </p>
         </div>
         <Link href="/admin/payments">
@@ -262,27 +228,14 @@ export default function MembershipsPage() {
                               </>
                             )}
                             {item.status === 'ACTIVE' && (
-                              <>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-xs"
-                                  onClick={() => {
-                                    setExtendTarget(item);
-                                    setExtendDays('30');
-                                  }}
-                                >
-                                  <CalendarPlus className="size-3.5 mr-1" /> Gia hạn
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-xs"
-                                  onClick={() => handleSuspend(item)}
-                                >
-                                  <Lock className="size-3.5 mr-1" /> Tạm khóa
-                                </Button>
-                              </>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                                onClick={() => handleSuspend(item)}
+                              >
+                                <Lock className="size-3.5 mr-1" /> Tạm khóa
+                              </Button>
                             )}
                             {item.status === 'SUSPENDED' && (
                               <Button
@@ -327,66 +280,6 @@ export default function MembershipsPage() {
           )}
         </CardContent>
       </Card>
-
-      {/* Extend dialog */}
-      <Dialog
-        open={!!extendTarget}
-        onClose={() => setExtendTarget(null)}
-        title="Gia hạn thêm cho hội viên"
-        description={
-          extendTarget ? `${extendTarget.member?.fullName} — ${extendTarget.package?.name}` : ''
-        }
-      >
-        <div className="space-y-4">
-          <Input
-            label="Số ngày gia hạn"
-            type="number"
-            min={1}
-            value={extendDays}
-            onChange={(e) => setExtendDays(e.target.value)}
-          />
-          <Input
-            label="Lý do (tùy chọn)"
-            placeholder="Ví dụ: Ưu đãi giữ chân khách hàng"
-            value={extendReason}
-            onChange={(e) => setExtendReason(e.target.value)}
-          />
-          {extendTarget && (
-            <p className="rounded-lg border border-line bg-ink p-3 text-[11px] text-muted">
-              Hạn sử dụng hiện tại: <b className="text-chalk">{formatDate(extendTarget.endDate)}</b>
-              . Sau khi gia hạn thêm {extendDays} ngày, hạn mới là{' '}
-              <b className="text-neon">
-                {formatDate(
-                  new Date(
-                    new Date(extendTarget.endDate).getTime() +
-                      (parseInt(extendDays, 10) || 0) * 24 * 60 * 60 * 1000,
-                  ),
-                )}
-              </b>
-              . Hệ thống sẽ tạo hóa đơn chờ thu tiền tương ứng.
-            </p>
-          )}
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" onClick={() => setExtendTarget(null)}>
-              Hủy
-            </Button>
-            <Button
-              isLoading={extendMutation.isPending}
-              disabled={!extendDays || parseInt(extendDays, 10) < 1}
-              onClick={() =>
-                extendMutation.mutate({
-                  id: extendTarget.id,
-                  days: parseInt(extendDays, 10),
-                  reason: extendReason || undefined,
-                })
-              }
-            >
-              <CalendarPlus className="size-4" />
-              Xác nhận gia hạn
-            </Button>
-          </div>
-        </div>
-      </Dialog>
     </div>
   );
 }
