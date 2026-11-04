@@ -788,7 +788,7 @@ model MealItem {
 
 // ==================== EQUIPMENT ====================
 model Equipment {
-  id          String   @id @default(uuid())
+  id          String   @id @default(uuid()) @db.NVarChar(100)
   name        String   @db.NVarChar(400)
   code        String   @unique @db.NVarChar(400) // mã duy nhất toàn hệ thống, VD: R-01, TREADMILL-01
   type        String   @default("CARDIO") @db.NVarChar(400) // CARDIO, WEIGHT, FREESTYLE, GROUP_CLASS
@@ -803,8 +803,8 @@ model Equipment {
 
 // ==================== EQUIPMENT MAINTENANCE ====================
 model EquipmentMaintenance {
-  id              String   @id @default(uuid())
-  equipmentId     String
+  id              String    @id @default(uuid()) @db.NVarChar(100)
+  equipmentId     String    @db.NVarChar(100)
   equipment       Equipment @relation("EquipmentMaintenance", fields: [equipmentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   status          String   @default("PENDING") @db.NVarChar(400) // PENDING, IN_PROGRESS, COMPLETE, CANCELLED
   startDate       DateTime
@@ -817,4 +817,3 @@ model EquipmentMaintenance {
   @@index([equipmentId])
   @@index([status])
 }
-

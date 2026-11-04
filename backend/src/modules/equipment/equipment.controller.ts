@@ -20,6 +20,18 @@ export class EquipmentController {
     return this.equipmentService.findAll();
   }
 
+  @Get('stats')
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
+  async getStats(): Promise<EquipmentStats[]> {
+    return this.equipmentService.getStats();
+  }
+
+  @Get('usage')
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
+  async getUsage(): Promise<EquipmentUsage[]> {
+    return this.equipmentService.getUsage();
+  }
+
   @Get(':id')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
   async findOne(@Param('id') id: string): Promise<Equipment> {
@@ -42,24 +54,5 @@ export class EquipmentController {
   @Roles(Role.ADMIN, Role.MANAGER)
   async remove(@Param('id') id: string): Promise<void> {
     await this.equipmentService.remove(id);
-  }
-
-  // Equipment stats (stats API)
-  @Get('stats')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
-  async getStats(@Param('id') id?: string): Promise<EquipmentStats[]> {
-    if (id) {
-      // just return stats for that one
-      const eq = await this.equipmentService.findOne(id);
-      return [{ status: eq.status, count: 1 }];
-    }
-    return this.equipmentService.getStats();
-  }
-
-  // Equipment usage (usage API)
-  @Get('usage')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
-  async getUsage(): Promise<EquipmentUsage[]> {
-    return this.equipmentService.getUsage();
   }
 }

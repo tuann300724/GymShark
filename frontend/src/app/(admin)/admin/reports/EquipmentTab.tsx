@@ -6,20 +6,19 @@ import { MethodBars } from '@/components/charts/bar-chart';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 
-// Mock API call using axios - user should replace with real endpoint
 import apiClient from '@/lib/axios';
 
 export function EquipmentTab() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['report-equipment-stats'],
     queryFn: async () => {
-      const res = await apiClient.get('/reports/equipment/stats');
+      const res = await apiClient.get('/equipment/stats');
       return res.data;
     },
     retry: 1,
   });
 
-  const stats = (data || []) as { status: string; count: number }[];
+  const stats = useMemo(() => (data || []) as { status: string; count: number }[], [data]);
 
   const chartData = useMemo(() => {
     return stats.map((s) => ({ label: s.status, value: s.count }));

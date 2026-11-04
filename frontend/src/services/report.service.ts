@@ -55,12 +55,12 @@ export const reportApi = {
   },
 
   equipment: async (): Promise<EquipmentStats[]> => {
-    const res = await apiClient.get<EquipmentStats[]>('/reports/equipment/stats');
+    const res = await apiClient.get<EquipmentStats[]>('/equipment/stats');
     return res.data;
   },
 
   equipmentUsage: async (): Promise<EquipmentUsage[]> => {
-    const res = await apiClient.get<EquipmentUsage[]>('/reports/equipment/usage');
+    const res = await apiClient.get<EquipmentUsage[]>('/equipment/usage');
     return res.data;
   },
 
