@@ -4,6 +4,10 @@
  * Quy ước: business service chỉ `eventEmitter.emit(MAIL_EVENTS.X, payload)`
  * (KHÔNG await) → MailListener xử lý nền bằng sendSafe() — API trả kết quả
  * ngay, email đến sau 1-2 giây. Fail chỉ ghi log, không throw.
+ *
+ * Ngoại lệ: PAYMENT_CONFIRMED được `emitAsync` + await tối đa 10 giây trong
+ * payments.confirm() để trả cờ `invoiceEmailSent` cho admin (biết email hóa
+ * đơn đã thật sự gửi hay chưa); quá thời gian → null, email vẫn gửi nền.
  */
 
 export const MAIL_EVENTS = {

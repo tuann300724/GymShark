@@ -93,7 +93,13 @@ export default function PaymentDetailPage() {
           : vars.type === 'reject'
             ? 'Đã từ chối/hủy hóa đơn'
             : 'Đã hoàn tiền',
-        res.message,
+        vars.type === 'confirm'
+          ? res.invoiceEmailSent === true
+            ? `${res.message} — hóa đơn đã gửi qua email.`
+            : res.invoiceEmailSent === false
+              ? `${res.message} — chưa gửi được hóa đơn qua email (kiểm tra cấu hình SMTP / email hội viên).`
+              : res.message
+          : res.message,
       );
       setConfirmOpen(false);
       setRejectOpen(false);

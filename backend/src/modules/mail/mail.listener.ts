@@ -34,9 +34,13 @@ export class MailListener {
     return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
   }
 
-  /** Thanh toán xác nhận → gửi email xác nhận + đính kèm hóa đơn PDF. */
+  /**
+   * Thanh toán xác nhận → gửi email xác nhận + đính kèm hóa đơn PDF.
+   * Trả `true` nếu đã gửi thành công, `false` nếu thất bại (đã ghi log) —
+   * payments.service dùng để trả cờ `invoiceEmailSent` cho admin.
+   */
   @OnEvent(MAIL_EVENTS.PAYMENT_CONFIRMED)
-  async onPaymentConfirmed(payload: PaymentConfirmedMailEvent): Promise<void> {
+  async onPaymentConfirmed(payload: PaymentConfirmedMailEvent): Promise<boolean> {
     try {
       // Bước 1: sinh PDF (bọc riêng — PDF fail thì vẫn gửi được email xác nhận)
       let pdf: Buffer | null = null;
@@ -64,7 +68,7 @@ export class MailListener {
 
       // Bước 2: gửi email (PDF kèm nếu có)
       if (pdf) {
-        await this.mailService.sendInvoiceEmail({
+        return await this.mailService.sendInvoiceEmail({
           email: payload.email,
           fullName: payload.fullName,
           invoiceNumber: payload.invoiceNumber,
@@ -73,21 +77,21 @@ export class MailListener {
           issuedAt: payload.paidAt,
           pdf,
         });
-      } else {
-        // Không có PDF → vẫn gửi email xác nhận thuần
-        await this.mailService.sendPaymentConfirmedEmail({
-          email: payload.email,
-          fullName: payload.fullName,
-          invoiceNumber: payload.invoiceNumber,
-          packageName: payload.packageName,
-          amount: payload.amount,
-          paidAt: payload.paidAt,
-          method: payload.method,
-        });
       }
+      // Không có PDF → vẫn gửi email xác nhận thuần
+      return await this.mailService.sendPaymentConfirmedEmail({
+        email: payload.email,
+        fullName: payload.fullName,
+        invoiceNumber: payload.invoiceNumber,
+        packageName: payload.packageName,
+        amount: payload.amount,
+        paidAt: payload.paidAt,
+        method: payload.method,
+      });
     } catch (e) {
       const detail = e instanceof Error ? e.message : String(e);
       this.logger.error(`MailListener.onPaymentConfirmed lỗi (payload=${payload.invoiceNumber}): ${detail}`);
+      return false;
     }
   }
 

@@ -527,24 +527,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       },
     });
 
-    // Email nền (Nhóm B): phát event KHÔNG await — MailListener sinh PDF +
-    // gửi hóa đơn/ xác nhận thanh toán. Fail chỉ ghi log, không ảnh hưởng API.
     const payerEmail = payment.member.email ?? payment.member.user?.email;
-    if (payerEmail && !packageChange) {
-      this.eventEmitter.emit(MAIL_EVENTS.PAYMENT_CONFIRMED, {
-        userId: payment.member.id,
-        email: payerEmail,
-        fullName: payment.member.fullName,
-        memberCode: payment.member.code,
-        // Ưu tiên số hóa đơn chính thức (INV-...); fallback mã giao dịch
-        invoiceNumber: payment.invoice?.invoiceNumber ?? payment.code,
-        packageName: payment.membership?.package?.name ?? 'Gói hội viên',
-        membershipEndDate: payment.membership?.endDate ?? null,
-        amount: Number(payment.amount),
-        paidAt: now,
-        method: payment.method,
-      });
-    }
 
     // Báo tổ quản trị: thanh toán đã xác nhận (tự đối soát CASSO → actor null → báo tất cả)
     await this.notificationsService.notifyAdmins(
@@ -561,48 +544,78 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       actor?.id,
     );
 
+    // Hóa đơn qua email — theo dõi kết quả trả về cho admin (invoiceEmailSent):
+    // - Đổi gói (packageChange): gửi đồng bộ như trước.
+    // - Đăng ký / gia hạn thường: chạy nền qua event nhưng await tối đa 10 giây
+    //   để lấy kết quả; quá hạn → null (email vẫn tiếp tục gửi nền, fail chỉ ghi log).
     let invoiceEmailSent: boolean | null = null;
-    if (packageChange) {
+    if (!payerEmail) {
+      this.logger.warn(`Không gửi được hóa đơn ${payment.code}: hội viên chưa có email`);
       invoiceEmailSent = false;
-      if (!payerEmail) {
-        this.logger.warn(`Không gửi được hóa đơn ${payment.code}: hội viên chưa có email`);
+    } else if (packageChange) {
+      const [invoice, previousMembership] = await Promise.all([
+        this.prisma.invoice.findUnique({ where: { paymentId: id } }),
+        this.prisma.membership.findUnique({
+          where: { id: packageChange[1] },
+          include: { package: { select: { name: true } } },
+        }),
+      ]);
+      if (!invoice || !payment.membership || !previousMembership) {
+        this.logger.error(`Không gửi được hóa đơn ${payment.code}: thiếu dữ liệu hóa đơn hoặc gói tập`);
       } else {
-        const [invoice, previousMembership] = await Promise.all([
-          this.prisma.invoice.findUnique({ where: { paymentId: id } }),
-          this.prisma.membership.findUnique({
-            where: { id: packageChange[1] },
-            include: { package: { select: { name: true } } },
-          }),
-        ]);
-        if (!invoice || !payment.membership || !previousMembership) {
-          this.logger.error(`Không gửi được hóa đơn ${payment.code}: thiếu dữ liệu hóa đơn hoặc gói tập`);
-        } else {
-          const creditText = payment.notes?.match(/giá trị còn lại ([\d.]+) VND/i)?.[1];
-          const creditAmount = creditText ? Number(creditText) : Number(invoice.discount);
-          const methodLabels: Record<string, string> = {
-            CASH: 'Tiền mặt',
-            BANK_TRANSFER: 'Chuyển khoản qua QR/CASSO',
-            MOMO: 'MoMo',
-            VNPAY: 'VNPay',
-          };
-          try {
-            await this.mailService.sendPackageChangeInvoiceEmail({
-              email: payerEmail,
-              memberName: payment.member.fullName,
-              invoiceNumber: invoice.invoiceNumber,
-              packageName: payment.membership.package.name,
-              amount: Number(invoice.total),
-              creditAmount,
-              paymentMethod: methodLabels[payment.method] || payment.method,
-              paidAt: result.payment.paidAt ?? now,
-              transactionRef: result.payment.transactionRef,
-              upgradeDescription: `Nâng cấp từ gói ${previousMembership.package.name} sang gói ${payment.membership.package.name}`,
-            });
-            invoiceEmailSent = true;
-          } catch (error) {
-            this.logger.error(`Đã xác nhận thanh toán ${payment.code} nhưng không gửi được hóa đơn email`, error instanceof Error ? error.stack : String(error));
-          }
+        const creditText = payment.notes?.match(/giá trị còn lại ([\d.]+) VND/i)?.[1];
+        const creditAmount = creditText ? Number(creditText) : Number(invoice.discount);
+        const methodLabels: Record<string, string> = {
+          CASH: 'Tiền mặt',
+          BANK_TRANSFER: 'Chuyển khoản qua QR/CASSO',
+          MOMO: 'MoMo',
+          VNPAY: 'VNPay',
+        };
+        try {
+          await this.mailService.sendPackageChangeInvoiceEmail({
+            email: payerEmail,
+            memberName: payment.member.fullName,
+            invoiceNumber: invoice.invoiceNumber,
+            packageName: payment.membership.package.name,
+            amount: Number(invoice.total),
+            creditAmount,
+            paymentMethod: methodLabels[payment.method] || payment.method,
+            paidAt: result.payment.paidAt ?? now,
+            transactionRef: result.payment.transactionRef,
+            upgradeDescription: `Nâng cấp từ gói ${previousMembership.package.name} sang gói ${payment.membership.package.name}`,
+          });
+          invoiceEmailSent = true;
+        } catch (error) {
+          this.logger.error(`Đã xác nhận thanh toán ${payment.code} nhưng không gửi được hóa đơn email`, error instanceof Error ? error.stack : String(error));
         }
+      }
+    } else {
+      // Nhóm B (đăng ký/gia hạn): MailListener sinh PDF + gửi hóa đơn.
+      // emitAsync để biết email đã thật sự đi hay không; quá 10s coi như null.
+      invoiceEmailSent = await Promise.race([
+        this.eventEmitter
+          .emitAsync(MAIL_EVENTS.PAYMENT_CONFIRMED, {
+            userId: payment.member.id,
+            email: payerEmail,
+            fullName: payment.member.fullName,
+            memberCode: payment.member.code,
+            // Ưu tiên số hóa đơn chính thức (INV-...); fallback mã giao dịch
+            invoiceNumber: payment.invoice?.invoiceNumber ?? payment.code,
+            packageName: payment.membership?.package?.name ?? 'Gói hội viên',
+            membershipEndDate: payment.membership?.endDate ?? null,
+            amount: Number(payment.amount),
+            paidAt: now,
+            method: payment.method,
+          })
+          .then((results) => (typeof results[0] === 'boolean' ? results[0] : null))
+          .catch(() => false),
+        new Promise<null>((resolve) => {
+          const timer = setTimeout(() => resolve(null), 10000);
+          timer.unref();
+        }),
+      ]);
+      if (invoiceEmailSent === false) {
+        this.logger.error(`Đã xác nhận thanh toán ${payment.code} nhưng không gửi được hóa đơn email`);
       }
     }
 
