@@ -609,13 +609,23 @@ function MemberCombobox({
   members: any[];
 }) {
   const pickedIds = new Set((selected || []).map((m) => m.id));
+  /** Dropdown chỉ mở khi đang thao tác ô tìm — không che các field bên dưới */
+  const [openDropdown, setOpenDropdown] = useState(false);
+
+  const inputProps = {
+    onFocus: () => setOpenDropdown(true),
+    onBlur: () => setOpenDropdown(false),
+    onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Escape') setOpenDropdown(false);
+    },
+  };
 
   const dropdown = (
     <>
       {searching && <p className="mt-1 text-xs text-muted">Đang tìm...</p>}
       {/* Mở khi focus ô tìm (danh sách tải sẵn — không ép phải gõ).
           onMouseDown preventDefault trên item: bấm chọn không làm mất focus ô tìm */}
-      {!searching && (
+      {!searching && openDropdown && (
         <div className="absolute z-20 mt-1 max-h-52 w-full overflow-auto rounded-xl border border-line bg-surface p-1 shadow-xl">
           {members.length === 0 ? (
             <p className="px-3 py-2 text-xs text-muted">
@@ -687,6 +697,7 @@ function MemberCombobox({
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Tìm và bấm để thêm hội viên vào lớp..."
             className="h-11 w-full rounded-sm border border-line bg-ink pl-9 pr-3.5 text-sm text-chalk placeholder:text-muted/70 focus:border-neon/70 focus:outline-none focus:ring-2 focus:ring-neon/70"
+            {...inputProps}
           />
           {dropdown}
         </div>
@@ -748,6 +759,7 @@ function MemberCombobox({
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Tìm theo tên, email, SĐT, mã hội viên..."
             className="h-11 w-full rounded-sm border border-line bg-ink pl-9 pr-3.5 text-sm text-chalk placeholder:text-muted/70 focus:border-neon/70 focus:outline-none focus:ring-2 focus:ring-neon/70"
+            {...inputProps}
           />
           {dropdown}
         </div>
