@@ -46,4 +46,23 @@ export const classBookingApi = {
       total: number;
     };
   },
+
+  /** [HLV/QTV] Gán nhiều hội viên vào 1 ca nhóm */
+  addMembers: async (scheduleId: string, memberIds: string[]) => {
+    const res = await apiClient.post(`/class-bookings/session/${scheduleId}/members`, {
+      memberIds,
+    });
+    return res.data as {
+      added: number;
+      skipped: number;
+      bookedCount: number;
+      slotsLeft: number;
+    };
+  },
+
+  /** [HLV/QTV] Bỏ 1 hội viên khỏi ca nhóm */
+  removeMember: async (scheduleId: string, memberId: string) => {
+    const res = await apiClient.delete(`/class-bookings/session/${scheduleId}/members/${memberId}`);
+    return res.data as { message: string };
+  },
 };

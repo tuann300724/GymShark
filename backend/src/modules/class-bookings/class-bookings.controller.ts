@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ClassBookingsService } from './class-bookings.service';
-import { CreateBookingDto } from './dto/create-booking.dto';
+import { AddMembersDto, CreateBookingDto } from './dto/create-booking.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -38,6 +38,30 @@ export class ClassBookingsController {
     @CurrentUser('id') userId: string,
   ) {
     return this.svc.listBySession(scheduleId, role, userId);
+  }
+
+  @Post('session/:scheduleId/members')
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
+  @ApiOperation({ summary: '[HLV/QTV] Gán nhiều hội viên vào 1 ca nhóm' })
+  addMembers(
+    @Param('scheduleId') scheduleId: string,
+    @Body() dto: AddMembersDto,
+    @CurrentUser('role') role: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.svc.addMembers(scheduleId, dto.memberIds, role, userId);
+  }
+
+  @Delete('session/:scheduleId/members/:memberId')
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
+  @ApiOperation({ summary: '[HLV/QTV] Bỏ 1 hội viên khỏi ca nhóm' })
+  removeMember(
+    @Param('scheduleId') scheduleId: string,
+    @Param('memberId') memberId: string,
+    @CurrentUser('role') role: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.svc.removeMember(scheduleId, memberId, role, userId);
   }
 
   @Post()

@@ -325,9 +325,11 @@ export class SchedulesService {
     }
 
     const trainer = await this.getEligibleTrainer(dto.trainerId);
-    const member = await this.getEligibleMember(dto.memberId);
-
     const type = dto.type ?? SessionType.PERSONAL_TRAINING;
+    // Ca nhóm không giữ memberId 1:1 — thành viên nằm ở ClassBooking (tự book / HLV gán)
+    const member =
+      type === SessionType.GROUP_CLASS ? null : await this.getEligibleMember(dto.memberId);
+
     if (type === SessionType.PERSONAL_TRAINING) {
       if (!member) {
         throw new BadRequestException('Buổi tập kèm riêng (PT) bắt buộc phải chọn hội viên.');
@@ -417,10 +419,17 @@ export class SchedulesService {
     }
     await this.getEligibleTrainer(trainerId);
 
-    const memberId = dto.memberId !== undefined ? dto.memberId : existing.memberId;
+    const type = dto.type ?? existing.type;
+    // Ca nhóm không giữ memberId 1:1 — thành viên nằm ở ClassBooking
+    // (kể cả khi sửa PT → lớp nhóm: tự động bỏ hội viên 1:1 cũ)
+    const memberId =
+      type === SessionType.GROUP_CLASS
+        ? null
+        : dto.memberId !== undefined
+          ? dto.memberId
+          : existing.memberId;
     const member = await this.getEligibleMember(memberId ?? undefined);
 
-    const type = dto.type ?? existing.type;
     if (type === SessionType.PERSONAL_TRAINING && member) {
       await this.ensurePersonalAssignment(trainerId, member.id);
     }

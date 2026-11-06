@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -15,10 +15,11 @@ import { useToast } from '@/components/ui/toast';
 import { trainingApi } from '@/services/training.service';
 import { trainerApi } from '@/services/trainer.service';
 import { roomApi } from '@/services/room.service';
+import { classBookingApi } from '@/services/class-booking.service';
 import { formatDateTime } from '@/lib/utils';
 import { getStoredUser } from '@/lib/auth';
 import type { TrainingSession } from '@/services/types';
-import { Search, UserPlus, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Search, UserPlus, CheckCircle2, AlertTriangle, X } from 'lucide-react';
 
 const sessionSchema = z
   .object({
@@ -76,6 +77,11 @@ export function SessionFormDialog({
   const [memberQuery, setMemberQuery] = useState('');
   const [members, setMembers] = useState<any[]>([]);
   const [memberSearching, setMemberSearching] = useState(false);
+  /** Hội viên đã gán vào ca nhóm (mode GROUP_CLASS — chọn được nhiều) */
+  const [groupMembers, setGroupMembers] = useState<
+    { id: string; fullName: string; code: string }[]
+  >([]);
+  const groupPrefilled = useRef(false);
 
   const isEdit = !!editing;
 
@@ -102,6 +108,7 @@ export function SessionFormDialog({
   const watchType = watch('type');
   const watchTrainerId = watch('trainerId');
   const watchMemberId = watch('memberId');
+  const watchCapacity = watch('capacity');
 
   // Đổ dữ liệu khi mở dialog (tạo mới / sửa)
   useEffect(() => {
@@ -185,6 +192,36 @@ export function SessionFormDialog({
     enabled: open,
   });
 
+  // Sửa ca nhóm → lấy danh sách hội viên đã đăng ký để điền vào chips
+  const { data: editingBookings } = useQuery({
+    queryKey: ['class-bookings-session', editing?.id],
+    queryFn: () => classBookingApi.listBySession(editing!.id),
+    enabled: open && !!editing && editing.type === 'GROUP_CLASS',
+  });
+
+  useEffect(() => {
+    if (!open) {
+      groupPrefilled.current = false;
+      setGroupMembers([]);
+      return;
+    }
+    if (!editing || editing.type !== 'GROUP_CLASS') {
+      setGroupMembers([]);
+      return;
+    }
+    // Prefill đúng 1 lần khi data book về (tránh đè selection của người dùng khi refetch)
+    if (!groupPrefilled.current && editingBookings) {
+      groupPrefilled.current = true;
+      setGroupMembers(
+        editingBookings.data.map((b) => ({
+          id: b.member.id,
+          fullName: b.member.fullName,
+          code: b.member.code,
+        })),
+      );
+    }
+  }, [open, editing, editingBookings]);
+
   // Tìm kiếm hội viên
   const searchMembers = async (q: string) => {
     setMemberSearching(true);
@@ -223,32 +260,90 @@ export function SessionFormDialog({
   const selectedMember = members.find((m) => m.id === watchMemberId);
 
   const mutation = useMutation({
-    mutationFn: (values: SessionFormValues) => {
+    mutationFn: async (values: SessionFormValues) => {
       const startIso = new Date(`${values.date}T${values.startTime}`).toISOString();
       const endIso = new Date(`${values.date}T${values.endTime}`).toISOString();
+      const isGroup = values.type === 'GROUP_CLASS';
       const payload = {
         trainerId: values.trainerId,
-        memberId: values.memberId || undefined,
+        // Ca nhóm KHÔNG giữ memberId (1 người) — thành viên nằm ở ClassBooking để ca hiện "mở đăng ký"
+        memberId: isGroup ? undefined : values.memberId || undefined,
         roomId: values.roomId || undefined,
         type: values.type,
         title: values.title,
         description: values.description || undefined,
-        capacity:
-          values.type === 'GROUP_CLASS'
-            ? values.capacity !== undefined
-              ? values.capacity
-              : undefined
-            : undefined,
+        capacity: isGroup
+          ? values.capacity !== undefined
+            ? values.capacity
+            : undefined
+          : undefined,
         startTime: startIso,
         endTime: endIso,
         notes: values.notes || undefined,
       };
-      return editing ? trainingApi.update(editing.id, payload) : trainingApi.create(payload);
+      const errMsg = (e: any) => {
+        const m = e?.response?.data?.message;
+        return Array.isArray(m) ? m.join(', ') : m || 'Lỗi không xác định';
+      };
+
+      let bookingError: string | null = null;
+      if (editing) {
+        await trainingApi.update(editing.id, payload);
+        if (isGroup) {
+          // So sánh chips với danh sách đang book → thêm người mới / bỏ người đã bỏ chọn
+          const res = await classBookingApi.listBySession(editing.id);
+          const currentIds = res.data.map((b) => b.member.id);
+          const wanted = groupMembers.map((m) => m.id);
+          const toAdd = wanted.filter((id) => !currentIds.includes(id));
+          const toRemove = currentIds.filter((id) => !wanted.includes(id));
+          const errs: string[] = [];
+          if (toAdd.length) {
+            try {
+              await classBookingApi.addMembers(editing.id, toAdd);
+            } catch (e) {
+              errs.push(errMsg(e));
+            }
+          }
+          for (const id of toRemove) {
+            try {
+              await classBookingApi.removeMember(editing.id, id);
+            } catch (e) {
+              errs.push(errMsg(e));
+            }
+          }
+          if (errs.length) bookingError = Array.from(new Set(errs)).join(' · ');
+        }
+      } else {
+        const res = await trainingApi.create(payload);
+        const newId = res?.session?.id;
+        if (isGroup && groupMembers.length && newId) {
+          try {
+            await classBookingApi.addMembers(
+              newId,
+              groupMembers.map((m) => m.id),
+            );
+          } catch (e) {
+            bookingError = errMsg(e);
+          }
+        }
+      }
+      return { bookingError };
     },
-    onSuccess: () => {
-      toast.success(isEdit ? 'Đã cập nhật buổi tập' : 'Đã tạo buổi tập mới');
+    onSuccess: ({ bookingError }) => {
+      if (bookingError) {
+        toast.error(
+          isEdit
+            ? 'Đã lưu buổi tập nhưng chưa gán xong hội viên'
+            : 'Đã tạo buổi tập nhưng chưa gán được hội viên',
+          bookingError,
+        );
+      } else {
+        toast.success(isEdit ? 'Đã cập nhật buổi tập' : 'Đã tạo buổi tập mới');
+      }
       queryClient.invalidateQueries({ queryKey: ['training-sessions'] });
       queryClient.invalidateQueries({ queryKey: ['member-sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['class-bookings-session'] });
+      queryClient.invalidateQueries({ queryKey: ['session-detail'] });
       onSaved?.();
       onClose();
     },
@@ -261,6 +356,10 @@ export function SessionFormDialog({
   const onSubmit = (values: SessionFormValues) => {
     if (values.type === 'PERSONAL_TRAINING' && !values.memberId) {
       toast.error('Buổi kèm riêng (PT) bắt buộc phải chọn hội viên');
+      return;
+    }
+    if (values.type === 'GROUP_CLASS' && (!values.capacity || values.capacity < 1)) {
+      toast.error('Ca nhóm phải có sức chứa (tối thiểu 1 chỗ)');
       return;
     }
     mutation.mutate(values);
@@ -323,36 +422,70 @@ export function SessionFormDialog({
           />
 
           <div className="sm:col-span-2">
-            <MemberCombobox
-              memberId={watchMemberId ?? ''}
-              onSelect={(id) => setValue('memberId', id, { shouldValidate: true })}
-              query={memberQuery}
-              setQuery={(q) => {
-                setMemberQuery(q);
-                searchMembers(q);
-              }}
-              searching={memberSearching}
-              members={members}
-            />
-            {selectedMember && (
-              <p className="mt-1.5 text-xs text-muted">
-                Đã chọn: <span className="font-semibold text-chalk">{selectedMember.fullName}</span>{' '}
-                ({selectedMember.code})
-                {memberTrainer && (
-                  <span className="ml-1 text-muted">
-                    · HLV hiện tại:{' '}
-                    <span className="font-medium text-neon">
-                      {memberTrainer.trainer?.user?.fullName}
-                    </span>
-                  </span>
+            {watchType === 'GROUP_CLASS' ? (
+              <>
+                <MemberCombobox
+                  multiple
+                  label="Hội viên trong lớp (chọn nhiều)"
+                  selected={groupMembers}
+                  onToggle={(m) =>
+                    setGroupMembers((list) =>
+                      list.some((x) => x.id === m.id)
+                        ? list.filter((x) => x.id !== m.id)
+                        : [...list, m],
+                    )
+                  }
+                  query={memberQuery}
+                  setQuery={(q) => {
+                    setMemberQuery(q);
+                    searchMembers(q);
+                  }}
+                  searching={memberSearching}
+                  members={members}
+                />
+                <p className="mt-1.5 text-xs text-muted">
+                  Đã chọn <span className="font-semibold text-chalk">{groupMembers.length}</span>
+                  {typeof watchCapacity === 'number' && watchCapacity > 0
+                    ? ` / ${watchCapacity}`
+                    : ''}{' '}
+                  chỗ · Để trống cũng được — hội viên có thể tự đăng ký qua app.
+                </p>
+              </>
+            ) : (
+              <>
+                <MemberCombobox
+                  memberId={watchMemberId ?? ''}
+                  onSelect={(id) => setValue('memberId', id, { shouldValidate: true })}
+                  query={memberQuery}
+                  setQuery={(q) => {
+                    setMemberQuery(q);
+                    searchMembers(q);
+                  }}
+                  searching={memberSearching}
+                  members={members}
+                />
+                {selectedMember && (
+                  <p className="mt-1.5 text-xs text-muted">
+                    Đã chọn:{' '}
+                    <span className="font-semibold text-chalk">{selectedMember.fullName}</span> (
+                    {selectedMember.code})
+                    {memberTrainer && (
+                      <span className="ml-1 text-muted">
+                        · HLV hiện tại:{' '}
+                        <span className="font-medium text-neon">
+                          {memberTrainer.trainer?.user?.fullName}
+                        </span>
+                      </span>
+                    )}
+                  </p>
                 )}
-              </p>
-            )}
-            {ptNotAssigned && (
-              <p className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-amber-400">
-                <AlertTriangle className="size-3.5" />
-                HLV đã chọn chưa được gán cho hội viên này — buổi PT sẽ bị từ chối ở máy chủ.
-              </p>
+                {ptNotAssigned && (
+                  <p className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-amber-400">
+                    <AlertTriangle className="size-3.5" />
+                    HLV đã chọn chưa được gán cho hội viên này — buổi PT sẽ bị từ chối ở máy chủ.
+                  </p>
+                )}
+              </>
             )}
           </div>
 
@@ -447,28 +580,150 @@ export function SessionFormDialog({
 
 // ------------------ Member search combobox ------------------
 
+type PickedMember = { id: string; fullName: string; code: string };
+
 function MemberCombobox({
+  multiple = false,
+  label = 'Hội viên',
   memberId,
   onSelect,
+  selected,
+  onToggle,
   query,
   setQuery,
   searching,
   members,
 }: {
-  memberId: string;
-  onSelect: (id: string) => void;
+  /** true = chọn nhiều (ca nhóm) — render ô tìm + chips đã chọn */
+  multiple?: boolean;
+  label?: string;
+  /** mode 1 người */
+  memberId?: string;
+  onSelect?: (id: string) => void;
+  /** mode nhiều: danh sách đã chọn */
+  selected?: PickedMember[];
+  onToggle?: (m: PickedMember) => void;
   query: string;
   setQuery: (q: string) => void;
   searching: boolean;
   members: any[];
 }) {
+  const pickedIds = new Set((selected || []).map((m) => m.id));
+
+  const dropdown = (
+    <>
+      {searching && <p className="mt-1 text-xs text-muted">Đang tìm...</p>}
+      {/* Mở khi focus ô tìm (danh sách tải sẵn — không ép phải gõ).
+          onMouseDown preventDefault trên item: bấm chọn không làm mất focus ô tìm */}
+      {!searching && (
+        <div className="absolute z-20 mt-1 max-h-52 w-full overflow-auto rounded-xl border border-line bg-surface p-1 shadow-xl">
+          {members.length === 0 ? (
+            <p className="px-3 py-2 text-xs text-muted">
+              {query ? 'Không tìm thấy hội viên' : 'Không có hội viên đang hoạt động'}
+            </p>
+          ) : (
+            members.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  if (multiple) {
+                    onToggle?.({ id: m.id, fullName: m.fullName, code: m.code });
+                    setQuery('');
+                  } else {
+                    onSelect?.(m.id);
+                    setQuery('');
+                  }
+                }}
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-chalk transition-colors hover:bg-ink"
+              >
+                {m.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={m.avatarUrl} alt="" className="size-7 rounded-full object-cover" />
+                ) : (
+                  <span className="flex size-7 items-center justify-center rounded-full bg-neon/10 text-xs font-bold text-neon">
+                    {m.fullName?.charAt(0)}
+                  </span>
+                )}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-semibold">{m.fullName}</span>
+                  <span className="block truncate text-xs text-muted">
+                    {m.code} · {m.phone || '--'}
+                  </span>
+                </span>
+                {multiple && pickedIds.has(m.id) ? (
+                  <span className="shrink-0 rounded-full border border-neon/40 bg-neon/10 px-2 py-0.5 text-[10px] font-bold text-neon">
+                    ĐÃ CHỌN
+                  </span>
+                ) : m.memberships?.some((ms: any) => ms.status === 'ACTIVE') ? (
+                  <CheckCircle2 className="size-4 shrink-0 text-neon" />
+                ) : (
+                  <span className="shrink-0 text-[10px] font-bold text-amber-400">HẾT HẠN</span>
+                )}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </>
+  );
+
+  // ---- Mode nhiều (ca nhóm): ô tìm + chips đã chọn, bấm lại để bỏ ----
+  if (multiple) {
+    return (
+      <div>
+        <label
+          htmlFor="member-search-input"
+          className="block text-sm font-semibold text-muted mb-1.5"
+        >
+          {label}
+        </label>
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
+          <input
+            id="member-search-input"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Tìm và bấm để thêm hội viên vào lớp..."
+            className="h-11 w-full rounded-sm border border-line bg-ink pl-9 pr-3.5 text-sm text-chalk placeholder:text-muted/70 focus:border-neon/70 focus:outline-none focus:ring-2 focus:ring-neon/70"
+          />
+          {dropdown}
+        </div>
+        {(selected || []).length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {selected!.map((m) => (
+              <span
+                key={m.id}
+                className="inline-flex items-center gap-1.5 rounded-full border border-neon/40 bg-neon/5 py-1 pl-2.5 pr-1.5 text-xs text-chalk"
+              >
+                <UserPlus className="size-3.5 text-neon" />
+                <span className="font-semibold">{m.fullName}</span>
+                <span className="text-muted">({m.code})</span>
+                <button
+                  type="button"
+                  onClick={() => onToggle?.(m)}
+                  aria-label={`Bỏ ${m.fullName}`}
+                  className="rounded-full p-0.5 text-muted transition-colors hover:bg-danger/15 hover:text-danger"
+                >
+                  <X className="size-3.5" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ---- Mode 1 người (PT / tập tự do) ----
   return (
     <div>
       <label
         htmlFor="member-search-input"
         className="block text-sm font-semibold text-muted mb-1.5"
       >
-        Hội viên
+        {label}
       </label>
       {memberId ? (
         <div className="flex items-center justify-between rounded-sm border border-neon/40 bg-neon/5 px-3.5 py-2.5">
@@ -478,7 +733,7 @@ function MemberCombobox({
           </span>
           <button
             type="button"
-            onClick={() => onSelect('')}
+            onClick={() => onSelect?.('')}
             className="text-xs font-semibold text-muted hover:text-danger"
           >
             Bỏ chọn
@@ -494,49 +749,7 @@ function MemberCombobox({
             placeholder="Tìm theo tên, email, SĐT, mã hội viên..."
             className="h-11 w-full rounded-sm border border-line bg-ink pl-9 pr-3.5 text-sm text-chalk placeholder:text-muted/70 focus:border-neon/70 focus:outline-none focus:ring-2 focus:ring-neon/70"
           />
-          {searching && <p className="mt-1 text-xs text-muted">Đang tìm...</p>}
-          {/* Luôn mở danh sách (đã tải sẵn khi mở dialog) — không ép phải gõ mới thấy tên */}
-          {!searching && (
-            <div className="absolute z-20 mt-1 max-h-52 w-full overflow-auto rounded-xl border border-line bg-surface p-1 shadow-xl">
-              {members.length === 0 ? (
-                <p className="px-3 py-2 text-xs text-muted">
-                  {query ? 'Không tìm thấy hội viên' : 'Không có hội viên đang hoạt động'}
-                </p>
-              ) : (
-                members.map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => {
-                      onSelect(m.id);
-                      setQuery('');
-                    }}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-chalk transition-colors hover:bg-ink"
-                  >
-                    {m.avatarUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={m.avatarUrl} alt="" className="size-7 rounded-full object-cover" />
-                    ) : (
-                      <span className="flex size-7 items-center justify-center rounded-full bg-neon/10 text-xs font-bold text-neon">
-                        {m.fullName?.charAt(0)}
-                      </span>
-                    )}
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-semibold">{m.fullName}</span>
-                      <span className="block truncate text-xs text-muted">
-                        {m.code} · {m.phone || '--'}
-                      </span>
-                    </span>
-                    {m.memberships?.some((ms: any) => ms.status === 'ACTIVE') ? (
-                      <CheckCircle2 className="size-4 shrink-0 text-neon" />
-                    ) : (
-                      <span className="shrink-0 text-[10px] font-bold text-amber-400">HẾT HẠN</span>
-                    )}
-                  </button>
-                ))
-              )}
-            </div>
-          )}
+          {dropdown}
         </div>
       )}
     </div>
