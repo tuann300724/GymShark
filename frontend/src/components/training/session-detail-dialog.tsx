@@ -174,7 +174,11 @@ export function SessionDetailDialog({
 
           <div className="flex flex-wrap items-center gap-2">
             <SessionTypeBadge type={session.type} />
-            <SessionStatusBadge status={session.status} />
+            <SessionStatusBadge
+              status={session.status}
+              startTime={session.startTime}
+              endTime={session.endTime}
+            />
             {session.completedAt && (
               <Badge variant="outline">Hoàn thành lúc {formatDateTime(session.completedAt)}</Badge>
             )}

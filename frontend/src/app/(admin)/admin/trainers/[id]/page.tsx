@@ -77,10 +77,14 @@ export default function TrainerDetailPage() {
   });
 
   const activeAssignments = (trainer?.trainerMembers || []).filter((a) => a.status === 'ACTIVE');
+  // "Sắp tới" = còn SCHEDULED và CHƯA qua giờ kết thúc — buổi đã qua giờ chuyển sang Lịch sử
+  const now = Date.now();
   const upcoming = (trainer?.schedules || [])
-    .filter((s) => s.status === 'SCHEDULED')
+    .filter((s) => s.status === 'SCHEDULED' && new Date(s.endTime).getTime() > now)
     .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
-  const history = (trainer?.schedules || []).filter((s) => s.status !== 'SCHEDULED');
+  const history = (trainer?.schedules || []).filter(
+    (s) => s.status !== 'SCHEDULED' || new Date(s.endTime).getTime() <= now,
+  );
 
   const tabs: { key: TabKey; label: string; count?: number }[] = [
     { key: 'overview', label: 'Tổng quan' },
@@ -537,7 +541,7 @@ function SessionList({
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-bold text-chalk">{s.title}</span>
               <SessionTypeBadge type={s.type} />
-              <SessionStatusBadge status={s.status} />
+              <SessionStatusBadge status={s.status} startTime={s.startTime} endTime={s.endTime} />
             </div>
             <p className="mt-1 text-xs text-muted">
               {formatDateTime(s.startTime)}

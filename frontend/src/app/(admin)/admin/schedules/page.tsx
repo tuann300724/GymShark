@@ -144,7 +144,7 @@ export default function SchedulesPage() {
             onChange={(e) => setStatus(e.target.value)}
             options={[
               { value: 'ALL', label: 'Tất cả trạng thái' },
-              { value: 'SCHEDULED', label: 'Chờ diễn ra' },
+              { value: 'SCHEDULED', label: 'Chưa hoàn thành' },
               { value: 'COMPLETED', label: 'Hoàn thành' },
               { value: 'CANCELLED', label: 'Đã hủy' },
               { value: 'NO_SHOW', label: 'Vắng mặt' },
@@ -229,7 +229,11 @@ export default function SchedulesPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-bold text-chalk">{s.title}</span>
                   <SessionTypeBadge type={s.type} />
-                  <SessionStatusBadge status={s.status} />
+                  <SessionStatusBadge
+                    status={s.status}
+                    startTime={s.startTime}
+                    endTime={s.endTime}
+                  />
                 </div>
                 <p className="mt-1 text-xs text-muted">
                   {formatDateTime(s.startTime)} · {s.trainer?.user.fullName}

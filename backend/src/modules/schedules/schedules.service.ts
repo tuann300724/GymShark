@@ -668,12 +668,14 @@ export class SchedulesService {
     });
 
     const now = new Date();
+    const dayStart = new Date(now);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(now);
+    dayEnd.setHours(24, 0, 0, 0);
     return {
       data,
       stats: {
-        today: data.filter(
-          (s) => s.startTime >= new Date(now.setHours(0, 0, 0, 0)) && s.startTime < new Date(now.setHours(24, 0, 0, 0)),
-        ).length,
+        today: data.filter((s) => s.startTime >= dayStart && s.startTime < dayEnd).length,
         upcoming: data.filter((s) => s.startTime >= now && s.status === 'SCHEDULED').length,
         completed: data.filter((s) => s.status === 'COMPLETED').length,
       },

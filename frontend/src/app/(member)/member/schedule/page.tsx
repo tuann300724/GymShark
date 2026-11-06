@@ -59,8 +59,13 @@ export default function MemberSchedulePage() {
   const upcoming = sessions.filter((s) => new Date(s.startTime) >= now && s.status === 'SCHEDULED');
   const today = sessions.filter((s) => toKey(new Date(s.startTime)) === toKey(now));
   const completed = sessions.filter((s) => s.status === 'COMPLETED');
+  // Lịch sử = buổi đã qua giờ kết thúc (kể cả còn SCHEDULED → badge "Đã kết thúc")
+  // hoặc đã chốt Hoàn thành / Đã hủy. Buổi đang diễn ra KHÔNG đưa vào lịch sử.
   const history = sessions.filter(
-    (s) => s.startTime < now.toISOString() || s.status === 'COMPLETED' || s.status === 'CANCELLED',
+    (s) =>
+      s.status === 'COMPLETED' ||
+      s.status === 'CANCELLED' ||
+      new Date(s.endTime).getTime() <= now.getTime(),
   );
 
   // Calendar grid (giữ tương tác như trang cũ)
@@ -241,7 +246,11 @@ export default function MemberSchedulePage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-bold text-chalk">{s.title}</span>
                   <SessionTypeBadge type={s.type} />
-                  <SessionStatusBadge status={s.status} />
+                  <SessionStatusBadge
+                    status={s.status}
+                    startTime={s.startTime}
+                    endTime={s.endTime}
+                  />
                 </div>
                 <p className="mt-1.5 text-xs text-muted">
                   {new Date(s.startTime).toLocaleDateString('vi-VN', {
@@ -278,7 +287,7 @@ export default function MemberSchedulePage() {
           <EmptyState
             icon={History}
             title="Chưa có lịch sử tập luyện"
-            description="Khi có buổi tập hoàn thành hoặc bị hủy, chúng sẽ xuất hiện tại đây."
+            description="Khi buổi tập đã qua giờ, hoàn thành hoặc bị hủy, chúng sẽ xuất hiện tại đây."
           />
         ) : (
           <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
@@ -292,7 +301,11 @@ export default function MemberSchedulePage() {
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="truncate text-sm font-semibold text-chalk">{s.title}</span>
-                    <SessionStatusBadge status={s.status} />
+                    <SessionStatusBadge
+                      status={s.status}
+                      startTime={s.startTime}
+                      endTime={s.endTime}
+                    />
                   </div>
                   <p className="mt-1 text-xs text-muted">
                     {formatDateTime(s.startTime)}

@@ -257,7 +257,7 @@ export default function TrainerDashboardPage() {
                     {s.member ? ` · ${s.member.fullName}` : ''}
                   </p>
                 </div>
-                <SessionStatusBadge status={s.status} />
+                <SessionStatusBadge status={s.status} startTime={s.startTime} endTime={s.endTime} />
               </button>
             ))}
           </div>
@@ -371,7 +371,11 @@ function SessionRow({
         <div className="flex flex-wrap items-center gap-2">
           <span className="truncate text-sm font-bold text-chalk">{session.title}</span>
           <SessionTypeBadge type={session.type} />
-          <SessionStatusBadge status={session.status} />
+          <SessionStatusBadge
+            status={session.status}
+            startTime={session.startTime}
+            endTime={session.endTime}
+          />
         </div>
         <p className="mt-1 truncate text-xs text-muted">
           {formatDateTime(session.startTime)}

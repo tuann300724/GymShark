@@ -47,6 +47,28 @@ export const SESSION_STATUS_META: Record<string, { label: string; variant: Badge
   NO_SHOW: { label: 'Vắng mặt', variant: 'outline' },
 };
 
+/**
+ * Trạng thái hiển thị của buổi tập theo thời gian thực.
+ * Buổi SCHEDULED nhưng đã qua khung giờ thì không được phép hiện "Chờ diễn ra":
+ * - chưa tới giờ → "Chờ diễn ra"
+ * - đang trong khung giờ → "Đang diễn ra"
+ * - đã qua giờ kết thúc → "Đã kết thúc" (HLV/admin vẫn có thể chốt Hoàn thành sau)
+ */
+export function getSessionDisplayStatus(
+  status: string,
+  startTime?: string | Date | null,
+  endTime?: string | Date | null,
+): { label: string; variant: BadgeVariant } {
+  if (status === 'SCHEDULED' && startTime && endTime) {
+    const now = Date.now();
+    const start = new Date(startTime).getTime();
+    const end = new Date(endTime).getTime();
+    if (now >= end) return { label: 'Đã kết thúc', variant: 'outline' };
+    if (now >= start) return { label: 'Đang diễn ra', variant: 'success' };
+  }
+  return SESSION_STATUS_META[status] || { label: status, variant: 'outline' };
+}
+
 export const SESSION_TYPE_META: Record<string, { label: string; variant: BadgeVariant }> = {
   PERSONAL_TRAINING: { label: 'Kèm riêng (PT)', variant: 'success' },
   GROUP_CLASS: { label: 'Lớp nhóm', variant: 'info' },
