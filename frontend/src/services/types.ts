@@ -818,6 +818,8 @@ export interface TrainingSession {
   cancellationNote?: string | null;
   completedAt?: string | null;
   roomId?: string | null;
+  /** Sức chứa ca nhóm (null/undefined = buổi 1:1 hoặc tập tự do) */
+  capacity?: number | null;
   createdAt?: string;
   trainer?: SessionTrainerInfo | null;
   member?: SessionMemberInfo | null;

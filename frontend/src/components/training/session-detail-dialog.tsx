@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
 import { trainingApi } from '@/services/training.service';
 import { classBookingApi } from '@/services/class-booking.service';
+import type { SessionDetail } from '@/services/types';
 import { formatDateTime } from '@/lib/utils';
 import { SessionStatusBadge, SessionTypeBadge } from './session-badges';
 import {
@@ -33,6 +34,8 @@ interface SessionDetailDialogProps {
   canProgress?: boolean;
   /** Cho phép trainer đánh dấu hoàn thành buổi (không hủy/không sửa) */
   canComplete?: boolean;
+  /** Mở form sửa buổi tập (chỉ truyền khi vai trò được sửa — backend chỉ nhận ADMIN/MANAGER/STAFF) */
+  onEdit?: (session: SessionDetail) => void;
   /** Sau khi đổi trạng thái → gọi callback để refresh */
   onChanged?: () => void;
 }
@@ -43,6 +46,7 @@ export function SessionDetailDialog({
   canManage = false,
   canProgress = false,
   canComplete = false,
+  onEdit,
   onChanged,
 }: SessionDetailDialogProps) {
   const toast = useToast();
@@ -288,6 +292,11 @@ export function SessionDetailDialog({
           {/* Footer actions */}
           {(canManage || canComplete) && session.status === 'SCHEDULED' && (
             <div className="flex flex-wrap items-center justify-end gap-2 border-t border-line pt-4">
+              {canManage && onEdit && (
+                <Button variant="secondary" size="sm" onClick={() => onEdit(session)}>
+                  <Pencil className="size-3.5" /> Chỉnh sửa
+                </Button>
+              )}
               <Button
                 variant="secondary"
                 size="sm"

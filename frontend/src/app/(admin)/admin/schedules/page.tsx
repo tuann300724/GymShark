@@ -261,6 +261,13 @@ export default function SchedulesPage() {
         sessionId={detailId}
         onClose={() => setDetailId(null)}
         canManage
+        onEdit={(s) => {
+          // Đóng chi tiết → mở form sửa với dữ liệu buổi tập đang xem
+          setDetailId(null);
+          setEditing(s);
+          setDefaultDate(undefined);
+          setFormOpen(true);
+        }}
         onChanged={refresh}
       />
       <SessionFormDialog

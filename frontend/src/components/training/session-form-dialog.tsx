@@ -127,6 +127,7 @@ export function SessionFormDialog({
         startTime: start.time,
         endTime: end.time,
         notes: editing.notes || '',
+        capacity: editing.capacity ?? undefined,
       });
     } else {
       reset({
@@ -137,6 +138,7 @@ export function SessionFormDialog({
         date: defaultDate || new Date().toISOString().slice(0, 10),
         startTime: '07:00',
         endTime: '08:00',
+        capacity: undefined,
       });
     }
   }, [open, editing, defaultDate, reset]);
