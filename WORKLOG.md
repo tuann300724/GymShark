@@ -5,6 +5,47 @@
 
 ---
 
+## 2026-11-07 — Quản lý kinh doanh nước uống
+
+> Trạng thái: **ĐÃ TRIỂN KHAI, CHƯA COMMIT/PUSH**.
+
+- Khảo sát database SQL Server: các bảng `BeverageProduct`, `BeverageImport`,
+  `BeverageImportItem`, `BeverageSale`, `BeverageSaleItem`, `BeverageStockMovement`, bốn view thống kê
+  và hai stored procedure đã có; không sửa Prisma schema, không tạo/đổi bảng.
+- Backend thêm module/API nước uống: dashboard, CRUD sản phẩm, phiếu nhập và xác nhận nhập, POS,
+  lịch sử bán, tồn kho/lịch sử movement/điều chỉnh, báo cáo, hội viên tìm kiếm và lịch sử mua riêng.
+  Query có parameter binding; nhận hàng/bán dùng stored procedure trong transaction; điều chỉnh ghi
+  movement, chặn tồn âm; bán dùng `sp_getapplock` + request ID để chống hoàn tất lặp.
+- Phân quyền ADMIN/MANAGER cho quản trị; STAFF bán/xem giới hạn theo ca đang mở, chi nhánh và hóa
+  đơn của mình; MEMBER chỉ xem lịch sử mua của tài khoản mình.
+- Frontend thêm dashboard, sản phẩm, nhập kho, POS/in hóa đơn, tồn kho, báo cáo Excel-compatible CSV
+  và lịch sử mua của hội viên; sidebar/header và nhãn audit được cập nhật. README có hướng dẫn.
+- Kiểm tra: backend build và frontend typecheck PASS; lint các file liên quan PASS; Prettier các file
+  liên quan PASS. Full `format:check` vẫn báo 39 file có sẵn ngoài phạm vi thay đổi. Lint toàn repo
+  không có lỗi (còn cảnh báo có sẵn ở trang khác). Các truy vấn đọc SQL đã xác thực; không chạy
+  mutation thử trên database thật để tránh tạo giao dịch mẫu. Browser route quản trị chuyển về login
+  khi chưa xác thực; backend không chạy ở cổng 3001 trong phiên QA.
+- Không chạy production build trong lúc dev server cổng 3000 đang dùng `.next`; chưa xác nhận UI bằng
+  phiên đăng nhập Admin/STAFF/MEMBER.
+- **Bổ sung xử lý lỗi GET ca làm/doanh thu (2026-11-07):** tái hiện `GET /staff-shifts` lỗi SQL
+  Server 207 do bảng `StaffShift` thiếu 6 cột chốt ca (`cashExpected`, `cashCounted`,
+  `cashDifference`, `closedById`, `closedAt`, `closeNotes`), dù service và Prisma schema đang dùng.
+  Đã áp dụng migration idempotent `backend/prisma/sqlserver-add-staff-shift-settlement.sql` trong
+  transaction; chỉ thêm cột nullable, không sửa/xóa dữ liệu. Kiểm tra lại truy vấn đọc: GET ca làm
+  thành công (hiện 0 ca), options thành công (2 chi nhánh, 1 nhân viên), báo cáo doanh thu thành công
+  (3 ngày biểu đồ, 8 giao dịch gần đây). Không tạo giao dịch hay ca làm thử.
+- **Fix POST bán nước (2026-11-07):** SQL Server không cho dùng biểu thức `CONVERT(...)` trực tiếp
+  trong tham số `EXEC`, gây lỗi cú pháp 156 và HTTP 500. Sửa lời gọi `usp_CompleteBeverageSale` và
+  cùng mẫu `usp_ReceiveBeverageImport` để truyền tham số UUID có kiểu ngầm định. Backend build PASS;
+  kiểm tra hai procedure với ID không tồn tại nhận đúng lỗi nghiệp vụ 51011/51001, không tạo giao dịch
+  hoặc thay đổi tồn kho. Đã khởi động lại backend từ `dist/main.js`; `/api/health` trả 200 và database
+  connected.
+- **Báo cáo thống kê nước uống (2026-11-07):** thêm tab Nước uống vào `/admin/reports`, gồm doanh thu,
+  nhập hàng, lợi nhuận gộp, số lượng, sản phẩm bán chạy, doanh thu theo nhân viên và 20 hóa đơn mới
+  nhất kèm tên người bán/chi nhánh/hội viên/thanh toán. Danh sách API `/beverages/sales` bổ sung mã
+  hội viên từ bảng Member. Typecheck, backend build, lint/Prettier liên quan PASS; truy vấn SQL đọc
+  trả về 3 hóa đơn, `staffName` và `memberCode` đúng. Chưa xác nhận UI với phiên đăng nhập Admin.
+
 ## 2026-10-26 — Kỳ 14: Fix 4 lỗi người dùng báo (gia hạn, gán PT, filter gói, P2023) + tự hủy yêu cầu
 
 > Trạng thái: **ĐÃ COMMIT + PUSH** — `2f4241c` (fix, 13 files) + `77115cb` (docs, 4 files).

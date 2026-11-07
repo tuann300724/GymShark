@@ -68,6 +68,12 @@
 - Báo cáo lọc theo ngày, nhân viên, chi nhánh và trạng thái; chỉ tính Payment `PAID`, tổng hợp doanh thu, số giao dịch và hội viên duy nhất theo ca/ngày/nhân viên/chi nhánh.
 - Ca dùng các trạng thái `SCHEDULED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`. Chỉ hoàn tất trạng thái `COMPLETED` sau khi lưu chốt quỹ; ca đã chốt/hủy không thể ghi nhận thanh toán mới. Các cột chốt quỹ được bổ sung vào bảng `StaffShift` hiện có bằng `backend/prisma/sqlserver-add-staff-shift-settlement.sql` (script idempotent, không tạo bảng mới).
 
+### Kinh doanh nước uống — `/admin/beverages`
+- Dashboard doanh số, tồn kho, cảnh báo sắp hết/hết hàng, lợi nhuận gộp ước tính và sản phẩm bán chạy; quản lý sản phẩm, phiếu nhập nhiều dòng, POS tại quầy, tồn kho/điều chỉnh và báo cáo theo ngày/tuần/tháng/năm (xuất CSV mở bằng Excel).
+- ADMIN/MANAGER quản lý sản phẩm, nhập kho, điều chỉnh và báo cáo. STAFF xem danh mục, chỉ bán tại chi nhánh của ca `IN_PROGRESS`, và chỉ xem hóa đơn do chính mình bán. MEMBER chỉ xem các hóa đơn đã thanh toán gắn với hồ sơ của mình tại `/member/beverages`.
+- Dùng trực tiếp sáu bảng SQL Server `BeverageProduct`, `BeverageImport`, `BeverageImportItem`, `BeverageSale`, `BeverageSaleItem`, `BeverageStockMovement`; không thêm Prisma model/bảng. Truy vấn tồn kho và thống kê qua các view `vw_BeverageStock`, `vw_BeverageImportStatistics`, `vw_BeverageSalesStatistics`, `vw_BeverageProductSalesStatistics`.
+- Xác nhận nhập/bán dùng `usp_ReceiveBeverageImport` và `usp_CompleteBeverageSale`; adjustment ghi movement có người thực hiện/lý do. POS giữ giá vốn/giá bán tại thời điểm bán, kiểm tra tồn kho trong transaction, và khóa chống xử lý lặp dựa trên `requestId` (không cần cột/bảng idempotency mới).
+
 ### Khu vực huấn luyện viên `/trainer` — vai trò `TRAINER`
 - Dashboard: lịch dạy hôm nay, số học viên, tổng buổi đã hoàn thành
 - Lịch dạy, danh sách học viên phụ trách, ghi nhận tiến trình tập, hồ sơ cá nhân

@@ -28,10 +28,12 @@ import {
   Users,
 } from 'lucide-react';
 import { EquipmentReportTab } from './EquipmentReportTab';
+import { BeverageStatisticsTab } from './beverage-statistics-tab';
 
 const TABS = [
   { value: 'overview', label: 'Tổng quan' },
   { value: 'revenue', label: 'Doanh thu' },
+  { value: 'beverages', label: 'Nước uống' },
   { value: 'attendance', label: 'Chuyên cần' },
   { value: 'members', label: 'Hội viên' },
   { value: 'memberships', label: 'Gói tập' },
@@ -877,6 +879,7 @@ export default function ReportsPage() {
 
       {tab === 'overview' && <OverviewTab />}
       {tab === 'revenue' && <RevenueTab />}
+      {tab === 'beverages' && <BeverageStatisticsTab />}
       {tab === 'attendance' && <AttendanceTab />}
       {tab === 'members' && <MembersTab />}
       {tab === 'memberships' && <MembershipsTab />}

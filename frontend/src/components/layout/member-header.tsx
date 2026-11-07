@@ -26,6 +26,7 @@ import {
   ChevronDown,
   MessageSquare,
   ScanLine,
+  CupSoda,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -37,6 +38,7 @@ const NAV_ITEMS = [
   { name: 'Gói tập của tôi', href: '/member/membership', icon: CreditCard },
   { name: 'Lịch sử check-in', href: '/member/checkins', icon: LogIn },
   { name: 'Thanh toán', href: '/member/payments', icon: Receipt },
+  { name: 'Lịch sử mua nước', href: '/member/beverages', icon: CupSoda },
   { name: 'Tiến trình', href: '/member/progress', icon: Dumbbell },
   { name: 'Giới thiệu', href: '/member/referral', icon: User },
 ];
@@ -179,6 +181,15 @@ export function MemberHeader() {
                     <User className="size-3.5" />
                     Hồ sơ của tôi
                   </Link>
+                  {!me?.isTrainer && (
+                    <Link
+                      href="/member/beverages"
+                      className="flex w-full items-center gap-2 px-3 py-2 text-chalk transition-colors hover:bg-ink"
+                    >
+                      <CupSoda className="size-3.5" />
+                      Lịch sử mua nước
+                    </Link>
+                  )}
                   <Link
                     href="/member/notifications"
                     className="flex w-full items-center gap-2 px-3 py-2 text-chalk transition-colors hover:bg-ink"
@@ -215,26 +226,28 @@ export function MemberHeader() {
       {menuOpen && (
         <div className="animate-fade-in border-t border-line bg-ink xl:hidden">
           <nav className="container-x flex flex-col gap-1 py-3">
-            {NAV_ITEMS.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  'flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-sm font-medium transition-colors',
-                  pathname === item.href
-                    ? 'bg-neon/10 text-neon'
-                    : 'text-muted hover:bg-surface hover:text-chalk',
-                )}
-              >
-                <item.icon className="size-4" />
-                {item.name}
-                {item.href === '/member/messages' && chatUnread > 0 && (
-                  <span className="ml-auto min-w-[18px] rounded-full bg-danger px-1 text-center text-[10px] font-bold text-white">
-                    {chatUnread > 99 ? '99+' : chatUnread}
-                  </span>
-                )}
-              </Link>
-            ))}
+            {NAV_ITEMS.filter((item) => !me?.isTrainer || item.href !== '/member/beverages').map(
+              (item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    'flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-sm font-medium transition-colors',
+                    pathname === item.href
+                      ? 'bg-neon/10 text-neon'
+                      : 'text-muted hover:bg-surface hover:text-chalk',
+                  )}
+                >
+                  <item.icon className="size-4" />
+                  {item.name}
+                  {item.href === '/member/messages' && chatUnread > 0 && (
+                    <span className="ml-auto min-w-[18px] rounded-full bg-danger px-1 text-center text-[10px] font-bold text-white">
+                      {chatUnread > 99 ? '99+' : chatUnread}
+                    </span>
+                  )}
+                </Link>
+              ),
+            )}
             <Link
               href="/member/notifications"
               className={cn(

@@ -194,6 +194,15 @@ export const AUDIT_ACTION_META: Record<string, { label: string; variant: BadgeVa
   STAFF_SHIFT_CANCEL: { label: 'Hủy ca làm', variant: 'destructive' },
   STAFF_SHIFT_START: { label: 'Bắt đầu ca làm', variant: 'info' },
   STAFF_SHIFT_SETTLE: { label: 'Kiểm quỹ và chốt ca', variant: 'success' },
+
+  // Kinh doanh nước uống
+  BEVERAGE_PRODUCT_CREATE: { label: 'Tạo sản phẩm nước uống', variant: 'success' },
+  BEVERAGE_PRODUCT_UPDATE: { label: 'Cập nhật sản phẩm nước uống', variant: 'default' },
+  BEVERAGE_PRODUCT_DEACTIVATE: { label: 'Ngừng kinh doanh nước uống', variant: 'warning' },
+  BEVERAGE_IMPORT_CREATE: { label: 'Tạo phiếu nhập nước uống', variant: 'info' },
+  BEVERAGE_IMPORT_RECEIVE: { label: 'Xác nhận nhập nước uống', variant: 'success' },
+  BEVERAGE_SALE_COMPLETE: { label: 'Thanh toán hóa đơn nước uống', variant: 'success' },
+  BEVERAGE_STOCK_ADJUST: { label: 'Điều chỉnh tồn kho nước uống', variant: 'warning' },
 };
 
 /** Nhãn cho loại đối tượng bị tác động */
@@ -209,6 +218,10 @@ export const AUDIT_ENTITY_LABEL: Record<string, string> = {
   Promotion: 'Khuyến mãi',
   Face: 'Sinh trắc học',
   StaffShift: 'Ca làm',
+  BeverageProduct: 'Sản phẩm nước uống',
+  BeverageImport: 'Phiếu nhập nước uống',
+  BeverageSale: 'Hóa đơn nước uống',
+  BeverageStockMovement: 'Biến động kho nước uống',
 };
 
 /** Nhãn vai trò người thực hiện (hiển thị trong nhật ký) */
