@@ -28,7 +28,7 @@ export interface FaceMatchResult {
  * - So khớp bằng cosine similarity, ngưỡng lấy từ env (FACE_MATCH_THRESHOLD /
  *   FACE_MATCH_THRESHOLD_1N) để dễ hiệu chỉnh khi test với khuôn mặt thật.
  * - Service KHÔNG tự tạo check-in — trả về kết quả match, CheckinsService lo phần
- *   validate thẻ/chi nhánh + tạo lượt tập (tái dùng pipeline sẵn có).
+ *   validate thẻ + tạo lượt tập (tái dùng pipeline sẵn có).
  */
 @Injectable()
 export class FacesService {

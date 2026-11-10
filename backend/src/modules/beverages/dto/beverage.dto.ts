@@ -82,11 +82,6 @@ export class BeverageProductDto {
   description?: string | null;
 
   @IsOptional()
-  @IsString()
-  @MaxLength(100)
-  initialBranchId?: string;
-
-  @IsOptional()
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 3 })
   @Min(0)
@@ -202,12 +197,6 @@ export class BeverageImportItemDto {
 }
 
 export class CreateBeverageImportDto {
-  @IsString()
-  @IsNotEmpty()
-  @Matches(/\S/)
-  @MaxLength(100)
-  branchId: string;
-
   @IsOptional()
   @IsString()
   @MaxLength(255)
@@ -239,12 +228,6 @@ export class CompleteBeverageSaleDto {
 
   @IsUUID()
   memberId: string;
-
-  @IsString()
-  @IsNotEmpty()
-  @Matches(/\S/)
-  @MaxLength(100)
-  branchId: string;
 
   @IsIn(["CASH", "BANK_TRANSFER"])
   paymentMethod: "CASH" | "BANK_TRANSFER";
@@ -279,12 +262,6 @@ export class BeverageSaleItemDto {
 }
 
 export class BeverageStockAdjustmentDto {
-  @IsString()
-  @IsNotEmpty()
-  @Matches(/\S/)
-  @MaxLength(100)
-  branchId: string;
-
   @IsUUID()
   productId: string;
 
@@ -307,11 +284,6 @@ export class BeverageQueryDto {
   @Transform(({ value }) => value === true || value === "true")
   @IsBoolean()
   includeInactive?: boolean;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(100)
-  branchId?: string;
 
   @IsOptional()
   @IsUUID()

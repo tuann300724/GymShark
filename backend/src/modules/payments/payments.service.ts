@@ -1,21 +1,34 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Prisma } from '@prisma/client';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { InvoiceStatus, PaymentMethod, PaymentStatus } from '../../common/constants/db-enums';
-import { PrismaService } from '../../prisma/prisma.service';
-import { AuditService } from '../audit-logs/audit-logs.service';
-import { Role } from '../../common/enums/role.enum';
-import { PaymentGatewayService } from './gateway/payment-gateway.service';
-import { ConfirmPaymentDto } from './dto/confirm-payment.dto';
-import { RejectPaymentDto } from './dto/reject-payment.dto';
-import { RefundPaymentDto } from './dto/refund-payment.dto';
-import { PaymentListQueryDto } from './dto/payment-list-query.dto';
-import { CassoService } from '../casso/casso.service';
-import { BANK_INFO } from './bank-info';
-import { MAIL_EVENTS } from '../mail/mail.events';
-import { NotificationsService } from '../notifications/notifications.service';
-import { MailService } from '../mail/mail.service';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  OnModuleDestroy,
+  OnModuleInit,
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { Prisma } from "@prisma/client";
+import { EventEmitter2 } from "@nestjs/event-emitter";
+import {
+  InvoiceStatus,
+  PaymentMethod,
+  PaymentStatus,
+} from "../../common/constants/db-enums";
+import { PrismaService } from "../../prisma/prisma.service";
+import { AuditService } from "../audit-logs/audit-logs.service";
+import { Role } from "../../common/enums/role.enum";
+import { PaymentGatewayService } from "./gateway/payment-gateway.service";
+import { ConfirmPaymentDto } from "./dto/confirm-payment.dto";
+import { RejectPaymentDto } from "./dto/reject-payment.dto";
+import { RefundPaymentDto } from "./dto/refund-payment.dto";
+import { PaymentListQueryDto } from "./dto/payment-list-query.dto";
+import { CassoService } from "../casso/casso.service";
+import { BANK_INFO } from "./bank-info";
+import { MAIL_EVENTS } from "../mail/mail.events";
+import { NotificationsService } from "../notifications/notifications.service";
+import { MailService } from "../mail/mail.service";
 
 interface Actor {
   id: string;
@@ -43,21 +56,37 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     private notificationsService: NotificationsService,
     private mailService: MailService,
   ) {
-    this.cassoAutoReconcile = this.configService.get<string>('CASSO_AUTO_RECONCILE')?.trim().toLowerCase() === 'true';
-    const configuredInterval = Number(this.configService.get<string>('CASSO_POLL_INTERVAL_MS'));
-    this.cassoPollIntervalMs = Number.isFinite(configuredInterval) && configuredInterval >= 1_000 ? configuredInterval : 2_000;
+    this.cassoAutoReconcile =
+      this.configService
+        .get<string>("CASSO_AUTO_RECONCILE")
+        ?.trim()
+        .toLowerCase() === "true";
+    const configuredInterval = Number(
+      this.configService.get<string>("CASSO_POLL_INTERVAL_MS"),
+    );
+    this.cassoPollIntervalMs =
+      Number.isFinite(configuredInterval) && configuredInterval >= 1_000
+        ? configuredInterval
+        : 2_000;
   }
 
   onModuleInit() {
     if (!this.cassoAutoReconcile) return;
-    if (!this.configService.get<string>('CASSO_SHEET_URL')?.trim()) {
-      this.logger.warn('CASSO_AUTO_RECONCILE is enabled but CASSO_SHEET_URL is missing');
+    if (!this.configService.get<string>("CASSO_SHEET_URL")?.trim()) {
+      this.logger.warn(
+        "CASSO_AUTO_RECONCILE is enabled but CASSO_SHEET_URL is missing",
+      );
       return;
     }
 
-    this.logger.log(`CASSO auto-reconcile enabled every ${this.cassoPollIntervalMs}ms`);
+    this.logger.log(
+      `CASSO auto-reconcile enabled every ${this.cassoPollIntervalMs}ms`,
+    );
     void this.reconcilePendingCassoPayments();
-    this.cassoPollTimer = setInterval(() => void this.reconcilePendingCassoPayments(), this.cassoPollIntervalMs);
+    this.cassoPollTimer = setInterval(
+      () => void this.reconcilePendingCassoPayments(),
+      this.cassoPollIntervalMs,
+    );
   }
 
   onModuleDestroy() {
@@ -74,10 +103,14 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
         AND endTime > SYSUTCDATETIME()
     `);
     if (shifts.length === 0) {
-      throw new ForbiddenException('Bạn cần bắt đầu ca làm đang được phân công trước khi phục vụ hội viên');
+      throw new ForbiddenException(
+        "Bạn cần bắt đầu ca làm đang được phân công trước khi phục vụ hội viên",
+      );
     }
     if (shifts.length > 1) {
-      throw new ConflictException('Bạn có nhiều ca đang mở cùng lúc. Hãy nhờ quản lý xử lý trước khi thu tiền.');
+      throw new ConflictException(
+        "Bạn có nhiều ca đang mở cùng lúc. Hãy nhờ quản lý xử lý trước khi thu tiền.",
+      );
     }
     return shifts[0].id;
   }
@@ -97,7 +130,9 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
         AND endTime > SYSUTCDATETIME()
     `);
     if (shifts.length !== 1) {
-      throw new ForbiddenException('Ca làm đã kết thúc hoặc không còn hợp lệ; không thể tạo giao dịch tại quầy');
+      throw new ForbiddenException(
+        "Ca làm đã kết thúc hoặc không còn hợp lệ; không thể tạo giao dịch tại quầy",
+      );
     }
   }
 
@@ -119,10 +154,13 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
           const staffPosMatch = payment.notes?.match(
             /\[STAFF_POS:([0-9a-f-]{36}):([0-9a-f-]{36})\]/i,
           );
-          const legacyStaffPosPayment = payment.notes?.includes('[STAFF_POS') ?? false;
+          const legacyStaffPosPayment =
+            payment.notes?.includes("[STAFF_POS") ?? false;
           let actor: Actor | null = null;
           if (staffPosMatch) {
-            const activeShifts = await this.prisma.$queryRaw<{ id: string }[]>(Prisma.sql`
+            const activeShifts = await this.prisma.$queryRaw<
+              { id: string }[]
+            >(Prisma.sql`
               SELECT TOP (2) CONVERT(nvarchar(36), id) AS id
               FROM dbo.StaffShift
               WHERE staffId = CONVERT(uniqueidentifier, ${staffPosMatch[1]})
@@ -143,15 +181,23 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
           }
 
           const result = await this.verifyCasso(payment.id, actor);
-          if (result.matched && result.status === 'PAID') {
-            this.logger.log(`CASSO automatically confirmed payment ${payment.id}`);
+          if (result.matched && result.status === "PAID") {
+            this.logger.log(
+              `CASSO automatically confirmed payment ${payment.id}`,
+            );
           }
         } catch (error) {
-          this.logger.error(`CASSO reconciliation failed for payment ${payment.id}`, error instanceof Error ? error.stack : String(error));
+          this.logger.error(
+            `CASSO reconciliation failed for payment ${payment.id}`,
+            error instanceof Error ? error.stack : String(error),
+          );
         }
       }
     } catch (error) {
-      this.logger.error('Unable to load pending CASSO payments', error instanceof Error ? error.stack : String(error));
+      this.logger.error(
+        "Unable to load pending CASSO payments",
+        error instanceof Error ? error.stack : String(error),
+      );
     } finally {
       this.cassoReconcileRunning = false;
     }
@@ -177,7 +223,8 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     if (query.status) where.status = query.status;
     if (query.method) where.method = query.method;
     if (query.memberId) where.memberId = query.memberId;
-    if (query.packageId) where.membership = { is: { packageId: query.packageId } };
+    if (query.packageId)
+      where.membership = { is: { packageId: query.packageId } };
     if (query.from || query.to) {
       where.createdAt = {};
       if (query.from) where.createdAt.gte = new Date(query.from);
@@ -199,7 +246,17 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
 
-    const [data, total, paidAgg, revenueTodayAgg, pendingCount, paidCount, failedCount, cancelledCount, refundedAgg] = await Promise.all([
+    const [
+      data,
+      total,
+      paidAgg,
+      revenueTodayAgg,
+      pendingCount,
+      paidCount,
+      failedCount,
+      cancelledCount,
+      refundedRows,
+    ] = await Promise.all([
       this.prisma.payment.findMany({
         where,
         include: {
@@ -219,27 +276,26 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
           invoice: { select: { id: true, invoiceNumber: true, status: true } },
           confirmedBy: { select: { id: true, fullName: true } },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         skip,
         take: limit,
       }),
       this.prisma.payment.count({ where }),
       this.prisma.payment.aggregate({
         _sum: { amount: true },
-        where: { status: 'PAID' },
+        where: { status: "PAID" },
       }),
       this.prisma.payment.aggregate({
         _sum: { amount: true },
-        where: { status: 'PAID', paidAt: { gte: startOfToday } },
+        where: { status: "PAID", paidAt: { gte: startOfToday } },
       }),
-      this.prisma.payment.count({ where: { status: 'PENDING' } }),
-      this.prisma.payment.count({ where: { status: 'PAID' } }),
-      this.prisma.payment.count({ where: { status: 'FAILED' } }),
-      this.prisma.payment.count({ where: { status: 'CANCELLED' } }),
-      this.prisma.payment.aggregate({
-        _sum: { amount: true },
-        _count: true,
-        where: { status: 'REFUNDED' },
+      this.prisma.payment.count({ where: { status: "PENDING" } }),
+      this.prisma.payment.count({ where: { status: "PAID" } }),
+      this.prisma.payment.count({ where: { status: "FAILED" } }),
+      this.prisma.payment.count({ where: { status: "CANCELLED" } }),
+      this.prisma.payment.findMany({
+        where: { status: "REFUNDED" },
+        select: { amount: true, refundAmount: true },
       }),
     ]);
 
@@ -255,8 +311,12 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
         paidCount,
         failedCount,
         cancelledCount,
-        refundedCount: refundedAgg._count,
-        refundedTotal: refundedAgg._sum.amount || 0,
+        refundedCount: refundedRows.length,
+        // Tổng tiền đã hoàn thực tế (ưu tiên refundAmount — dữ liệu cũ chưa có thì tính theo amount)
+        refundedTotal: refundedRows.reduce(
+          (sum, r) => sum + Number(r.refundAmount ?? r.amount),
+          0,
+        ),
       },
     };
   }
@@ -283,7 +343,8 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
         confirmedBy: { select: { id: true, fullName: true, role: true } },
       },
     });
-    if (!payment) throw new NotFoundException('Không tìm thấy giao dịch thanh toán');
+    if (!payment)
+      throw new NotFoundException("Không tìm thấy giao dịch thanh toán");
     return payment;
   }
 
@@ -314,30 +375,46 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
         },
       },
     });
-    if (!payment) throw new NotFoundException('Không tìm thấy giao dịch thanh toán');
-    if (payment.status !== 'PENDING') {
-      throw new BadRequestException('Chỉ hóa đơn đang chờ (PENDING) mới có thể xác nhận');
+    if (!payment)
+      throw new NotFoundException("Không tìm thấy giao dịch thanh toán");
+    if (payment.status !== "PENDING") {
+      throw new BadRequestException(
+        "Chỉ hóa đơn đang chờ (PENDING) mới có thể xác nhận",
+      );
     }
     const staffPosMatch = payment.notes?.match(
       /\[STAFF_POS:([0-9a-f-]{36}):([0-9a-f-]{36})\]/i,
     );
-    if (payment.notes?.includes('[STAFF_POS') && !staffPosMatch) {
-      throw new ConflictException('Giao dịch tại quầy chưa được gắn với ca cụ thể; cần quản lý xử lý');
+    if (payment.notes?.includes("[STAFF_POS") && !staffPosMatch) {
+      throw new ConflictException(
+        "Giao dịch tại quầy chưa được gắn với ca cụ thể; cần quản lý xử lý",
+      );
     }
     if (actor?.role === Role.STAFF && staffPosMatch) {
       if (staffPosMatch[1].toLowerCase() !== actor.id.toLowerCase()) {
-        throw new ForbiddenException('Chỉ nhân viên đã tạo giao dịch tại quầy mới có thể xác nhận giao dịch này');
+        throw new ForbiddenException(
+          "Chỉ nhân viên đã tạo giao dịch tại quầy mới có thể xác nhận giao dịch này",
+        );
       }
-      if (actor.shiftId && staffPosMatch[2].toLowerCase() !== actor.shiftId.toLowerCase()) {
-        throw new ConflictException('Giao dịch này thuộc ca khác, không thể ghi nhận vào ca hiện tại');
+      if (
+        actor.shiftId &&
+        staffPosMatch[2].toLowerCase() !== actor.shiftId.toLowerCase()
+      ) {
+        throw new ConflictException(
+          "Giao dịch này thuộc ca khác, không thể ghi nhận vào ca hiện tại",
+        );
       }
       actor = { ...actor, shiftId: staffPosMatch[2] };
     }
 
     // STAFF chỉ xác nhận được phương thức xác nhận thủ công (CASH / BANK_TRANSFER)
-    const gateway = this.gatewayService.getGateway(payment.method as Exclude<PaymentMethod, 'CREDIT_CARD'>);
+    const gateway = this.gatewayService.getGateway(
+      payment.method as Exclude<PaymentMethod, "CREDIT_CARD">,
+    );
     if (actor?.role === Role.STAFF && !gateway.manualConfirmation) {
-      throw new ForbiddenException('Nhân viên chỉ xác nhận được thanh toán Tiền mặt / Chuyển khoản');
+      throw new ForbiddenException(
+        "Nhân viên chỉ xác nhận được thanh toán Tiền mặt / Chuyển khoản",
+      );
     }
 
     // Mã giao dịch phải unique (kiểm tra application-level, dù DB cũng có unique index)
@@ -348,7 +425,9 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
         select: { id: true, code: true },
       });
       if (dup) {
-        throw new ConflictException(`Mã giao dịch "${transactionRef}" đã được dùng cho hóa đơn ${dup.code}. Vui lòng kiểm tra lại.`);
+        throw new ConflictException(
+          `Mã giao dịch "${transactionRef}" đã được dùng cho hóa đơn ${dup.code}. Vui lòng kiểm tra lại.`,
+        );
       }
     }
 
@@ -359,7 +438,9 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       if (actor?.role === Role.STAFF || staffPosMatch) {
         const shiftStaffId = staffPosMatch?.[1] ?? actor?.id;
         if (!shiftStaffId) {
-          throw new ForbiddenException('Không xác định được nhân viên phụ trách ca');
+          throw new ForbiddenException(
+            "Không xác định được nhân viên phụ trách ca",
+          );
         }
         const shiftId = staffPosMatch?.[2] ?? actor?.shiftId;
         const shifts = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
@@ -383,10 +464,14 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
           ORDER BY startTime DESC
         `);
         if (shifts.length === 0) {
-          throw new ForbiddenException('Bạn cần bắt đầu ca làm đang được phân công trước khi xác nhận thanh toán');
+          throw new ForbiddenException(
+            "Bạn cần bắt đầu ca làm đang được phân công trước khi xác nhận thanh toán",
+          );
         }
         if (shifts.length > 1) {
-          throw new ConflictException('Bạn có nhiều ca đang mở cùng lúc. Hãy nhờ quản lý xử lý trước khi thu tiền.');
+          throw new ConflictException(
+            "Bạn có nhiều ca đang mở cùng lúc. Hãy nhờ quản lý xử lý trước khi thu tiền.",
+          );
         }
         staffShiftId = shifts[0].id;
       }
@@ -400,14 +485,19 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
           confirmedAt: now,
           ...(staffShiftId ? { staffShiftId } : {}),
           ...(transactionRef ? { transactionRef } : {}),
-          ...(dto.note ? { notes: [payment.notes, dto.note].filter(Boolean).join(' | ') } : {}),
+          ...(dto.note
+            ? { notes: [payment.notes, dto.note].filter(Boolean).join(" | ") }
+            : {}),
         },
       });
       if (updateCount.count !== 1) {
-        throw new ConflictException('Giao dịch vừa được xác nhận bởi một thao tác khác');
+        throw new ConflictException(
+          "Giao dịch vừa được xác nhận bởi một thao tác khác",
+        );
       }
       const updated = await tx.payment.findUnique({ where: { id } });
-      if (!updated) throw new NotFoundException('Không tìm thấy giao dịch thanh toán');
+      if (!updated)
+        throw new NotFoundException("Không tìm thấy giao dịch thanh toán");
 
       if (payment.promotionId) {
         await tx.promotion.update({
@@ -417,28 +507,37 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       }
 
       let activatedMembership = null;
-      if (payment.membership && payment.membership.status === 'PENDING') {
+      if (payment.membership && payment.membership.status === "PENDING") {
         if (packageChange) {
           const previousMembership = await tx.membership.findUnique({
             where: { id: packageChange[1] },
             select: { id: true, memberId: true, status: true },
           });
-          if (!previousMembership || previousMembership.memberId !== payment.memberId || previousMembership.status !== 'ACTIVE') {
-            throw new ConflictException('Gói tập cũ không còn hiệu lực; không thể xác nhận đổi gói');
+          if (
+            !previousMembership ||
+            previousMembership.memberId !== payment.memberId ||
+            previousMembership.status !== "ACTIVE"
+          ) {
+            throw new ConflictException(
+              "Gói tập cũ không còn hiệu lực; không thể xác nhận đổi gói",
+            );
           }
           await tx.membership.update({
             where: { id: previousMembership.id },
-            data: { status: 'CANCELLED' },
+            data: { status: "CANCELLED" },
           });
         }
         activatedMembership = await tx.membership.update({
           where: { id: payment.membership.id },
           data: {
-            status: 'ACTIVE',
+            status: "ACTIVE",
             ...(packageChange
               ? {
                   startDate: now,
-                  endDate: new Date(now.getTime() + payment.membership.package.durationDays * 86400000),
+                  endDate: new Date(
+                    now.getTime() +
+                      payment.membership.package.durationDays * 86400000,
+                  ),
                 }
               : {}),
           },
@@ -453,13 +552,15 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       await tx.notification.create({
         data: {
           memberId: payment.member.id,
-          title: 'Thanh toán thành công ✅',
+          title: "Thanh toán thành công ✅",
           content: `Hóa đơn ${payment.code} đã được xác nhận. ${
-            activatedMembership ? `Gói tập của bạn đã được kích hoạt và có hiệu lực đến ${activatedMembership.endDate.toLocaleDateString('vi-VN')}.` : ''
+            activatedMembership
+              ? `Gói tập của bạn đã được kích hoạt và có hiệu lực đến ${activatedMembership.endDate.toLocaleDateString("vi-VN")}.`
+              : ""
           }`,
-          type: 'PAYMENT',
-          link: '/member/payments',
-          referenceType: 'PAYMENT_CONFIRMED',
+          type: "PAYMENT",
+          link: "/member/payments",
+          referenceType: "PAYMENT_CONFIRMED",
           referenceId: payment.id,
         },
       });
@@ -481,13 +582,15 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
           const referrerPack = await tx.membership.findFirst({
             where: {
               memberId: referred.referredById,
-              status: 'ACTIVE',
+              status: "ACTIVE",
               endDate: { gte: new Date() },
             },
-            orderBy: { endDate: 'desc' },
+            orderBy: { endDate: "desc" },
           });
           if (referrerPack && referrerPack.endDate) {
-            const newEndDate = new Date(referrerPack.endDate.getTime() + BONUS_DAYS * 86400_000);
+            const newEndDate = new Date(
+              referrerPack.endDate.getTime() + BONUS_DAYS * 86400_000,
+            );
             await tx.membership.update({
               where: { id: referrerPack.id },
               data: { endDate: newEndDate },
@@ -499,10 +602,10 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
             await tx.notification.create({
               data: {
                 memberId: referred.referredById,
-                title: 'Giới thiệu thành công — cộng 7 ngày tập!',
-                content: `${referred.fullName} đã kích hoạt gói tập qua mã của bạn. Gói tập hiện tại được cộng thêm ${BONUS_DAYS} ngày, hiệu lực đến ${newEndDate.toLocaleDateString('vi-VN')}.`,
-                type: 'SYSTEM',
-                link: '/member/referral',
+                title: "Giới thiệu thành công — cộng 7 ngày tập!",
+                content: `${referred.fullName} đã kích hoạt gói tập qua mã của bạn. Gói tập hiện tại được cộng thêm ${BONUS_DAYS} ngày, hiệu lực đến ${newEndDate.toLocaleDateString("vi-VN")}.`,
+                type: "SYSTEM",
+                link: "/member/referral",
               },
             });
           }
@@ -513,8 +616,8 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     });
     await this.auditService.log({
       userId: actor?.id ?? null,
-      action: 'PAYMENT_CONFIRM',
-      entity: 'Payment',
+      action: "PAYMENT_CONFIRM",
+      entity: "Payment",
       entityId: id,
       metadata: {
         code: payment.code,
@@ -523,7 +626,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
         memberName: payment.member.fullName,
         transactionRef: transactionRef ?? null,
         staffShiftId,
-        source: actor ? 'MANUAL' : 'CASSO_AUTO',
+        source: actor ? "MANUAL" : "CASSO_AUTO",
       },
     });
 
@@ -532,13 +635,15 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     // Báo tổ quản trị: thanh toán đã xác nhận (tự đối soát CASSO → actor null → báo tất cả)
     await this.notificationsService.notifyAdmins(
       {
-        type: 'PAYMENT',
-        title: 'Đã xác nhận thanh toán ✅',
-        content: `Hóa đơn ${payment.code} — ${payment.member.fullName} (${payment.member.code}) — ${Number(payment.amount).toLocaleString('vi-VN')}đ${
-          actor ? ` được xác nhận bởi ${actor.fullName ?? actor.role}` : ' được đối soát tự động qua CASSO'
+        type: "PAYMENT",
+        title: "Đã xác nhận thanh toán ✅",
+        content: `Hóa đơn ${payment.code} — ${payment.member.fullName} (${payment.member.code}) — ${Number(payment.amount).toLocaleString("vi-VN")}đ${
+          actor
+            ? ` được xác nhận bởi ${actor.fullName ?? actor.role}`
+            : " được đối soát tự động qua CASSO"
         }.`,
         link: `/admin/payments/${id}`,
-        referenceType: 'PAYMENT_CONFIRMED',
+        referenceType: "PAYMENT_CONFIRMED",
         referenceId: payment.id,
       },
       actor?.id,
@@ -550,7 +655,9 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     //   để lấy kết quả; quá hạn → null (email vẫn tiếp tục gửi nền, fail chỉ ghi log).
     let invoiceEmailSent: boolean | null = null;
     if (!payerEmail) {
-      this.logger.warn(`Không gửi được hóa đơn ${payment.code}: hội viên chưa có email`);
+      this.logger.warn(
+        `Không gửi được hóa đơn ${payment.code}: hội viên chưa có email`,
+      );
       invoiceEmailSent = false;
     } else if (packageChange) {
       const [invoice, previousMembership] = await Promise.all([
@@ -561,15 +668,21 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
         }),
       ]);
       if (!invoice || !payment.membership || !previousMembership) {
-        this.logger.error(`Không gửi được hóa đơn ${payment.code}: thiếu dữ liệu hóa đơn hoặc gói tập`);
+        this.logger.error(
+          `Không gửi được hóa đơn ${payment.code}: thiếu dữ liệu hóa đơn hoặc gói tập`,
+        );
       } else {
-        const creditText = payment.notes?.match(/giá trị còn lại ([\d.]+) VND/i)?.[1];
-        const creditAmount = creditText ? Number(creditText) : Number(invoice.discount);
+        const creditText = payment.notes?.match(
+          /giá trị còn lại ([\d.]+) VND/i,
+        )?.[1];
+        const creditAmount = creditText
+          ? Number(creditText)
+          : Number(invoice.discount);
         const methodLabels: Record<string, string> = {
-          CASH: 'Tiền mặt',
-          BANK_TRANSFER: 'Chuyển khoản qua QR/CASSO',
-          MOMO: 'MoMo',
-          VNPAY: 'VNPay',
+          CASH: "Tiền mặt",
+          BANK_TRANSFER: "Chuyển khoản qua QR/CASSO",
+          MOMO: "MoMo",
+          VNPAY: "VNPay",
         };
         try {
           await this.mailService.sendPackageChangeInvoiceEmail({
@@ -586,7 +699,10 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
           });
           invoiceEmailSent = true;
         } catch (error) {
-          this.logger.error(`Đã xác nhận thanh toán ${payment.code} nhưng không gửi được hóa đơn email`, error instanceof Error ? error.stack : String(error));
+          this.logger.error(
+            `Đã xác nhận thanh toán ${payment.code} nhưng không gửi được hóa đơn email`,
+            error instanceof Error ? error.stack : String(error),
+          );
         }
       }
     } else {
@@ -601,13 +717,15 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
             memberCode: payment.member.code,
             // Ưu tiên số hóa đơn chính thức (INV-...); fallback mã giao dịch
             invoiceNumber: payment.invoice?.invoiceNumber ?? payment.code,
-            packageName: payment.membership?.package?.name ?? 'Gói hội viên',
+            packageName: payment.membership?.package?.name ?? "Gói hội viên",
             membershipEndDate: payment.membership?.endDate ?? null,
             amount: Number(payment.amount),
             paidAt: now,
             method: payment.method,
           })
-          .then((results) => (typeof results[0] === 'boolean' ? results[0] : null))
+          .then((results) =>
+            typeof results[0] === "boolean" ? results[0] : null,
+          )
           .catch(() => false),
         new Promise<null>((resolve) => {
           const timer = setTimeout(() => resolve(null), 10000);
@@ -615,12 +733,14 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
         }),
       ]);
       if (invoiceEmailSent === false) {
-        this.logger.error(`Đã xác nhận thanh toán ${payment.code} nhưng không gửi được hóa đơn email`);
+        this.logger.error(
+          `Đã xác nhận thanh toán ${payment.code} nhưng không gửi được hóa đơn email`,
+        );
       }
     }
 
     return {
-      message: 'Xác nhận thanh toán thành công',
+      message: "Xác nhận thanh toán thành công",
       ...result,
       invoiceEmailSent,
     };
@@ -639,26 +759,38 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       where: { id },
       include: { member: { select: { id: true, code: true, fullName: true } } },
     });
-    if (!payment) throw new NotFoundException('Không tìm thấy giao dịch thanh toán');
+    if (!payment)
+      throw new NotFoundException("Không tìm thấy giao dịch thanh toán");
     const staffPosMatch = payment.notes?.match(
       /\[STAFF_POS:([0-9a-f-]{36}):([0-9a-f-]{36})\]/i,
     );
     const isStaffPosPayment =
-      payment.notes?.includes('[STAFF_POS') ||
+      payment.notes?.includes("[STAFF_POS") ||
       /\[STAFF_POS:[0-9a-f-]{36}(?::[0-9a-f-]{36})?\]/i.test(
-        payment.notes ?? '',
+        payment.notes ?? "",
       );
     if (isStaffPosPayment && (actor === null || actor.role === Role.MEMBER)) {
-      throw new ForbiddenException('Giao dịch tại quầy cần nhân viên xác nhận CASSO khi đang trong ca làm');
+      throw new ForbiddenException(
+        "Giao dịch tại quầy cần nhân viên xác nhận CASSO khi đang trong ca làm",
+      );
     }
     if (isStaffPosPayment && !staffPosMatch) {
-      throw new ConflictException('Giao dịch tại quầy chưa được gắn với một ca cụ thể; cần quản lý xử lý');
+      throw new ConflictException(
+        "Giao dịch tại quầy chưa được gắn với một ca cụ thể; cần quản lý xử lý",
+      );
     }
     if (staffPosMatch) {
-      if (actor?.role === Role.STAFF && actor.id.toLowerCase() !== staffPosMatch[1].toLowerCase()) {
-        throw new ForbiddenException('Chỉ nhân viên đã tạo giao dịch tại quầy mới có thể đối soát giao dịch này');
+      if (
+        actor?.role === Role.STAFF &&
+        actor.id.toLowerCase() !== staffPosMatch[1].toLowerCase()
+      ) {
+        throw new ForbiddenException(
+          "Chỉ nhân viên đã tạo giao dịch tại quầy mới có thể đối soát giao dịch này",
+        );
       }
-      const activeShift = await this.prisma.$queryRaw<{ id: string }[]>(Prisma.sql`
+      const activeShift = await this.prisma.$queryRaw<
+        { id: string }[]
+      >(Prisma.sql`
         SELECT TOP (1) CONVERT(nvarchar(36), id) AS id
         FROM dbo.StaffShift
         WHERE staffId = CONVERT(uniqueidentifier, ${staffPosMatch[1]})
@@ -668,7 +800,9 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
           AND endTime > ${payment.createdAt}
       `);
       if (activeShift.length !== 1) {
-        throw new ConflictException('Không tìm thấy ca hợp lệ lúc tạo giao dịch; không thể tự đối soát vào ca khác');
+        throw new ConflictException(
+          "Không tìm thấy ca hợp lệ lúc tạo giao dịch; không thể tự đối soát vào ca khác",
+        );
       }
       actor = {
         id: staffPosMatch[1],
@@ -678,18 +812,23 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       };
     }
 
-    if (payment.status !== 'PENDING') {
+    if (payment.status !== "PENDING") {
       if (forceRefresh) await this.cassoService.poll(true);
       return {
         matched: true,
         alreadyPaid: true,
         status: payment.status,
-        message: payment.status === 'PAID' ? 'Giao dịch đã được xác nhận thành công trước đó' : `Giao dịch hiện ở trạng thái ${payment.status}`,
+        message:
+          payment.status === "PAID"
+            ? "Giao dịch đã được xác nhận thành công trước đó"
+            : `Giao dịch hiện ở trạng thái ${payment.status}`,
       };
     }
 
-    if (payment.method !== 'BANK_TRANSFER' && payment.method !== 'MOMO') {
-      throw new BadRequestException('Đối soát tự động chỉ hỗ trợ phương thức Chuyển khoản / MoMo');
+    if (payment.method !== "BANK_TRANSFER" && payment.method !== "MOMO") {
+      throw new BadRequestException(
+        "Đối soát tự động chỉ hỗ trợ phương thức Chuyển khoản / MoMo",
+      );
     }
 
     const rows = await this.cassoService.poll(forceRefresh);
@@ -697,23 +836,30 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       return {
         matched: false,
         status: payment.status,
-        message: 'Chưa đọc được dữ liệu từ CASSO',
+        message: "Chưa đọc được dữ liệu từ CASSO",
       };
     }
 
-    const match = this.cassoService.findMatch(rows, payment.member.code, payment.code, Number(payment.amount));
+    const match = this.cassoService.findMatch(
+      rows,
+      payment.member.code,
+      payment.code,
+      Number(payment.amount),
+    );
     if (!match) {
       return {
         matched: false,
         status: payment.status,
-        message: 'Chưa thấy giao dịch tương ứng trên CASSO. Vui lòng thử lại sau vài giây.',
+        message:
+          "Chưa thấy giao dịch tương ứng trên CASSO. Vui lòng thử lại sau vài giây.",
       };
     }
 
     const transactionRef = match.maGd ? String(match.maGd) : undefined;
-    const note = `Đối soát tự động qua CASSO (${match.ngayDienRa || ''})`.trim();
+    const note =
+      `Đối soát tự động qua CASSO (${match.ngayDienRa || ""})`.trim();
 
-    let confirmed: Awaited<ReturnType<PaymentsService['confirm']>>;
+    let confirmed: Awaited<ReturnType<PaymentsService["confirm"]>>;
     try {
       confirmed = await this.confirm(id, actor, { transactionRef, note });
     } catch (error) {
@@ -726,7 +872,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
         matched: true,
         alreadyPaid: true,
         status: current.status,
-        message: 'Giao dịch đã được xác nhận thành công trước đó',
+        message: "Giao dịch đã được xác nhận thành công trước đó",
         transactionRef: transactionRef ?? null,
         amount: match.amount ?? null,
       };
@@ -734,8 +880,8 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
 
     return {
       matched: true,
-      status: 'PAID',
-      message: 'Thanh toán thành công — đã xác nhận giao dịch từ CASSO',
+      status: "PAID",
+      message: "Thanh toán thành công — đã xác nhận giao dịch từ CASSO",
       transactionRef: transactionRef ?? null,
       amount: match.amount ?? null,
       confirmed,
@@ -754,12 +900,15 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
         member: { select: { id: true, code: true, fullName: true } },
       },
     });
-    if (!payment) throw new NotFoundException('Không tìm thấy giao dịch thanh toán');
-    if (payment.status !== 'PENDING') {
-      throw new BadRequestException('Chỉ hóa đơn đang chờ (PENDING) mới có thể từ chối/hủy');
+    if (!payment)
+      throw new NotFoundException("Không tìm thấy giao dịch thanh toán");
+    if (payment.status !== "PENDING") {
+      throw new BadRequestException(
+        "Chỉ hóa đơn đang chờ (PENDING) mới có thể từ chối/hủy",
+      );
     }
 
-    const reason = dto.reason?.trim() || '';
+    const reason = dto.reason?.trim() || "";
     const now = new Date();
     const result = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.payment.update({
@@ -770,17 +919,19 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
           confirmedAt: now,
           ...(reason
             ? {
-                notes: [payment.notes, `Lý do: ${reason}`].filter(Boolean).join(' | '),
+                notes: [payment.notes, `Lý do: ${reason}`]
+                  .filter(Boolean)
+                  .join(" | "),
               }
             : {}),
         },
       });
 
       let cancelledMembership = null;
-      if (payment.membership && payment.membership.status === 'PENDING') {
+      if (payment.membership && payment.membership.status === "PENDING") {
         cancelledMembership = await tx.membership.update({
           where: { id: payment.membership.id },
-          data: { status: 'CANCELLED' },
+          data: { status: "CANCELLED" },
         });
       }
 
@@ -792,11 +943,11 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       await tx.notification.create({
         data: {
           memberId: payment.member.id,
-          title: 'Thanh toán chưa được xác nhận ⚠️',
-          content: `Hóa đơn ${payment.code} đã bị từ chối. ${reason ? `Lý do: ${reason}` : 'Vui lòng liên hệ lễ tân phòng tập để được hỗ trợ.'}`,
-          type: 'PAYMENT',
-          link: '/member/payments',
-          referenceType: 'PAYMENT_REJECTED',
+          title: "Thanh toán chưa được xác nhận ⚠️",
+          content: `Hóa đơn ${payment.code} đã bị từ chối. ${reason ? `Lý do: ${reason}` : "Vui lòng liên hệ lễ tân phòng tập để được hỗ trợ."}`,
+          type: "PAYMENT",
+          link: "/member/payments",
+          referenceType: "PAYMENT_REJECTED",
           referenceId: payment.id,
         },
       });
@@ -806,8 +957,8 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
 
     await this.auditService.log({
       userId: actor.id,
-      action: 'PAYMENT_REJECT',
-      entity: 'Payment',
+      action: "PAYMENT_REJECT",
+      entity: "Payment",
       entityId: id,
       metadata: {
         code: payment.code,
@@ -820,22 +971,22 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     // Báo tổ quản trị: hóa đơn bị từ chối/hủy (loại người vừa thao tác)
     await this.notificationsService.notifyAdmins(
       {
-        type: 'PAYMENT',
-        title: 'Hóa đơn đã bị từ chối/hủy ⚠️',
-        content: `Hóa đơn ${payment.code} — ${payment.member.fullName} (${payment.member.code}) — ${Number(payment.amount).toLocaleString('vi-VN')}đ đã bị từ chối${reason ? ` (${reason})` : ''}.`,
+        type: "PAYMENT",
+        title: "Hóa đơn đã bị từ chối/hủy ⚠️",
+        content: `Hóa đơn ${payment.code} — ${payment.member.fullName} (${payment.member.code}) — ${Number(payment.amount).toLocaleString("vi-VN")}đ đã bị từ chối${reason ? ` (${reason})` : ""}.`,
         link: `/admin/payments/${id}`,
-        referenceType: 'PAYMENT_REJECTED',
+        referenceType: "PAYMENT_REJECTED",
         referenceId: payment.id,
       },
       actor.id,
     );
 
-    return { message: 'Đã hủy/từ chối hóa đơn', ...result };
+    return { message: "Đã hủy/từ chối hóa đơn", ...result };
   }
 
   /** Back-compat: PATCH /payments/:id/cancel */
   async cancel(id: string, actor: Actor) {
-    return this.reject(id, actor, { reason: 'Hủy bởi lễ tân/quản trị' });
+    return this.reject(id, actor, { reason: "Hủy bởi lễ tân/quản trị" });
   }
 
   /**
@@ -850,22 +1001,55 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
         member: { select: { id: true, code: true, fullName: true } },
       },
     });
-    if (!payment) throw new NotFoundException('Không tìm thấy giao dịch thanh toán');
-    if (payment.status !== 'PAID') {
-      throw new BadRequestException('Chỉ giao dịch đã thanh toán (PAID) mới hoàn tiền được');
+    if (!payment)
+      throw new NotFoundException("Không tìm thấy giao dịch thanh toán");
+    if (payment.status !== "PAID") {
+      throw new BadRequestException(
+        "Chỉ giao dịch đã thanh toán (PAID) mới hoàn tiền được",
+      );
     }
+
+    // Số tiền hoàn: mặc định toàn bộ, cho phép hoàn một phần (0 < refundAmount <= amount)
+    const paidAmount = Number(payment.amount);
+    const refundAmount = dto.refundAmount ?? paidAmount;
+    if (refundAmount <= 0) {
+      throw new BadRequestException("Số tiền hoàn phải lớn hơn 0");
+    }
+    if (refundAmount > paidAmount) {
+      throw new BadRequestException(
+        `Số tiền hoàn không được vượt quá ${paidAmount.toLocaleString("vi-VN")}đ`,
+      );
+    }
+    const refundMethod = dto.refundMethod ?? "BANK_TRANSFER";
+    const refundMethodLabel =
+      refundMethod === "CASH" ? "tiền mặt" : "chuyển khoản";
 
     const now = new Date();
     const result = await this.prisma.$transaction(async (tx) => {
-      const updated = await tx.payment.update({
-        where: { id },
+      const updateCount = await tx.payment.updateMany({
+        where: { id, status: PaymentStatus.PAID },
         data: {
           status: PaymentStatus.REFUNDED,
           confirmedById: actor.id,
           confirmedAt: now,
-          notes: [payment.notes, dto.reason ? `Hoàn tiền: ${dto.reason}` : 'Hoàn tiền'].filter(Boolean).join(' | '),
+          refundAmount,
+          refundMethod,
+          notes: [
+            payment.notes,
+            dto.reason ? `Hoàn tiền: ${dto.reason}` : "Hoàn tiền",
+          ]
+            .filter(Boolean)
+            .join(" | "),
         },
       });
+      if (updateCount.count !== 1) {
+        throw new ConflictException(
+          "Giao dịch vừa được hoàn tiền bởi một thao tác khác",
+        );
+      }
+      const updated = await tx.payment.findUnique({ where: { id } });
+      if (!updated)
+        throw new NotFoundException("Không tìm thấy giao dịch thanh toán");
 
       await tx.invoice.updateMany({
         where: { paymentId: id, status: InvoiceStatus.PAID },
@@ -881,21 +1065,59 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       }
 
       let cancelledMembership = null;
-      if (dto.deactivateMembership && payment.membership && payment.membership.status === 'ACTIVE') {
-        cancelledMembership = await tx.membership.update({
+      if (
+        dto.deactivateMembership &&
+        payment.membership &&
+        payment.membership.status === "ACTIVE"
+      ) {
+        const membershipUpdate = await tx.membership.updateMany({
+          where: { id: payment.membership.id, status: "ACTIVE" },
+          data: {
+            status: "CANCELLED",
+            cancelRequestedAt: null,
+            cancelRequestReason: null,
+          },
+        });
+        if (membershipUpdate.count !== 1) {
+          throw new ConflictException(
+            "Gói tập vừa thay đổi trạng thái; không thể hoàn tiền",
+          );
+        }
+        cancelledMembership = await tx.membership.findUnique({
           where: { id: payment.membership.id },
-          data: { status: 'CANCELLED' },
+        });
+        if (!cancelledMembership) {
+          throw new NotFoundException("Không tìm thấy gói hội viên cần hủy");
+        }
+        await tx.payment.updateMany({
+          where: {
+            membershipId: payment.membership.id,
+            status: PaymentStatus.PENDING,
+          },
+          data: {
+            status: PaymentStatus.CANCELLED,
+            notes: "Hủy theo yêu cầu quản trị viên",
+          },
+        });
+        await tx.notification.create({
+          data: {
+            memberId: payment.member.id,
+            title: "Gói tập đã bị hủy",
+            content: `Gói tập ${payment.membership.package.name} của bạn đã bị hủy${dto.reason ? ` (Lý do: ${dto.reason})` : ""}.`,
+            type: "MEMBERSHIP",
+            link: "/member/membership",
+          },
         });
       }
 
       await tx.notification.create({
         data: {
           memberId: payment.member.id,
-          title: 'Đã hoàn tiền 💸',
-          content: `Hóa đơn ${payment.code} (${payment.membership?.package?.name || ''}) đã được hoàn tiền. ${dto.reason ? 'Lý do: ' + dto.reason : ''}`,
-          type: 'PAYMENT',
-          link: '/member/payments',
-          referenceType: 'PAYMENT_REFUNDED',
+          title: "Đã hoàn tiền 💸",
+          content: `Hóa đơn ${payment.code} (${payment.membership?.package?.name || ""}) đã hoàn ${refundAmount.toLocaleString("vi-VN")}đ qua ${refundMethodLabel}.${dto.reason ? " Lý do: " + dto.reason : ""}`,
+          type: "PAYMENT",
+          link: "/member/payments",
+          referenceType: "PAYMENT_REFUNDED",
           referenceId: payment.id,
         },
       });
@@ -905,12 +1127,14 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
 
     await this.auditService.log({
       userId: actor.id,
-      action: 'PAYMENT_REFUND',
-      entity: 'Payment',
+      action: "PAYMENT_REFUND",
+      entity: "Payment",
       entityId: id,
       metadata: {
         code: payment.code,
         amount: payment.amount,
+        refundAmount,
+        refundMethod,
         reason: dto.reason ?? null,
         deactivateMembership: dto.deactivateMembership ?? false,
         memberName: payment.member.fullName,
@@ -920,17 +1144,17 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     // Báo tổ quản trị: giao dịch đã hoàn tiền (loại người vừa thao tác)
     await this.notificationsService.notifyAdmins(
       {
-        type: 'PAYMENT',
-        title: 'Đã hoàn tiền giao dịch 💸',
-        content: `Hóa đơn ${payment.code} — ${payment.member.fullName} (${payment.member.code}) — ${Number(payment.amount).toLocaleString('vi-VN')}đ đã được hoàn tiền${dto.reason ? ` (${dto.reason})` : ''}.`,
+        type: "PAYMENT",
+        title: "Đã hoàn tiền giao dịch 💸",
+        content: `Hóa đơn ${payment.code} — ${payment.member.fullName} (${payment.member.code}) — hoàn ${refundAmount.toLocaleString("vi-VN")}/${paidAmount.toLocaleString("vi-VN")}đ qua ${refundMethodLabel}${dto.reason ? ` (${dto.reason})` : ""}.`,
         link: `/admin/payments/${id}`,
-        referenceType: 'PAYMENT_REFUNDED',
+        referenceType: "PAYMENT_REFUNDED",
         referenceId: payment.id,
       },
       actor.id,
     );
 
-    return { message: 'Đã hoàn tiền', ...result };
+    return { message: "Đã hoàn tiền", ...result };
   }
 
   /** Thông tin tài khoản nhận tiền (BANK_TRANSFER) + danh sách gateway */

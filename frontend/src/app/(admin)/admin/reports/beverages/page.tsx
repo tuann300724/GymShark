@@ -23,33 +23,25 @@ function csvCell(value: unknown) {
 export default function BeverageReportPage() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
-  const [branchId, setBranchId] = useState('');
   const [groupBy, setGroupBy] = useState<GroupBy>('day');
   const [applied, setApplied] = useState<{
     from: string;
     to: string;
-    branchId: string;
     groupBy: GroupBy;
-  }>({ from: '', to: '', branchId: '', groupBy: 'day' });
-  const { data: options } = useQuery({
-    queryKey: ['beverage-options'],
-    queryFn: beverageApi.options,
-    retry: 0,
-  });
+  }>({ from: '', to: '', groupBy: 'day' });
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['beverage-report', applied],
     queryFn: () =>
       beverageApi.report({
         from: applied.from || undefined,
         to: applied.to || undefined,
-        branchId: applied.branchId || undefined,
         groupBy: applied.groupBy,
       }),
     retry: 0,
   });
   const apply = () => {
     if (from && to && from > to) return;
-    setApplied({ from, to, branchId, groupBy });
+    setApplied({ from, to, groupBy });
   };
   const exportExcel = () => {
     if (!data) return;
@@ -87,10 +79,6 @@ export default function BeverageReportPage() {
       ['DOANH THU THEO CA'],
       ['Ca làm', 'Số hóa đơn', 'Doanh thu'],
       ...data.byShift.map((item: any) => [item.label, item.saleCount, item.revenue]),
-      [],
-      ['DOANH THU THEO CHI NHÁNH'],
-      ['Chi nhánh', 'Số hóa đơn', 'Doanh thu'],
-      ...data.byBranch.map((item: any) => [item.label, item.saleCount, item.revenue]),
     ];
     const csv = `\uFEFF${rows.map((row) => row.map(csvCell).join(',')).join('\r\n')}`;
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
@@ -182,7 +170,7 @@ export default function BeverageReportPage() {
         </Button>
       </div>
       <Card>
-        <CardContent className="grid items-end gap-3 p-4 sm:grid-cols-2 xl:grid-cols-5">
+        <CardContent className="grid items-end gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
           <Input
             label="Từ ngày"
             type="date"
@@ -190,18 +178,6 @@ export default function BeverageReportPage() {
             onChange={(e) => setFrom(e.target.value)}
           />
           <Input label="Đến ngày" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-          <Select
-            label="Chi nhánh"
-            value={branchId}
-            onChange={(e) => setBranchId(e.target.value)}
-            options={[
-              { value: '', label: 'Tất cả chi nhánh' },
-              ...(options?.branches ?? []).map((branch) => ({
-                value: branch.id,
-                label: branch.name,
-              })),
-            ]}
-          />
           <Select
             label="Gom doanh thu"
             value={groupBy}
@@ -325,11 +301,6 @@ export default function BeverageReportPage() {
         ])}
         {table('Doanh thu theo ca làm', data?.byShift ?? [], [
           { key: 'label', label: 'Ca làm' },
-          { key: 'saleCount', label: 'Hóa đơn' },
-          { key: 'revenue', label: 'Doanh thu', currency: true },
-        ])}
-        {table('Doanh thu theo chi nhánh', data?.byBranch ?? [], [
-          { key: 'label', label: 'Chi nhánh' },
           { key: 'saleCount', label: 'Hóa đơn' },
           { key: 'revenue', label: 'Doanh thu', currency: true },
         ])}

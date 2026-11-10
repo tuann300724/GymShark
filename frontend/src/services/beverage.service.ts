@@ -1,14 +1,8 @@
 import apiClient from '@/lib/axios';
 
-export interface BeverageBranch {
-  id: string;
-  name: string;
-}
-
 export interface BeverageOptions {
-  branches: BeverageBranch[];
   categories: string[];
-  activeShift: { id: string; branchId: string | null } | null;
+  activeShift: { id: string } | null;
 }
 
 export interface BeverageProduct {
@@ -25,12 +19,7 @@ export interface BeverageProduct {
   status: 'ACTIVE' | 'INACTIVE';
   description: string | null;
   stockQuantity?: number;
-  stocks?: {
-    branchId: string;
-    branchName: string;
-    stockQuantity: number;
-    stockStatus: string;
-  }[];
+  stockStatus?: 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK';
 }
 
 export interface BeverageProductList {
@@ -47,8 +36,6 @@ export interface BeverageStock {
   category: string | null;
   unit: string;
   minStock: number;
-  branchId: string;
-  branchName: string;
   stockQuantity: number;
   stockStatus: 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK';
 }
@@ -70,8 +57,6 @@ export interface BeverageImport {
   importId?: string;
   importCode?: string;
   code: string;
-  branchId: string;
-  branchName: string;
   supplierName: string | null;
   supplierPhone: string | null;
   importDate: string;
@@ -89,8 +74,6 @@ export interface BeverageImport {
 export interface BeverageImportListItem {
   importId: string;
   importCode: string;
-  branchId: string;
-  branchName: string;
   supplierName: string | null;
   importDate: string;
   status: string;
@@ -106,8 +89,6 @@ export interface BeverageSale {
   code: string;
   saleCode?: string;
   saleId?: string;
-  branchId: string;
-  branchName: string;
   memberId: string;
   memberCode: string;
   memberName: string;
@@ -136,8 +117,6 @@ export interface BeverageSale {
 export interface BeverageSaleSummary {
   saleId: string;
   saleCode: string;
-  branchId: string;
-  branchName: string;
   memberId: string;
   memberCode: string;
   memberName: string;
@@ -183,11 +162,9 @@ export interface BeverageReport {
   }[];
   byStaff: { id: string; label: string; revenue: number; saleCount: number }[];
   byShift: { id: string | null; label: string; revenue: number; saleCount: number }[];
-  byBranch: { id: string; label: string; revenue: number; saleCount: number }[];
 }
 
 export interface BeverageFilters {
-  branchId?: string;
   productId?: string;
   category?: string;
   search?: string;
@@ -215,10 +192,8 @@ export const beverageApi = {
     return res.data;
   },
 
-  product: async (id: string, branchId?: string): Promise<BeverageProduct> => {
-    const res = await apiClient.get<BeverageProduct>(`/beverages/products/${id}`, {
-      params: branchId ? { branchId } : undefined,
-    });
+  product: async (id: string): Promise<BeverageProduct> => {
+    const res = await apiClient.get<BeverageProduct>(`/beverages/products/${id}`);
     return res.data;
   },
 
@@ -288,7 +263,6 @@ export const beverageApi = {
     const res = await apiClient.get<
       {
         id: string;
-        branchName: string;
         productCode: string;
         productName: string;
         movementType: string;
@@ -301,12 +275,7 @@ export const beverageApi = {
     return res.data;
   },
 
-  adjustStock: async (payload: {
-    branchId: string;
-    productId: string;
-    quantityChange: number;
-    reason: string;
-  }) => {
+  adjustStock: async (payload: { productId: string; quantityChange: number; reason: string }) => {
     const res = await apiClient.post('/beverages/stock/adjustments', payload);
     return res.data;
   },

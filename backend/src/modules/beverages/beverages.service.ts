@@ -26,12 +26,9 @@ export interface BeverageActor {
 
 export interface ActiveShift {
   id: string;
-  branchId: string | null;
 }
 
 type StockRow = {
-  productId: string;
-  branchId: string;
   stockQuantity: Prisma.Decimal | number;
 };
 
@@ -41,6 +38,21 @@ export class BeveragesService {
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
   ) {}
+
+  private async defaultLocationId(tx?: Prisma.TransactionClient) {
+    const query = Prisma.sql`
+      SELECT TOP (1) id FROM dbo.Branch
+      WHERE UPPER(status) = N'ACTIVE'
+      ORDER BY createdAt, id
+    `;
+    const rows = tx
+      ? await tx.$queryRaw<{ id: string }[]>(query)
+      : await this.prisma.$queryRaw<{ id: string }[]>(query);
+    if (!rows.length) {
+      throw new BadRequestException("Chưa cấu hình địa điểm hoạt động.");
+    }
+    return rows[0].id;
+  }
 
   private number(value: Prisma.Decimal | number | bigint | null | undefined) {
     return Number(value ?? 0);
@@ -81,8 +93,7 @@ export class BeveragesService {
   ): Promise<ActiveShift | null> {
     const rows = await this.prisma.$queryRaw<ActiveShift[]>(Prisma.sql`
       SELECT TOP (2)
-        CONVERT(nvarchar(36), id) AS id,
-        branchId
+        CONVERT(nvarchar(36), id) AS id
       FROM dbo.StaffShift
       WHERE staffId = CONVERT(uniqueidentifier, ${actor.id})
         AND UPPER(status) = N'IN_PROGRESS'
@@ -106,45 +117,21 @@ export class BeveragesService {
     return rows[0];
   }
 
-  private async branchForRead(
-    query: BeverageQueryDto,
-    actor: BeverageActor,
-  ): Promise<string | undefined> {
-    if (actor.role !== "STAFF") return query.branchId;
-    const shift = await this.activeShift(actor, true);
-    if (!shift.branchId) {
-      throw new ForbiddenException("Ca làm hiện tại chưa được gán chi nhánh.");
-    }
-    if (query.branchId && query.branchId !== shift.branchId) {
-      throw new ForbiddenException(
-        "Bạn chỉ được xem kho của chi nhánh trong ca.",
-      );
-    }
-    return shift.branchId;
+  private async authorizeRead(actor: BeverageActor) {
+    if (actor.role === "STAFF") await this.activeShift(actor, true);
   }
 
   async options(actor: BeverageActor) {
     let activeShift: ActiveShift | null = null;
     if (actor.role === "STAFF")
       activeShift = await this.activeShift(actor, false);
-    const [branches, categories] = await Promise.all([
-      actor.role === "STAFF" && !activeShift?.branchId
-        ? Promise.resolve([])
-        : this.prisma.$queryRaw<{ id: string; name: string }[]>(Prisma.sql`
-            SELECT id, name FROM dbo.Branch
-            WHERE UPPER(status) = N'ACTIVE'
-              ${actor.role === "STAFF" ? Prisma.sql`AND id = ${activeShift?.branchId}` : Prisma.empty}
-            ORDER BY name
-          `),
-      this.prisma.$queryRaw<{ category: string }[]>(Prisma.sql`
+    const categories = await this.prisma.$queryRaw<{ category: string }[]>(Prisma.sql`
         SELECT DISTINCT category
         FROM dbo.BeverageProduct
         WHERE category IS NOT NULL AND LTRIM(RTRIM(category)) <> N''
         ORDER BY category
-      `),
-    ]);
+      `);
     return {
-      branches,
       categories: categories.map((item) => item.category),
       activeShift,
     };
@@ -152,7 +139,7 @@ export class BeveragesService {
 
   async products(query: BeverageQueryDto, actor: BeverageActor) {
     this.validateRange(query);
-    const branchId = await this.branchForRead(query, actor);
+    await this.authorizeRead(actor);
     const filters: Prisma.Sql[] = [];
     if (actor.role === "STAFF" || !query.includeInactive) {
       filters.push(Prisma.sql`p.status = N'ACTIVE'`);
@@ -175,11 +162,10 @@ export class BeveragesService {
       SELECT
         p.id, p.code, p.name, p.category, p.brand, p.unit, p.volumeMl,
         p.costPrice, p.sellingPrice, p.minStock, p.status, p.description,
-        COALESCE(SUM(v.stockQuantity), 0) AS stockQuantity,
-        COUNT(DISTINCT v.branchId) AS stockedBranchCount
+        COALESCE(SUM(v.stockQuantity), 0) AS stockQuantity
       FROM dbo.BeverageProduct AS p
       LEFT JOIN dbo.vw_BeverageStock AS v
-        ON v.productId = p.id ${branchId ? Prisma.sql`AND v.branchId = ${branchId}` : Prisma.empty}
+        ON v.productId = p.id
       ${where}
       GROUP BY p.id, p.code, p.name, p.category, p.brand, p.unit, p.volumeMl,
         p.costPrice, p.sellingPrice, p.minStock, p.status, p.description
@@ -191,8 +177,6 @@ export class BeveragesService {
     >(Prisma.sql`
       SELECT CONVERT(int, COUNT(DISTINCT p.id)) AS total
       FROM dbo.BeverageProduct AS p
-      LEFT JOIN dbo.vw_BeverageStock AS v
-        ON v.productId = p.id ${branchId ? Prisma.sql`AND v.branchId = ${branchId}` : Prisma.empty}
       ${where}
     `);
     return {
@@ -202,7 +186,6 @@ export class BeveragesService {
         sellingPrice: this.number(row.sellingPrice),
         minStock: this.number(row.minStock),
         stockQuantity: this.number(row.stockQuantity),
-        stockedBranchCount: this.number(row.stockedBranchCount),
       })),
       total: countRows[0]?.total ?? 0,
       page,
@@ -210,11 +193,8 @@ export class BeveragesService {
     };
   }
 
-  async product(id: string, requestedBranchId?: string, actor?: BeverageActor) {
-    const branchId =
-      actor?.role === "STAFF"
-        ? await this.branchForRead({ branchId: requestedBranchId }, actor)
-        : requestedBranchId;
+  async product(id: string, actor?: BeverageActor) {
+    if (actor) await this.authorizeRead(actor);
     const staffProductFilter =
       actor?.role === "STAFF"
         ? Prisma.sql`AND p.status = N'ACTIVE'`
@@ -222,16 +202,19 @@ export class BeveragesService {
     const rows = await this.prisma.$queryRaw<any[]>(Prisma.sql`
       SELECT p.id, p.code, p.name, p.category, p.brand, p.unit, p.volumeMl,
         p.costPrice, p.sellingPrice, p.minStock, p.status, p.description,
-        p.createdAt, p.updatedAt, b.id AS branchId, b.name AS branchName,
+        p.createdAt, p.updatedAt,
         COALESCE(v.stockQuantity, 0) AS stockQuantity,
-        COALESCE(v.stockStatus, N'OUT_OF_STOCK') AS stockStatus
+        CASE WHEN COALESCE(v.stockQuantity, 0) <= 0 THEN N'OUT_OF_STOCK'
+             WHEN COALESCE(v.stockQuantity, 0) <= p.minStock THEN N'LOW_STOCK'
+             ELSE N'IN_STOCK' END AS stockStatus
       FROM dbo.BeverageProduct AS p
-      LEFT JOIN dbo.vw_BeverageStock AS v ON v.productId = p.id
-        ${branchId ? Prisma.sql`AND v.branchId = ${branchId}` : Prisma.empty}
-      LEFT JOIN dbo.Branch AS b ON b.id = v.branchId
+      LEFT JOIN (
+        SELECT productId, SUM(stockQuantity) AS stockQuantity
+        FROM dbo.vw_BeverageStock
+        GROUP BY productId
+      ) AS v ON v.productId = p.id
       WHERE p.id = CONVERT(uniqueidentifier, ${id})
         ${staffProductFilter}
-      ORDER BY b.name
     `);
     if (!rows.length)
       throw new NotFoundException("Không tìm thấy sản phẩm nước uống");
@@ -241,24 +224,13 @@ export class BeveragesService {
       costPrice: this.number(first.costPrice),
       sellingPrice: this.number(first.sellingPrice),
       minStock: this.number(first.minStock),
-      stocks: rows
-        .filter((row) => row.branchId)
-        .map((row) => ({
-          branchId: row.branchId,
-          branchName: row.branchName,
-          stockQuantity: this.number(row.stockQuantity),
-          stockStatus: row.stockStatus,
-        })),
     };
   }
 
   async createProduct(dto: BeverageProductDto, actor: BeverageActor) {
-    if (
-      dto.initialStock &&
-      (!dto.initialStockReason?.trim() || !dto.initialBranchId)
-    ) {
+    if (dto.initialStock && !dto.initialStockReason?.trim()) {
       throw new BadRequestException(
-        "Tồn kho đầu kỳ cần có chi nhánh và lý do điều chỉnh.",
+        "Tồn kho đầu kỳ cần có lý do điều chỉnh.",
       );
     }
     const id = randomUUID();
@@ -271,17 +243,10 @@ export class BeveragesService {
         if (duplicate.length) {
           throw new ConflictException("Mã sản phẩm đã được sử dụng.");
         }
-        if (dto.initialStock && dto.initialStock > 0) {
-          const branch = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
-            SELECT id FROM dbo.Branch WITH (UPDLOCK, HOLDLOCK)
-            WHERE id = ${dto.initialBranchId} AND UPPER(status) = N'ACTIVE'
-          `);
-          if (!branch.length) {
-            throw new BadRequestException(
-              "Chi nhánh ghi tồn đầu kỳ không hoạt động.",
-            );
-          }
-        }
+        const locationId =
+          dto.initialStock && dto.initialStock > 0
+            ? await this.defaultLocationId(tx)
+            : null;
         await tx.$executeRaw(Prisma.sql`
           INSERT INTO dbo.BeverageProduct
             (id, code, name, category, brand, unit, volumeMl, costPrice,
@@ -297,7 +262,7 @@ export class BeveragesService {
           INSERT INTO dbo.BeverageStockMovement
             (branchId, productId, movementType, quantityChange, createdById, notes)
           VALUES
-            (${dto.initialBranchId}, CONVERT(uniqueidentifier, ${id}), N'ADJUSTMENT',
+            (${locationId}, CONVERT(uniqueidentifier, ${id}), N'ADJUSTMENT',
              ${dto.initialStock}, CONVERT(uniqueidentifier, ${actor.id}),
              ${dto.initialStockReason.trim()})
         `);
@@ -428,19 +393,13 @@ export class BeveragesService {
     const id = randomUUID();
     const code = `N-${Date.now()}-${randomUUID().slice(0, 8).toUpperCase()}`;
     await this.prisma.$transaction(async (tx) => {
-      const branch = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
-        SELECT id FROM dbo.Branch WITH (UPDLOCK, HOLDLOCK)
-        WHERE id = ${dto.branchId} AND UPPER(status) = N'ACTIVE'
-      `);
-      if (!branch.length) {
-        throw new BadRequestException("Chi nhánh nhập hàng không hoạt động.");
-      }
+      const locationId = await this.defaultLocationId(tx);
       await tx.$executeRaw(Prisma.sql`
         INSERT INTO dbo.BeverageImport
           (id, code, branchId, supplierName, supplierPhone, importDate, status,
            subtotal, notes, createdById, createdAt, updatedAt)
         VALUES
-          (CONVERT(uniqueidentifier, ${id}), ${code}, ${dto.branchId},
+          (CONVERT(uniqueidentifier, ${id}), ${code}, ${locationId},
            ${dto.supplierName?.trim() || null}, ${dto.supplierPhone?.trim() || null},
            ${dto.importDate ? new Date(dto.importDate) : new Date()}, N'DRAFT',
            0, ${dto.notes?.trim() || null}, CONVERT(uniqueidentifier, ${actor.id}),
@@ -488,8 +447,6 @@ export class BeveragesService {
   async imports(query: BeverageQueryDto) {
     this.validateRange(query);
     const filters: Prisma.Sql[] = [];
-    if (query.branchId)
-      filters.push(Prisma.sql`v.branchId = ${query.branchId}`);
     filters.push(...this.dateFilters(query, Prisma.sql`v.importDate`));
     if (query.search) {
       const like = `%${query.search.trim()}%`;
@@ -521,10 +478,9 @@ export class BeveragesService {
 
   async importDetail(id: string) {
     const headers = await this.prisma.$queryRaw<any[]>(Prisma.sql`
-      SELECT i.*, b.name AS branchName, creator.fullName AS createdByName,
+      SELECT i.*, creator.fullName AS createdByName,
         receiver.fullName AS receivedByName
       FROM dbo.BeverageImport AS i
-      LEFT JOIN dbo.Branch AS b ON b.id = i.branchId
       LEFT JOIN dbo.[User] AS creator ON creator.id = i.createdById
       LEFT JOIN dbo.[User] AS receiver ON receiver.id = i.receivedById
       WHERE i.id = CONVERT(uniqueidentifier, ${id})
@@ -588,11 +544,6 @@ export class BeveragesService {
 
   async createSale(dto: CompleteBeverageSaleDto, actor: BeverageActor) {
     const shift = await this.activeShift(actor, actor.role === "STAFF");
-    if (actor.role === "STAFF" && shift?.branchId !== dto.branchId) {
-      throw new ForbiddenException(
-        "Bạn chỉ được bán hàng tại chi nhánh của ca làm hiện tại.",
-      );
-    }
     const combined = new Map<string, number>();
     for (const item of dto.items) {
       combined.set(
@@ -652,12 +603,7 @@ export class BeveragesService {
               "Hội viên không tồn tại hoặc không hoạt động.",
             );
           }
-          const branch = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
-            SELECT id FROM dbo.Branch WITH (UPDLOCK, HOLDLOCK)
-            WHERE id = ${dto.branchId} AND UPPER(status) = N'ACTIVE'
-          `);
-          if (!branch.length)
-            throw new BadRequestException("Chi nhánh không hoạt động.");
+          const locationId = await this.defaultLocationId(tx);
 
           await tx.$executeRaw(Prisma.sql`
             INSERT INTO dbo.BeverageSale
@@ -665,7 +611,7 @@ export class BeveragesService {
                status, paymentMethod, subtotal, discountAmount, totalAmount,
                notes, createdAt, updatedAt)
             VALUES
-              (CONVERT(uniqueidentifier, ${saleId}), ${code}, ${dto.branchId},
+              (CONVERT(uniqueidentifier, ${saleId}), ${code}, ${locationId},
                CONVERT(uniqueidentifier, ${dto.memberId}),
                CONVERT(uniqueidentifier, ${actor.id}),
                ${shift ? Prisma.sql`CONVERT(uniqueidentifier, ${shift.id})` : Prisma.sql`NULL`},
@@ -688,7 +634,7 @@ export class BeveragesService {
             const stock = await tx.$queryRaw<StockRow[]>(Prisma.sql`
               SELECT COALESCE(SUM(quantityChange), 0) AS stockQuantity
               FROM dbo.BeverageStockMovement WITH (UPDLOCK, HOLDLOCK)
-              WHERE branchId = ${dto.branchId}
+              WHERE branchId = ${locationId}
                 AND productId = CONVERT(uniqueidentifier, ${item.productId})
             `);
             if (this.number(stock[0]?.stockQuantity) < item.quantity) {
@@ -781,8 +727,6 @@ export class BeveragesService {
       filters.push(
         Prisma.sql`v.staffId = CONVERT(uniqueidentifier, ${actor.id})`,
       );
-    if (query.branchId)
-      filters.push(Prisma.sql`v.branchId = ${query.branchId}`);
     filters.push(...this.dateFilters(query, Prisma.sql`v.saleDate`));
     if (query.search) {
       const like = `%${query.search.trim()}%`;
@@ -831,11 +775,10 @@ export class BeveragesService {
         ? Prisma.sql`AND s.staffId = CONVERT(uniqueidentifier, ${actor.id})`
         : Prisma.empty;
     const rows = await this.prisma.$queryRaw<any[]>(Prisma.sql`
-      SELECT s.*, b.name AS branchName, m.code AS memberCode,
+      SELECT s.*, m.code AS memberCode,
         m.fullName AS memberName, m.phone AS memberPhone, u.fullName AS staffName,
         ss.title AS shiftTitle
       FROM dbo.BeverageSale AS s
-      INNER JOIN dbo.Branch AS b ON b.id = s.branchId
       INNER JOIN dbo.Member AS m ON m.id = s.memberId
       INNER JOIN dbo.[User] AS u ON u.id = s.staffId
       LEFT JOIN dbo.StaffShift AS ss ON ss.id = s.staffShiftId
@@ -867,9 +810,8 @@ export class BeveragesService {
   }
 
   async stock(query: BeverageQueryDto, actor: BeverageActor) {
-    const branchId = await this.branchForRead(query, actor);
-    const filters: Prisma.Sql[] = [Prisma.sql`UPPER(b.status) = N'ACTIVE'`];
-    if (branchId) filters.push(Prisma.sql`b.id = ${branchId}`);
+    await this.authorizeRead(actor);
+    const filters: Prisma.Sql[] = [Prisma.sql`p.status = N'ACTIVE'`];
     if (query.productId)
       filters.push(
         Prisma.sql`p.id = CONVERT(uniqueidentifier, ${query.productId})`,
@@ -882,16 +824,19 @@ export class BeveragesService {
     }
     const rows = await this.prisma.$queryRaw<any[]>(Prisma.sql`
       SELECT p.id AS productId, p.code AS productCode, p.name AS productName,
-        p.category, p.unit, p.minStock, b.id AS branchId, b.name AS branchName,
+        p.category, p.unit, p.minStock,
         COALESCE(v.stockQuantity, 0) AS stockQuantity,
         CASE WHEN COALESCE(v.stockQuantity, 0) <= 0 THEN N'OUT_OF_STOCK'
              WHEN COALESCE(v.stockQuantity, 0) <= p.minStock THEN N'LOW_STOCK'
              ELSE N'IN_STOCK' END AS stockStatus
       FROM dbo.BeverageProduct AS p
-      CROSS JOIN dbo.Branch AS b
-      LEFT JOIN dbo.vw_BeverageStock AS v ON v.productId = p.id AND v.branchId = b.id
+      LEFT JOIN (
+        SELECT productId, SUM(stockQuantity) AS stockQuantity
+        FROM dbo.vw_BeverageStock
+        GROUP BY productId
+      ) AS v ON v.productId = p.id
       WHERE ${Prisma.join(filters, " AND ")}
-      ORDER BY b.name, p.name
+      ORDER BY p.name
     `);
     return rows.map((row) => ({
       ...row,
@@ -902,9 +847,8 @@ export class BeveragesService {
 
   async movements(query: BeverageQueryDto, actor: BeverageActor) {
     this.validateRange(query);
-    const branchId = await this.branchForRead(query, actor);
+    await this.authorizeRead(actor);
     const filters: Prisma.Sql[] = [];
-    if (branchId) filters.push(Prisma.sql`sm.branchId = ${branchId}`);
     if (query.productId)
       filters.push(
         Prisma.sql`sm.productId = CONVERT(uniqueidentifier, ${query.productId})`,
@@ -920,11 +864,10 @@ export class BeveragesService {
       ? Prisma.sql`WHERE ${Prisma.join(filters, " AND ")}`
       : Prisma.empty;
     const rows = await this.prisma.$queryRaw<any[]>(Prisma.sql`
-      SELECT TOP (500) sm.id, sm.branchId, b.name AS branchName, sm.productId,
+      SELECT TOP (500) sm.id, sm.productId,
         p.code AS productCode, p.name AS productName, sm.movementType,
         sm.quantityChange, sm.createdAt, sm.notes, u.fullName AS createdByName
       FROM dbo.BeverageStockMovement AS sm
-      INNER JOIN dbo.Branch AS b ON b.id = sm.branchId
       INNER JOIN dbo.BeverageProduct AS p ON p.id = sm.productId
       LEFT JOIN dbo.[User] AS u ON u.id = sm.createdById
       ${where}
@@ -941,14 +884,7 @@ export class BeveragesService {
       throw new BadRequestException("Cần ghi lý do điều chỉnh kho.");
     const result = await this.prisma.$transaction(
       async (tx) => {
-        const branch = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
-          SELECT id FROM dbo.Branch WITH (UPDLOCK, HOLDLOCK)
-          WHERE id = ${dto.branchId} AND UPPER(status) = N'ACTIVE'
-        `);
-        if (!branch.length)
-          throw new BadRequestException(
-            "Chi nhánh điều chỉnh không hoạt động.",
-          );
+        const locationId = await this.defaultLocationId(tx);
         const product = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
           SELECT id FROM dbo.BeverageProduct WITH (UPDLOCK, HOLDLOCK)
           WHERE id = CONVERT(uniqueidentifier, ${dto.productId}) AND status = N'ACTIVE'
@@ -962,7 +898,7 @@ export class BeveragesService {
         >(Prisma.sql`
           SELECT COALESCE(SUM(quantityChange), 0) AS quantity
           FROM dbo.BeverageStockMovement WITH (UPDLOCK, HOLDLOCK)
-          WHERE branchId = ${dto.branchId}
+          WHERE branchId = ${locationId}
             AND productId = CONVERT(uniqueidentifier, ${dto.productId})
         `);
         const nextQuantity =
@@ -974,7 +910,7 @@ export class BeveragesService {
           INSERT INTO dbo.BeverageStockMovement
             (branchId, productId, movementType, quantityChange, createdById, notes)
           VALUES
-            (${dto.branchId}, CONVERT(uniqueidentifier, ${dto.productId}), N'ADJUSTMENT',
+            (${locationId}, CONVERT(uniqueidentifier, ${dto.productId}), N'ADJUSTMENT',
              ${dto.quantityChange}, CONVERT(uniqueidentifier, ${actor.id}), ${dto.reason.trim()})
         `);
         return { quantity: nextQuantity };
@@ -987,7 +923,6 @@ export class BeveragesService {
       entity: "BeverageStockMovement",
       metadata: {
         productId: dto.productId,
-        branchId: dto.branchId,
         quantityChange: dto.quantityChange,
         reason: dto.reason,
       },
@@ -996,21 +931,14 @@ export class BeveragesService {
   }
 
   async dashboard(query: BeverageQueryDto) {
-    const branchFilter = query.branchId
-      ? Prisma.sql`AND v.branchId = ${query.branchId}`
-      : Prisma.empty;
-    const stockFilter = query.branchId
-      ? Prisma.sql`AND b.id = ${query.branchId}`
-      : Prisma.empty;
     const [productRows, saleRows, profitRows, chartRows, topRows] =
       await Promise.all([
         this.prisma.$queryRaw<any[]>(Prisma.sql`
       WITH productStock AS (
         SELECT p.id, p.minStock, COALESCE(SUM(v.stockQuantity), 0) AS quantity
         FROM dbo.BeverageProduct AS p
-        CROSS JOIN (SELECT id FROM dbo.Branch WHERE UPPER(status) = N'ACTIVE') AS b
-        LEFT JOIN dbo.vw_BeverageStock AS v ON v.productId = p.id AND v.branchId = b.id
-        WHERE p.status = N'ACTIVE' ${stockFilter}
+        LEFT JOIN dbo.vw_BeverageStock AS v ON v.productId = p.id
+        WHERE p.status = N'ACTIVE'
         GROUP BY p.id, p.minStock
       )
       SELECT COUNT(*) AS productCount, COALESCE(SUM(quantity), 0) AS stockQuantity,
@@ -1025,7 +953,7 @@ export class BeveragesService {
           COALESCE(SUM(CASE WHEN saleDate >= DATEFROMPARTS(YEAR(SYSDATETIME()), MONTH(SYSDATETIME()), 1) THEN recognizedRevenue ELSE 0 END), 0) AS monthRevenue,
           COALESCE(SUM(totalSoldQuantity), 0) AS soldQuantity
         FROM dbo.vw_BeverageSalesStatistics AS v
-        WHERE v.status = N'PAID' ${branchFilter}
+        WHERE v.status = N'PAID'
       `),
         this.prisma.$queryRaw<any[]>(Prisma.sql`
         SELECT
@@ -1034,13 +962,12 @@ export class BeveragesService {
            INNER JOIN dbo.BeverageSale AS s ON s.id = si.saleId
            WHERE s.status = N'PAID'
              AND s.saleDate >= DATEFROMPARTS(YEAR(SYSDATETIME()), MONTH(SYSDATETIME()), 1)
-             ${query.branchId ? Prisma.sql`AND s.branchId = ${query.branchId}` : Prisma.empty})
+          )
           -
           (SELECT COALESCE(SUM(s.discountAmount), 0)
            FROM dbo.BeverageSale AS s
            WHERE s.status = N'PAID'
-             AND s.saleDate >= DATEFROMPARTS(YEAR(SYSDATETIME()), MONTH(SYSDATETIME()), 1)
-             ${query.branchId ? Prisma.sql`AND s.branchId = ${query.branchId}` : Prisma.empty})
+             AND s.saleDate >= DATEFROMPARTS(YEAR(SYSDATETIME()), MONTH(SYSDATETIME()), 1))
           AS grossProfit
       `),
         this.prisma.$queryRaw<any[]>(Prisma.sql`
@@ -1049,7 +976,6 @@ export class BeveragesService {
         FROM dbo.vw_BeverageSalesStatistics
         WHERE status = N'PAID'
           AND saleDate >= DATEADD(day, -29, CONVERT(date, SYSDATETIME()))
-          ${branchFilter}
         GROUP BY CONVERT(date, saleDate)
         ORDER BY CONVERT(date, saleDate)
       `),
@@ -1057,7 +983,6 @@ export class BeveragesService {
         SELECT TOP (5) productId, productCode, productName, soldQuantity, salesRevenue,
           estimatedGrossProfit
         FROM dbo.vw_BeverageProductSalesStatistics
-        WHERE 1 = 1 ${query.branchId ? Prisma.sql`AND branchId = ${query.branchId}` : Prisma.empty}
         ORDER BY soldQuantity DESC, salesRevenue DESC
       `),
       ]);
@@ -1094,10 +1019,6 @@ export class BeveragesService {
     this.validateRange(query);
     const saleFilters: Prisma.Sql[] = [Prisma.sql`v.status = N'PAID'`];
     const importFilters: Prisma.Sql[] = [Prisma.sql`v.status = N'RECEIVED'`];
-    if (query.branchId) {
-      saleFilters.push(Prisma.sql`v.branchId = ${query.branchId}`);
-      importFilters.push(Prisma.sql`v.branchId = ${query.branchId}`);
-    }
     saleFilters.push(...this.dateFilters(query, Prisma.sql`v.saleDate`));
     importFilters.push(...this.dateFilters(query, Prisma.sql`v.importDate`));
     const saleWhere = Prisma.sql`WHERE ${Prisma.join(saleFilters, " AND ")}`;
@@ -1117,7 +1038,6 @@ export class BeveragesService {
       slow,
       byStaff,
       byShift,
-      byBranch,
     ] = await Promise.all([
       this.prisma.$queryRaw<any[]>(Prisma.sql`
           SELECT COALESCE(SUM(v.recognizedRevenue), 0) AS salesRevenue,
@@ -1137,14 +1057,12 @@ export class BeveragesService {
              FROM dbo.BeverageSaleItem AS si
              INNER JOIN dbo.BeverageSale AS s ON s.id = si.saleId
              WHERE s.status = N'PAID'
-               ${query.branchId ? Prisma.sql`AND s.branchId = ${query.branchId}` : Prisma.empty}
                ${query.from ? Prisma.sql`AND s.saleDate >= CAST(${query.from} AS date)` : Prisma.empty}
                ${query.to ? Prisma.sql`AND s.saleDate < DATEADD(day, 1, CAST(${query.to} AS date))` : Prisma.empty})
             -
             (SELECT COALESCE(SUM(s.discountAmount), 0)
              FROM dbo.BeverageSale AS s
              WHERE s.status = N'PAID'
-               ${query.branchId ? Prisma.sql`AND s.branchId = ${query.branchId}` : Prisma.empty}
                ${query.from ? Prisma.sql`AND s.saleDate >= CAST(${query.from} AS date)` : Prisma.empty}
                ${query.to ? Prisma.sql`AND s.saleDate < DATEADD(day, 1, CAST(${query.to} AS date))` : Prisma.empty})
             AS grossProfit
@@ -1163,7 +1081,6 @@ export class BeveragesService {
             COALESCE(SUM(si.lineTotal - si.quantity * si.unitCost), 0) AS grossProfit
           FROM dbo.BeverageProduct AS p
           LEFT JOIN dbo.BeverageSale AS s ON s.status = N'PAID'
-            ${query.branchId ? Prisma.sql`AND s.branchId = ${query.branchId}` : Prisma.empty}
             ${query.from ? Prisma.sql`AND s.saleDate >= CAST(${query.from} AS date)` : Prisma.empty}
             ${query.to ? Prisma.sql`AND s.saleDate < DATEADD(day, 1, CAST(${query.to} AS date))` : Prisma.empty}
           LEFT JOIN dbo.BeverageSaleItem AS si ON si.saleId = s.id AND si.productId = p.id
@@ -1176,7 +1093,6 @@ export class BeveragesService {
             COALESCE(SUM(si.lineTotal), 0) AS salesRevenue
           FROM dbo.BeverageProduct AS p
           LEFT JOIN dbo.BeverageSale AS s ON s.status = N'PAID'
-            ${query.branchId ? Prisma.sql`AND s.branchId = ${query.branchId}` : Prisma.empty}
             ${query.from ? Prisma.sql`AND s.saleDate >= CAST(${query.from} AS date)` : Prisma.empty}
             ${query.to ? Prisma.sql`AND s.saleDate < DATEADD(day, 1, CAST(${query.to} AS date))` : Prisma.empty}
           LEFT JOIN dbo.BeverageSaleItem AS si ON si.saleId = s.id AND si.productId = p.id
@@ -1196,12 +1112,6 @@ export class BeveragesService {
           LEFT JOIN dbo.StaffShift AS ss ON ss.id = v.staffShiftId
           ${saleWhere}
           GROUP BY v.staffShiftId, ss.title ORDER BY revenue DESC
-        `),
-      this.prisma.$queryRaw<any[]>(Prisma.sql`
-          SELECT v.branchId AS id, v.branchName AS label,
-            SUM(v.recognizedRevenue) AS revenue, COUNT(*) AS saleCount
-          FROM dbo.vw_BeverageSalesStatistics AS v ${saleWhere}
-          GROUP BY v.branchId, v.branchName ORDER BY revenue DESC
         `),
     ]);
     const saleSummary = sales[0] ?? {};
@@ -1235,7 +1145,6 @@ export class BeveragesService {
       slowProducts: asNumber(slow, ["soldQuantity", "salesRevenue"]),
       byStaff: asNumber(byStaff, ["revenue", "saleCount"]),
       byShift: asNumber(byShift, ["revenue", "saleCount"]),
-      byBranch: asNumber(byBranch, ["revenue", "saleCount"]),
     };
   }
 
@@ -1246,7 +1155,7 @@ export class BeveragesService {
       ? Prisma.sql`AND ${Prisma.join(filters, " AND ")}`
       : Prisma.empty;
     const rows = await this.prisma.$queryRaw<any[]>(Prisma.sql`
-      SELECT v.saleId, v.saleCode, v.branchName, v.saleDate, v.status,
+      SELECT v.saleId, v.saleCode, v.saleDate, v.status,
         v.paymentMethod, v.totalSoldQuantity, v.subtotal, v.discountAmount,
         v.totalAmount, v.recognizedRevenue, v.paidAt
       FROM dbo.vw_BeverageSalesStatistics AS v

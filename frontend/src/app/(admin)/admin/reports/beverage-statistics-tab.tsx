@@ -189,7 +189,6 @@ export function BeverageStatisticsTab() {
                       'Mã hóa đơn',
                       'Hội viên',
                       'Nhân viên bán',
-                      'Chi nhánh',
                       'Thời gian',
                       'Thanh toán',
                       'Thành tiền',
@@ -208,7 +207,6 @@ export function BeverageStatisticsTab() {
                       <td className="px-4 py-3 font-medium text-chalk">
                         {sale.staffName || 'Không rõ nhân viên'}
                       </td>
-                      <td className="px-4 py-3 text-muted">{sale.branchName}</td>
                       <td className="px-4 py-3 text-muted">{formatDateTime(sale.saleDate)}</td>
                       <td className="px-4 py-3 text-muted">
                         {sale.paymentMethod === 'BANK_TRANSFER' ? 'Chuyển khoản' : 'Tiền mặt'}

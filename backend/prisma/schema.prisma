@@ -11,16 +11,17 @@ generator client {
 // MODELS
 // -------------------------------------------------------------
 
-model Branch {
-  id          String       @id @default(uuid()) @db.NVarChar(100)
-  name        String       @unique @db.NVarChar(400)
-  address     String?      @db.NVarChar(Max)
-  phone       String?      @db.NVarChar(400)
-  status      String       @default("ACTIVE") @db.NVarChar(400)
-  members     Member[]
-  staffShifts StaffShift[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+model BeverageLocation {
+  id        String   @id @default(uuid()) @db.NVarChar(100)
+  name      String   @unique @db.NVarChar(400)
+  address   String?  @db.NVarChar(Max)
+  phone     String?  @db.NVarChar(400)
+  status    String   @default("ACTIVE") @db.NVarChar(400)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@ignore
+  @@map("Branch")
 }
 
 model Room {
@@ -104,8 +105,6 @@ model Member {
   code             String    @unique @db.NVarChar(400)
   userId           String?   @unique @db.NVarChar(100)
   user             User?     @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  branchId         String?   @db.NVarChar(100) // Phòng hiện tại (nullable — 1 chi nhánh có nhiều hội viên)
-  branch           Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   fullName         String    @db.NVarChar(400)
   email            String?   @db.NVarChar(400)
   phone            String    @db.NVarChar(400)
@@ -208,6 +207,9 @@ model Membership {
   finalAmount       Decimal?          @db.Decimal(12, 2)
   remainingSessions Int?
   status            String            @default("ACTIVE") @db.NVarChar(400)
+  // Hội viên tự gửi yêu cầu hủy gói — chờ admin duyệt (null = không có yêu cầu)
+  cancelRequestedAt DateTime?
+  cancelRequestReason String?         @db.NVarChar(Max)
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
@@ -245,6 +247,9 @@ model Payment {
   staffShiftId   String?     @db.UniqueIdentifier
   staffShift     StaffShift? @relation(fields: [staffShiftId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Payment_StaffShift")
   paidAt         DateTime?
+  // Hoàn tiền: số tiền hoàn thực tế (có thể < amount) + phương thức trả lại tiền
+  refundAmount   Decimal?     @db.Decimal(12, 2)
+  refundMethod   String?      @db.NVarChar(400)
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
@@ -264,8 +269,6 @@ model StaffShift {
   id        String    @id @default(dbgenerated("newsequentialid()")) @db.UniqueIdentifier
   /// Database FK to dbo.User; kept scalar because User.id is mapped as NVARCHAR elsewhere in this schema.
   staffId   String    @db.UniqueIdentifier
-  branchId  String?   @db.NVarChar(100)
-  branch    Branch?   @relation(fields: [branchId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_StaffShift_Branch")
   title     String    @db.NVarChar(255)
   startTime DateTime
   endTime   DateTime
@@ -281,7 +284,6 @@ model StaffShift {
   updatedAt DateTime  @default(dbgenerated("sysdatetime()"))
   payments  Payment[]
 
-  @@index([branchId, startTime], map: "IX_StaffShift_Branch_StartTime")
   @@index([staffId, startTime], map: "IX_StaffShift_Staff_StartTime")
 }
 

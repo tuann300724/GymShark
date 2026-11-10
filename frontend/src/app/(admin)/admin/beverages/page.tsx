@@ -1,12 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { beverageApi } from '@/services/beverage.service';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/error-state';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -31,15 +29,9 @@ const QUICK_LINKS = [
 ];
 
 export default function BeveragesDashboardPage() {
-  const [branchId, setBranchId] = useState('');
-  const { data: options } = useQuery({
-    queryKey: ['beverage-options'],
-    queryFn: beverageApi.options,
-    retry: 0,
-  });
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['beverage-dashboard', branchId],
-    queryFn: () => beverageApi.dashboard({ branchId: branchId || undefined }),
+    queryKey: ['beverage-dashboard'],
+    queryFn: () => beverageApi.dashboard(),
     retry: 0,
   });
 
@@ -101,21 +93,6 @@ export default function BeveragesDashboardPage() {
             </Link>
           ))}
         </div>
-      </div>
-
-      <div className="max-w-xs">
-        <Select
-          aria-label="Lọc chi nhánh dashboard"
-          value={branchId}
-          onChange={(event) => setBranchId(event.target.value)}
-          options={[
-            { value: '', label: 'Tất cả chi nhánh' },
-            ...(options?.branches ?? []).map((branch) => ({
-              value: branch.id,
-              label: branch.name,
-            })),
-          ]}
-        />
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

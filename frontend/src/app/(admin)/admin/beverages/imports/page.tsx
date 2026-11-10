@@ -50,7 +50,6 @@ const localDate = () => {
 export default function BeverageImportsPage() {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [branchId, setBranchId] = useState('');
   const [supplierName, setSupplierName] = useState('');
   const [supplierPhone, setSupplierPhone] = useState('');
   const [importDate, setImportDate] = useState(localDate());
@@ -59,11 +58,6 @@ export default function BeverageImportsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [detailId, setDetailId] = useState('');
 
-  const { data: options } = useQuery({
-    queryKey: ['beverage-options'],
-    queryFn: beverageApi.options,
-    retry: 0,
-  });
   const { data: products } = useQuery({
     queryKey: ['beverage-products', 'imports'],
     queryFn: () => beverageApi.products({ limit: 100 }),
@@ -75,8 +69,8 @@ export default function BeverageImportsPage() {
     isError,
     refetch,
   } = useQuery({
-    queryKey: ['beverage-imports', branchId],
-    queryFn: () => beverageApi.imports({ branchId: branchId || undefined }),
+    queryKey: ['beverage-imports'],
+    queryFn: () => beverageApi.imports(),
     retry: 0,
   });
   const { data: detail, isLoading: detailLoading } = useQuery({
@@ -130,10 +124,6 @@ export default function BeverageImportsPage() {
   );
   function submit(event: React.FormEvent) {
     event.preventDefault();
-    if (!branchId) {
-      toast.error('Thiếu chi nhánh', 'Hãy chọn chi nhánh nhận hàng.');
-      return;
-    }
     if (
       lines.some(
         (line) => !line.productId || Number(line.quantity) <= 0 || Number(line.unitCost) < 0,
@@ -146,7 +136,6 @@ export default function BeverageImportsPage() {
       return;
     }
     createMutation.mutate({
-      branchId,
       supplierName: supplierName.trim() || undefined,
       supplierPhone: supplierPhone.trim() || undefined,
       importDate,
@@ -175,20 +164,6 @@ export default function BeverageImportsPage() {
           Tạo phiếu nhập
         </Button>
       </div>
-      <div className="max-w-sm">
-        <Select
-          label="Chi nhánh"
-          value={branchId}
-          onChange={(e) => setBranchId(e.target.value)}
-          options={[
-            { value: '', label: 'Tất cả chi nhánh' },
-            ...(options?.branches ?? []).map((branch) => ({
-              value: branch.id,
-              label: branch.name,
-            })),
-          ]}
-        />
-      </div>
       <Card>
         <CardHeader>
           <CardTitle>Lịch sử nhập kho</CardTitle>
@@ -216,7 +191,7 @@ export default function BeverageImportsPage() {
                   <tr>
                     {[
                       'Mã phiếu',
-                      'Chi nhánh / nhà cung cấp',
+                      'Nhà cung cấp',
                       'Ngày nhập',
                       'Sản phẩm / số lượng',
                       'Tổng tiền',
@@ -239,10 +214,7 @@ export default function BeverageImportsPage() {
                         </p>
                       </td>
                       <td className="px-4 py-3 text-chalk">
-                        {item.branchName}
-                        <p className="text-xs text-muted">
-                          {item.supplierName || 'Chưa có nhà cung cấp'}
-                        </p>
+                        {item.supplierName || 'Chưa có nhà cung cấp'}
                       </td>
                       <td className="px-4 py-3 text-muted">{formatDateTime(item.importDate)}</td>
                       <td className="px-4 py-3 text-chalk">
@@ -316,19 +288,6 @@ export default function BeverageImportsPage() {
       >
         <form className="space-y-4" onSubmit={submit}>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Select
-              label="Chi nhánh nhận hàng"
-              required
-              value={branchId}
-              onChange={(e) => setBranchId(e.target.value)}
-              options={[
-                { value: '', label: 'Chọn chi nhánh' },
-                ...(options?.branches ?? []).map((branch) => ({
-                  value: branch.id,
-                  label: branch.name,
-                })),
-              ]}
-            />
             <Input
               label="Ngày nhập"
               type="date"
@@ -461,9 +420,6 @@ function ImportDetails({ data }: { data: BeverageImport }) {
   return (
     <div className="space-y-4">
       <div className="grid gap-2 text-sm sm:grid-cols-2">
-        <p className="text-muted">
-          Chi nhánh: <b className="text-chalk">{data.branchName}</b>
-        </p>
         <p className="text-muted">
           Trạng thái: <b className="text-chalk">{data.status}</b>
         </p>

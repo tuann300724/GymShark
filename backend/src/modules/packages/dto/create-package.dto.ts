@@ -18,7 +18,7 @@ export class CreatePackageDto {
   @IsString()
   name: string;
 
-  @ApiPropertyOptional({ example: 'Tập luyện không giới hạn tại 1 chi nhánh' })
+  @ApiPropertyOptional({ example: 'Tập luyện không giới hạn tại phòng tập' })
   @IsOptional()
   @IsString()
   description?: string;

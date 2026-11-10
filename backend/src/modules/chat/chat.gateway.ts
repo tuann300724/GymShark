@@ -22,7 +22,6 @@ interface StaffShiftUpdatePayload {
   staffId: string;
   staffName: string;
   title: string;
-  branchName: string | null;
   status: string;
   action: 'STARTED' | 'COMPLETED';
   actorId: string;

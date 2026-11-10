@@ -25,6 +25,7 @@ import { ErrorState } from '@/components/ui/error-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useToast } from '@/components/ui/toast';
 import { formatDate, formatDateTime, cn } from '@/lib/utils';
 import apiClient from '@/lib/axios';
 
@@ -100,6 +101,7 @@ const COMMON_ISSUES = [
 ];
 
 export function EquipmentTab() {
+  const toast = useToast();
   // Bộ lọc & tìm kiếm
   const [activeTab, setActiveTab] = useState<'ALL' | 'MAINTENANCE' | 'AVAILABLE' | 'INACTIVE'>(
     'ALL',
@@ -317,7 +319,7 @@ export function EquipmentTab() {
       await apiClient.post(`/equipment/${equipmentId}/complete-maintenance`);
       await listQ.refetch();
     } catch {
-      alert('Không thể hoàn tất bảo trì. Vui lòng kiểm tra lại kết nối.');
+      toast.error('Không thể hoàn tất bảo trì', 'Vui lòng kiểm tra lại kết nối.');
     } finally {
       setCompletingId(null);
     }
@@ -357,7 +359,7 @@ export function EquipmentTab() {
       await listQ.refetch();
       setExtendTarget(null);
     } catch {
-      alert('Không thể cập nhật ngày dự kiến sửa xong.');
+      toast.error('Không thể cập nhật ngày dự kiến sửa xong.');
     } finally {
       setSavingExtend(false);
     }
@@ -370,7 +372,7 @@ export function EquipmentTab() {
       await apiClient.delete(`/equipment/${id}`);
       await listQ.refetch();
     } catch {
-      alert('Không thể xóa thiết bị. Vui lòng thử lại.');
+      toast.error('Không thể xóa thiết bị', 'Vui lòng thử lại.');
     }
   };
 

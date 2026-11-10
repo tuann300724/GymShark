@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/components/ui/toast';
@@ -51,6 +52,8 @@ export default function PaymentDetailPage() {
   const [note, setNote] = useState('');
   const [reason, setReason] = useState('');
   const [refundReason, setRefundReason] = useState('');
+  const [refundAmount, setRefundAmount] = useState('');
+  const [refundMethod, setRefundMethod] = useState('BANK_TRANSFER');
   const [deactivateMembership, setDeactivateMembership] = useState(false);
 
   const toast = useToast();
@@ -108,6 +111,9 @@ export default function PaymentDetailPage() {
       setNote('');
       setReason('');
       setRefundReason('');
+      setRefundAmount('');
+      setRefundMethod('BANK_TRANSFER');
+      setDeactivateMembership(false);
       invalidate();
     },
     onError: (err: any) => {
@@ -191,7 +197,23 @@ export default function PaymentDetailPage() {
               )}
             </>
           )}
-          {/* Đã bỏ nút hoàn tiền theo yêu cầu */}
+          {canRefund && payment.status === 'PAID' && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-danger"
+              isLoading={actionMutation.isPending}
+              onClick={() => {
+                setRefundOpen(true);
+                setRefundAmount(String(amountNum));
+                setRefundMethod('BANK_TRANSFER');
+                setRefundReason('');
+                setDeactivateMembership(false);
+              }}
+            >
+              <RotateCcw className="size-4" /> Hoàn tiền
+            </Button>
+          )}
         </div>
       </div>
 
@@ -205,6 +227,14 @@ export default function PaymentDetailPage() {
             <p className="mt-2 font-display text-3xl font-extrabold text-neon">
               {formatCurrency(amountNum)}
             </p>
+            {payment.status === 'REFUNDED' && (
+              <p className="mt-2 rounded-lg bg-danger/10 p-2 text-xs font-semibold text-danger">
+                Đã hoàn {formatCurrency(Number(payment.refundAmount ?? amountNum))}
+                {payment.refundMethod
+                  ? ` qua ${payment.refundMethod === 'CASH' ? 'tiền mặt' : 'chuyển khoản'}`
+                  : ''}
+              </p>
+            )}
             <div className="mt-3 space-y-1 text-xs text-muted">
               <p className="flex justify-between">
                 <span>Tiền gói</span>
@@ -565,10 +595,40 @@ export default function PaymentDetailPage() {
         <div className="space-y-4 text-sm">
           <div className="rounded-xl border border-danger/30 bg-danger/5 p-4">
             <p className="text-xs text-muted">
-              Hoàn trả <b className="text-chalk">{formatCurrency(amountNum)}</b> cho{' '}
+              Hoàn tối đa <b className="text-chalk">{formatCurrency(amountNum)}</b> cho{' '}
               <b className="text-chalk">{payment.member?.fullName}</b> — giao dịch chuyển REFUNDED,
-              không tính doanh thu.
+              không tính doanh thu; tiền trả lại bằng chuyển khoản hoặc tiền mặt.
             </p>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label
+                htmlFor="detail-refund-amount-input"
+                className="mb-1.5 block text-xs font-semibold text-muted"
+              >
+                Số tiền hoàn (VND)
+              </label>
+              <Input
+                id="detail-refund-amount-input"
+                type="number"
+                min={1}
+                step={1000}
+                value={refundAmount}
+                onChange={(e) => setRefundAmount(e.target.value)}
+              />
+              <p className="mt-1 text-[10px] text-muted">Để bằng số tiền gốc = hoàn đủ</p>
+            </div>
+            <div>
+              <p className="mb-1.5 text-xs font-semibold text-muted">Phương thức hoàn</p>
+              <Select
+                value={refundMethod}
+                onChange={(e) => setRefundMethod(e.target.value)}
+                options={[
+                  { value: 'BANK_TRANSFER', label: 'Chuyển khoản ngân hàng' },
+                  { value: 'CASH', label: 'Tiền mặt tại quầy' },
+                ]}
+              />
+            </div>
           </div>
           <div>
             <label
@@ -606,7 +666,12 @@ export default function PaymentDetailPage() {
               onClick={() =>
                 actionMutation.mutate({
                   type: 'refund',
-                  payload: { reason: refundReason.trim() || undefined, deactivateMembership },
+                  payload: {
+                    reason: refundReason.trim() || undefined,
+                    deactivateMembership,
+                    refundAmount: Number(refundAmount) > 0 ? Number(refundAmount) : undefined,
+                    refundMethod,
+                  },
                 })
               }
             >

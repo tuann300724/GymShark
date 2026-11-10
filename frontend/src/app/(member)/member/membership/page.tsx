@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -22,6 +23,8 @@ import {
   ChevronRight,
   CheckCircle2,
   XCircle,
+  Ban,
+  Clock,
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { MEMBERSHIP_STATUS_META } from '@/lib/status';
@@ -43,6 +46,9 @@ export default function MemberMembershipPage() {
   const [selectedMethod, setSelectedMethod] = useState('CASH');
   const [selectedPackageId, setSelectedPackageId] = useState<string>('');
   const [cancelOpen, setCancelOpen] = useState(false);
+  /** Yêu cầu hủy gói đang hoạt động (không tập nữa) */
+  const [cancelReqOpen, setCancelReqOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
 
   const { data: membershipData, isLoading } = useQuery({
     queryKey: ['member-memberships'],
@@ -134,6 +140,22 @@ export default function MemberMembershipPage() {
     setRenewOpen(true);
   };
 
+  /** Gửi yêu cầu hủy gói — admin duyệt (kèm quyết định hoàn tiền) */
+  const cancelReqMutation = useMutation({
+    mutationFn: () => membershipApi.createCancelRequest(current?.id || '', cancelReason.trim()),
+    onSuccess: (res: any) => {
+      toast.success('Đã gửi yêu cầu hủy gói', res.message);
+      setCancelReqOpen(false);
+      setCancelReason('');
+      queryClient.invalidateQueries({ queryKey: ['member-memberships'] });
+      queryClient.invalidateQueries({ queryKey: ['member-notif-badge'] });
+    },
+    onError: (err: any) => {
+      const msg = err.response?.data?.message || 'Không thể gửi yêu cầu hủy';
+      toast.error('Gửi yêu cầu thất bại', Array.isArray(msg) ? msg.join(', ') : msg);
+    },
+  });
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
@@ -219,6 +241,22 @@ export default function MemberMembershipPage() {
             </div>
           )}
 
+          {/* Đã gửi yêu cầu hủy gói — chờ admin xét duyệt */}
+          {current.cancelRequestedAt && (
+            <div className="flex items-start gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-amber-300">
+              <Clock className="mt-0.5 size-5 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold">Yêu cầu hủy gói đang chờ xét duyệt</p>
+                <p className="mt-0.5 text-xs">
+                  Gửi lúc {formatDate(current.cancelRequestedAt)}
+                  {current.cancelRequestReason ? ` — Lý do: ${current.cancelRequestReason}` : ''}.
+                  Gói vẫn hoạt động tới khi quản trị viên quyết định; kết quả (bao gồm xét hoàn tiền
+                  theo số ngày còn lại) sẽ được thông báo qua hộp thư.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Current membership */}
           <Card className="overflow-hidden border-neon/30">
             <div className="relative p-6 text-chalk sm:p-8">
@@ -260,10 +298,23 @@ export default function MemberMembershipPage() {
                     </div>
                   </div>
                 </div>
-                <Button className="shrink-0" onClick={openRenew}>
-                  <RefreshCw className="size-4" />
-                  Gia hạn
-                </Button>
+                <div className="flex shrink-0 flex-col items-end gap-2">
+                  <Button onClick={openRenew}>
+                    <RefreshCw className="size-4" />
+                    Gia hạn
+                  </Button>
+                  {!current.cancelRequestedAt && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs text-muted hover:text-danger"
+                      onClick={() => setCancelReqOpen(true)}
+                    >
+                      <Ban className="size-3.5" />
+                      Không tập nữa? Hủy gói
+                    </Button>
+                  )}
+                </div>
               </div>
 
               <div className="relative mt-6">
@@ -424,6 +475,66 @@ export default function MemberMembershipPage() {
             >
               <RefreshCw className="size-4" />
               Xác nhận gia hạn
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+
+      {/* Gửi yêu cầu hủy gói đang hoạt động */}
+      <Dialog
+        open={cancelReqOpen}
+        onClose={() => setCancelReqOpen(false)}
+        title="Yêu cầu hủy gói tập"
+        description="Không tập nữa? Gửi yêu cầu để quản trị viên xét duyệt."
+        className="max-w-md"
+      >
+        <div className="space-y-4 text-sm">
+          <div className="rounded-xl border border-line bg-ink p-4 text-xs text-muted">
+            <p className="mb-1.5 font-semibold text-chalk">Quy trình xử lý</p>
+            <ul className="list-disc space-y-1 pl-4">
+              <li>
+                Gói tập <b className="text-chalk">vẫn hoạt động</b> cho tới khi quản trị viên duyệt.
+              </li>
+              <li>
+                Nếu bạn không tập nữa, quản trị viên sẽ{' '}
+                <b className="text-chalk">xét hoàn tiền theo số ngày còn lại</b> của gói (quyết định
+                cuối cùng của phòng tập).
+              </li>
+              <li>
+                Tiền hoàn (nếu có) được trả bằng <b className="text-chalk">chuyển khoản</b> hoặc{' '}
+                <b className="text-chalk">tiền mặt</b> và thông báo qua hộp thư.
+              </li>
+            </ul>
+          </div>
+          <div>
+            <label
+              htmlFor="cancel-req-reason"
+              className="mb-1.5 block text-xs font-semibold text-muted"
+            >
+              Lý do hủy (khuyến nghị)
+            </label>
+            <Textarea
+              id="cancel-req-reason"
+              rows={3}
+              maxLength={500}
+              placeholder="Ví dụ: Chuyển chỗ nên không tập nữa..."
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+            />
+            <p className="mt-1 text-right text-[10px] text-muted">{cancelReason.length}/500</p>
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button type="button" variant="ghost" onClick={() => setCancelReqOpen(false)}>
+              Giữ gói
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              isLoading={cancelReqMutation.isPending}
+              onClick={() => cancelReqMutation.mutate()}
+            >
+              <Ban className="size-4" />
+              Gửi yêu cầu hủy
             </Button>
           </div>
         </div>

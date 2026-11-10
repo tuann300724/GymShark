@@ -58,20 +58,21 @@
 | Tổng quan | Dashboard KPI, biểu đồ lượt tập theo giờ |
 | Hội viên & vận hành | Lượt check-in (quét thẻ), hội viên (+ chi tiết/tab lịch sử), thẻ hội viên, gói tập, HLV, lịch tập & lớp học, **ca làm & doanh thu theo ca** |
 | Tài chính | Hóa đơn & thu phí (+ xác nhận / từ chối / hoàn tiền), báo cáo doanh thu, khuyến mãi & voucher |
-| Cơ sở & thiết bị | Thiết bị máy móc (+ lịch sử bảo trì), chi nhánh, phòng tập |
+| Cơ sở & thiết bị | Thiết bị máy móc (+ lịch sử bảo trì), phòng tập |
 | Hệ thống | Báo cáo thống kê (8 tab), thông báo, **nhật ký hệ thống**, cài đặt & phân quyền |
 
 ### Ca làm & doanh thu — `/admin/shifts`
 - ADMIN/MANAGER phân công, sửa, xóa ca chưa bắt đầu hoặc hủy ca; không cho phân công trùng giờ cho cùng nhân viên.
 - STAFF xem ca của mình, bắt đầu ca và chốt ca bằng cách nhập tiền mặt thực đếm. Hệ thống đối chiếu với tổng giao dịch CASH đã xác nhận; nếu thiếu/thừa thì bắt buộc ghi lý do. Còn giao dịch tiền mặt POS chờ xác nhận thì chưa cho chốt. Giao dịch tạo tại quầy được gắn với đúng nhân viên và ca tại thời điểm tạo; CASSO có thể hoàn tất giao dịch chuyển khoản đến muộn vào chính ca đó, nhưng không gán sang ca mới hoặc ca đã hủy. Thanh toán hội viên tự thực hiện online không bị gán nhầm vào ca quầy.
 - Khi nhân viên vào ca hoặc chốt ca, trang ca làm của nhân viên và quản lý cập nhật ngay qua Socket.IO; ADMIN/MANAGER đang trực tuyến nhận thông báo tức thì, không cần tải lại trang.
-- Báo cáo lọc theo ngày, nhân viên, chi nhánh và trạng thái; chỉ tính Payment `PAID`, tổng hợp doanh thu, số giao dịch và hội viên duy nhất theo ca/ngày/nhân viên/chi nhánh.
+- Báo cáo lọc theo ngày, nhân viên và trạng thái; chỉ tính Payment `PAID`, tổng hợp doanh thu, số giao dịch và hội viên duy nhất theo ca/ngày/nhân viên.
 - Ca dùng các trạng thái `SCHEDULED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`. Chỉ hoàn tất trạng thái `COMPLETED` sau khi lưu chốt quỹ; ca đã chốt/hủy không thể ghi nhận thanh toán mới. Các cột chốt quỹ được bổ sung vào bảng `StaffShift` hiện có bằng `backend/prisma/sqlserver-add-staff-shift-settlement.sql` (script idempotent, không tạo bảng mới).
 
 ### Kinh doanh nước uống — `/admin/beverages`
 - Dashboard doanh số, tồn kho, cảnh báo sắp hết/hết hàng, lợi nhuận gộp ước tính và sản phẩm bán chạy; quản lý sản phẩm, phiếu nhập nhiều dòng, POS tại quầy, tồn kho/điều chỉnh và báo cáo theo ngày/tuần/tháng/năm (xuất CSV mở bằng Excel).
-- ADMIN/MANAGER quản lý sản phẩm, nhập kho, điều chỉnh và báo cáo. STAFF xem danh mục, chỉ bán tại chi nhánh của ca `IN_PROGRESS`, và chỉ xem hóa đơn do chính mình bán. MEMBER chỉ xem các hóa đơn đã thanh toán gắn với hồ sơ của mình tại `/member/beverages`.
+- ADMIN/MANAGER quản lý sản phẩm, nhập kho, điều chỉnh và báo cáo tại một địa điểm. STAFF xem danh mục, chỉ bán trong ca `IN_PROGRESS`, và chỉ xem hóa đơn do chính mình bán. MEMBER chỉ xem các hóa đơn đã thanh toán gắn với hồ sơ của mình tại `/member/beverages`.
 - Dùng trực tiếp sáu bảng SQL Server `BeverageProduct`, `BeverageImport`, `BeverageImportItem`, `BeverageSale`, `BeverageSaleItem`, `BeverageStockMovement`; không thêm Prisma model/bảng. Truy vấn tồn kho và thống kê qua các view `vw_BeverageStock`, `vw_BeverageImportStatistics`, `vw_BeverageSalesStatistics`, `vw_BeverageProductSalesStatistics`.
+- `BeverageLocation` là model nội bộ bị ẩn khỏi Prisma Client, ánh xạ bảng `Branch` cũ để giữ liên kết lịch sử kho. Không còn API hay giao diện quản lý/chọn chi nhánh. Chạy `backend/prisma/sqlserver-remove-branch-management.sql` sau khi sao lưu DB để gộp tham chiếu kho về một địa điểm, bỏ liên kết khỏi hội viên/ca làm và giữ các địa điểm cũ ở trạng thái không hoạt động.
 - Xác nhận nhập/bán dùng `usp_ReceiveBeverageImport` và `usp_CompleteBeverageSale`; adjustment ghi movement có người thực hiện/lý do. POS giữ giá vốn/giá bán tại thời điểm bán, kiểm tra tồn kho trong transaction, và khóa chống xử lý lặp dựa trên `requestId` (không cần cột/bảng idempotency mới).
 
 ### Khu vực huấn luyện viên `/trainer` — vai trò `TRAINER`
@@ -210,7 +211,7 @@ Mật khẩu được đặt trong `backend/prisma/seed.ts`. Trang `/login` có 
 | MEMBER | `member2@gym.com` … `member11@gym.com` | `Member@123456` | Hội viên demo `MEM-0002` … `MEM-0011` |
 
 **Dữ liệu demo có sẵn** (sau `npm run prisma:seed`):
-3 chi nhánh · 5 phòng tập · 3 gói tập · 3 huấn luyện viên · 17 tài khoản · **11 hội viên** ·
+5 phòng tập · 3 gói tập · 3 huấn luyện viên · 17 tài khoản · **11 hội viên** ·
 11 thẻ tập đa trạng thái (`ACTIVE` / `EXPIRED` / `PENDING` / `CANCELLED`) ·
 11 hóa đơn (mỗi thẻ đúng 1 đơn, tổng hoá đơn khớp số tiền thanh toán) + 1 giao dịch `FAILED` ·
 **68 lượt check-in** lịch sử · 14 buổi tập (PT & lớp nhóm) & tiến trình tập ·
@@ -290,7 +291,6 @@ Web gym/
 │           ├── promotions/       # Khuyến mãi
 │           ├── notifications/    # Thông báo & ticker
 │           ├── reports/          # Báo cáo tổng hợp (8 nhóm)
-│           ├── branches/         # Chi nhánh
 │           ├── public/           # API công khai cho website
 │           └── health/           # Healthcheck
 │
@@ -325,25 +325,22 @@ Web gym/
 **26 model**, liên kết bằng khoá ngoại có chủ đích để không mất lịch sử:
 
 ```text
-Branch ─┬─ Room
-        ├─ User ─┬─ Trainer ─┬─ TrainingSchedule
-        │        │           └─ TrainerMember ── TrainingProgress
-        │        │           └─ TrainingSchedule
-        │        └─ Member ─┬─ Membership ─┬─ Payment ── Invoice
-        │                   │              └─ Promotion (SetNull)
-        │                   ├─ CheckIn
-        │                   ├─ TrainingSchedule
-        │                   └─ Notification
-        └─ CheckIn
+User ─┬─ Trainer ─┬─ TrainingSchedule
+      │           └─ TrainerMember ── TrainingProgress
+      └─ Member ─┬─ Membership ─┬─ Payment ── Invoice
+                 │              └─ Promotion (SetNull)
+                 ├─ CheckIn
+                 ├─ TrainingSchedule
+                 └─ Notification
 User ── AuditLog (SetNull)      # xoá user không mất nhật ký
 ```
 
 Quy ước quan hệ:
-- `Cascade` — dữ liệu con **phụ thuộc sống** (Room của Branch, Trainer của User, Membership của Member)
+- `Cascade` — dữ liệu con **phụ thuộc sống** (Trainer của User, Membership của Member)
 - `SetNull` — dữ liệu lịch sử **được giữ lại** (AuditLog.userId, Payment.promotionId, Payment.confirmedById)
 - `Restrict` — dữ liệu tài chính / vận hành quan trọng (Payment.memberId, Membership.packageId)
 
-Index được đặt theo truy vấn thực tế (theo `status`, `branchId`, `memberId`, `createdAt`,
+Index được đặt theo truy vấn thực tế (theo `status`, `memberId`, `createdAt`,
 `code`, `email`…), không thêm index thừa.
 
 ---

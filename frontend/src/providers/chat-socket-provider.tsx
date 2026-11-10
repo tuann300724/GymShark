@@ -27,7 +27,6 @@ interface StaffShiftUpdatePayload {
   staffId: string;
   staffName: string;
   title: string;
-  branchName: string | null;
   status: string;
   action: 'STARTED' | 'COMPLETED';
   actorId: string;
@@ -122,7 +121,7 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
       toast({
         type: 'info',
         title: started ? 'Nhân viên đã vào ca' : 'Nhân viên đã kết ca',
-        description: `${payload.staffName} · ${payload.title}${payload.branchName ? ` · ${payload.branchName}` : ''}`,
+        description: `${payload.staffName} · ${payload.title}`,
       });
     };
 

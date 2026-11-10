@@ -213,16 +213,16 @@ async function main() {
     update: {
     features: JSON.stringify({
         title: 'Gói Cơ Bản 1 Tháng (Basic)',
-        items: ['Tập luyện không giới hạn thời gian', '1 chi nhánh', 'Phòng Gym + Cardio', 'Tủ đồ cá nhân', 'Hướng dẫn sử dụng máy cơ bản'],
+        items: ['Tập luyện không giới hạn thời gian', 'Phòng Gym + Cardio', 'Tủ đồ cá nhân', 'Hướng dẫn sử dụng máy cơ bản'],
     }),
     },
     create: {
       code: 'PKG-1M',
       name: 'Gói Cơ Bản 1 Tháng (Basic)',
-      description: 'Tập luyện không giới hạn thời gian tại 1 chi nhánh',
+      description: 'Tập luyện không giới hạn thời gian tại phòng tập',
       features: JSON.stringify({
         title: 'Gói Cơ Bản 1 Tháng (Basic)',
-        items: ['Tập luyện không giới hạn thời gian', '1 chi nhánh', 'Phòng Gym + Cardio', 'Tủ đồ cá nhân', 'Hướng dẫn sử dụng máy cơ bản'],
+        items: ['Tập luyện không giới hạn thời gian', 'Phòng Gym + Cardio', 'Tủ đồ cá nhân', 'Hướng dẫn sử dụng máy cơ bản'],
       }),
       durationDays: 30,
       price: 450000,
@@ -235,7 +235,7 @@ async function main() {
     update: {
       features: JSON.stringify({
         title: 'Gói VIP 6 Tháng',
-        items: ['Toàn quyền sử dụng dịch vụ gym', 'Khu xông hơi & massage', 'Tặng 3 buổi tập cùng HLV', '1 chi nhánh', 'Ưu đãi 10% dịch vụ bổ sung'],
+        items: ['Toàn quyền sử dụng dịch vụ gym', 'Khu xông hơi & massage', 'Tặng 3 buổi tập cùng HLV', 'Ưu đãi 10% dịch vụ bổ sung'],
       }),
     },
     create: {
@@ -244,7 +244,7 @@ async function main() {
       description: 'Toàn quyền sử dụng dịch vụ gym, xông hơi và tặng 3 buổi cùng HLV',
       features: JSON.stringify({
         title: 'Gói VIP 6 Tháng',
-        items: ['Toàn quyền sử dụng dịch vụ gym', 'Khu xông hơi & massage', 'Tặng 3 buổi tập cùng HLV', '1 chi nhánh', 'Ưu đãi 10% dịch vụ bổ sung'],
+        items: ['Toàn quyền sử dụng dịch vụ gym', 'Khu xông hơi & massage', 'Tặng 3 buổi tập cùng HLV', 'Ưu đãi 10% dịch vụ bổ sung'],
       }),
       durationDays: 180,
       price: 2400000,
@@ -257,16 +257,16 @@ async function main() {
     update: {
       features: JSON.stringify({
         title: 'Gói Kim Cương 12 Tháng',
-        items: ['Trọn gói cao cấp', 'Không giới hạn CHI NHÁNH', 'Tặng khăn tập & tủ đồ VIP', 'Tặng 6 buổi PT trị giá 2.100.000đ', 'Ưu tiên đặt phòng & lớp học'],
+        items: ['Trọn gói cao cấp', 'Tặng khăn tập & tủ đồ VIP', 'Tặng 6 buổi PT trị giá 2.100.000đ', 'Ưu tiên đặt phòng & lớp học'],
       }),
     },
     create: {
       code: 'PKG-12M-DIAMOND',
       name: 'Gói Kim Cương 12 Tháng',
-      description: 'Trọn gói cao cấp không giới hạn chi nhánh, tặng khăn tập và tủ đồ VIP',
+      description: 'Trọn gói cao cấp, tặng khăn tập và tủ đồ VIP',
       features: JSON.stringify({
         title: 'Gói Kim Cương 12 Tháng',
-        items: ['Trọn gói cao cấp', 'Không giới hạn CHI NHÁNH', 'Tặng khăn tập & tủ đồ VIP', 'Tặng 6 buổi PT trị giá 2.100.000đ', 'Ưu tiên đặt phòng & lớp học'],
+        items: ['Trọn gói cao cấp', 'Tặng khăn tập & tủ đồ VIP', 'Tặng 6 buổi PT trị giá 2.100.000đ', 'Ưu tiên đặt phòng & lớp học'],
       }),
       durationDays: 365,
       price: 4200000,

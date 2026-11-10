@@ -28,6 +28,9 @@ export default function ChatClient({ myRole, emptyHint }: ChatClientProps) {
   const [search, setSearch] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const textRef = useRef('');
+  const sendingRef = useRef(false);
 
   useEffect(() => {
     ensure();
@@ -90,16 +93,24 @@ export default function ChatClient({ myRole, emptyHint }: ChatClientProps) {
         attachments: payload.attachments,
       });
     },
-    onSuccess: () => {
+    onSuccess: (_data, payload) => {
       qc.invalidateQueries({ queryKey: ['chat-messages', activeConv] });
       qc.invalidateQueries({ queryKey: ['chat-conversations'] });
-      setText('');
+      if (textRef.current.trim() === (payload.content ?? '')) {
+        textRef.current = '';
+        setText('');
+      }
+    },
+    onSettled: () => {
+      sendingRef.current = false;
+      inputRef.current?.focus();
     },
   });
 
   const handleSend = () => {
     const t = text.trim();
-    if (!t || sendMut.isPending) return;
+    if (!t || sendingRef.current) return;
+    sendingRef.current = true;
     sendMut.mutate({ content: t });
   };
 
@@ -304,21 +315,30 @@ export default function ChatClient({ myRole, emptyHint }: ChatClientProps) {
                 size="sm"
                 variant="outline"
                 onClick={() => fileRef.current?.click()}
-                disabled={!activeConv || sendMut.isPending}
+                disabled={!activeConv || sendingRef.current}
               >
                 Ảnh
               </Button>
               <Input
+                ref={inputRef}
                 value={text}
-                onChange={(e) => setText(e.target.value)}
+                onChange={(e) => {
+                  textRef.current = e.target.value;
+                  setText(e.target.value);
+                }}
                 placeholder="Nhập tin nhắn..."
-                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                disabled={!activeConv || sendMut.isPending}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                disabled={!activeConv}
               />
               <Button
                 size="sm"
                 onClick={handleSend}
-                disabled={!activeConv || !text.trim() || sendMut.isPending}
+                disabled={!activeConv || !text.trim() || sendingRef.current}
                 aria-label="Gửi tin nhắn"
               >
                 <Send className="size-4" />

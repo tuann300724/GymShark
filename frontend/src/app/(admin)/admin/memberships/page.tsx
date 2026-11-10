@@ -1,22 +1,47 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/axios';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Select } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { Spinner } from '@/components/ui/spinner';
 import { useToast } from '@/components/ui/toast';
 import { formatDate, formatCurrency } from '@/lib/utils';
+import { getStoredUser } from '@/lib/auth';
 import { MEMBERSHIP_STATUS_META, PAYMENT_METHOD_LABEL } from '@/lib/status';
 import { CreditCard, CheckCircle2, XCircle, Lock, Unlock, Eye, Clock, Ban } from 'lucide-react';
+
+/** Đề xuất số tiền hoàn = tiền gói × tỷ lệ ngày còn lại, làm tròn xuống 1.000đ */
+function suggestRefundAmount(m: any): number {
+  const base = Number(m?.finalAmount ?? m?.price ?? 0);
+  const start = new Date(m?.startDate).getTime();
+  const end = new Date(m?.endDate).getTime();
+  const total = Math.max(1, end - start);
+  const remain = Math.max(0, end - Date.now());
+  return Math.floor((base * remain) / total / 1000) * 1000;
+}
 
 export default function MembershipsPage() {
   const toast = useToast();
   const queryClient = useQueryClient();
+  const user = getStoredUser();
+  /** Hoàn tiền > 0 chỉ ADMIN (backend chặn MANAGER/STAFF) */
+  const isAdmin = user?.role === 'ADMIN';
+
+  /** Dialog duyệt yêu cầu hủy gói */
+  const [approveTarget, setApproveTarget] = useState<any>(null);
+  const [refundAmount, setRefundAmount] = useState('');
+  const [refundMethod, setRefundMethod] = useState('BANK_TRANSFER');
+  const [approveReason, setApproveReason] = useState('');
 
   const {
     data: memberships,
@@ -92,6 +117,66 @@ export default function MembershipsPage() {
 
   const handleReactivate = (m: any) => {
     statusMutation.mutate({ id: m.id, status: 'ACTIVE' });
+  };
+
+  // ---------------- Yêu cầu hủy gói (hội viên gửi → admin duyệt) ----------------
+
+  const openApprove = (m: any) => {
+    setApproveTarget(m);
+    setRefundAmount(String(suggestRefundAmount(m)));
+    setRefundMethod('BANK_TRANSFER');
+    setApproveReason(m.cancelRequestReason || '');
+  };
+
+  const closeApprove = () => {
+    setApproveTarget(null);
+    setRefundAmount('');
+    setApproveReason('');
+  };
+
+  const approveCancelMutation = useMutation({
+    mutationFn: async ({ id, payload }: { id: string; payload: any }) => {
+      const res = await apiClient.post(`/memberships/${id}/cancel-request/approve`, payload);
+      return res.data;
+    },
+    onSuccess: (res: any) => {
+      toast.success('Đã duyệt yêu cầu hủy gói', res.message);
+      closeApprove();
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: ['member-memberships'] });
+      queryClient.invalidateQueries({ queryKey: ['member-notif-badge'] });
+    },
+    onError: (err: any) => {
+      const msg = err.response?.data?.message || 'Duyệt thất bại';
+      toast.error('Thất bại', Array.isArray(msg) ? msg.join(', ') : msg);
+    },
+  });
+
+  const rejectCancelMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiClient.post(`/memberships/${id}/cancel-request/reject`, {});
+      return res.data;
+    },
+    onSuccess: (res: any) => {
+      toast.success('Đã từ chối yêu cầu hủy gói', res.message);
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: ['member-memberships'] });
+      queryClient.invalidateQueries({ queryKey: ['member-notif-badge'] });
+    },
+    onError: (err: any) => {
+      const msg = err.response?.data?.message || 'Thao tác thất bại';
+      toast.error('Thất bại', Array.isArray(msg) ? msg.join(', ') : msg);
+    },
+  });
+
+  const handleRejectCancel = (m: any) => {
+    if (
+      window.confirm(
+        `Từ chối yêu cầu hủy gói của ${m.member?.fullName}? Gói tập sẽ tiếp tục hoạt động bình thường.`,
+      )
+    ) {
+      rejectCancelMutation.mutate(m.id);
+    }
   };
 
   return (
@@ -201,7 +286,19 @@ export default function MembershipsPage() {
                           )}
                         </td>
                         <td className="py-3 px-4">
-                          <Badge variant={msMeta.variant}>{msMeta.label}</Badge>
+                          <div className="flex flex-col items-start gap-1">
+                            <Badge variant={msMeta.variant}>{msMeta.label}</Badge>
+                            {item.cancelRequestedAt && item.status === 'ACTIVE' && (
+                              <Badge
+                                variant="warning"
+                                className="text-[10px]"
+                                title={`Yêu cầu hủy${item.cancelRequestReason ? `: ${item.cancelRequestReason}` : ''}`}
+                              >
+                                <Clock className="mr-1 size-3" />
+                                Yêu cầu hủy
+                              </Badge>
+                            )}
+                          </div>
                         </td>
                         <td className="py-3 px-4">
                           <div className="flex items-center justify-end gap-1.5">
@@ -247,16 +344,38 @@ export default function MembershipsPage() {
                                 <Unlock className="size-3.5 mr-1" /> Kích hoạt lại
                               </Button>
                             )}
-                            {item.status !== 'PENDING' && item.status !== 'CANCELLED' && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-xs text-danger"
-                                onClick={() => handleCancel(item)}
-                              >
-                                <Ban className="size-3.5 mr-1" /> Hủy hợp đồng
-                              </Button>
+                            {item.status === 'ACTIVE' && item.cancelRequestedAt && (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs text-danger"
+                                  onClick={() => openApprove(item)}
+                                >
+                                  <CheckCircle2 className="size-3.5 mr-1" /> Duyệt hủy
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs"
+                                  onClick={() => handleRejectCancel(item)}
+                                >
+                                  <XCircle className="size-3.5 mr-1" /> Từ chối
+                                </Button>
+                              </>
                             )}
+                            {item.status !== 'PENDING' &&
+                              item.status !== 'CANCELLED' &&
+                              !item.cancelRequestedAt && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs text-danger"
+                                  onClick={() => handleCancel(item)}
+                                >
+                                  <Ban className="size-3.5 mr-1" /> Hủy hợp đồng
+                                </Button>
+                              )}
                             <Link href={`/admin/members/${item.member?.id}`}>
                               <Button variant="outline" size="sm" className="text-xs">
                                 <Eye className="size-3.5" />
@@ -280,6 +399,145 @@ export default function MembershipsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Dialog duyệt yêu cầu hủy gói (+ hoàn tiền nếu admin chọn) */}
+      <Dialog
+        open={!!approveTarget}
+        onClose={closeApprove}
+        title="Duyệt yêu cầu hủy gói"
+        description="Hội viên không tập nữa — xét duyệt hủy gói và hoàn tiền."
+        className="max-w-lg"
+      >
+        {approveTarget && (
+          <div className="space-y-4 text-sm">
+            <div className="rounded-xl border border-line bg-ink p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs text-muted">Hội viên</p>
+                  <p className="font-semibold text-chalk">{approveTarget.member?.fullName}</p>
+                  <p className="font-mono text-[11px] text-neon">{approveTarget.member?.code}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-muted">Gói</p>
+                  <p className="font-semibold text-chalk">{approveTarget.package?.name}</p>
+                  <p className="text-[11px] text-neon">
+                    {formatCurrency(approveTarget.finalAmount ?? approveTarget.price)}
+                  </p>
+                </div>
+              </div>
+              <p className="mt-2 text-[11px] text-muted">
+                {formatDate(approveTarget.startDate)} → {formatDate(approveTarget.endDate)} · Còn{' '}
+                {Math.max(
+                  0,
+                  Math.ceil(
+                    (new Date(approveTarget.endDate).getTime() - Date.now()) /
+                      (24 * 60 * 60 * 1000),
+                  ),
+                )}{' '}
+                ngày
+              </p>
+              {approveTarget.cancelRequestedAt && (
+                <p className="mt-2 rounded-lg bg-amber-500/10 p-2 text-[11px] text-amber-300">
+                  Yêu cầu lúc {formatDate(approveTarget.cancelRequestedAt)}
+                  {approveTarget.cancelRequestReason
+                    ? ` — Lý do: ${approveTarget.cancelRequestReason}`
+                    : ''}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label
+                htmlFor="approve-reason"
+                className="mb-1.5 block text-xs font-semibold text-muted"
+              >
+                Lý do ghi vào thông báo cho hội viên
+              </label>
+              <Textarea
+                id="approve-reason"
+                rows={2}
+                maxLength={500}
+                placeholder="Ví dụ: Đồng ý hủy theo yêu cầu hội viên..."
+                value={approveReason}
+                onChange={(e) => setApproveReason(e.target.value)}
+              />
+            </div>
+
+            {isAdmin ? (
+              <div className="rounded-xl border border-danger/30 bg-danger/5 p-4 space-y-3">
+                <div>
+                  <label
+                    htmlFor="refund-amount-input"
+                    className="mb-1.5 block text-xs font-semibold text-muted"
+                  >
+                    Số tiền hoàn (VND) — 0đ = không hoàn tiền
+                  </label>
+                  <Input
+                    id="refund-amount-input"
+                    type="number"
+                    min={0}
+                    step={1000}
+                    value={refundAmount}
+                    onChange={(e) => setRefundAmount(e.target.value)}
+                  />
+                  <p className="mt-1 text-[11px] text-muted">
+                    Đề xuất theo số ngày còn lại:{' '}
+                    <b className="text-neon">
+                      {formatCurrency(suggestRefundAmount(approveTarget))}
+                    </b>{' '}
+                    (làm tròn xuống 1.000đ) — quản trị viên có thể sửa.
+                  </p>
+                </div>
+                <div>
+                  <p className="mb-1.5 text-xs font-semibold text-muted">
+                    Phương thức trả lại tiền
+                  </p>
+                  <Select
+                    value={refundMethod}
+                    onChange={(e) => setRefundMethod(e.target.value)}
+                    options={[
+                      { value: 'BANK_TRANSFER', label: 'Chuyển khoản ngân hàng' },
+                      { value: 'CASH', label: 'Tiền mặt tại quầy' },
+                    ]}
+                  />
+                  <p className="mt-1 text-[11px] text-muted">
+                    Phòng tập tự chuyển tiền lại cho hội viên; app ghi sổ vào giao dịch.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="rounded-xl border border-line bg-ink p-3 text-[11px] text-muted">
+                Bạn đang duyệt với tư cách <b className="text-chalk">không hoàn tiền</b> — chỉ quản
+                trị viên mới được duyệt hoàn tiền.
+              </p>
+            )}
+
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="secondary" onClick={closeApprove}>
+                Đóng
+              </Button>
+              <Button
+                variant="danger"
+                isLoading={approveCancelMutation.isPending}
+                onClick={() => {
+                  const amount = Number(refundAmount) || 0;
+                  approveCancelMutation.mutate({
+                    id: approveTarget.id,
+                    payload: {
+                      refundAmount: isAdmin && amount > 0 ? amount : 0,
+                      refundMethod: isAdmin && amount > 0 ? refundMethod : undefined,
+                      reason: approveReason.trim() || undefined,
+                    },
+                  });
+                }}
+              >
+                <CheckCircle2 className="size-4" />
+                {isAdmin && Number(refundAmount) > 0 ? 'Duyệt hủy & hoàn tiền' : 'Duyệt hủy gói'}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Dialog>
     </div>
   );
 }

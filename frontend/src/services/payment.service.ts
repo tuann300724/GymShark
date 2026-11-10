@@ -73,7 +73,17 @@ export const paymentApi = {
     return res.data;
   },
 
-  refund: async (id: string, payload: { reason?: string; deactivateMembership?: boolean } = {}) => {
+  refund: async (
+    id: string,
+    payload: {
+      reason?: string;
+      deactivateMembership?: boolean;
+      /** Số tiền hoàn thực tế (VND) — bỏ trống = hoàn toàn bộ */
+      refundAmount?: number;
+      /** Cách trả lại tiền: BANK_TRANSFER (chuyển khoản) hoặc CASH (tiền mặt) */
+      refundMethod?: string;
+    } = {},
+  ) => {
     const res = await apiClient.post(`/payments/${id}/refund`, payload);
     return res.data;
   },

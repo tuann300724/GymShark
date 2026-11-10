@@ -71,7 +71,7 @@ export class BeveragesController {
     @Query() query: BeverageQueryDto,
     @CurrentUser() actor: BeverageActor,
   ) {
-    return this.beveragesService.product(id, query.branchId, actor);
+    return this.beveragesService.product(id, actor);
   }
 
   @Patch("products/:id")

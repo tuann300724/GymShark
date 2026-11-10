@@ -67,20 +67,17 @@ export default function MemberBeverageHistoryPage() {
               <table className="w-full min-w-[620px] text-left text-sm">
                 <thead className="border-y border-line text-xs uppercase text-muted">
                   <tr>
-                    {['Mã hóa đơn', 'Chi nhánh', 'Ngày mua', 'Số lượng', 'Tổng tiền', ''].map(
-                      (h) => (
-                        <th key={h} className="px-4 py-3">
-                          {h}
-                        </th>
-                      ),
-                    )}
+                    {['Mã hóa đơn', 'Ngày mua', 'Số lượng', 'Tổng tiền', ''].map((h) => (
+                      <th key={h} className="px-4 py-3">
+                        {h}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
                   {sales.map((sale) => (
                     <tr key={sale.saleId}>
                       <td className="px-4 py-3 font-semibold text-chalk">{sale.saleCode}</td>
-                      <td className="px-4 py-3 text-muted">{sale.branchName}</td>
                       <td className="px-4 py-3 text-muted">{formatDateTime(sale.saleDate)}</td>
                       <td className="px-4 py-3 text-chalk">{sale.totalSoldQuantity}</td>
                       <td className="px-4 py-3 font-semibold text-neon">
@@ -119,9 +116,7 @@ function SaleReceipt({ sale }: { sale: BeverageSale }) {
       <div className="flex items-start justify-between">
         <div>
           <p className="font-display text-xl font-bold text-chalk">{sale.code || sale.saleCode}</p>
-          <p className="text-xs text-muted">
-            {formatDateTime(sale.saleDate)} · {sale.branchName}
-          </p>
+          <p className="text-xs text-muted">{formatDateTime(sale.saleDate)}</p>
         </div>
         <span className="text-xs font-semibold text-neon">
           {sale.paymentMethod === 'CASH' ? 'Tiền mặt' : 'Chuyển khoản'}

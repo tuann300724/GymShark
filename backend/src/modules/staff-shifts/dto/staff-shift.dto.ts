@@ -16,11 +16,6 @@ export class CreateStaffShiftDto {
   @IsUUID()
   staffId: string;
 
-  @IsOptional()
-  @IsString()
-  @MaxLength(100)
-  branchId?: string;
-
   @IsString()
   @IsNotEmpty()
   @Matches(/\S/)
@@ -42,11 +37,6 @@ export class UpdateStaffShiftDto {
   @IsOptional()
   @IsUUID()
   staffId?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(100)
-  branchId?: string | null;
 
   @IsOptional()
   @IsString()
@@ -80,10 +70,6 @@ export class StaffShiftQueryDto {
   @IsOptional()
   @IsUUID()
   staffId?: string;
-
-  @IsOptional()
-  @IsString()
-  branchId?: string;
 
   @IsOptional()
   @IsString()

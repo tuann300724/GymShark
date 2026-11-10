@@ -26,8 +26,6 @@ export interface ShiftRow {
   staffId: string;
   staffName: string;
   staffEmail: string;
-  branchId: string | null;
-  branchName: string | null;
   title: string;
   startTime: Date;
   endTime: Date;
@@ -89,8 +87,6 @@ export class StaffShiftsService {
       );
     }
 
-    if (query.branchId)
-      clauses.push(Prisma.sql`ss.branchId = ${query.branchId}`);
     const dateColumn = filterByPaymentDate
       ? Prisma.sql`p.paidAt`
       : Prisma.sql`ss.startTime`;
@@ -121,8 +117,6 @@ export class StaffShiftsService {
         CONVERT(nvarchar(36), ss.staffId) AS staffId,
         u.fullName AS staffName,
         u.email AS staffEmail,
-        ss.branchId,
-        b.name AS branchName,
         ss.title,
         ss.startTime,
         ss.endTime,
@@ -140,7 +134,6 @@ export class StaffShiftsService {
         COALESCE(v.totalRevenue, 0) AS totalRevenue
       FROM dbo.StaffShift AS ss
       INNER JOIN dbo.[User] AS u ON u.id = ss.staffId
-      LEFT JOIN dbo.Branch AS b ON b.id = ss.branchId
       LEFT JOIN dbo.[User] AS closeUser ON closeUser.id = ss.closedById
       LEFT JOIN dbo.vw_StaffShiftRevenue AS v ON v.staffShiftId = ss.id
       ${where}
@@ -164,7 +157,7 @@ export class StaffShiftsService {
       ${paymentWhere}
     `);
 
-    const [byDay, byStaff, byBranch] = await Promise.all([
+    const [byDay, byStaff] = await Promise.all([
       this.prisma.$queryRaw<ShiftGroupRow[]>(Prisma.sql`
         SELECT CONVERT(char(10), p.paidAt, 23) AS label,
           COALESCE(SUM(p.amount), 0) AS totalRevenue, COUNT(p.id) AS transactionCount,
@@ -184,17 +177,6 @@ export class StaffShiftsService {
         LEFT JOIN dbo.Payment AS p ON p.staffShiftId = ss.id AND UPPER(p.status) = N'PAID'
         ${paymentWhere}
         GROUP BY ss.staffId, u.fullName
-        ORDER BY totalRevenue DESC, label
-      `),
-      this.prisma.$queryRaw<ShiftGroupRow[]>(Prisma.sql`
-        SELECT ss.branchId AS id, COALESCE(b.name, N'Chưa gán chi nhánh') AS label,
-          COALESCE(SUM(p.amount), 0) AS totalRevenue, COUNT(p.id) AS transactionCount,
-          COUNT(DISTINCT p.memberId) AS memberCount
-        FROM dbo.StaffShift AS ss
-        LEFT JOIN dbo.Branch AS b ON b.id = ss.branchId
-        LEFT JOIN dbo.Payment AS p ON p.staffShiftId = ss.id AND UPPER(p.status) = N'PAID'
-        ${paymentWhere}
-        GROUP BY ss.branchId, b.name
         ORDER BY totalRevenue DESC, label
       `),
     ]);
@@ -218,7 +200,6 @@ export class StaffShiftsService {
       },
       byDay: this.normalizeGroups(byDay),
       byStaff: this.normalizeGroups(byStaff),
-      byBranch: this.normalizeGroups(byBranch),
     };
   }
 
@@ -232,13 +213,7 @@ export class StaffShiftsService {
   }
 
   async options(actor: ShiftActor) {
-    const branches = await this.prisma.branch.findMany({
-      where: { status: "ACTIVE" },
-      select: { id: true, name: true },
-      orderBy: { name: "asc" },
-    });
-
-    if (!this.isAdmin(actor)) return { staff: [], branches };
+    if (!this.isAdmin(actor)) return { staff: [] };
 
     const staff = await this.prisma.$queryRaw<
       { id: string; fullName: string; email: string }[]
@@ -249,7 +224,7 @@ export class StaffShiftsService {
       ORDER BY fullName
     `;
 
-    return { staff, branches };
+    return { staff };
   }
 
   private async assertStaff(staffId: string) {
@@ -264,15 +239,6 @@ export class StaffShiftsService {
       throw new BadRequestException(
         "Nhân viên không tồn tại hoặc đang bị khóa",
       );
-  }
-
-  private async assertBranch(branchId?: string | null) {
-    if (!branchId) return;
-    const branch = await this.prisma.branch.findUnique({
-      where: { id: branchId },
-      select: { id: true },
-    });
-    if (!branch) throw new BadRequestException("Chi nhánh không tồn tại");
   }
 
   private assertTimes(startTime: string | Date, endTime: string | Date) {
@@ -312,7 +278,7 @@ export class StaffShiftsService {
       SELECT CONVERT(nvarchar(36), ss.id) AS id,
         CONVERT(nvarchar(36), ss.staffId) AS staffId,
         u.fullName AS staffName, u.email AS staffEmail,
-        ss.branchId, b.name AS branchName, ss.title, ss.startTime, ss.endTime,
+        ss.title, ss.startTime, ss.endTime,
         UPPER(ss.status) AS status, ss.notes, ss.cashExpected, ss.cashCounted,
         ss.cashDifference, CONVERT(nvarchar(36), ss.closedById) AS closedById,
         closeUser.fullName AS closedByName, ss.closedAt, ss.closeNotes,
@@ -320,7 +286,6 @@ export class StaffShiftsService {
         CONVERT(decimal(12, 2), 0) AS totalRevenue
       FROM dbo.StaffShift ss
       INNER JOIN dbo.[User] u ON u.id = ss.staffId
-      LEFT JOIN dbo.Branch b ON b.id = ss.branchId
       LEFT JOIN dbo.[User] AS closeUser ON closeUser.id = ss.closedById
       WHERE ss.id = CONVERT(uniqueidentifier, ${id})
     `);
@@ -411,10 +376,7 @@ export class StaffShiftsService {
 
   async create(dto: CreateStaffShiftDto, actor: ShiftActor) {
     this.assertTimes(dto.startTime, dto.endTime);
-    await Promise.all([
-      this.assertStaff(dto.staffId),
-      this.assertBranch(dto.branchId),
-    ]);
+    await this.assertStaff(dto.staffId);
 
     const { randomUUID } = await import("crypto");
     const id = randomUUID();
@@ -422,11 +384,10 @@ export class StaffShiftsService {
       async (tx) => {
         await this.assertNoOverlap(tx, dto.staffId, dto.startTime, dto.endTime);
         await tx.$executeRaw(Prisma.sql`
-          INSERT INTO dbo.StaffShift (id, staffId, branchId, title, startTime, endTime, status, notes)
+          INSERT INTO dbo.StaffShift (id, staffId, title, startTime, endTime, status, notes)
           VALUES (
             CONVERT(uniqueidentifier, ${id}),
             CONVERT(uniqueidentifier, ${dto.staffId}),
-            ${dto.branchId ?? null},
             ${dto.title.trim()},
             ${new Date(dto.startTime)},
             ${new Date(dto.endTime)},
@@ -443,7 +404,7 @@ export class StaffShiftsService {
       action: "STAFF_SHIFT_CREATE",
       entity: "StaffShift",
       entityId: id,
-      metadata: { staffId: dto.staffId, branchId: dto.branchId ?? null },
+      metadata: { staffId: dto.staffId },
     });
     return shift;
   }
@@ -457,19 +418,13 @@ export class StaffShiftsService {
     const startTime = dto.startTime ?? existing.startTime;
     const endTime = dto.endTime ?? existing.endTime;
     this.assertTimes(startTime, endTime);
-    await Promise.all([
-      this.assertStaff(staffId),
-      this.assertBranch(
-        dto.branchId === undefined ? existing.branchId : dto.branchId,
-      ),
-    ]);
+    await this.assertStaff(staffId);
     const count = await this.prisma.$transaction(
       async (tx) => {
         await this.assertNoOverlap(tx, staffId, startTime, endTime, id);
         return tx.$executeRaw(Prisma.sql`
           UPDATE dbo.StaffShift
           SET staffId = CONVERT(uniqueidentifier, ${staffId}),
-              branchId = ${dto.branchId === undefined ? existing.branchId : dto.branchId},
               title = ${dto.title?.trim() ?? existing.title},
               startTime = ${new Date(startTime)},
               endTime = ${new Date(endTime)},
@@ -606,7 +561,6 @@ export class StaffShiftsService {
       staffId: updatedShift.staffId,
       staffName: updatedShift.staffName,
       title: updatedShift.title,
-      branchName: updatedShift.branchName,
       status: updatedShift.status,
       actorId: actor.id,
     });
@@ -721,7 +675,6 @@ export class StaffShiftsService {
       staffId: shift.staffId,
       staffName: shift.staffName,
       title: shift.title,
-      branchName: shift.branchName,
       status: shift.status,
       actorId: actor.id,
     });

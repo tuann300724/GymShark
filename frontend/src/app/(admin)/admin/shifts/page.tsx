@@ -24,7 +24,6 @@ import {
   Check,
   Clock3,
   Edit3,
-  MapPin,
   Plus,
   Receipt,
   Trash2,
@@ -59,7 +58,6 @@ const STATUS_META: Record<
 
 const EMPTY_FORM: StaffShiftPayload = {
   staffId: '',
-  branchId: '',
   title: '',
   startTime: '',
   endTime: '',
@@ -246,21 +244,6 @@ export default function StaffShiftsPage() {
     ],
     [optionsQuery.data?.staff],
   );
-  const branchOptions = useMemo(
-    () => [
-      { value: '', label: 'Tất cả chi nhánh' },
-      ...(optionsQuery.data?.branches ?? []).map((branch) => ({
-        value: branch.id,
-        label: branch.name,
-      })),
-    ],
-    [optionsQuery.data?.branches],
-  );
-  const formBranchOptions = useMemo(
-    () => [{ value: '', label: 'Chưa gán chi nhánh' }, ...branchOptions.slice(1)],
-    [branchOptions],
-  );
-
   const openCreate = () => {
     setEditing(null);
     setForm(EMPTY_FORM);
@@ -271,7 +254,6 @@ export default function StaffShiftsPage() {
     setEditing(shift);
     setForm({
       staffId: shift.staffId,
-      branchId: shift.branchId ?? '',
       title: shift.title,
       startTime: toLocalDateTime(shift.startTime),
       endTime: toLocalDateTime(shift.endTime),
@@ -284,7 +266,6 @@ export default function StaffShiftsPage() {
     event.preventDefault();
     const payload = {
       ...form,
-      branchId: form.branchId || null,
       notes: form.notes || null,
       startTime: new Date(form.startTime).toISOString(),
       endTime: new Date(form.endTime).toISOString(),
@@ -357,7 +338,7 @@ export default function StaffShiftsPage() {
 
       {optionsQuery.isError && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-danger/30 bg-danger/5 p-4 text-sm">
-          <p className="text-danger">Không tải được danh sách nhân viên/chi nhánh để phân ca.</p>
+          <p className="text-danger">Không tải được danh sách nhân viên để phân ca.</p>
           <Button variant="outline" size="sm" onClick={() => optionsQuery.refetch()}>
             Tải lại danh sách
           </Button>
@@ -376,7 +357,7 @@ export default function StaffShiftsPage() {
       )}
 
       <Card>
-        <CardContent className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-5">
+        <CardContent className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-4">
           <Input
             type="date"
             label="Từ ngày"
@@ -400,18 +381,12 @@ export default function StaffShiftsPage() {
             />
           )}
           <Select
-            label="Chi nhánh"
-            options={branchOptions}
-            value={draftFilters.branchId ?? ''}
-            onChange={(event) => setDraftFilters({ ...draftFilters, branchId: event.target.value })}
-          />
-          <Select
             label="Trạng thái ca"
             options={STATUS_OPTIONS}
             value={draftFilters.status ?? ''}
             onChange={(event) => setDraftFilters({ ...draftFilters, status: event.target.value })}
           />
-          <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-5">
+          <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-4">
             <Button onClick={applyFilters}>Lọc báo cáo</Button>
             <Button variant="outline" onClick={resetFilters}>
               Xóa lọc
@@ -454,10 +429,9 @@ export default function StaffShiftsPage() {
             />
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid gap-4 lg:grid-cols-2">
             <ReportGroups title="Doanh thu theo ngày" groups={report?.byDay ?? []} />
             <ReportGroups title="Doanh thu theo nhân viên" groups={report?.byStaff ?? []} />
-            <ReportGroups title="Doanh thu theo chi nhánh" groups={report?.byBranch ?? []} />
           </div>
 
           <section className="space-y-4">
@@ -481,17 +455,11 @@ export default function StaffShiftsPage() {
                           </div>
                           <Badge variant={status.variant}>{status.label}</Badge>
                         </div>
-                        <div className="grid gap-3 text-sm sm:grid-cols-2">
+                        <div className="text-sm">
                           <p className="flex min-w-0 items-center gap-2 text-muted">
                             <CalendarDays className="size-4 shrink-0 text-neon" />
                             <span>
                               {formatDateTime(shift.startTime)} – {formatDateTime(shift.endTime)}
-                            </span>
-                          </p>
-                          <p className="flex min-w-0 items-center gap-2 text-muted">
-                            <MapPin className="size-4 shrink-0 text-neon" />
-                            <span className="truncate">
-                              {shift.branchName ?? 'Chưa gán chi nhánh'}
                             </span>
                           </p>
                         </div>
@@ -655,12 +623,6 @@ export default function StaffShiftsPage() {
             value={form.staffId}
             onChange={(event) => setForm({ ...form, staffId: event.target.value })}
             required
-          />
-          <Select
-            label="Chi nhánh"
-            options={formBranchOptions}
-            value={form.branchId ?? ''}
-            onChange={(event) => setForm({ ...form, branchId: event.target.value })}
           />
           <div className="grid gap-4 sm:grid-cols-2">
             <Input

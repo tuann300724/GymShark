@@ -45,9 +45,7 @@ export class StaffShiftsController {
 
   @Get("options")
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
-  @ApiOperation({
-    summary: "Danh sách nhân viên và chi nhánh cho bộ lọc/phân ca",
-  })
+  @ApiOperation({ summary: "Danh sách nhân viên cho bộ lọc/phân ca" })
   options(@CurrentUser() actor: ShiftActor) {
     return this.shiftsService.options(actor);
   }

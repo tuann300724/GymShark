@@ -84,6 +84,8 @@ export default function PaymentsPage() {
   const [note, setNote] = useState('');
   const [reason, setReason] = useState('');
   const [refundReason, setRefundReason] = useState('');
+  const [refundAmount, setRefundAmount] = useState('');
+  const [refundMethod, setRefundMethod] = useState('BANK_TRANSFER');
   const [deactivateMembership, setDeactivateMembership] = useState(false);
 
   // Packages cho filter
@@ -159,6 +161,9 @@ export default function PaymentsPage() {
       setNote('');
       setReason('');
       setRefundReason('');
+      setRefundAmount('');
+      setRefundMethod('BANK_TRANSFER');
+      setDeactivateMembership(false);
       invalidate();
     },
     onError: (err: any) => {
@@ -221,40 +226,40 @@ export default function PaymentsPage() {
       </div>
 
       {/* Dashboard cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
         <StatCard
           title="Tổng doanh thu"
           value={formatCurrency(stats?.totalRevenue || 0)}
-          subtitle="Đã thu (không gồm hoàn tiền)"
+          subtitle="Đã thu thực tế"
           icon={DollarSign}
           colorScheme="neon"
         />
         <StatCard
-          title="Doanh thu hôm nay"
+          title="Doanh thu ngày"
           value={formatCurrency(stats?.revenueToday || 0)}
-          subtitle="Thanh toán PAID hôm nay"
+          subtitle="Giao dịch hôm nay"
           icon={TrendingUp}
           colorScheme="blue"
         />
         <StatCard
-          title="Đang chờ xác nhận"
+          title="Chờ xác nhận"
           value={stats?.pendingCount ?? 0}
-          subtitle="Cần lễ tân xử lý"
+          subtitle="Cần thu ngân xử lý"
           icon={Hourglass}
           colorScheme="amber"
         />
         <StatCard
           title="Đã thanh toán"
           value={stats?.paidCount ?? 0}
-          subtitle={`Hoàn tiền: ${formatCurrency(stats?.refundedTotal || 0)}`}
+          subtitle="Đơn thành công"
           icon={CheckCircle2}
-          colorScheme="purple"
+          colorScheme="neon"
         />
         <StatCard
-          title="Thất bại / Hủy"
-          value={(stats?.failedCount ?? 0) + (stats?.cancelledCount ?? 0)}
-          subtitle={`Thất bại ${stats?.failedCount ?? 0} · Hủy ${stats?.cancelledCount ?? 0}`}
-          icon={XCircle}
+          title="Đã hoàn tiền"
+          value={stats?.refundedCount ?? 0}
+          subtitle={`Đã hoàn: ${formatCurrency(stats?.refundedTotal || 0)}`}
+          icon={RotateCcw}
           colorScheme="rose"
         />
       </div>
@@ -262,8 +267,8 @@ export default function PaymentsPage() {
       {/* Filters */}
       <Card>
         <CardContent className="p-4">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-7">
-            <div className="md:col-span-2">
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+            <div className="sm:col-span-2 xl:col-span-2">
               <Input
                 placeholder="Tìm tên / email / SĐT / mã hóa đơn, mã giao dịch..."
                 value={search}
@@ -286,18 +291,21 @@ export default function PaymentsPage() {
               onChange={(e) => setPackageId(e.target.value)}
               options={pkgOptions}
             />
-            <div className="flex items-end gap-2">
+            <div className="flex items-center gap-1.5">
               <Input
                 type="date"
                 value={from}
                 onChange={(e) => setFrom(e.target.value)}
-                className="md:w-36"
+                className="min-w-0 flex-1 text-xs"
+                title="Từ ngày"
               />
+              <span className="text-xs text-muted">-</span>
               <Input
                 type="date"
                 value={to}
                 onChange={(e) => setTo(e.target.value)}
-                className="md:w-36"
+                className="min-w-0 flex-1 text-xs"
+                title="Đến ngày"
               />
             </div>
           </div>
@@ -340,95 +348,186 @@ export default function PaymentsPage() {
             />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[960px] text-left text-sm">
-                <thead className="text-[11px] uppercase tracking-wider text-muted bg-ink border-b border-line">
+              <table className="w-full text-left text-sm">
+                <thead className="text-[11px] uppercase tracking-wider text-muted bg-ink/70 border-b border-line">
                   <tr>
-                    <th className="py-3 px-4 font-semibold">Mã hóa đơn</th>
-                    <th className="py-3 px-4 font-semibold">Hội viên</th>
-                    <th className="py-3 px-4 font-semibold">Gói tập</th>
-                    <th className="py-3 px-4 font-semibold">Số tiền</th>
-                    <th className="py-3 px-4 font-semibold">Phương thức</th>
-                    <th className="py-3 px-4 font-semibold">Ngày tạo</th>
-                    <th className="py-3 px-4 font-semibold">Ngày thanh toán</th>
-                    <th className="py-3 px-4 font-semibold">Trạng thái</th>
-                    <th className="py-3 px-4 font-semibold text-right">Thao tác</th>
+                    <th className="py-3 px-3 font-semibold">Mã HĐ</th>
+                    <th className="py-3 px-3 font-semibold">Hội viên</th>
+                    <th className="py-3 px-3 font-semibold">Gói tập</th>
+                    <th className="py-3 px-3 font-semibold">Số tiền / PTTT</th>
+                    <th className="py-3 px-3 font-semibold">Thời gian</th>
+                    <th className="py-3 px-3 font-semibold text-center">Trạng thái</th>
+                    <th className="py-3 px-3 font-semibold text-right">Thao tác</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-line font-medium">
+                <tbody className="divide-y divide-line font-normal">
                   {data?.data.map((p: any) => {
                     const meta = PAYMENT_STATUS_META[p.status] || {
                       label: p.status,
                       variant: 'outline',
                     };
                     return (
-                      <tr key={p.id} className="hover:bg-line/30 transition-colors">
-                        <td className="py-3 px-4">
-                          <p className="font-mono font-bold text-chalk">{p.code}</p>
-                          {p.invoice?.invoiceNumber && (
-                            <p className="text-[10px] text-muted">HD: {p.invoice.invoiceNumber}</p>
-                          )}
+                      <tr
+                        key={p.id}
+                        className="border-b border-line hover:bg-line/25 transition-colors"
+                      >
+                        {/* 1. Mã HĐ */}
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          <p className="font-mono font-bold text-chalk text-xs">{p.code}</p>
                           {p.transactionRef && (
-                            <p className="text-[10px] text-muted">GD: {p.transactionRef}</p>
+                            <p
+                              className="text-[10px] text-muted font-mono truncate max-w-[120px]"
+                              title={p.transactionRef}
+                            >
+                              GD: {p.transactionRef}
+                            </p>
                           )}
                         </td>
-                        <td className="py-3 px-4">
-                          <p className="font-semibold text-chalk">{p.member?.fullName}</p>
-                          <p className="text-[10px] text-muted">
-                            {p.member?.code} · {p.member?.phone}
+
+                        {/* 2. Hội viên */}
+                        <td className="py-3 px-3">
+                          <p className="font-semibold text-chalk text-xs truncate max-w-[150px]">
+                            {p.member?.fullName || 'Khách vãng lai'}
+                          </p>
+                          <p className="text-[10px] text-muted font-mono">
+                            {p.member?.phone || p.member?.code}
                           </p>
                         </td>
-                        <td className="py-3 px-4 text-muted">
-                          {p.membership?.package?.name || 'Dịch vụ phụ trợ'}
+
+                        {/* 3. Gói tập */}
+                        <td className="py-3 px-3">
+                          <p className="font-medium text-chalk text-xs truncate max-w-[150px]">
+                            {p.membership?.package?.name || 'Dịch vụ lẻ'}
+                          </p>
+                          {p.membership?.package?.durationDays && (
+                            <p className="text-[10px] text-muted">
+                              {p.membership.package.durationDays} ngày tập
+                            </p>
+                          )}
                         </td>
-                        <td className="py-3 px-4 font-bold text-neon whitespace-nowrap">
-                          {formatCurrency(p.amount)}
-                        </td>
-                        <td className="py-3 px-4">
-                          <Badge variant="outline">
+
+                        {/* 4. Số tiền & PTTT */}
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          <p className="font-bold text-neon font-mono text-xs tracking-tight">
+                            {formatCurrency(p.amount)}
+                          </p>
+                          <p className="text-[10px] text-muted">
                             {PAYMENT_METHOD_LABEL[p.method] || p.method}
-                          </Badge>
+                          </p>
                         </td>
-                        <td className="py-3 px-4 font-mono text-muted whitespace-nowrap">
-                          {formatDateTime(p.createdAt)}
+
+                        {/* 5. Thời gian */}
+                        <td className="py-3 px-3 whitespace-nowrap font-mono text-[11px] text-muted">
+                          <p className="text-chalk font-medium">
+                            {p.paidAt ? formatDateTime(p.paidAt) : formatDateTime(p.createdAt)}
+                          </p>
+                          <p className="text-[10px] text-muted">
+                            {p.paidAt ? 'Đã thanh toán' : 'Ngày tạo đơn'}
+                          </p>
                         </td>
-                        <td className="py-3 px-4 font-mono text-muted whitespace-nowrap">
-                          {p.paidAt ? formatDateTime(p.paidAt) : '—'}
+
+                        {/* 6. Trạng thái */}
+                        <td className="py-3 px-3 whitespace-nowrap text-center">
+                          <div className="flex flex-col items-center justify-center gap-0.5">
+                            {p.status === 'PAID' ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-neon/10 text-neon border border-neon/30 whitespace-nowrap">
+                                <span className="size-1.5 rounded-full bg-neon shadow-[0_0_6px_rgba(183,255,0,0.8)]" />
+                                Đã thanh toán
+                              </span>
+                            ) : p.status === 'REFUNDED' ? (
+                              <>
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-500/10 text-sky-400 border border-sky-500/30 whitespace-nowrap">
+                                  <span className="size-1.5 rounded-full bg-sky-400" />
+                                  Hoàn tiền
+                                </span>
+                                {p.refundAmount && (
+                                  <span className="text-[10px] text-sky-400/80 font-mono">
+                                    -{formatCurrency(Number(p.refundAmount))}
+                                  </span>
+                                )}
+                              </>
+                            ) : p.status === 'PENDING' ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30 whitespace-nowrap">
+                                <span className="size-1.5 rounded-full bg-amber-400 animate-pulse" />
+                                Chờ xác nhận
+                              </span>
+                            ) : p.status === 'CANCELLED' ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-line/60 text-muted border border-line whitespace-nowrap">
+                                <span className="size-1.5 rounded-full bg-muted" />
+                                Đã hủy
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-danger/10 text-danger border border-danger/30 whitespace-nowrap">
+                                <span className="size-1.5 rounded-full bg-danger" />
+                                {meta.label}
+                              </span>
+                            )}
+                          </div>
                         </td>
-                        <td className="py-3 px-4">
-                          <Badge variant={meta.variant as any}>{meta.label}</Badge>
-                        </td>
-                        <td className="py-3 px-4">
+
+                        {/* 7. Thao tác */}
+                        <td className="py-3 px-3 whitespace-nowrap text-right">
                           <div className="flex items-center justify-end gap-1.5">
-                            <Link href={`/admin/payments/${p.id}`}>
-                              <Button variant="outline" size="sm" className="text-xs">
-                                <ExternalLink className="size-3.5 mr-1" /> Chi tiết
-                              </Button>
-                            </Link>
-                            {p.status === 'PENDING' && (
+                            {/* Contextual Action (Left Slot) */}
+                            {p.status === 'PENDING' ? (
                               <>
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  className="text-xs text-neon"
+                                  className="h-7 px-2 text-[11px] text-neon border-neon/30 hover:bg-neon/10"
                                   isLoading={actionMutation.isPending}
                                   onClick={() => setConfirmTarget(p)}
                                 >
-                                  <CheckCircle2 className="size-3.5 mr-1" /> Xác nhận
+                                  <CheckCircle2 className="size-3 mr-1" /> Duyệt
                                 </Button>
                                 {canReject && (
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    className="text-xs text-danger"
+                                    className="h-7 px-1.5 text-[11px] text-danger hover:bg-danger/10"
                                     isLoading={actionMutation.isPending}
                                     onClick={() => setRejectTarget(p)}
+                                    title="Từ chối hóa đơn"
                                   >
-                                    <XCircle className="size-3.5 mr-1" /> Từ chối
+                                    <XCircle className="size-3" />
                                   </Button>
                                 )}
                               </>
-                            )}
-                            {/* Đã bỏ nút hoàn tiền theo yêu cầu */}
+                            ) : p.status === 'PAID' && canRefund ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-2 text-[11px] border-line text-muted hover:text-danger hover:border-danger/40 hover:bg-danger/5 transition-colors"
+                                isLoading={actionMutation.isPending}
+                                onClick={() => {
+                                  setRefundTarget(p);
+                                  setRefundAmount(String(Number(p.amount)));
+                                  setRefundMethod('BANK_TRANSFER');
+                                  setRefundReason('');
+                                  setDeactivateMembership(false);
+                                }}
+                                title="Hoàn tiền cho hóa đơn này"
+                              >
+                                <RotateCcw className="size-3 mr-1 text-danger/80" />
+                                Hoàn tiền
+                              </Button>
+                            ) : p.status === 'REFUNDED' ? (
+                              <span className="inline-flex items-center gap-1 h-7 px-2 text-[11px] text-sky-400/80 bg-sky-500/5 border border-sky-500/20 rounded-sm">
+                                <RotateCcw className="size-2.5 text-sky-400" />
+                                Đã hoàn
+                              </span>
+                            ) : null}
+
+                            {/* Primary Navigation Action (Right Slot - Fixed Position in Every Row) */}
+                            <Link href={`/admin/payments/${p.id}`}>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-2 text-[11px] border-line bg-surface hover:bg-line/40 hover:border-neon/40 hover:text-neon transition-colors"
+                              >
+                                <ExternalLink className="size-3 mr-1 text-muted" /> Chi tiết
+                              </Button>
+                            </Link>
                           </div>
                         </td>
                       </tr>
@@ -603,10 +702,41 @@ export default function PaymentsPage() {
           <div className="space-y-4 text-sm">
             <div className="rounded-xl border border-danger/30 bg-danger/5 p-4">
               <p className="text-xs text-muted">
-                Hoàn trả <b className="text-chalk">{formatCurrency(refundTarget.amount)}</b> cho{' '}
-                <b className="text-chalk">{refundTarget.member?.fullName}</b>. Giao dịch sẽ chuyển
-                sang REFUNDED và không tính vào doanh thu.
+                Hoàn tối đa <b className="text-chalk">{formatCurrency(refundTarget.amount)}</b> cho{' '}
+                <b className="text-chalk">{refundTarget.member?.fullName}</b>. Giao dịch chuyển
+                REFUNDED, không tính vào doanh thu — tiền được trả lại bằng chuyển khoản hoặc tiền
+                mặt.
               </p>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label
+                  htmlFor="refund-amount-input"
+                  className="mb-1.5 block text-xs font-semibold text-muted"
+                >
+                  Số tiền hoàn (VND)
+                </label>
+                <Input
+                  id="refund-amount-input"
+                  type="number"
+                  min={1}
+                  step={1000}
+                  value={refundAmount}
+                  onChange={(e) => setRefundAmount(e.target.value)}
+                />
+                <p className="mt-1 text-[10px] text-muted">Để bằng số tiền gốc = hoàn đủ</p>
+              </div>
+              <div>
+                <p className="mb-1.5 text-xs font-semibold text-muted">Phương thức hoàn</p>
+                <Select
+                  value={refundMethod}
+                  onChange={(e) => setRefundMethod(e.target.value)}
+                  options={[
+                    { value: 'BANK_TRANSFER', label: 'Chuyển khoản ngân hàng' },
+                    { value: 'CASH', label: 'Tiền mặt tại quầy' },
+                  ]}
+                />
+              </div>
             </div>
             <div>
               <label
@@ -645,7 +775,12 @@ export default function PaymentsPage() {
                   actionMutation.mutate({
                     type: 'refund',
                     id: refundTarget.id,
-                    payload: { reason: refundReason.trim() || undefined, deactivateMembership },
+                    payload: {
+                      reason: refundReason.trim() || undefined,
+                      deactivateMembership,
+                      refundAmount: Number(refundAmount) > 0 ? Number(refundAmount) : undefined,
+                      refundMethod,
+                    },
                   })
                 }
               >

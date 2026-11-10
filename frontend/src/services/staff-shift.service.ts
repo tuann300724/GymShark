@@ -7,8 +7,6 @@ export interface StaffShift {
   staffId: string;
   staffName: string;
   staffEmail: string;
-  branchId: string | null;
-  branchName: string | null;
   title: string;
   startTime: string;
   endTime: string;
@@ -44,7 +42,6 @@ export interface StaffShiftFilters {
   from?: string;
   to?: string;
   staffId?: string;
-  branchId?: string;
   status?: string;
 }
 
@@ -57,7 +54,6 @@ export interface StaffShiftReport {
   };
   byDay: ShiftReportGroup[];
   byStaff: ShiftReportGroup[];
-  byBranch: ShiftReportGroup[];
 }
 
 export interface ShiftReportGroup {
@@ -70,7 +66,6 @@ export interface ShiftReportGroup {
 
 export interface StaffShiftPayload {
   staffId: string;
-  branchId?: string | null;
   title: string;
   startTime: string;
   endTime: string;
@@ -85,7 +80,6 @@ export const staffShiftApi = {
 
   options: async (): Promise<{
     staff: { id: string; fullName: string; email: string }[];
-    branches: { id: string; name: string }[];
   }> => {
     const res = await apiClient.get('/staff-shifts/options');
     return res.data;

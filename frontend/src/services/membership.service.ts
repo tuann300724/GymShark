@@ -44,4 +44,12 @@ export const membershipApi = {
     const res = await apiClient.post(`/member/payments/${paymentId}/cancel`);
     return res.data;
   },
+
+  /** Hội viên gửi yêu cầu hủy gói đang hoạt động — chờ admin xét duyệt (hoàn tiền nếu có) */
+  createCancelRequest: async (membershipId: string, reason?: string) => {
+    const res = await apiClient.post(`/memberships/${membershipId}/cancel-request`, {
+      reason: reason || undefined,
+    });
+    return res.data as { message: string; membership: Membership };
+  },
 };

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { beverageApi, type BeverageProduct, type BeverageSale } from '@/services/beverage.service';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,7 +39,6 @@ function message(error: unknown) {
 export default function BeveragePosPage() {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [branchId, setBranchId] = useState('');
   const [memberSearch, setMemberSearch] = useState('');
   const [member, setMember] = useState<Member | null>(null);
   const [productSearch, setProductSearch] = useState('');
@@ -55,11 +54,6 @@ export default function BeveragePosPage() {
     queryFn: beverageApi.options,
     retry: 0,
   });
-  useEffect(() => {
-    if (!branchId && options?.branches.length) {
-      setBranchId(options.activeShift?.branchId || options.branches[0].id);
-    }
-  }, [branchId, options]);
   const { data: members, isFetching: membersLoading } = useQuery({
     queryKey: ['beverage-member-search', memberSearch],
     queryFn: () => beverageApi.searchMembers(memberSearch),
@@ -72,10 +66,8 @@ export default function BeveragePosPage() {
     isError: productsError,
     refetch,
   } = useQuery({
-    queryKey: ['beverage-pos-products', branchId, productSearch],
-    queryFn: () =>
-      beverageApi.products({ branchId, search: productSearch || undefined, limit: 100 }),
-    enabled: Boolean(branchId),
+    queryKey: ['beverage-pos-products', productSearch],
+    queryFn: () => beverageApi.products({ search: productSearch || undefined, limit: 100 }),
     retry: 0,
   });
   const { data: sales } = useQuery({
@@ -146,13 +138,11 @@ export default function BeveragePosPage() {
   const checkout = () => {
     if (!member)
       return toast.error('Chưa chọn hội viên', 'Tìm và chọn hội viên trước khi thanh toán.');
-    if (!branchId || !cart.length)
-      return toast.error('Hóa đơn chưa đủ thông tin', 'Chọn chi nhánh và ít nhất một sản phẩm.');
+    if (!cart.length) return toast.error('Hóa đơn chưa đủ thông tin', 'Chọn ít nhất một sản phẩm.');
     if (discountAmount < 0 || discountAmount > subtotal)
       return toast.error('Giảm giá không hợp lệ', 'Giảm giá không được lớn hơn tổng tiền hàng.');
     const fingerprint = JSON.stringify({
       memberId: member.id,
-      branchId,
       paymentMethod,
       discountAmount,
       items: cart.map((line) => [line.product.id, line.quantity]),
@@ -163,7 +153,6 @@ export default function BeveragePosPage() {
     saleMutation.mutate({
       requestId: requestIdRef.current.id,
       memberId: member.id,
-      branchId,
       paymentMethod,
       discountAmount,
       items: cart.map((line) => ({ productId: line.product.id, quantity: line.quantity })),
@@ -187,24 +176,9 @@ export default function BeveragePosPage() {
         <div className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Hội viên và chi nhánh</CardTitle>
+              <CardTitle>Hội viên</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-3 sm:grid-cols-2">
-              <Select
-                label="Chi nhánh bán"
-                value={branchId}
-                onChange={(e) => {
-                  setBranchId(e.target.value);
-                  setCart([]);
-                }}
-                options={[
-                  { value: '', label: 'Chọn chi nhánh' },
-                  ...(options?.branches ?? []).map((branch) => ({
-                    value: branch.id,
-                    label: branch.name,
-                  })),
-                ]}
-              />
+            <CardContent>
               <div className="relative">
                 <Input
                   label="Tìm hội viên"
@@ -304,7 +278,7 @@ export default function BeveragePosPage() {
                 <EmptyState
                   icon={Search}
                   title="Không có sản phẩm phù hợp"
-                  description="Thử từ khóa khác hoặc chọn chi nhánh."
+                  description="Thử từ khóa khác."
                 />
               ) : (
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -422,7 +396,7 @@ export default function BeveragePosPage() {
               </div>
               <Button
                 className="w-full"
-                disabled={saleMutation.isPending || !cart.length || !member || !branchId}
+                disabled={saleMutation.isPending || !cart.length || !member}
                 onClick={checkout}
               >
                 {saleMutation.isPending ? 'Đang xác nhận...' : 'Xác nhận thanh toán'}
@@ -527,9 +501,6 @@ export default function BeveragePosPage() {
                 </p>
                 <p className="text-muted">
                   Nhân viên: <b className="text-chalk">{receipt.staffName}</b>
-                </p>
-                <p className="text-muted">
-                  Chi nhánh: <b className="text-chalk">{receipt.branchName}</b>
                 </p>
                 <p className="text-muted">
                   Ca làm: <b className="text-chalk">{receipt.shiftTitle || 'Không gán ca'}</b>

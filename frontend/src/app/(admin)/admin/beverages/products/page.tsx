@@ -30,7 +30,6 @@ interface ProductForm {
   status: 'ACTIVE' | 'INACTIVE';
   description: string;
   initialStock: string;
-  initialBranchId: string;
   initialStockReason: string;
 }
 
@@ -47,7 +46,6 @@ const EMPTY_FORM: ProductForm = {
   status: 'ACTIVE',
   description: '',
   initialStock: '0',
-  initialBranchId: '',
   initialStockReason: '',
 };
 
@@ -71,7 +69,6 @@ function formFrom(product: BeverageProduct): ProductForm {
     status: product.status,
     description: product.description || '',
     initialStock: '0',
-    initialBranchId: '',
     initialStockReason: '',
   };
 }
@@ -81,7 +78,6 @@ export default function BeverageProductsPage() {
   const toast = useToast();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
-  const [branchId, setBranchId] = useState('');
   const [includeInactive, setIncludeInactive] = useState(false);
   const [page, setPage] = useState(1);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -102,7 +98,6 @@ export default function BeverageProductsPage() {
   const query = {
     search: search || undefined,
     category: category || undefined,
-    branchId: branchId || undefined,
     includeInactive,
     page,
     limit: 30,
@@ -113,8 +108,8 @@ export default function BeverageProductsPage() {
     retry: 0,
   });
   const { data: detail, isLoading: detailLoading } = useQuery({
-    queryKey: ['beverage-product', detailId, branchId],
-    queryFn: () => beverageApi.product(detailId, branchId || undefined),
+    queryKey: ['beverage-product', detailId],
+    queryFn: () => beverageApi.product(detailId),
     enabled: Boolean(detailId),
     retry: 0,
   });
@@ -176,7 +171,6 @@ export default function BeverageProductsPage() {
       createMutation.mutate({
         ...payload,
         initialStock: Number(form.initialStock || 0),
-        initialBranchId: form.initialBranchId || undefined,
         initialStockReason: form.initialStockReason.trim() || undefined,
       });
   }
@@ -229,18 +223,6 @@ export default function BeverageProductsPage() {
             options={[
               { value: '', label: 'Tất cả danh mục' },
               ...(options?.categories ?? []).map((value) => ({ value, label: value })),
-            ]}
-          />
-          <Select
-            aria-label="Lọc chi nhánh"
-            value={branchId}
-            onChange={(e) => setBranchId(e.target.value)}
-            options={[
-              { value: '', label: 'Tổng tồn kho các chi nhánh' },
-              ...(options?.branches ?? []).map((branch) => ({
-                value: branch.id,
-                label: branch.name,
-              })),
             ]}
           />
           <label className="flex h-11 items-center gap-2 rounded-lg border border-line px-3 text-sm text-muted">
@@ -499,18 +481,6 @@ export default function BeverageProductsPage() {
                   value={form.initialStock}
                   onChange={(e) => setForm({ ...form, initialStock: e.target.value })}
                 />
-                <Select
-                  label="Chi nhánh ghi tồn đầu kỳ"
-                  value={form.initialBranchId}
-                  onChange={(e) => setForm({ ...form, initialBranchId: e.target.value })}
-                  options={[
-                    { value: '', label: 'Chọn chi nhánh nếu nhập tồn đầu kỳ' },
-                    ...(options?.branches ?? []).map((branch) => ({
-                      value: branch.id,
-                      label: branch.name,
-                    })),
-                  ]}
-                />
                 {Number(form.initialStock) > 0 && (
                   <div className="sm:col-span-2">
                     <Input
@@ -570,22 +540,10 @@ export default function BeverageProductsPage() {
               </p>
             </div>
             <div>
-              <p className="mb-2 font-semibold text-chalk">Tồn kho theo chi nhánh</p>
-              {detail.stocks?.length ? (
-                detail.stocks.map((stock) => (
-                  <div
-                    key={stock.branchId}
-                    className="flex justify-between border-b border-line py-2"
-                  >
-                    <span className="text-muted">{stock.branchName}</span>
-                    <span className="text-chalk">
-                      {stock.stockQuantity} · {stock.stockStatus}
-                    </span>
-                  </div>
-                ))
-              ) : (
-                <p className="text-muted">Chưa có phát sinh tồn kho.</p>
-              )}
+              <p className="font-semibold text-chalk">Tồn kho hiện tại</p>
+              <p className="mt-1 text-muted">
+                {detail.stockQuantity ?? 0} · {detail.stockStatus}
+              </p>
             </div>
           </div>
         ) : (

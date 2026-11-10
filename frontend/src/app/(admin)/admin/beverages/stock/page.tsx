@@ -35,7 +35,6 @@ const MOVEMENT_LABEL: Record<string, string> = {
 export default function BeverageStockPage() {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [branchId, setBranchId] = useState('');
   const [category, setCategory] = useState('');
   const [search, setSearch] = useState('');
   const [from, setFrom] = useState('');
@@ -52,10 +51,8 @@ export default function BeverageStockPage() {
   useEffect(() => {
     const role = getStoredUser()?.role;
     setCanAdjust(role === 'ADMIN' || role === 'MANAGER');
-    if (!branchId && options?.branches.length === 1) setBranchId(options.branches[0].id);
-  }, [branchId, options]);
+  }, []);
   const params = {
-    branchId: branchId || undefined,
     category: category || undefined,
     search: search || undefined,
     from: from || undefined,
@@ -98,15 +95,14 @@ export default function BeverageStockPage() {
   const adjust = (event: React.FormEvent) => {
     event.preventDefault();
     const quantityChange = Number(adjustment.quantityChange);
-    if (!branchId || !adjustment.productId || !quantityChange || !adjustment.reason.trim()) {
+    if (!adjustment.productId || !quantityChange || !adjustment.reason.trim()) {
       toast.error(
         'Thông tin điều chỉnh chưa đủ',
-        'Chọn chi nhánh, sản phẩm, số lượng khác 0 và ghi lý do.',
+        'Chọn sản phẩm, nhập số lượng khác 0 và ghi lý do.',
       );
       return;
     }
     adjustmentMutation.mutate({
-      branchId,
       productId: adjustment.productId,
       quantityChange,
       reason: adjustment.reason.trim(),
@@ -148,19 +144,7 @@ export default function BeverageStockPage() {
         </div>
       </div>
       <Card>
-        <CardContent className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-5">
-          <Select
-            label="Chi nhánh"
-            value={branchId}
-            onChange={(e) => setBranchId(e.target.value)}
-            options={[
-              { value: '', label: 'Tất cả chi nhánh' },
-              ...(options?.branches ?? []).map((branch) => ({
-                value: branch.id,
-                label: branch.name,
-              })),
-            ]}
-          />
+        <CardContent className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
           <Select
             label="Danh mục"
             value={category}
@@ -227,24 +211,18 @@ export default function BeverageStockPage() {
                 <table className="w-full min-w-[700px] text-left text-sm">
                   <thead className="border-y border-line text-xs uppercase text-muted">
                     <tr>
-                      {[
-                        'Chi nhánh',
-                        'Sản phẩm',
-                        'Danh mục',
-                        'Tồn hiện tại',
-                        'Tối thiểu',
-                        'Trạng thái',
-                      ].map((h) => (
-                        <th key={h} className="px-4 py-3">
-                          {h}
-                        </th>
-                      ))}
+                      {['Sản phẩm', 'Danh mục', 'Tồn hiện tại', 'Tối thiểu', 'Trạng thái'].map(
+                        (h) => (
+                          <th key={h} className="px-4 py-3">
+                            {h}
+                          </th>
+                        ),
+                      )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line">
                     {stock.map((item) => (
-                      <tr key={`${item.productId}-${item.branchId}`}>
-                        <td className="px-4 py-3 text-muted">{item.branchName}</td>
+                      <tr key={item.productId}>
                         <td className="px-4 py-3 text-chalk">
                           {item.productName}
                           <p className="text-xs text-muted">{item.productCode}</p>
@@ -299,25 +277,19 @@ export default function BeverageStockPage() {
               <table className="w-full min-w-[760px] text-left text-sm">
                 <thead className="border-y border-line text-xs uppercase text-muted">
                   <tr>
-                    {[
-                      'Thời gian',
-                      'Chi nhánh',
-                      'Sản phẩm',
-                      'Loại',
-                      'Thay đổi',
-                      'Người thực hiện / lý do',
-                    ].map((h) => (
-                      <th key={h} className="px-4 py-3">
-                        {h}
-                      </th>
-                    ))}
+                    {['Thời gian', 'Sản phẩm', 'Loại', 'Thay đổi', 'Người thực hiện / lý do'].map(
+                      (h) => (
+                        <th key={h} className="px-4 py-3">
+                          {h}
+                        </th>
+                      ),
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
                   {movements.map((item) => (
                     <tr key={item.id}>
                       <td className="px-4 py-3 text-muted">{formatDateTime(item.createdAt)}</td>
-                      <td className="px-4 py-3 text-muted">{item.branchName}</td>
                       <td className="px-4 py-3 text-chalk">
                         {item.productName}
                         <p className="text-xs text-muted">{item.productCode}</p>
@@ -349,31 +321,16 @@ export default function BeverageStockPage() {
       <Dialog open={adjustOpen} onClose={() => setAdjustOpen(false)} title="Điều chỉnh tồn kho">
         <form className="space-y-4" onSubmit={adjust}>
           <Select
-            label="Chi nhánh"
-            required
-            value={branchId}
-            onChange={(e) => setBranchId(e.target.value)}
-            options={[
-              { value: '', label: 'Chọn chi nhánh' },
-              ...(options?.branches ?? []).map((branch) => ({
-                value: branch.id,
-                label: branch.name,
-              })),
-            ]}
-          />
-          <Select
             label="Sản phẩm"
             required
             value={adjustment.productId}
             onChange={(e) => setAdjustment({ ...adjustment, productId: e.target.value })}
             options={[
               { value: '', label: 'Chọn sản phẩm' },
-              ...(stock ?? [])
-                .filter((item) => item.branchId === branchId)
-                .map((item) => ({
-                  value: item.productId,
-                  label: `${item.productCode} — ${item.productName} (${item.stockQuantity})`,
-                })),
+              ...(stock ?? []).map((item) => ({
+                value: item.productId,
+                label: `${item.productCode} — ${item.productName} (${item.stockQuantity})`,
+              })),
             ]}
           />
           <Input

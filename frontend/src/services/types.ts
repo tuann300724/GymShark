@@ -176,6 +176,9 @@ export interface Membership {
   finalAmount?: string | null;
   remainingSessions?: number | null;
   status: 'PENDING' | 'ACTIVE' | 'EXPIRED' | 'CANCELLED' | 'SUSPENDED';
+  /** Hội viên gửi yêu cầu hủy gói — chờ admin duyệt (null = không có) */
+  cancelRequestedAt?: string | null;
+  cancelRequestReason?: string | null;
   createdAt: string;
   package?: MembershipPackage;
   payments?: { id: string; amount: string; method: string; status: string; createdAt: string }[];
@@ -320,6 +323,9 @@ export interface Payment {
   notes?: string | null;
   paidAt?: string | null;
   confirmedAt?: string | null;
+  /** Hoàn tiền: số tiền hoàn thực tế (có thể < amount) + phương thức trả lại tiền */
+  refundAmount?: string | null;
+  refundMethod?: string | null;
   confirmedBy?: { id: string; fullName: string; role?: string } | null;
   createdAt: string;
   membership?: {
