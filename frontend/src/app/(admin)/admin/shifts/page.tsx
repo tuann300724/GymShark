@@ -6,6 +6,7 @@ import { AxiosError } from 'axios';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { CreateStaffAccountDialog } from '@/components/admin/create-staff-account-dialog';
 import { Dialog } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
@@ -14,6 +15,7 @@ import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatCard } from '@/components/ui/stat-card';
 import { Textarea } from '@/components/ui/textarea';
+import { WeeklyShiftTemplatesDialog } from '@/components/admin/weekly-shift-templates-dialog';
 import { useToast } from '@/components/ui/toast';
 import { getStoredUser } from '@/lib/auth';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
@@ -123,6 +125,8 @@ export default function StaffShiftsPage() {
   const [draftFilters, setDraftFilters] = useState<StaffShiftFilters>({});
   const [editing, setEditing] = useState<StaffShift | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [staffAccountOpen, setStaffAccountOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   const [form, setForm] = useState<StaffShiftPayload>(EMPTY_FORM);
   const [settlingShift, setSettlingShift] = useState<StaffShift | null>(null);
   const [cashCounted, setCashCounted] = useState('');
@@ -323,16 +327,25 @@ export default function StaffShiftsPage() {
           </p>
         </div>
         {canManage && (
-          <Button
-            onClick={openCreate}
-            className="shrink-0"
-            disabled={
-              optionsQuery.isLoading || optionsQuery.isError || !optionsQuery.data?.staff.length
-            }
-          >
-            <Plus className="mr-2 size-4" />
-            Phân công ca
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => setStaffAccountOpen(true)}>
+              <Plus className="mr-2 size-4" />
+              Tạo tài khoản nhân viên
+            </Button>
+            <Button variant="outline" onClick={() => setTemplatesOpen(true)}>
+              <CalendarDays className="mr-2 size-4" />
+              Mẫu lịch tuần
+            </Button>
+            <Button
+              onClick={openCreate}
+              disabled={
+                optionsQuery.isLoading || optionsQuery.isError || !optionsQuery.data?.staff.length
+              }
+            >
+              <Plus className="mr-2 size-4" />
+              Phân công ca
+            </Button>
+          </div>
         )}
       </header>
 
@@ -348,10 +361,10 @@ export default function StaffShiftsPage() {
         <div className="rounded-xl border border-neon/20 bg-neon/5 p-4 text-sm text-muted">
           <p className="font-semibold text-chalk">Quy trình nhận ca</p>
           <p className="mt-1">
-            Chọn ca của bạn rồi nhấn <span className="font-semibold text-neon">Bắt đầu ca</span>.
-            Tiền mặt được ghi nhận khi xác nhận thanh toán; chuyển khoản CASSO tại quầy gắn với đúng
-            ca đã tạo giao dịch, kể cả khi CASSO cập nhật muộn. Nhân viên không thể xác nhận thủ
-            công vào ca đã đóng. Giao dịch hội viên tự thanh toán online không gán vào ca quầy.
+            Chọn ca được phân rồi nhấn{' '}
+            <span className="font-semibold text-neon">Chấm công vào</span> khi đến làm. Khi rời ca,
+            kiểm quỹ và chấm công ra. Tiền mặt được ghi nhận khi xác nhận thanh toán; chuyển khoản
+            CASSO tại quầy gắn với ca đã tạo giao dịch.
           </p>
         </div>
       )}
@@ -419,13 +432,13 @@ export default function StaffShiftsPage() {
               title="Giao dịch"
               value={report?.summary.transactionCount ?? 0}
               icon={Receipt}
-              subtitle="Chỉ tính thanh toán đã hoàn tất"
+              subtitle="Giao dịch thẻ tập và nước đã thanh toán"
             />
             <StatCard
               title="Hội viên đã thanh toán"
               value={report?.summary.memberCount ?? 0}
               icon={Users}
-              subtitle="Đếm hội viên duy nhất trong bộ lọc"
+              subtitle="Hội viên duy nhất mua thẻ tập hoặc nước"
             />
           </div>
 
@@ -462,6 +475,16 @@ export default function StaffShiftsPage() {
                               {formatDateTime(shift.startTime)} – {formatDateTime(shift.endTime)}
                             </span>
                           </p>
+                          {(shift.startedAt || shift.endedAt) && (
+                            <p className="mt-2 text-xs text-muted">
+                              {shift.startedAt
+                                ? `Chấm công vào: ${formatDateTime(shift.startedAt)}`
+                                : 'Chưa chấm công vào'}
+                              {shift.endedAt
+                                ? ` · Chấm công ra: ${formatDateTime(shift.endedAt)}`
+                                : ''}
+                            </p>
+                          )}
                         </div>
                         {shift.notes && <p className="text-sm text-muted">{shift.notes}</p>}
                         <div className="grid grid-cols-3 gap-2 rounded-xl border border-line bg-ink/60 p-3 text-center">
@@ -534,7 +557,7 @@ export default function StaffShiftsPage() {
                               onClick={() => startMutation.mutate(shift.id)}
                               disabled={startMutation.isPending}
                             >
-                              <Clock3 className="mr-1.5 size-4" /> Bắt đầu ca · ghi nhận doanh thu
+                              <Clock3 className="mr-1.5 size-4" /> Chấm công vào · mở ca
                             </Button>
                           )}
                           {shift.status === 'IN_PROGRESS' && (
@@ -543,7 +566,8 @@ export default function StaffShiftsPage() {
                               onClick={() => openSettlement(shift)}
                               disabled={endMutation.isPending || Boolean(settlingShift)}
                             >
-                              <Banknote className="mr-1.5 size-4" /> Kiểm quỹ & chốt ca
+                              <Banknote className="mr-1.5 size-4" /> Chấm công ra · kiểm quỹ & chốt
+                              ca
                             </Button>
                           )}
                           {canManage && shift.status === 'SCHEDULED' && (
@@ -693,7 +717,8 @@ export default function StaffShiftsPage() {
                   {formatCurrency(settlementPreviewQuery.data?.expectedCash ?? 0)}
                 </p>
                 <p className="mt-1 text-xs text-muted">
-                  {settlementPreviewQuery.data?.cashPaymentCount ?? 0} giao dịch đã xác nhận
+                  {settlementPreviewQuery.data?.cashPaymentCount ?? 0} giao dịch thẻ tập và nước đã
+                  thanh toán
                 </p>
               </div>
               <div className="rounded-xl border border-line bg-ink/60 p-4">
@@ -799,6 +824,16 @@ export default function StaffShiftsPage() {
           </form>
         )}
       </Dialog>
+      <CreateStaffAccountDialog
+        open={staffAccountOpen}
+        onClose={() => setStaffAccountOpen(false)}
+      />
+      <WeeklyShiftTemplatesDialog
+        open={templatesOpen}
+        staff={optionsQuery.data?.staff ?? []}
+        onClose={() => setTemplatesOpen(false)}
+        onGenerated={refresh}
+      />
     </div>
   );
 }

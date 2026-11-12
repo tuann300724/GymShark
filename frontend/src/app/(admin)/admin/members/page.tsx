@@ -288,6 +288,15 @@ export default function MembersPage() {
                   {data.data.map((m: any) => {
                     const latestMs = m.memberships?.[0];
                     const activePkg = latestMs?.package?.name || 'Chưa đăng ký gói';
+                    const hasPendingPayment = latestMs?.payments?.some(
+                      (payment: any) => payment.status === 'PENDING',
+                    );
+                    const membershipStatus = hasPendingPayment ? 'PENDING' : latestMs?.status;
+                    const canRegisterPackage =
+                      !hasPendingPayment &&
+                      (!latestMs ||
+                        latestMs.status === 'CANCELLED' ||
+                        latestMs.status === 'EXPIRED');
                     return (
                       <tr key={m.id} className="hover:bg-line/30 transition-colors">
                         <td className="py-3 px-4 align-middle font-mono font-bold text-neon whitespace-nowrap">
@@ -321,15 +330,16 @@ export default function MembersPage() {
                             {latestMs && (
                               <Badge
                                 variant={
-                                  MEMBERSHIP_STATUS_META[latestMs.status]?.variant || 'outline'
+                                  MEMBERSHIP_STATUS_META[membershipStatus]?.variant || 'outline'
                                 }
                                 className="whitespace-nowrap"
                               >
-                                {MEMBERSHIP_STATUS_META[latestMs.status]?.label || latestMs.status}
+                                {MEMBERSHIP_STATUS_META[membershipStatus]?.label ||
+                                  membershipStatus}
                               </Badge>
                             )}
                           </div>
-                          {!latestMs && (
+                          {canRegisterPackage && (
                             <Button
                               variant="outline"
                               size="sm"

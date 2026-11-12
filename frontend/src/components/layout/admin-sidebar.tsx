@@ -8,6 +8,7 @@ import { getStoredUser } from '@/lib/auth';
 import {
   LayoutDashboard,
   Users,
+  UserCog,
   CreditCard,
   Package,
   QrCode,
@@ -47,6 +48,7 @@ export const navigationSections = [
       { name: 'Huấn luyện viên (PT)', href: '/admin/trainers', icon: UserCheck },
       { name: 'Lịch tập & Lớp học', href: '/admin/schedules', icon: CalendarDays },
       { name: 'Ca làm & doanh thu', href: '/admin/shifts', icon: Clock3 },
+      { name: 'Tài khoản nhân viên', href: '/admin/staff', icon: UserCog },
     ],
   },
   {
@@ -128,6 +130,7 @@ export function AdminSidebar() {
             (item) =>
               role !== 'STAFF' ||
               ![
+                '/admin/staff',
                 '/admin/beverages',
                 '/admin/beverages/imports',
                 '/admin/reports/beverages',

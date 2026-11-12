@@ -7,24 +7,25 @@ import {
   HttpException,
   HttpStatus,
   Logger,
-} from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcryptjs';
-import * as crypto from 'crypto';
-import type { Prisma } from '@prisma/client';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { PrismaService } from '../../prisma/prisma.service';
-import { AuditService } from '../audit-logs/audit-logs.service';
-import { MailService } from '../mail/mail.service';
-import { MAIL_EVENTS } from '../mail/mail.events';
-import { NotificationsService } from '../notifications/notifications.service';
-import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
-import { MemberRegisterDto } from './dto/member-register.dto';
-import { VerifyMemberRegisterDto } from './dto/verify-member-register.dto';
-import { uniqueReferralCode } from '../../common/utils/referral-code';
-import type { GoogleProfile } from './google.strategy';
-import { UserRole } from '../../common/constants/db-enums';
+} from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import * as bcrypt from "bcryptjs";
+import * as crypto from "crypto";
+import { Prisma } from "@prisma/client";
+import { EventEmitter2 } from "@nestjs/event-emitter";
+import { PrismaService } from "../../prisma/prisma.service";
+import { AuditService } from "../audit-logs/audit-logs.service";
+import { MailService } from "../mail/mail.service";
+import { MAIL_EVENTS } from "../mail/mail.events";
+import { NotificationsService } from "../notifications/notifications.service";
+import { LoginDto } from "./dto/login.dto";
+import { RegisterDto } from "./dto/register.dto";
+import { MemberRegisterDto } from "./dto/member-register.dto";
+import { VerifyMemberRegisterDto } from "./dto/verify-member-register.dto";
+import { uniqueReferralCode } from "../../common/utils/referral-code";
+import type { GoogleProfile } from "./google.strategy";
+import { UserRole } from "../../common/constants/db-enums";
+import { CreateStaffAccountDto } from "../users/dto/create-staff-account.dto";
 
 /** Thời hạn của mã xác minh email (phút) */
 const VERIFY_CODE_TTL_MINUTES = 10;
@@ -69,11 +70,11 @@ export class AuthService {
   async login(loginDto: LoginDto, ip?: string) {
     const user = await this.validateUser(loginDto.email, loginDto.password);
     if (!user) {
-      throw new UnauthorizedException('Email hoặc mật khẩu không chính xác');
+      throw new UnauthorizedException("Email hoặc mật khẩu không chính xác");
     }
 
-    if (user.status !== 'ACTIVE') {
-      throw new UnauthorizedException('Tài khoản của bạn đã bị vô hiệu hóa');
+    if (user.status !== "ACTIVE") {
+      throw new UnauthorizedException("Tài khoản của bạn đã bị vô hiệu hóa");
     }
 
     const payload = { sub: user.id, email: user.email, role: user.role };
@@ -81,7 +82,7 @@ export class AuthService {
 
     // If the user is linked to a member profile, attach its id
     let memberId: string | null = null;
-    if (user.role === 'MEMBER') {
+    if (user.role === "MEMBER") {
       const member = await this.prisma.member.findUnique({
         where: { userId: user.id },
         select: { id: true, code: true },
@@ -92,15 +93,15 @@ export class AuthService {
     // Nhật ký hoạt động: đăng nhập thành công
     await this.auditService.log({
       userId: user.id,
-      action: 'AUTH_LOGIN',
-      entity: 'Auth',
+      action: "AUTH_LOGIN",
+      entity: "Auth",
       entityId: user.id,
       metadata: { email: user.email, role: user.role },
       ip,
     });
 
     return {
-      message: 'Đăng nhập thành công',
+      message: "Đăng nhập thành công",
       accessToken,
       memberId,
       user: {
@@ -132,7 +133,7 @@ export class AuthService {
   async requestMemberRegistrationCode(dto: MemberRegisterDto, ip?: string) {
     const email = this.normalizeEmail(dto.email);
     await this.assertEmailAvailable(email);
-    await this.assertPhoneAvailable(dto.phone?.trim() ?? '');
+    await this.assertPhoneAvailable(dto.phone?.trim() ?? "");
 
     // Kiểm tra sớm mã giới thiệu (nếu có) để báo lỗi ngay ở bước 1
     const refCodeStep1 = dto.referralCode?.trim().toUpperCase();
@@ -142,13 +143,19 @@ export class AuthService {
         select: { id: true },
       });
       if (!referrerStep1) {
-        throw new BadRequestException('Mã giới thiệu không tồn tại. Bỏ trống nếu bạn không có mã.');
+        throw new BadRequestException(
+          "Mã giới thiệu không tồn tại. Bỏ trống nếu bạn không có mã.",
+        );
       }
     }
 
     // Dọn yêu cầu cũ đã hết hạn từ lâu (nếu không bảng sẽ phình vô hạn)
     await this.prisma.emailVerification.deleteMany({
-      where: { expiresAt: { lt: new Date(Date.now() - EXPIRED_CLEANUP_GRACE_HOURS * 3600_000) } },
+      where: {
+        expiresAt: {
+          lt: new Date(Date.now() - EXPIRED_CLEANUP_GRACE_HOURS * 3600_000),
+        },
+      },
     });
 
     const code = this.generateCode();
@@ -168,7 +175,7 @@ export class AuthService {
         phone: dto.phone.trim(),
         passwordHash,
         codeHash,
-        gender: dto.gender || 'MALE',
+        gender: dto.gender || "MALE",
         dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : null,
         address: dto.address?.trim() || null,
         emergencyContact: dto.emergencyContact?.trim() || null,
@@ -186,19 +193,21 @@ export class AuthService {
     } catch (e) {
       // Không gửi được mã thì không giữ yêu cầu — người dùng phải đăng ký lại từ đầu
       await this.prisma.emailVerification.deleteMany({ where: { email } });
-      this.logger.warn(`Gửi mã xác minh thất bại cho ${email}: ${e instanceof Error ? e.message : e}`);
+      this.logger.warn(
+        `Gửi mã xác minh thất bại cho ${email}: ${e instanceof Error ? e.message : e}`,
+      );
       throw e;
     }
 
     await this.auditService.log({
-      action: 'MEMBER_REGISTER_CODE_SENT',
-      entity: 'EmailVerification',
+      action: "MEMBER_REGISTER_CODE_SENT",
+      entity: "EmailVerification",
       metadata: { email, expiresAt: expiresAt.toISOString() },
       ip,
     });
 
     return {
-      message: 'Mã xác minh đã được gửi về email của bạn',
+      message: "Mã xác minh đã được gửi về email của bạn",
       email,
       expiresInSeconds: VERIFY_CODE_TTL_MINUTES * 60,
       resendAfterSeconds: RESEND_COOLDOWN_SECONDS,
@@ -211,15 +220,19 @@ export class AuthService {
    */
   async resendMemberVerificationCode(emailInput: string, ip?: string) {
     const email = this.normalizeEmail(emailInput);
-    const pending = await this.prisma.emailVerification.findFirst({ where: { email } });
+    const pending = await this.prisma.emailVerification.findFirst({
+      where: { email },
+    });
 
     if (!pending) {
       throw new NotFoundException(
-        'Không tìm thấy yêu cầu đăng ký đang chờ. Vui lòng điền lại thông tin để nhận mã mới.',
+        "Không tìm thấy yêu cầu đăng ký đang chờ. Vui lòng điền lại thông tin để nhận mã mới.",
       );
     }
 
-    const waitedSeconds = Math.floor((Date.now() - pending.lastSentAt.getTime()) / 1000);
+    const waitedSeconds = Math.floor(
+      (Date.now() - pending.lastSentAt.getTime()) / 1000,
+    );
     if (waitedSeconds < RESEND_COOLDOWN_SECONDS) {
       throw new HttpException(
         `Vui lòng chờ ${RESEND_COOLDOWN_SECONDS - waitedSeconds} giây nữa rồi gửi lại mã.`,
@@ -244,19 +257,21 @@ export class AuthService {
         expiresInMinutes: VERIFY_CODE_TTL_MINUTES,
       });
     } catch (e) {
-      this.logger.warn(`Gửi lại mã xác minh thất bại cho ${email}: ${e instanceof Error ? e.message : e}`);
+      this.logger.warn(
+        `Gửi lại mã xác minh thất bại cho ${email}: ${e instanceof Error ? e.message : e}`,
+      );
       throw e;
     }
 
     await this.auditService.log({
-      action: 'MEMBER_REGISTER_CODE_RESENT',
-      entity: 'EmailVerification',
+      action: "MEMBER_REGISTER_CODE_RESENT",
+      entity: "EmailVerification",
       metadata: { email },
       ip,
     });
 
     return {
-      message: 'Đã gửi lại mã xác minh mới',
+      message: "Đã gửi lại mã xác minh mới",
       email,
       expiresInSeconds: VERIFY_CODE_TTL_MINUTES * 60,
       resendAfterSeconds: RESEND_COOLDOWN_SECONDS,
@@ -275,23 +290,27 @@ export class AuthService {
    */
   async confirmMemberRegistration(dto: VerifyMemberRegisterDto, ip?: string) {
     const email = this.normalizeEmail(dto.email);
-    const pending = await this.prisma.emailVerification.findFirst({ where: { email } });
+    const pending = await this.prisma.emailVerification.findFirst({
+      where: { email },
+    });
 
     if (!pending) {
       throw new BadRequestException(
-        'Không tìm thấy yêu cầu đăng ký đang chờ. Vui lòng đăng ký lại để nhận mã xác minh.',
+        "Không tìm thấy yêu cầu đăng ký đang chờ. Vui lòng đăng ký lại để nhận mã xác minh.",
       );
     }
 
     if (pending.expiresAt.getTime() < Date.now()) {
       await this.prisma.emailVerification.delete({ where: { id: pending.id } });
-      throw new BadRequestException('Mã xác minh đã hết hạn. Vui lòng đăng ký lại để nhận mã mới.');
+      throw new BadRequestException(
+        "Mã xác minh đã hết hạn. Vui lòng đăng ký lại để nhận mã mới.",
+      );
     }
 
     if (pending.attempts >= MAX_CODE_ATTEMPTS) {
       await this.prisma.emailVerification.delete({ where: { id: pending.id } });
       throw new BadRequestException(
-        'Bạn đã nhập sai mã quá nhiều lần. Vui lòng đăng ký lại để nhận mã xác minh mới.',
+        "Bạn đã nhập sai mã quá nhiều lần. Vui lòng đăng ký lại để nhận mã xác minh mới.",
       );
     }
 
@@ -305,8 +324,8 @@ export class AuthService {
 
       const remaining = MAX_CODE_ATTEMPTS - attempts;
       await this.auditService.log({
-        action: 'MEMBER_REGISTER_CODE_INVALID',
-        entity: 'EmailVerification',
+        action: "MEMBER_REGISTER_CODE_INVALID",
+        entity: "EmailVerification",
         entityId: pending.id,
         metadata: { email, attempts, remaining },
         ip,
@@ -315,15 +334,18 @@ export class AuthService {
       throw new BadRequestException(
         remaining > 0
           ? `Mã xác minh không đúng. Bạn còn ${remaining} lần thử.`
-          : 'Mã xác minh không đúng. Bạn đã hết lượt thử, vui lòng đăng ký lại.',
+          : "Mã xác minh không đúng. Bạn đã hết lượt thử, vui lòng đăng ký lại.",
       );
     }
 
     // Email có thể đã bị dùng trong lúc chờ mã (đăng ký ở tab khác / bằng tài khoản cũ)
-    const existing = await this.prisma.user.findUnique({ where: { email }, select: { id: true } });
+    const existing = await this.prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
     if (existing) {
       await this.prisma.emailVerification.delete({ where: { id: pending.id } });
-      throw new ConflictException('Email này đã được sử dụng');
+      throw new ConflictException("Email này đã được sử dụng");
     }
 
     // Tương tự, số điện thoại có thể bị người khác đăng ký trong lúc chờ mã
@@ -347,7 +369,9 @@ export class AuthService {
         select: { id: true, fullName: true },
       });
       if (!referrer) {
-        throw new BadRequestException('Mã giới thiệu không tồn tại. Bỏ trống nếu bạn không có mã.');
+        throw new BadRequestException(
+          "Mã giới thiệu không tồn tại. Bỏ trống nếu bạn không có mã.",
+        );
       }
     }
 
@@ -400,10 +424,10 @@ export class AuthService {
         await tx.notification.create({
           data: {
             memberId: referrer.id,
-            title: 'Có người dùng mã giới thiệu của bạn!',
+            title: "Có người dùng mã giới thiệu của bạn!",
             content: `${pending.fullName} đã đăng ký hội viên bằng mã ${refCode}. Khi họ kích hoạt gói tập đầu tiên, bạn được cộng thêm 7 ngày tập.`,
-            type: 'SYSTEM',
-            link: '/member/referral',
+            type: "SYSTEM",
+            link: "/member/referral",
           },
         });
       }
@@ -411,10 +435,10 @@ export class AuthService {
       await tx.notification.create({
         data: {
           memberId: member.id,
-          title: 'Chào mừng bạn đến với GymMaster Pro 💪',
+          title: "Chào mừng bạn đến với GymMaster Pro 💪",
           content: `Xin chào ${pending.fullName}! Tài khoản hội viên của bạn đã được xác minh email và tạo thành công. Hãy chọn một gói tập phù hợp để bắt đầu hành trình fitness của mình.`,
-          type: 'SYSTEM',
-          link: '/member/membership',
+          type: "SYSTEM",
+          link: "/member/membership",
         },
       });
 
@@ -426,8 +450,8 @@ export class AuthService {
 
     await this.auditService.log({
       userId: result.user.id,
-      action: 'MEMBER_REGISTER',
-      entity: 'Member',
+      action: "MEMBER_REGISTER",
+      entity: "Member",
       entityId: result.member.id,
       metadata: {
         email: result.user.email,
@@ -448,16 +472,16 @@ export class AuthService {
 
     // Báo tổ quản trị: có hội viên mới đăng ký (chuông admin)
     await this.notificationsService.notifyAdmins({
-      type: 'SYSTEM',
-      title: 'Hội viên mới đã đăng ký 🙌',
+      type: "SYSTEM",
+      title: "Hội viên mới đã đăng ký 🙌",
       content: `${result.member.fullName} (${result.member.code}) vừa xác minh email và tạo tài khoản — ${result.user.email}.`,
       link: `/admin/members/${result.member.id}`,
-      referenceType: 'MEMBER_REGISTERED',
+      referenceType: "MEMBER_REGISTERED",
       referenceId: result.member.id,
     });
 
     return {
-      message: 'Tạo tài khoản hội viên thành công',
+      message: "Tạo tài khoản hội viên thành công",
       user: result.user,
       member: result.member,
     };
@@ -471,7 +495,7 @@ export class AuthService {
 
   /** Mã 6 chữ số sinh bằng crypto (Number.random không đủ đồng nhất cho mã bảo mật) */
   private generateCode(): string {
-    return String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
+    return String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
   }
 
   private codeExpiry(): Date {
@@ -479,9 +503,12 @@ export class AuthService {
   }
 
   private async assertEmailAvailable(email: string): Promise<void> {
-    const existing = await this.prisma.user.findUnique({ where: { email }, select: { id: true } });
+    const existing = await this.prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
     if (existing) {
-      throw new ConflictException('Email này đã được sử dụng');
+      throw new ConflictException("Email này đã được sử dụng");
     }
   }
 
@@ -503,12 +530,93 @@ export class AuthService {
     }
   }
 
+  async createStaffAccount(dto: CreateStaffAccountDto, actorId: string) {
+    const email = this.normalizeEmail(dto.email);
+    const phone = dto.phone?.trim() || null;
+    const duplicate = await this.prisma.user.findFirst({
+      where: {
+        OR: [{ email }, ...(phone ? [{ phone }] : [])],
+      },
+      select: { email: true, phone: true },
+    });
+    if (duplicate) {
+      throw new ConflictException(
+        duplicate.email === email
+          ? "Email này đã được sử dụng"
+          : "Số điện thoại này đã được sử dụng",
+      );
+    }
+
+    const temporaryPassword = crypto.randomBytes(18).toString("base64url");
+    const passwordHash = await bcrypt.hash(temporaryPassword, 10);
+    const staff = await this.prisma
+      .$transaction(async (tx) => {
+        return tx.user.create({
+          data: {
+            email,
+            fullName: dto.fullName.trim(),
+            phone,
+            passwordHash,
+            role: UserRole.STAFF,
+            status: "ACTIVE",
+            provider: "LOCAL",
+          },
+          select: {
+            id: true,
+            email: true,
+            fullName: true,
+            phone: true,
+            role: true,
+            status: true,
+          },
+        });
+      })
+      .catch((error: unknown) => {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2002"
+        ) {
+          throw new ConflictException(
+            "Email hoặc số điện thoại này đã được sử dụng",
+          );
+        }
+        throw error;
+      });
+
+    try {
+      await this.mailService.sendStaffAccountInvite({
+        email,
+        fullName: staff.fullName,
+        temporaryPassword,
+      });
+    } catch (error) {
+      await this.prisma.user.delete({ where: { id: staff.id } });
+      throw error;
+    }
+
+    await this.auditService.log({
+      userId: actorId,
+      action: "USER_CREATE",
+      entity: "User",
+      entityId: staff.id,
+      metadata: { email, role: UserRole.STAFF },
+    });
+
+    return {
+      message: "Đã tạo tài khoản nhân viên và gửi mật khẩu tạm thời qua email.",
+      user: staff,
+    };
+  }
+
   /** Sinh mã hội viên dạng MEM-0001, bỏ qua mã đã tồn tại (không đụng khi xoá hội viên) */
   private async nextMemberCode(tx: Prisma.TransactionClient): Promise<string> {
     const count = await tx.member.count();
     for (let i = 1; i <= 500; i++) {
-      const code = `MEM-${String(count + i).padStart(4, '0')}`;
-      const exists = await tx.member.findUnique({ where: { code }, select: { id: true } });
+      const code = `MEM-${String(count + i).padStart(4, "0")}`;
+      const exists = await tx.member.findUnique({
+        where: { code },
+        select: { id: true },
+      });
       if (!exists) return code;
     }
     return `MEM-${Date.now().toString().slice(-8)}`;
@@ -531,9 +639,13 @@ export class AuthService {
     });
 
     if (user) {
-      const pending = await this.prisma.passwordReset.findFirst({ where: { email } });
+      const pending = await this.prisma.passwordReset.findFirst({
+        where: { email },
+      });
       if (pending) {
-        const waited = Math.floor((Date.now() - pending.lastSentAt.getTime()) / 1000);
+        const waited = Math.floor(
+          (Date.now() - pending.lastSentAt.getTime()) / 1000,
+        );
         if (waited < RESEND_COOLDOWN_SECONDS) {
           throw new HttpException(
             `Vui lòng chờ ${RESEND_COOLDOWN_SECONDS - waited} giây nữa rồi gửi lại mã.`,
@@ -560,14 +672,16 @@ export class AuthService {
         });
       } catch (e) {
         await this.prisma.passwordReset.deleteMany({ where: { email } });
-        this.logger.warn(`Gửi mã đặt lại mật khẩu thất bại cho ${email}: ${e instanceof Error ? e.message : e}`);
+        this.logger.warn(
+          `Gửi mã đặt lại mật khẩu thất bại cho ${email}: ${e instanceof Error ? e.message : e}`,
+        );
         throw e;
       }
 
       await this.auditService.log({
         userId: user.id,
-        action: 'PASSWORD_RESET_REQUEST',
-        entity: 'Auth',
+        action: "PASSWORD_RESET_REQUEST",
+        entity: "Auth",
         entityId: user.id,
         metadata: { email },
         ip,
@@ -575,7 +689,8 @@ export class AuthService {
     }
 
     return {
-      message: 'Nếu email này đã đăng ký tài khoản, mã đặt lại mật khẩu đã được gửi về hộp thư của bạn',
+      message:
+        "Nếu email này đã đăng ký tài khoản, mã đặt lại mật khẩu đã được gửi về hộp thư của bạn",
       email,
       expiresInSeconds: VERIFY_CODE_TTL_MINUTES * 60,
       resendAfterSeconds: RESEND_COOLDOWN_SECONDS,
@@ -586,58 +701,83 @@ export class AuthService {
    * Bước 2 — nhập mã 6 số + mật khẩu mới. Sai quá 5 lần hoặc hết hạn thì
    * xoá yêu cầu, buộc xin mã mới.
    */
-  async resetPassword(emailInput: string, code: string, newPassword: string, ip?: string) {
+  async resetPassword(
+    emailInput: string,
+    code: string,
+    newPassword: string,
+    ip?: string,
+  ) {
     const email = this.normalizeEmail(emailInput);
-    const pending = await this.prisma.passwordReset.findFirst({ where: { email } });
+    const pending = await this.prisma.passwordReset.findFirst({
+      where: { email },
+    });
 
     if (!pending) {
-      throw new BadRequestException('Không tìm thấy yêu cầu đặt lại mật khẩu. Vui lòng gửi mã mới.');
+      throw new BadRequestException(
+        "Không tìm thấy yêu cầu đặt lại mật khẩu. Vui lòng gửi mã mới.",
+      );
     }
 
     if (pending.expiresAt.getTime() < Date.now()) {
       await this.prisma.passwordReset.delete({ where: { id: pending.id } });
-      throw new BadRequestException('Mã đặt lại mật khẩu đã hết hạn. Vui lòng gửi mã mới.');
+      throw new BadRequestException(
+        "Mã đặt lại mật khẩu đã hết hạn. Vui lòng gửi mã mới.",
+      );
     }
 
     if (pending.attempts >= MAX_CODE_ATTEMPTS) {
       await this.prisma.passwordReset.delete({ where: { id: pending.id } });
-      throw new BadRequestException('Bạn đã nhập sai mã quá nhiều lần. Vui lòng gửi mã mới.');
+      throw new BadRequestException(
+        "Bạn đã nhập sai mã quá nhiều lần. Vui lòng gửi mã mới.",
+      );
     }
 
     const isMatch = await bcrypt.compare(code, pending.codeHash);
     if (!isMatch) {
       const attempts = pending.attempts + 1;
-      await this.prisma.passwordReset.update({ where: { id: pending.id }, data: { attempts } });
+      await this.prisma.passwordReset.update({
+        where: { id: pending.id },
+        data: { attempts },
+      });
       const remaining = MAX_CODE_ATTEMPTS - attempts;
       throw new BadRequestException(
         remaining > 0
           ? `Mã đặt lại mật khẩu không đúng. Bạn còn ${remaining} lần thử.`
-          : 'Mã đặt lại mật khẩu không đúng. Bạn đã hết lượt thử, vui lòng gửi mã mới.',
+          : "Mã đặt lại mật khẩu không đúng. Bạn đã hết lượt thử, vui lòng gửi mã mới.",
       );
     }
 
-    const user = await this.prisma.user.findUnique({ where: { email }, select: { id: true } });
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
     if (!user) {
       await this.prisma.passwordReset.delete({ where: { id: pending.id } });
-      throw new BadRequestException('Tài khoản không còn tồn tại.');
+      throw new BadRequestException("Tài khoản không còn tồn tại.");
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
     await this.prisma.$transaction([
-      this.prisma.user.update({ where: { id: user.id }, data: { passwordHash } }),
+      this.prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash },
+      }),
       this.prisma.passwordReset.delete({ where: { id: pending.id } }),
     ]);
 
     await this.auditService.log({
       userId: user.id,
-      action: 'PASSWORD_RESET_SUCCESS',
-      entity: 'Auth',
+      action: "PASSWORD_RESET_SUCCESS",
+      entity: "Auth",
       entityId: user.id,
       metadata: { email },
       ip,
     });
 
-    return { message: 'Đặt lại mật khẩu thành công. Bạn có thể đăng nhập bằng mật khẩu mới.' };
+    return {
+      message:
+        "Đặt lại mật khẩu thành công. Bạn có thể đăng nhập bằng mật khẩu mới.",
+    };
   }
 
   // ==============================================================
@@ -658,14 +798,16 @@ export class AuthService {
    */
   async googleLogin(profile: GoogleProfile, ip?: string) {
     if (!profile.email) {
-      throw new BadRequestException('Tài khoản Google không có địa chỉ email');
+      throw new BadRequestException("Tài khoản Google không có địa chỉ email");
     }
     const email = this.normalizeEmail(profile.email);
 
     let user = await this.prisma.user.findUnique({ where: { email } });
 
     if (user && user.providerId && user.providerId !== profile.providerId) {
-      throw new BadRequestException('Email này đã liên kết với một tài khoản Google khác');
+      throw new BadRequestException(
+        "Email này đã liên kết với một tài khoản Google khác",
+      );
     }
 
     if (!user) {
@@ -674,22 +816,22 @@ export class AuthService {
       user = await this.prisma.user.update({
         where: { id: user.id },
         data: {
-          provider: 'GOOGLE',
+          provider: "GOOGLE",
           providerId: profile.providerId,
           avatarUrl: user.avatarUrl || profile.avatarUrl || null,
         },
       });
     }
 
-    if (user.status !== 'ACTIVE') {
-      throw new UnauthorizedException('Tài khoản của bạn đã bị vô hiệu hóa');
+    if (user.status !== "ACTIVE") {
+      throw new UnauthorizedException("Tài khoản của bạn đã bị vô hiệu hóa");
     }
 
     const payload = { sub: user.id, email: user.email, role: user.role };
     const accessToken = this.jwtService.sign(payload);
 
     let memberId: string | null = null;
-    if (user.role === 'MEMBER') {
+    if (user.role === "MEMBER") {
       const member = await this.prisma.member.findUnique({
         where: { userId: user.id },
         select: { id: true, code: true },
@@ -699,15 +841,15 @@ export class AuthService {
 
     await this.auditService.log({
       userId: user.id,
-      action: 'AUTH_LOGIN',
-      entity: 'Auth',
+      action: "AUTH_LOGIN",
+      entity: "Auth",
       entityId: user.id,
-      metadata: { email: user.email, role: user.role, provider: 'GOOGLE' },
+      metadata: { email: user.email, role: user.role, provider: "GOOGLE" },
       ip,
     });
 
     return {
-      message: 'Đăng nhập bằng Google thành công',
+      message: "Đăng nhập bằng Google thành công",
       accessToken,
       memberId,
       user: {
@@ -725,7 +867,10 @@ export class AuthService {
    * Mật khẩu random bcrypt — tài khoản này đăng nhập bằng Google, không dùng mật khẩu.
    */
   private async createMemberFromGoogle(email: string, profile: GoogleProfile) {
-    const passwordHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
+    const passwordHash = await bcrypt.hash(
+      crypto.randomBytes(32).toString("hex"),
+      10,
+    );
 
     const user = await this.prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
@@ -735,7 +880,7 @@ export class AuthService {
           fullName: profile.fullName,
           role: UserRole.MEMBER,
           avatarUrl: profile.avatarUrl || null,
-          provider: 'GOOGLE',
+          provider: "GOOGLE",
           providerId: profile.providerId,
         },
       });
@@ -755,10 +900,10 @@ export class AuthService {
       await tx.notification.create({
         data: {
           memberId: member.id,
-          title: 'Chào mừng bạn đến với GymMaster Pro 💪',
+          title: "Chào mừng bạn đến với GymMaster Pro 💪",
           content: `Xin chào ${profile.fullName}! Tài khoản hội viên của bạn đã được tạo qua đăng nhập Google. Hãy chọn một gói tập phù hợp để bắt đầu hành trình fitness của mình.`,
-          type: 'SYSTEM',
-          link: '/member/membership',
+          type: "SYSTEM",
+          link: "/member/membership",
         },
       });
 
@@ -767,18 +912,18 @@ export class AuthService {
 
     await this.auditService.log({
       userId: user.user.id,
-      action: 'MEMBER_REGISTER',
-      entity: 'Member',
-      metadata: { email, provider: 'GOOGLE', emailVerified: true },
+      action: "MEMBER_REGISTER",
+      entity: "Member",
+      metadata: { email, provider: "GOOGLE", emailVerified: true },
     });
 
     // Báo tổ quản trị: hội viên mới đăng nhập Google (chuông admin)
     await this.notificationsService.notifyAdmins({
-      type: 'SYSTEM',
-      title: 'Hội viên mới đã đăng ký 🙌',
+      type: "SYSTEM",
+      title: "Hội viên mới đã đăng ký 🙌",
       content: `${profile.fullName} (${user.member.code}) vừa tạo tài khoản qua đăng nhập Google — ${email}.`,
       link: `/admin/members/${user.member.id}`,
-      referenceType: 'MEMBER_REGISTERED',
+      referenceType: "MEMBER_REGISTERED",
       referenceId: user.member.id,
     });
 
@@ -791,7 +936,7 @@ export class AuthService {
     });
 
     if (existing) {
-      throw new ConflictException('Email này đã được sử dụng');
+      throw new ConflictException("Email này đã được sử dụng");
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -817,14 +962,14 @@ export class AuthService {
 
     await this.auditService.log({
       userId: user.id,
-      action: 'USER_CREATE',
-      entity: 'User',
+      action: "USER_CREATE",
+      entity: "User",
       entityId: user.id,
       metadata: { email: user.email, role: user.role },
     });
 
     return {
-      message: 'Tạo tài khoản thành công',
+      message: "Tạo tài khoản thành công",
       user,
     };
   }
@@ -852,7 +997,7 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Không tìm thấy thông tin người dùng');
+      throw new UnauthorizedException("Không tìm thấy thông tin người dùng");
     }
 
     return user;

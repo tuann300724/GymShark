@@ -302,7 +302,13 @@ export class MemberService {
   /** Tìm memberships đang chờ xác nhận thanh toán của member */
   private async getPendingMembership(memberId: string) {
     return this.prisma.membership.findFirst({
-      where: { memberId, status: 'PENDING' },
+      where: {
+        memberId,
+        OR: [
+          { status: 'PENDING' },
+          { payments: { some: { status: PaymentStatus.PENDING } } },
+        ],
+      },
       include: { package: true },
       orderBy: { createdAt: 'desc' },
     });
@@ -419,7 +425,10 @@ export class MemberService {
 
     const now = new Date();
     const current = all.find((m) => m.status === 'ACTIVE' && m.startDate <= now && m.endDate >= now) || null;
-    const pending = all.find((m) => m.status === 'PENDING') || null;
+    const pending =
+      all.find(
+        (m) => m.status === 'PENDING' || m.payments.some((payment) => payment.status === 'PENDING'),
+      ) || null;
     // Gói ĐÃ gia hạn nhưng chưa tới ngày kích hoạt (ACTIVE, startDate > now).
     // Phải trả riêng nếu không hội viên sẽ không thấy gói mới đã cộng thêm.
     const upcoming =
@@ -1136,7 +1145,13 @@ export class MemberService {
       }),
       this.prisma.membership.findMany({
         where: { memberId: member.id },
-        include: { package: true },
+        include: {
+          package: true,
+          payments: {
+            where: { status: PaymentStatus.PENDING },
+            select: { id: true },
+          },
+        },
         orderBy: { endDate: 'desc' },
       }),
       this.prisma.trainingSchedule.count({
@@ -1201,7 +1216,8 @@ export class MemberService {
     });
 
     const active = memberships.find((m) => m.status === 'ACTIVE' && m.startDate <= now && m.endDate >= now) || null;
-    const pending = memberships.find((m) => m.status === 'PENDING') || null;
+    const pending =
+      memberships.find((m) => m.status === 'PENDING' || m.payments.length > 0) || null;
     let remainingDays = 0;
     let membershipProgress = 0;
     if (active) {

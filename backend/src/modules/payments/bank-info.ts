@@ -1,7 +1,7 @@
 /**
  * Cấu hình tài khoản ngân hàng nhận tiền (dùng cho phương thức BANK_TRANSFER).
- * Vì chưa tích hợp cổng thanh toán thật, đây là tài khoản nhận — lễ tân đối chiếu
- * nội dung chuyển khoản (GYM + MEMBER_CODE + PAYMENT_CODE) rồi xác nhận PAID thủ công.
+ * Đây là tài khoản nhận chuyển khoản — giao dịch được đối soát qua CASSO theo
+ * nội dung chuyển khoản (GYM + MEMBER_CODE + PAYMENT_CODE).
  */
 export const BANK_INFO = {
   bankName: 'Ngân hàng TMCP Quân đội (MB Bank)',

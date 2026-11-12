@@ -226,6 +226,11 @@ export class CompleteBeverageSaleDto {
   @IsUUID()
   requestId: string;
 
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Z0-9]{6,24}$/)
+  cassoReference?: string;
+
   @IsUUID()
   memberId: string;
 

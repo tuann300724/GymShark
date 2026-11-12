@@ -22,6 +22,21 @@ export interface StaffShift {
   closedByName: string | null;
   closedAt: string | null;
   closeNotes: string | null;
+  startedAt: string | null;
+  endedAt: string | null;
+}
+
+export interface StaffShiftTemplate {
+  id: string;
+  staffId: string;
+  staffName: string;
+  staffEmail: string;
+  title: string;
+  weekday: number;
+  startMinute: number;
+  endMinute: number;
+  notes: string | null;
+  isActive: boolean;
 }
 
 export interface StaffShiftSettlementPreview {
@@ -72,6 +87,15 @@ export interface StaffShiftPayload {
   notes?: string | null;
 }
 
+export interface StaffShiftTemplatePayload {
+  staffId: string;
+  title: string;
+  weekday: number;
+  startTime: string;
+  endTime: string;
+  notes?: string | null;
+}
+
 export const staffShiftApi = {
   list: async (params: StaffShiftFilters = {}): Promise<StaffShiftReport> => {
     const res = await apiClient.get<StaffShiftReport>('/staff-shifts', { params });
@@ -83,6 +107,25 @@ export const staffShiftApi = {
   }> => {
     const res = await apiClient.get('/staff-shifts/options');
     return res.data;
+  },
+
+  templates: async (): Promise<StaffShiftTemplate[]> => {
+    const res = await apiClient.get<StaffShiftTemplate[]>('/staff-shifts/templates');
+    return res.data;
+  },
+
+  createTemplate: async (payload: StaffShiftTemplatePayload): Promise<StaffShiftTemplate> => {
+    const res = await apiClient.post<StaffShiftTemplate>('/staff-shifts/templates', payload);
+    return res.data;
+  },
+
+  removeTemplate: async (id: string): Promise<void> => {
+    await apiClient.delete(`/staff-shifts/templates/${id}`);
+  },
+
+  generateFromTemplates: async (payload: { from: string; to: string }) => {
+    const res = await apiClient.post('/staff-shifts/templates/generate', payload);
+    return res.data as { message: string; createdCount: number; skippedCount: number };
   },
 
   create: async (payload: StaffShiftPayload): Promise<StaffShift> => {

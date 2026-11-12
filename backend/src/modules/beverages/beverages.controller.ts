@@ -141,6 +141,15 @@ export class BeveragesController {
     return this.beveragesService.createSale(dto, actor);
   }
 
+  @Post("sales/verify-transfer")
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @ApiOperation({
+    summary: "Kiểm tra giao dịch chuyển khoản bán nước trên CASSO",
+  })
+  verifySaleTransfer(@Body() dto: CompleteBeverageSaleDto) {
+    return this.beveragesService.verifySaleTransfer(dto);
+  }
+
   @Get("sales")
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
   sales(@Query() query: BeverageQueryDto, @CurrentUser() actor: BeverageActor) {

@@ -7,7 +7,7 @@
 > Toàn bộ giao diện & thông báo API viết bằng **tiếng Việt**.
 
 | | |
-| :--- | :--- |
+| :-------------------- | :---------------------------------------------------------------------------- |
 | **Frontend** | Next.js 14 (App Router) · TypeScript · Tailwind CSS 3 — http://localhost:3000 |
 | **Backend** | NestJS 10 · Prisma 5 · SQL Server 2022 — http://localhost:3001/api |
 | **Tài liệu API** | Swagger UI — http://localhost:3001/api/docs |
@@ -37,6 +37,7 @@
 ## ✨ Tính năng
 
 ### Cổng công khai (không cần đăng nhập)
+
 - Trang chủ (hero, chương trình tập, lịch tuần, tiến trình, bài viết nổi bật, CTA)
 - Giới thiệu · Gói tập · Huấn luyện viên · Lịch tập · Blog · Liên hệ
 - Đăng ký hội viên mới (`/register`) — **2 bước**: điền thông tin → nhận mã xác minh 6 số
@@ -44,6 +45,7 @@
 - Trang `404` và `error` riêng, không để lộ thông tin kỹ thuật
 
 ### Khu vực hội viên `/member` — vai trò `MEMBER`
+
 - Dashboard cá nhân: gói tập hiện tại, số buổi tập tháng này, PT phụ trách, thanh toán gần nhất
 - **Đăng ký / gia hạn gói tập** online (áp dụng mã khuyến mãi, chọn CASH / BANK_TRANSFER / MoMo / VNPay);
   thấy ngay **gói đã gia hạn sắp kích hoạt** và tự **hủy yêu cầu đang chờ thanh toán** nếu chưa chuyển tiền
@@ -53,33 +55,44 @@
 - Hồ sơ cá nhân, chuỗi thông báo, cập nhật mật khẩu
 
 ### Khu vực quản trị `/admin` — vai trò `ADMIN` / `MANAGER` / `STAFF`
+
 | Nhóm | Màn hình |
-| :--- | :--- |
+| :------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Tổng quan | Dashboard KPI, biểu đồ lượt tập theo giờ |
-| Hội viên & vận hành | Lượt check-in (quét thẻ), hội viên (+ chi tiết/tab lịch sử), thẻ hội viên, gói tập, HLV, lịch tập & lớp học, **ca làm & doanh thu theo ca** |
+| Hội viên & vận hành | Lượt check-in (quét thẻ), hội viên (+ chi tiết/tab lịch sử), thẻ hội viên, gói tập, HLV, lịch tập & lớp học, **tài khoản nhân viên**, **ca làm & doanh thu theo ca** |
 | Tài chính | Hóa đơn & thu phí (+ xác nhận / từ chối / hoàn tiền), báo cáo doanh thu, khuyến mãi & voucher |
 | Cơ sở & thiết bị | Thiết bị máy móc (+ lịch sử bảo trì), phòng tập |
 | Hệ thống | Báo cáo thống kê (8 tab), thông báo, **nhật ký hệ thống**, cài đặt & phân quyền |
 
 ### Ca làm & doanh thu — `/admin/shifts`
-- ADMIN/MANAGER phân công, sửa, xóa ca chưa bắt đầu hoặc hủy ca; không cho phân công trùng giờ cho cùng nhân viên.
-- STAFF xem ca của mình, bắt đầu ca và chốt ca bằng cách nhập tiền mặt thực đếm. Hệ thống đối chiếu với tổng giao dịch CASH đã xác nhận; nếu thiếu/thừa thì bắt buộc ghi lý do. Còn giao dịch tiền mặt POS chờ xác nhận thì chưa cho chốt. Giao dịch tạo tại quầy được gắn với đúng nhân viên và ca tại thời điểm tạo; CASSO có thể hoàn tất giao dịch chuyển khoản đến muộn vào chính ca đó, nhưng không gán sang ca mới hoặc ca đã hủy. Thanh toán hội viên tự thực hiện online không bị gán nhầm vào ca quầy.
+
+- ADMIN/MANAGER tạo tài khoản STAFF và gửi email thông tin đăng nhập kèm mật khẩu tạm thời; nhân viên cần đổi mật khẩu sau lần đăng nhập đầu tiên. Có thể lưu mẫu ca theo thứ trong tuần và sinh lịch cho tối đa 31 ngày. Mẫu không tự tạo ca đến khi quản lý chọn sinh lịch. Vẫn có thể phân công, sửa, xóa ca chưa bắt đầu hoặc hủy ca; không cho phân công trùng giờ cho cùng nhân viên.
+- STAFF xem ca được phân, tự chấm công vào và chấm công ra. Khi kết thúc ca, nhập tiền mặt thực đếm để chốt quỹ. Hệ thống đối chiếu cả giao dịch CASH hội viên và bán nước đã thanh toán; nếu thiếu/thừa thì bắt buộc ghi lý do. Còn giao dịch tiền mặt POS hội viên chờ xác nhận thì chưa cho chốt. Giao dịch tạo tại quầy được gắn với đúng nhân viên và ca tại thời điểm tạo; CASSO có thể hoàn tất giao dịch chuyển khoản đến muộn vào chính ca đó, nhưng không gán sang ca mới hoặc ca đã hủy. Thanh toán hội viên tự thực hiện online không bị gán nhầm vào ca quầy.
 - Khi nhân viên vào ca hoặc chốt ca, trang ca làm của nhân viên và quản lý cập nhật ngay qua Socket.IO; ADMIN/MANAGER đang trực tuyến nhận thông báo tức thì, không cần tải lại trang.
 - Báo cáo lọc theo ngày, nhân viên và trạng thái; chỉ tính Payment `PAID`, tổng hợp doanh thu, số giao dịch và hội viên duy nhất theo ca/ngày/nhân viên.
-- Ca dùng các trạng thái `SCHEDULED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`. Chỉ hoàn tất trạng thái `COMPLETED` sau khi lưu chốt quỹ; ca đã chốt/hủy không thể ghi nhận thanh toán mới. Các cột chốt quỹ được bổ sung vào bảng `StaffShift` hiện có bằng `backend/prisma/sqlserver-add-staff-shift-settlement.sql` (script idempotent, không tạo bảng mới).
+- Ca dùng các trạng thái `SCHEDULED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`. Chỉ hoàn tất trạng thái `COMPLETED` sau khi lưu chốt quỹ; ca đã chốt/hủy không thể ghi nhận thanh toán mới. Backend tự chạy các script SQL idempotent trước `npm run start`, `start:dev`, `start:debug` và `start:prod`: `sqlserver-add-staff-shift-settlement.sql` bổ sung cột chốt quỹ/đóng ca; `sqlserver-add-weekly-staff-shifts.sql` bổ sung thời điểm chấm công và bảng mẫu tuần. Các script không xóa dữ liệu hiện có.
+
+### Tài khoản nhân viên — `/admin/staff`
+
+- ADMIN/MANAGER tìm kiếm tài khoản STAFF theo tên, email hoặc số điện thoại; lọc trạng thái và khóa/kích hoạt lại tài khoản đăng nhập.
+- Tạo tài khoản mới tại trang này; mật khẩu tạm thời được gửi tới email nhân viên.
 
 ### Kinh doanh nước uống — `/admin/beverages`
+
 - Dashboard doanh số, tồn kho, cảnh báo sắp hết/hết hàng, lợi nhuận gộp ước tính và sản phẩm bán chạy; quản lý sản phẩm, phiếu nhập nhiều dòng, POS tại quầy, tồn kho/điều chỉnh và báo cáo theo ngày/tuần/tháng/năm (xuất CSV mở bằng Excel).
-- ADMIN/MANAGER quản lý sản phẩm, nhập kho, điều chỉnh và báo cáo tại một địa điểm. STAFF xem danh mục, chỉ bán trong ca `IN_PROGRESS`, và chỉ xem hóa đơn do chính mình bán. MEMBER chỉ xem các hóa đơn đã thanh toán gắn với hồ sơ của mình tại `/member/beverages`.
+- ADMIN/MANAGER quản lý sản phẩm, nhập kho, điều chỉnh và báo cáo tại một địa điểm. STAFF có thể xem sản phẩm/tồn kho kể cả trước ca, chỉ bán trong ca `IN_PROGRESS` được phân công, và chỉ xem hóa đơn do chính mình bán. Chuyển khoản POS tạo QR VietQR giống luồng đăng ký hội viên, kèm mã hội viên/mã đơn riêng; CASSO tự đối soát mỗi 5 giây và backend chỉ ghi nhận hóa đơn, trừ kho khi xác nhận đúng mã và số tiền, đồng thời ngăn dùng lại mã giao dịch. Doanh thu bán nước được cộng vào doanh thu ca, báo cáo theo nhân viên và tiền dự kiến khi chốt quỹ. MEMBER chỉ xem các hóa đơn đã thanh toán gắn với hồ sơ của mình tại `/member/beverages`.
 - Dùng trực tiếp sáu bảng SQL Server `BeverageProduct`, `BeverageImport`, `BeverageImportItem`, `BeverageSale`, `BeverageSaleItem`, `BeverageStockMovement`; không thêm Prisma model/bảng. Truy vấn tồn kho và thống kê qua các view `vw_BeverageStock`, `vw_BeverageImportStatistics`, `vw_BeverageSalesStatistics`, `vw_BeverageProductSalesStatistics`.
-- `BeverageLocation` là model nội bộ bị ẩn khỏi Prisma Client, ánh xạ bảng `Branch` cũ để giữ liên kết lịch sử kho. Không còn API hay giao diện quản lý/chọn chi nhánh. Chạy `backend/prisma/sqlserver-remove-branch-management.sql` sau khi sao lưu DB để gộp tham chiếu kho về một địa điểm, bỏ liên kết khỏi hội viên/ca làm và giữ các địa điểm cũ ở trạng thái không hoạt động.
+- `BeverageLocation` là model nội bộ bị ẩn khỏi Prisma Client, ánh xạ bảng `Branch` cũ để giữ liên kết lịch sử kho. Không còn API hay giao diện quản lý/chọn chi nhánh. Backend tự chạy migration `sqlserver-remove-branch-management.sql` khi khởi động để gộp tồn kho/phiếu nhập/hóa đơn về một địa điểm, lưu liên kết chi nhánh cũ của hội viên/ca làm vào bảng archive rồi bỏ các cột đó. Có thể chạy lại thủ công bằng `cd backend && npm run db:sync-single-location` để sửa dữ liệu cũ; migration được thiết kế chạy lặp an toàn.
+- Các bảng lookup cũ chỉ chứa danh sách giá trị enum (`CheckInMethod`, `Gender`, `PaymentStatusTbl`, v.v.) không được ứng dụng truy vấn; các giá trị được quản lý trong mã nguồn. Sau khi sao lưu database, có thể xóa các bảng này một lần bằng `cd backend && npm run db:remove-legacy-lookups`. Script chỉ chạy trên `gym_db`, kiểm tra schema và từ chối xóa nếu có khóa ngoại, trigger hoặc đối tượng SQL phụ thuộc; không tự chạy khi khởi động backend.
 - Xác nhận nhập/bán dùng `usp_ReceiveBeverageImport` và `usp_CompleteBeverageSale`; adjustment ghi movement có người thực hiện/lý do. POS giữ giá vốn/giá bán tại thời điểm bán, kiểm tra tồn kho trong transaction, và khóa chống xử lý lặp dựa trên `requestId` (không cần cột/bảng idempotency mới).
 
 ### Khu vực huấn luyện viên `/trainer` — vai trò `TRAINER`
+
 - Dashboard: lịch dạy hôm nay, số học viên, tổng buổi đã hoàn thành
 - Lịch dạy, danh sách học viên phụ trách, ghi nhận tiến trình tập, hồ sơ cá nhân
 
-### Nhật ký hệ thống (Audit Log) — *tính năng STEP 9*
+### Nhật ký hệ thống (Audit Log) — _tính năng STEP 9_
+
 - Ghi lại **46 loại hành động** trên 14 entity: đăng nhập, đổi mật khẩu, tạo/cập nhật hội viên,
   đăng ký hội viên kèm mã xác minh email (gửi / gửi lại / sai mã), đổi trạng thái & gia hạn thẻ,
   hội viên tự hủy yêu cầu thanh toán, xác nhận/từ chối/hoàn tiền, check-in/out, sinh trắc học
@@ -93,8 +106,9 @@
 ## 🛠 Công nghệ sử dụng
 
 ### Frontend — `frontend/`
+
 | Nhóm | Công nghệ |
-| :--- | :--- |
+| :------------ | :---------------------------------------------------------------------------------------------- |
 | Framework | Next.js 14 (App Router) · React 18 · TypeScript |
 | Styling | Tailwind CSS 3 (thiết kế riêng, xem [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md)) |
 | Font | `Barlow Condensed` (tiêu đề) + `Be Vietnam Pro` (nội dung) — `next/font/google` |
@@ -109,8 +123,9 @@
 > `src/components/charts/`.
 
 ### Backend — `backend/`
+
 | Nhóm | Công nghệ |
-| :--- | :--- |
+| :----------- | :----------------------------------------------------------------------------------------- |
 | Framework | NestJS 10 · TypeScript |
 | ORM / DB | Prisma 5 + SQL Server 2022 |
 | Xác thực | Passport + JWT (`@nestjs/jwt`), `bcryptjs` (10 vòng) |
@@ -123,32 +138,40 @@
 ## 🚀 Khởi chạy nhanh
 
 ### Yêu cầu
+
 - **Node.js ≥ 20** (khuyến nghị 22/24) và **npm ≥ 10**
 - **SQL Server 2022** — cài native hoặc dùng Docker Compose
 
 ### Bước 1 — Khởi động cơ sở dữ liệu
 
 **Cách A — Docker:**
+
 ```bash
 MSSQL_SA_PASSWORD=Your_Strong_Password_Here docker compose up -d
 ```
+
 PowerShell:
+
 ```powershell
 $env:MSSQL_SA_PASSWORD = "Your_Strong_Password_Here"
 docker compose up -d
 ```
+
 Container SQL Server lắng nghe tại `localhost:1433`, tài khoản `sa`. Chỉ tạo `gym_db`
 nếu database chưa tồn tại. Nếu đã có dữ liệu trong database này, không drop hoặc tạo lại.
 
 **Cách B — SQL Server cài sẵn trên máy:**
+
 ```sql
 IF DB_ID(N'gym_db') IS NULL
   CREATE DATABASE gym_db;
 ```
+
 Đảm bảo SQL Server bật SQL authentication và thông tin đăng nhập trong `backend/.env` hợp lệ.
 Nếu `gym_db` đã có dữ liệu, giữ nguyên database đó và sao lưu trước khi thay đổi schema.
 
 ### Bước 2 — Chạy Backend (cổng 3001)
+
 ```bash
 cd backend
 npm install
@@ -176,6 +199,7 @@ backfill dữ liệu legacy theo mapping có kiểm tra. Script giữ nguyên b�
 `backend/prisma/sqlserver-membership-package-link.sql` là script cũ, không thay thế migration đầy đủ.
 
 Kiểm tra:
+
 - API: <http://localhost:3001/api>
 - Swagger: <http://localhost:3001/api/docs>
 - Health: <http://localhost:3001/api/health> → `database: "connected"`
@@ -186,6 +210,7 @@ Kiểm tra:
 > rà soát và sao lưu trước.
 
 ### Bước 3 — Chạy Frontend (cổng 3000)
+
 ```bash
 cd frontend
 npm install
@@ -202,7 +227,7 @@ Mở trình duyệt: **<http://localhost:3000>**
 Mật khẩu được đặt trong `backend/prisma/seed.ts`. Trang `/login` có nút bấm nhanh để điền.
 
 | Vai trò | Email | Mật khẩu | Khu vực |
-| :--- | :--- | :--- | :--- |
+| :---------- | :------------------------------------- | :--------------- | :----------------------------------------------------------------- |
 | **ADMIN** | `admin@gym.com` | `Admin@123456` | `/admin` — toàn quyền, kể cả phân quyền & cài đặt |
 | **MANAGER** | `manager@gym.com` | `Manager@123456` | `/admin` — vận hành + xem nhật ký hệ thống |
 | **STAFF** | `staff@gym.com` | `Staff@123456` | `/admin` — lễ tân: check-in, hội viên, thu phí (không xem nhật ký) |
@@ -231,7 +256,7 @@ Phân quyền được kiểm soát **hai lớp**: `JwtAuthGuard` → `RolesGuar
 và `AdminGuard` / `MemberGuard` / `TrainerGuard` ở frontend (điều hướng + ẩn menu).
 
 | Nhóm chức năng | ADMIN | MANAGER | STAFF | TRAINER | MEMBER |
-| :--- | :---: | :---: | :---: | :---: | :---: |
+| :-------------------------------------------- | :---: | :-----: | :-------: | :-----: | :-----------------: |
 | Dashboard tổng quan, báo cáo thống kê | ✅ | ✅ | ✅ | — | — |
 | Hội viên / thẻ tập / gói tập / lịch tập / HLV | ✅ | ✅ | ✅ (đọc) | — | — |
 | Check-in thủ công (lễ tân) | ✅ | ✅ | ✅ | — | — |
@@ -336,6 +361,7 @@ User ── AuditLog (SetNull)      # xoá user không mất nhật ký
 ```
 
 Quy ước quan hệ:
+
 - `Cascade` — dữ liệu con **phụ thuộc sống** (Trainer của User, Membership của Member)
 - `SetNull` — dữ liệu lịch sử **được giữ lại** (AuditLog.userId, Payment.promotionId, Payment.confirmedById)
 - `Restrict` — dữ liệu tài chính / vận hành quan trọng (Payment.memberId, Membership.packageId)
@@ -348,7 +374,7 @@ Index được đặt theo truy vấn thực tế (theo `status`, `memberId`, `c
 ## 🔒 Bảo mật
 
 | Hạng mục | Cách thực hiện |
-| :--- | :--- |
+| :--------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Mật khẩu | `bcryptjs`, **10 vòng salt**; không bao giờ trả `passwordHash` ra API |
 | JWT | Payload **tối thiểu**: `{ sub, email, role, iat, exp }`; `JWT_SECRET` phải ≥ 32 ký tự |
 | Xác thực | `JwtAuthGuard` toàn cục + `@Public()` cho route công khai |
@@ -362,6 +388,7 @@ Index được đặt theo truy vấn thực tế (theo `status`, `memberId`, `c
 | Rò rỉ thông tin | `.env` nằm trong `.gitignore`; chỉ commit `.env.example` |
 
 Biến môi trường bắt buộc (xem `backend/.env.example`):
+
 ```env
 PORT=3001
 NODE_ENV=development
@@ -379,7 +406,7 @@ FRONTEND_URL="http://localhost:3000"
 Nguồn chuẩn: **[DESIGN_SYSTEM.md](DESIGN_SYSTEM.md)** — tóm tắt:
 
 | Token | Mã màu | Dùng cho |
-| :--- | :--- | :--- |
+| :-------- | :-------------------------- | :------------------------------------------------------- |
 | `ink` | `#0B0D0F` | Nền trang |
 | `surface` | `#15191D` | Thẻ, panel, sidebar |
 | `neon` | `#B7FF00` (hover `#D0FF4D`) | **Chỉ** làm accent: nút chính, số liệu, indicator active |
@@ -389,6 +416,7 @@ Nguồn chuẩn: **[DESIGN_SYSTEM.md](DESIGN_SYSTEM.md)** — tóm tắt:
 | `danger` | `#FF4545` | Lỗi, huỷ, xoá |
 
 Nguyên tắc bắt buộc:
+
 - **Dark-only** — không có toggle sáng/tối, không dùng class `dark:`
 - Neon **không** tô nền lớn, không gradient neon
 - Font: `Barlow Condensed` (tiêu đề) + `Be Vietnam Pro` (nội dung)
@@ -400,6 +428,7 @@ Nguyên tắc bắt buộc:
 ## 🧪 Lệnh phát triển & kiểm thử
 
 ### `frontend/`
+
 ```bash
 npm run dev           # dev server :3000
 npm run typecheck     # tsc --noEmit
@@ -412,9 +441,11 @@ npm run knip          # phát hiện file/export/dependency không dùng
 ```
 
 ### `backend/`
+
 ```bash
 npm run start:dev     # nest start --watch :3001
-npm run build         # nest build
+npm run db:sync-staff-shift-settlement # áp dụng migration StaffShift an toàn, có thể chạy lại
+npm run build         # nest build (dist/; dev dùng dist-dev/ riêng)
 npm run prisma:generate
 npm run prisma:seed   # ts-node prisma/seed.ts
 npm run prisma:studio # trình duyệt dữ liệu
@@ -423,6 +454,7 @@ npx prisma validate   # kiểm tra schema
 ```
 
 ### Kiểm tra trước khi báo cáo "xong"
+
 ```bash
 cd frontend && npm run typecheck && npm run lint && npm run format:check
 cd ../backend && npm run build
@@ -437,7 +469,7 @@ cd ../backend && npm run build
 ## ✅ Kết quả kiểm thử
 
 | Hạng mục | Kết quả |
-| :--- | :--- |
+| :-------------------------- | :----------------------------------------------------------------------- |
 | `npm run typecheck` (FE) | ✅ PASS — 0 lỗi TypeScript |
 | `npm run lint` (FE) | ✅ PASS — 0 lỗi, 1 warning có sẵn |
 | `npm run format:check` (FE) | ✅ PASS |
@@ -460,14 +492,17 @@ rate limit 429.
 ## 📦 Triển khai (deploy)
 
 ### Backend
+
 ```bash
 cd backend
 npm ci
 npm run build
 npx prisma db push            # đồng bộ schema; sao lưu DB trước khi cập nhật
-NODE_ENV=production node dist/src/main.js
+npm run start:prod
 ```
+
 Bắt buộc khi deploy:
+
 - `DATABASE_URL` trỏ tới SQL Server được quản lý hoặc máy chủ SQL Server của bạn
 - `JWT_SECRET` ngẫu nhiên ≥ 32 ký tự (VD: `openssl rand -hex 32`)
 - `CORS_ORIGIN` = domain thật của frontend
@@ -475,14 +510,17 @@ Bắt buộc khi deploy:
 - Rate limit đang lưu in-memory → khi chạy nhiều instance, cần Redis store
 
 ### Frontend
+
 ```bash
 cd frontend
 NEXT_PUBLIC_API_URL="https://api.example.com/api" npm run build
 npm run start               # next start -p 3000
 ```
+
 > `NEXT_PUBLIC_API_URL` được nhúng lúc build → phải set **trước** `next build`.
 
 ### CI/CD
+
 `.github/workflows/ci.yml` tự chạy khi push/PR lên `main`:
 Frontend `typecheck → lint → format:check → build` và Backend `prisma validate → generate → build`.
 
@@ -492,7 +530,7 @@ Frontend `typecheck → lint → format:check → build` và Backend `prisma val
 
 - **Bài tập tập luyện** đang là dữ liệu tĩnh trong `frontend/src/lib/programs.ts` — chưa có
   model `Exercise` + CRUD quản trị.
-- **Cổng thanh toán** `MoMo` / `VNPay` mới ở mức *stub* (ghi nhận mã giao dịch, chưa gọi API
+- **Cổng thanh toán** `MoMo` / `VNPay` mới ở mức _stub_ (ghi nhận mã giao dịch, chưa gọi API
   thật). `CASH` và `BANK_TRANSFER` đã hoạt động đầy đủ.
 - **Gửi email / tin nhắn** chưa tích hợp — thông báo chỉ lưu trong database và hiển thị
   qua chuông + ticker.
@@ -508,7 +546,7 @@ Frontend `typecheck → lint → format:check → build` và Backend `prisma val
 Commit theo **Conventional Commits**: `feat(frontend): …`, `fix(admin): …`, `ci: …`, `docs: …`.
 
 | Tài liệu | Nội dung |
-| :--- | :--- |
+| :----------------------------------- | :------------------------------------------------------ |
 | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) | Chuẩn giao diện — đọc trước khi sửa UI |
 | [AGENTS.md](AGENTS.md) | Quy ước làm việc, lệnh kiểm tra, bẫy môi trường dev |
 | [WORKLOG.md](WORKLOG.md) | Nhật ký phát triển & quyết định thiết kế từng giai đoạn |

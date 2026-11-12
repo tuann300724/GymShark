@@ -1,17 +1,23 @@
-import { Injectable, Logger, OnModuleInit, ServiceUnavailableException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
-import type { Transporter } from 'nodemailer';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  ServiceUnavailableException,
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import * as nodemailer from "nodemailer";
+import type { Transporter } from "nodemailer";
 import {
   bookingConfirmedEmail,
   invoiceEmail,
   memberVerificationCodeEmail,
   membershipExpiringEmail,
   passwordResetCodeEmail,
+  staffAccountInviteEmail,
   paymentConfirmedEmail,
   welcomeEmail,
   packageChangeInvoiceEmail,
-} from './email-templates';
+} from "./email-templates";
 
 export interface SendMailOptions {
   to: string;
@@ -19,7 +25,11 @@ export interface SendMailOptions {
   html: string;
   text: string;
   /** File đính kèm (hiện dùng cho hóa đơn PDF). */
-  attachments?: Array<{ filename: string; content: Buffer; contentType: string }>;
+  attachments?: Array<{
+    filename: string;
+    content: Buffer;
+    contentType: string;
+  }>;
 }
 
 /**
@@ -39,24 +49,24 @@ export interface SendMailOptions {
  */
 @Injectable()
 export class MailService implements OnModuleInit {
-  private readonly logger = new Logger('MailService');
+  private readonly logger = new Logger("MailService");
   private transporter: Transporter | null = null;
   private fromAddress: string | null = null;
   private lastConfigError: string | null = null;
   private readonly requireTls: boolean;
 
   constructor(private readonly config: ConfigService) {
-    this.requireTls = this.config.get<string>('SMTP_REQUIRE_TLS') !== 'false';
+    this.requireTls = this.config.get<string>("SMTP_REQUIRE_TLS") !== "false";
   }
 
   onModuleInit(): void {
     this.transporter = this.buildTransporter();
     if (this.transporter) {
-      const user = this.config.get<string>('SMTP_USER');
+      const user = this.config.get<string>("SMTP_USER");
       this.logger.log(`Đã sẵn sàng gửi email qua SMTP (tài khoản: ${user})`);
     } else {
       this.logger.warn(
-        'Chưa cấu hình SMTP (SMTP_HOST/SMTP_USER/SMTP_PASS) — mọi chức năng cần gửi email sẽ báo lỗi cho người dùng.',
+        "Chưa cấu hình SMTP (SMTP_HOST/SMTP_USER/SMTP_PASS) — mọi chức năng cần gửi email sẽ báo lỗi cho người dùng.",
       );
     }
   }
@@ -73,13 +83,16 @@ export class MailService implements OnModuleInit {
    */
   async send(options: SendMailOptions): Promise<void> {
     if (!this.transporter) {
-      this.logger.error(`Gửi email thất bại (chưa cấu hình SMTP): ${this.lastConfigError}`);
+      this.logger.error(
+        `Gửi email thất bại (chưa cấu hình SMTP): ${this.lastConfigError}`,
+      );
       throw new ServiceUnavailableException(
-        'Hệ thống chưa cấu hình dịch vụ gửi email. Vui lòng liên hệ quản trị viên.',
+        "Hệ thống chưa cấu hình dịch vụ gửi email. Vui lòng liên hệ quản trị viên.",
       );
     }
 
-    const fromName = this.config.get<string>('MAIL_FROM_NAME') || 'GymMaster Pro';
+    const fromName =
+      this.config.get<string>("MAIL_FROM_NAME") || "GymMaster Pro";
 
     try {
       await this.transporter.sendMail({
@@ -95,7 +108,7 @@ export class MailService implements OnModuleInit {
       const detail = e instanceof Error ? e.message : String(e);
       this.logger.error(`Không gửi được email tới ${options.to}: ${detail}`);
       throw new ServiceUnavailableException(
-        'Không gửi được mã xác minh. Vui lòng kiểm tra lại địa chỉ email hoặc thử lại sau.',
+        "Không gửi được mã xác minh. Vui lòng kiểm tra lại địa chỉ email hoặc thử lại sau.",
       );
     }
   }
@@ -112,7 +125,9 @@ export class MailService implements OnModuleInit {
       return true;
     } catch (e) {
       const detail = e instanceof Error ? e.message : String(e);
-      this.logger.warn(`Email nền "${options.subject}" tới ${options.to} không gửi được: ${detail}`);
+      this.logger.warn(
+        `Email nền "${options.subject}" tới ${options.to} không gửi được: ${detail}`,
+      );
       return false;
     }
   }
@@ -143,6 +158,15 @@ export class MailService implements OnModuleInit {
     await this.send({ to: params.email, ...mail });
   }
 
+  async sendStaffAccountInvite(params: {
+    email: string;
+    fullName: string;
+    temporaryPassword: string;
+  }): Promise<void> {
+    const mail = staffAccountInviteEmail(params);
+    await this.send({ to: params.email, ...mail });
+  }
+
   // =========================================================================
   // NHÓM B — hàm nghiệp vụ cho email chạy nền (gọi từ MailListener qua sendSafe)
   // =========================================================================
@@ -165,7 +189,7 @@ export class MailService implements OnModuleInit {
         {
           filename: `Hoa-don-${params.invoiceNumber}.pdf`,
           content: params.pdf,
-          contentType: 'application/pdf',
+          contentType: "application/pdf",
         },
       ],
     });
@@ -240,19 +264,19 @@ export class MailService implements OnModuleInit {
 
   /** Dựng transporter từ biến môi trường; trả về null + ghi log nếu thiếu cấu hình. */
   private buildTransporter(): Transporter | null {
-    const host = this.config.get<string>('SMTP_HOST')?.trim();
-    const user = this.config.get<string>('SMTP_USER')?.trim();
-    const pass = this.config.get<string>('SMTP_PASS')?.trim();
+    const host = this.config.get<string>("SMTP_HOST")?.trim();
+    const user = this.config.get<string>("SMTP_USER")?.trim();
+    const pass = this.config.get<string>("SMTP_PASS")?.trim();
 
     if (!host || !user || !pass) {
-      this.lastConfigError = 'thiếu SMTP_HOST hoặc SMTP_USER hoặc SMTP_PASS';
+      this.lastConfigError = "thiếu SMTP_HOST hoặc SMTP_USER hoặc SMTP_PASS";
       return null;
     }
 
-    const port = Number(this.config.get<string>('SMTP_PORT')) || 587;
+    const port = Number(this.config.get<string>("SMTP_PORT")) || 587;
     // Gmail dùng STARTTLS trên 587; cổng 465 thì bật TLS ngay từ đầu (SMTP_SECURE=true)
-    const secure = this.config.get<string>('SMTP_SECURE')
-      ? this.config.get<string>('SMTP_SECURE') === 'true'
+    const secure = this.config.get<string>("SMTP_SECURE")
+      ? this.config.get<string>("SMTP_SECURE") === "true"
       : port === 465;
 
     this.fromAddress = user;

@@ -10,7 +10,9 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { AuditService } from "../audit-logs/audit-logs.service";
 import { ChatGateway } from "../chat/chat.gateway";
 import {
+  CreateStaffShiftTemplateDto,
   CreateStaffShiftDto,
+  GenerateStaffShiftsDto,
   SettleStaffShiftDto,
   StaffShiftQueryDto,
   UpdateStaffShiftDto,
@@ -41,6 +43,21 @@ export interface ShiftRow {
   closedByName: string | null;
   closedAt: Date | null;
   closeNotes: string | null;
+  startedAt: Date | null;
+  endedAt: Date | null;
+}
+
+export interface StaffShiftTemplateRow {
+  id: string;
+  staffId: string;
+  staffName: string;
+  staffEmail: string;
+  title: string;
+  weekday: number;
+  startMinute: number;
+  endMinute: number;
+  notes: string | null;
+  isActive: boolean;
 }
 
 export interface ShiftGroupRow {
@@ -69,7 +86,7 @@ export class StaffShiftsService {
   private async buildWhere(
     query: StaffShiftQueryDto,
     actor: ShiftActor,
-    filterByPaymentDate = false,
+    dateSource: "shift" | "payment" | "beverage" = "shift",
   ) {
     if (query.from && query.to && query.from > query.to) {
       throw new BadRequestException("Ngày bắt đầu không thể sau ngày kết thúc");
@@ -87,9 +104,12 @@ export class StaffShiftsService {
       );
     }
 
-    const dateColumn = filterByPaymentDate
-      ? Prisma.sql`p.paidAt`
-      : Prisma.sql`ss.startTime`;
+    const dateColumn =
+      dateSource === "payment"
+        ? Prisma.sql`p.paidAt`
+        : dateSource === "beverage"
+          ? Prisma.sql`s.saleDate`
+          : Prisma.sql`ss.startTime`;
     if (query.from)
       clauses.push(Prisma.sql`${dateColumn} >= CAST(${query.from} AS date)`);
     if (query.to)
@@ -110,7 +130,8 @@ export class StaffShiftsService {
 
   async list(query: StaffShiftQueryDto, actor: ShiftActor) {
     const where = await this.buildWhere(query, actor);
-    const paymentWhere = await this.buildWhere(query, actor, true);
+    const paymentWhere = await this.buildWhere(query, actor, "payment");
+    const beverageWhere = await this.buildWhere(query, actor, "beverage");
     const rows = await this.prisma.$queryRaw<ShiftRow[]>(Prisma.sql`
       SELECT
         CONVERT(nvarchar(36), ss.id) AS id,
@@ -129,13 +150,33 @@ export class StaffShiftsService {
         closeUser.fullName AS closedByName,
         ss.closedAt,
         ss.closeNotes,
-        COALESCE(v.paidPaymentCount, 0) AS paidPaymentCount,
-        COALESCE(v.memberCount, 0) AS memberCount,
-        COALESCE(v.totalRevenue, 0) AS totalRevenue
+        ss.startedAt,
+        ss.endedAt,
+        COALESCE(v.paidPaymentCount, 0) + COALESCE(beverage.saleCount, 0) AS paidPaymentCount,
+        memberStats.memberCount AS memberCount,
+        COALESCE(v.totalRevenue, 0) + COALESCE(beverage.totalRevenue, 0) AS totalRevenue
       FROM dbo.StaffShift AS ss
       INNER JOIN dbo.[User] AS u ON u.id = ss.staffId
       LEFT JOIN dbo.[User] AS closeUser ON closeUser.id = ss.closedById
       LEFT JOIN dbo.vw_StaffShiftRevenue AS v ON v.staffShiftId = ss.id
+      LEFT JOIN (
+        SELECT staffShiftId, COUNT(*) AS saleCount, SUM(totalAmount) AS totalRevenue
+        FROM dbo.BeverageSale
+        WHERE staffShiftId IS NOT NULL AND UPPER(status) = N'PAID'
+        GROUP BY staffShiftId
+      ) AS beverage ON beverage.staffShiftId = ss.id
+      OUTER APPLY (
+        SELECT COUNT(DISTINCT memberId) AS memberCount
+        FROM (
+          SELECT p.memberId
+          FROM dbo.Payment AS p
+          WHERE p.staffShiftId = ss.id AND UPPER(p.status) = N'PAID'
+          UNION
+          SELECT s.memberId
+          FROM dbo.BeverageSale AS s
+          WHERE s.staffShiftId = ss.id AND UPPER(s.status) = N'PAID'
+        ) AS shiftMembers
+      ) AS memberStats
       ${where}
       ORDER BY ss.startTime DESC, u.fullName ASC
     `);
@@ -147,36 +188,58 @@ export class StaffShiftsService {
         memberCount: number | bigint;
       }[]
     >(Prisma.sql`
-      SELECT
-        COALESCE(SUM(p.amount), 0) AS totalRevenue,
-        COUNT(p.id) AS transactionCount,
-        COUNT(DISTINCT p.memberId) AS memberCount
-      FROM dbo.StaffShift AS ss
-      LEFT JOIN dbo.Payment AS p
-        ON p.staffShiftId = ss.id AND UPPER(p.status) = N'PAID'
-      ${paymentWhere}
+      SELECT COALESCE(SUM(revenueItems.amount), 0) AS totalRevenue,
+        COUNT(*) AS transactionCount, COUNT(DISTINCT revenueItems.memberId) AS memberCount
+      FROM (
+        SELECT p.amount, p.memberId
+        FROM dbo.StaffShift AS ss
+        INNER JOIN dbo.Payment AS p ON p.staffShiftId = ss.id AND UPPER(p.status) = N'PAID'
+        ${paymentWhere}
+        UNION ALL
+        SELECT s.totalAmount AS amount, s.memberId
+        FROM dbo.StaffShift AS ss
+        INNER JOIN dbo.BeverageSale AS s ON s.staffShiftId = ss.id AND UPPER(s.status) = N'PAID'
+        ${beverageWhere}
+      ) AS revenueItems
     `);
 
     const [byDay, byStaff] = await Promise.all([
       this.prisma.$queryRaw<ShiftGroupRow[]>(Prisma.sql`
-        SELECT CONVERT(char(10), p.paidAt, 23) AS label,
-          COALESCE(SUM(p.amount), 0) AS totalRevenue, COUNT(p.id) AS transactionCount,
-          COUNT(DISTINCT p.memberId) AS memberCount
-        FROM dbo.StaffShift AS ss
-        INNER JOIN dbo.Payment AS p ON p.staffShiftId = ss.id AND UPPER(p.status) = N'PAID'
-        ${paymentWhere}
-        GROUP BY CONVERT(char(10), p.paidAt, 23)
-        ORDER BY label DESC
+        SELECT CONVERT(char(10), revenueItems.occurredAt, 23) AS label,
+          COALESCE(SUM(revenueItems.amount), 0) AS totalRevenue,
+          COUNT(*) AS transactionCount, COUNT(DISTINCT revenueItems.memberId) AS memberCount
+        FROM (
+          SELECT p.paidAt AS occurredAt, p.amount, p.memberId
+          FROM dbo.StaffShift AS ss
+          INNER JOIN dbo.Payment AS p ON p.staffShiftId = ss.id AND UPPER(p.status) = N'PAID'
+          ${paymentWhere}
+          UNION ALL
+          SELECT s.saleDate AS occurredAt, s.totalAmount AS amount, s.memberId
+          FROM dbo.StaffShift AS ss
+          INNER JOIN dbo.BeverageSale AS s ON s.staffShiftId = ss.id AND UPPER(s.status) = N'PAID'
+          ${beverageWhere}
+        ) AS revenueItems
+        GROUP BY CONVERT(char(10), revenueItems.occurredAt, 23)
+        ORDER BY CONVERT(char(10), revenueItems.occurredAt, 23) DESC
       `),
       this.prisma.$queryRaw<ShiftGroupRow[]>(Prisma.sql`
-        SELECT CONVERT(nvarchar(36), ss.staffId) AS id, u.fullName AS label,
-          COALESCE(SUM(p.amount), 0) AS totalRevenue, COUNT(p.id) AS transactionCount,
-          COUNT(DISTINCT p.memberId) AS memberCount
-        FROM dbo.StaffShift AS ss
-        INNER JOIN dbo.[User] AS u ON u.id = ss.staffId
-        LEFT JOIN dbo.Payment AS p ON p.staffShiftId = ss.id AND UPPER(p.status) = N'PAID'
-        ${paymentWhere}
-        GROUP BY ss.staffId, u.fullName
+        SELECT CONVERT(nvarchar(36), revenueItems.staffId) AS id, revenueItems.staffName AS label,
+          COALESCE(SUM(revenueItems.amount), 0) AS totalRevenue,
+          COUNT(*) AS transactionCount, COUNT(DISTINCT revenueItems.memberId) AS memberCount
+        FROM (
+          SELECT ss.staffId, u.fullName AS staffName, p.amount, p.memberId
+          FROM dbo.StaffShift AS ss
+          INNER JOIN dbo.[User] AS u ON u.id = ss.staffId
+          INNER JOIN dbo.Payment AS p ON p.staffShiftId = ss.id AND UPPER(p.status) = N'PAID'
+          ${paymentWhere}
+          UNION ALL
+          SELECT ss.staffId, u.fullName AS staffName, s.totalAmount AS amount, s.memberId
+          FROM dbo.StaffShift AS ss
+          INNER JOIN dbo.[User] AS u ON u.id = ss.staffId
+          INNER JOIN dbo.BeverageSale AS s ON s.staffShiftId = ss.id AND UPPER(s.status) = N'PAID'
+          ${beverageWhere}
+        ) AS revenueItems
+        GROUP BY revenueItems.staffId, revenueItems.staffName
         ORDER BY totalRevenue DESC, label
       `),
     ]);
@@ -241,6 +304,209 @@ export class StaffShiftsService {
       );
   }
 
+  private assertCanManageTemplates(actor: ShiftActor) {
+    if (!this.isAdmin(actor)) {
+      throw new ForbiddenException("Chỉ ADMIN/MANAGER mới được quản lý mẫu ca");
+    }
+  }
+
+  async templates(actor: ShiftActor) {
+    this.assertCanManageTemplates(actor);
+    return this.prisma.$queryRaw<StaffShiftTemplateRow[]>`
+      SELECT CONVERT(nvarchar(36), t.id) AS id,
+        CONVERT(nvarchar(36), t.staffId) AS staffId,
+        u.fullName AS staffName, u.email AS staffEmail, t.title, t.weekday,
+        t.startMinute, t.endMinute, t.notes, t.isActive
+      FROM dbo.StaffShiftTemplate AS t
+      INNER JOIN dbo.[User] AS u ON u.id = t.staffId
+      ORDER BY t.weekday, t.startMinute, u.fullName
+    `;
+  }
+
+  private timeToMinute(time: string) {
+    const [hour, minute] = time.split(":").map(Number);
+    return hour * 60 + minute;
+  }
+
+  async createTemplate(dto: CreateStaffShiftTemplateDto, actor: ShiftActor) {
+    this.assertCanManageTemplates(actor);
+    const startMinute = this.timeToMinute(dto.startTime);
+    const endMinute = this.timeToMinute(dto.endTime);
+    if (startMinute === endMinute) {
+      throw new BadRequestException(
+        "Giờ bắt đầu và kết thúc không được trùng nhau",
+      );
+    }
+    await this.assertStaff(dto.staffId);
+    const rows = await this.prisma.$queryRaw<{ id: string }[]>`
+      INSERT INTO dbo.StaffShiftTemplate
+        (staffId, title, weekday, startMinute, endMinute, notes)
+      OUTPUT CONVERT(nvarchar(36), inserted.id) AS id
+      VALUES (
+        CONVERT(uniqueidentifier, ${dto.staffId}),
+        ${dto.title.trim()},
+        ${dto.weekday},
+        ${startMinute},
+        ${endMinute},
+        ${dto.notes?.trim() || null}
+      )
+    `;
+    const id = rows[0]?.id;
+    if (!id) throw new ConflictException("Không thể tạo mẫu phân ca");
+    await this.auditService.log({
+      userId: actor.id,
+      action: "STAFF_SHIFT_TEMPLATE_CREATE",
+      entity: "StaffShiftTemplate",
+      entityId: id,
+      metadata: {
+        staffId: dto.staffId,
+        weekday: dto.weekday,
+        startTime: dto.startTime,
+        endTime: dto.endTime,
+      },
+    });
+    return (await this.templates(actor)).find((template) => template.id === id);
+  }
+
+  async removeTemplate(id: string, actor: ShiftActor) {
+    this.assertCanManageTemplates(actor);
+    const count = await this.prisma.$executeRaw`
+      DELETE FROM dbo.StaffShiftTemplate
+      WHERE id = CONVERT(uniqueidentifier, ${id})
+    `;
+    if (!count) throw new NotFoundException("Không tìm thấy mẫu phân ca");
+    await this.auditService.log({
+      userId: actor.id,
+      action: "STAFF_SHIFT_TEMPLATE_DELETE",
+      entity: "StaffShiftTemplate",
+      entityId: id,
+    });
+    return { message: "Đã xóa mẫu phân ca" };
+  }
+
+  async generateFromTemplates(dto: GenerateStaffShiftsDto, actor: ShiftActor) {
+    this.assertCanManageTemplates(actor);
+    const from = dto.from.slice(0, 10);
+    const to = dto.to.slice(0, 10);
+    const fromDay = new Date(`${from}T00:00:00Z`);
+    const toDay = new Date(`${to}T00:00:00Z`);
+    const dayCount = Math.floor(
+      (toDay.getTime() - fromDay.getTime()) / 86_400_000,
+    );
+    if (!Number.isFinite(dayCount) || dayCount < 0) {
+      throw new BadRequestException("Ngày bắt đầu không thể sau ngày kết thúc");
+    }
+    if (dayCount > 30) {
+      throw new BadRequestException(
+        "Mỗi lần chỉ có thể sinh lịch tối đa 31 ngày",
+      );
+    }
+    const todayInVietnam = new Date(Date.now() + 7 * 60 * 60 * 1000);
+    todayInVietnam.setUTCHours(0, 0, 0, 0);
+    if (toDay < todayInVietnam) {
+      throw new BadRequestException(
+        "Khoảng ngày sinh ca phải bao gồm ngày hiện tại hoặc tương lai",
+      );
+    }
+
+    const templates = await this.prisma.$queryRaw<StaffShiftTemplateRow[]>`
+      SELECT CONVERT(nvarchar(36), t.id) AS id,
+        CONVERT(nvarchar(36), t.staffId) AS staffId,
+        u.fullName AS staffName, u.email AS staffEmail, t.title, t.weekday,
+        t.startMinute, t.endMinute, t.notes, t.isActive
+      FROM dbo.StaffShiftTemplate AS t
+      INNER JOIN dbo.[User] AS u ON u.id = t.staffId
+      WHERE t.isActive = 1
+      ORDER BY t.weekday, t.startMinute, u.fullName
+    `;
+    if (!templates.length) {
+      throw new ConflictException("Chưa có mẫu ca đang hoạt động");
+    }
+
+    const { randomUUID } = await import("crypto");
+    let createdCount = 0;
+    let skippedCount = 0;
+    await this.prisma.$transaction(
+      async (tx) => {
+        for (let offset = 0; offset <= dayCount; offset += 1) {
+          const date = new Date(fromDay.getTime() + offset * 86_400_000);
+          const weekday = date.getUTCDay() || 7;
+          const dateText = date.toISOString().slice(0, 10);
+          for (const template of templates) {
+            if (template.weekday !== weekday) continue;
+
+            const startText = this.minuteToTime(template.startMinute);
+            const endText = this.minuteToTime(template.endMinute);
+            const startTime = new Date(`${dateText}T${startText}:00+07:00`);
+            const endDateText =
+              template.endMinute <= template.startMinute
+                ? new Date(date.getTime() + 86_400_000)
+                    .toISOString()
+                    .slice(0, 10)
+                : dateText;
+            const endTime = new Date(`${endDateText}T${endText}:00+07:00`);
+            if (endTime <= new Date()) {
+              skippedCount += 1;
+              continue;
+            }
+
+            const existing = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
+              SELECT TOP (1) CONVERT(nvarchar(36), id) AS id
+              FROM dbo.StaffShift
+              WHERE staffId = CONVERT(uniqueidentifier, ${template.staffId})
+                AND startTime = ${startTime}
+                AND endTime = ${endTime}
+            `);
+            if (existing.length) {
+              skippedCount += 1;
+              continue;
+            }
+
+            await this.assertNoOverlap(
+              tx,
+              template.staffId,
+              startTime,
+              endTime,
+            );
+            await tx.$executeRaw(Prisma.sql`
+              INSERT INTO dbo.StaffShift
+                (id, staffId, title, startTime, endTime, status, notes)
+              VALUES (
+                CONVERT(uniqueidentifier, ${randomUUID()}),
+                CONVERT(uniqueidentifier, ${template.staffId}),
+                ${template.title},
+                ${startTime},
+                ${endTime},
+                N'SCHEDULED',
+                ${template.notes}
+              )
+            `);
+            createdCount += 1;
+          }
+        }
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+    await this.auditService.log({
+      userId: actor.id,
+      action: "STAFF_SHIFT_GENERATE",
+      entity: "StaffShift",
+      metadata: { from, to, createdCount, skippedCount },
+    });
+    return {
+      message: `Đã tạo ${createdCount} ca; bỏ qua ${skippedCount} ca đã có hoặc đã qua`,
+      createdCount,
+      skippedCount,
+    };
+  }
+
+  private minuteToTime(value: number) {
+    const normalized = value % (24 * 60);
+    const hour = String(Math.floor(normalized / 60)).padStart(2, "0");
+    const minute = String(normalized % 60).padStart(2, "0");
+    return `${hour}:${minute}`;
+  }
+
   private assertTimes(startTime: string | Date, endTime: string | Date) {
     const end = new Date(endTime);
     if (new Date(startTime).getTime() >= end.getTime()) {
@@ -282,6 +548,7 @@ export class StaffShiftsService {
         UPPER(ss.status) AS status, ss.notes, ss.cashExpected, ss.cashCounted,
         ss.cashDifference, CONVERT(nvarchar(36), ss.closedById) AS closedById,
         closeUser.fullName AS closedByName, ss.closedAt, ss.closeNotes,
+        ss.startedAt, ss.endedAt,
         CONVERT(bigint, 0) AS paidPaymentCount, CONVERT(bigint, 0) AS memberCount,
         CONVERT(decimal(12, 2), 0) AS totalRevenue
       FROM dbo.StaffShift ss
@@ -324,7 +591,13 @@ export class StaffShiftsService {
 
     const marker = `[STAFF_POS:${shift.staffId}:${shift.id}]`;
     const legacyMarker = `[STAFF_POS:${shift.staffId}]`;
-    const [cashRows, transferRows, pendingRows] = await Promise.all([
+    const [
+      cashRows,
+      beverageCashRows,
+      transferRows,
+      beverageTransferRows,
+      pendingRows,
+    ] = await Promise.all([
       this.prisma.$queryRaw<
         {
           expectedCash: Prisma.Decimal | number;
@@ -339,6 +612,18 @@ export class StaffShiftsService {
       `),
       this.prisma.$queryRaw<
         {
+          expectedCash: Prisma.Decimal | number;
+          cashPaymentCount: number | bigint;
+        }[]
+      >(Prisma.sql`
+        SELECT COALESCE(SUM(totalAmount), 0) AS expectedCash, COUNT(*) AS cashPaymentCount
+        FROM dbo.BeverageSale
+        WHERE staffShiftId = CONVERT(uniqueidentifier, ${id})
+          AND UPPER(status) = N'PAID'
+          AND UPPER(paymentMethod) = N'CASH'
+      `),
+      this.prisma.$queryRaw<
+        {
           bankTransferExpected: Prisma.Decimal | number;
           bankTransferPaymentCount: number | bigint;
         }[]
@@ -348,6 +633,19 @@ export class StaffShiftsService {
         WHERE staffShiftId = CONVERT(uniqueidentifier, ${id})
           AND UPPER(status) = N'PAID'
           AND UPPER(method) = N'BANK_TRANSFER'
+      `),
+      this.prisma.$queryRaw<
+        {
+          bankTransferExpected: Prisma.Decimal | number;
+          bankTransferPaymentCount: number | bigint;
+        }[]
+      >(Prisma.sql`
+        SELECT COALESCE(SUM(totalAmount), 0) AS bankTransferExpected,
+          COUNT(*) AS bankTransferPaymentCount
+        FROM dbo.BeverageSale
+        WHERE staffShiftId = CONVERT(uniqueidentifier, ${id})
+          AND UPPER(status) = N'PAID'
+          AND UPPER(paymentMethod) = N'BANK_TRANSFER'
       `),
       this.prisma.$queryRaw<{ pendingCashCount: number | bigint }[]>(Prisma.sql`
         SELECT COUNT(*) AS pendingCashCount
@@ -364,12 +662,18 @@ export class StaffShiftsService {
 
     return {
       shiftId: id,
-      expectedCash: Number(cashRows[0]?.expectedCash ?? 0),
-      cashPaymentCount: Number(cashRows[0]?.cashPaymentCount ?? 0),
-      bankTransferExpected: Number(transferRows[0]?.bankTransferExpected ?? 0),
-      bankTransferPaymentCount: Number(
-        transferRows[0]?.bankTransferPaymentCount ?? 0,
-      ),
+      expectedCash:
+        Number(cashRows[0]?.expectedCash ?? 0) +
+        Number(beverageCashRows[0]?.expectedCash ?? 0),
+      cashPaymentCount:
+        Number(cashRows[0]?.cashPaymentCount ?? 0) +
+        Number(beverageCashRows[0]?.cashPaymentCount ?? 0),
+      bankTransferExpected:
+        Number(transferRows[0]?.bankTransferExpected ?? 0) +
+        Number(beverageTransferRows[0]?.bankTransferExpected ?? 0),
+      bankTransferPaymentCount:
+        Number(transferRows[0]?.bankTransferPaymentCount ?? 0) +
+        Number(beverageTransferRows[0]?.bankTransferPaymentCount ?? 0),
       pendingCashCount: Number(pendingRows[0]?.pendingCashCount ?? 0),
     };
   }
@@ -542,7 +846,9 @@ export class StaffShiftsService {
 
     const count = await this.prisma.$executeRaw(Prisma.sql`
       UPDATE dbo.StaffShift
-      SET status = N'IN_PROGRESS', updatedAt = SYSUTCDATETIME()
+      SET status = N'IN_PROGRESS',
+          startedAt = COALESCE(startedAt, SYSUTCDATETIME()),
+          updatedAt = SYSUTCDATETIME()
       WHERE id = CONVERT(uniqueidentifier, ${id}) AND UPPER(status) = N'SCHEDULED'
         AND startTime <= ${now} AND endTime > ${now}
     `);
@@ -615,16 +921,25 @@ export class StaffShiftsService {
           );
         }
 
-        const cashRows = await tx.$queryRaw<
-          { expectedCash: Prisma.Decimal | number }[]
-        >(Prisma.sql`
-          SELECT COALESCE(SUM(amount), 0) AS expectedCash
-          FROM dbo.Payment
-          WHERE staffShiftId = CONVERT(uniqueidentifier, ${id})
-            AND UPPER(status) = N'PAID'
-            AND UPPER(method) = N'CASH'
-        `);
-        const expectedCash = Number(cashRows[0]?.expectedCash ?? 0);
+        const [cashRows, beverageCashRows] = await Promise.all([
+          tx.$queryRaw<{ expectedCash: Prisma.Decimal | number }[]>(Prisma.sql`
+            SELECT COALESCE(SUM(amount), 0) AS expectedCash
+            FROM dbo.Payment
+            WHERE staffShiftId = CONVERT(uniqueidentifier, ${id})
+              AND UPPER(status) = N'PAID'
+              AND UPPER(method) = N'CASH'
+          `),
+          tx.$queryRaw<{ expectedCash: Prisma.Decimal | number }[]>(Prisma.sql`
+            SELECT COALESCE(SUM(totalAmount), 0) AS expectedCash
+            FROM dbo.BeverageSale
+            WHERE staffShiftId = CONVERT(uniqueidentifier, ${id})
+              AND UPPER(status) = N'PAID'
+              AND UPPER(paymentMethod) = N'CASH'
+          `),
+        ]);
+        const expectedCash =
+          Number(cashRows[0]?.expectedCash ?? 0) +
+          Number(beverageCashRows[0]?.expectedCash ?? 0);
         const cashDifference = Number(
           (dto.cashCounted - expectedCash).toFixed(2),
         );
@@ -637,6 +952,7 @@ export class StaffShiftsService {
         const updated = await tx.$executeRaw(Prisma.sql`
           UPDATE dbo.StaffShift
           SET status = N'COMPLETED',
+              endedAt = SYSUTCDATETIME(),
               cashExpected = ${expectedCash},
               cashCounted = ${dto.cashCounted},
               cashDifference = ${cashDifference},

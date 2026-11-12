@@ -110,14 +110,15 @@ BEGIN TRY
                 archivedAt DATETIME2 NOT NULL CONSTRAINT DF_BranchMemberAssignmentArchive_archivedAt DEFAULT SYSUTCDATETIME()
             );
 
-        INSERT INTO dbo.BranchMemberAssignmentArchive (entityId, branchId)
-        SELECT CONVERT(NVARCHAR(100), id), branchId
-        FROM dbo.Member
-        WHERE NOT EXISTS (
-            SELECT 1
-            FROM dbo.BranchMemberAssignmentArchive AS archived
-            WHERE archived.entityId = CONVERT(NVARCHAR(100), dbo.Member.id)
-        );
+        EXEC sys.sp_executesql N'
+            INSERT INTO dbo.BranchMemberAssignmentArchive (entityId, branchId)
+            SELECT CONVERT(NVARCHAR(100), id), branchId
+            FROM dbo.Member
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM dbo.BranchMemberAssignmentArchive AS archived
+                WHERE archived.entityId = CONVERT(NVARCHAR(100), dbo.Member.id)
+            );';
     END;
 
     IF COL_LENGTH(N'dbo.StaffShift', N'branchId') IS NOT NULL
@@ -129,20 +130,47 @@ BEGIN TRY
                 archivedAt DATETIME2 NOT NULL CONSTRAINT DF_BranchStaffShiftAssignmentArchive_archivedAt DEFAULT SYSUTCDATETIME()
             );
 
-        INSERT INTO dbo.BranchStaffShiftAssignmentArchive (entityId, branchId)
-        SELECT CONVERT(NVARCHAR(100), id), branchId
-        FROM dbo.StaffShift
-        WHERE NOT EXISTS (
-            SELECT 1
-            FROM dbo.BranchStaffShiftAssignmentArchive AS archived
-            WHERE archived.entityId = CONVERT(NVARCHAR(100), dbo.StaffShift.id)
-        );
+        EXEC sys.sp_executesql N'
+            INSERT INTO dbo.BranchStaffShiftAssignmentArchive (entityId, branchId)
+            SELECT CONVERT(NVARCHAR(100), id), branchId
+            FROM dbo.StaffShift
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM dbo.BranchStaffShiftAssignmentArchive AS archived
+                WHERE archived.entityId = CONVERT(NVARCHAR(100), dbo.StaffShift.id)
+            );';
     END;
 
     IF COL_LENGTH(N'dbo.Member', N'branchId') IS NOT NULL
-        ALTER TABLE dbo.Member DROP COLUMN branchId;
+        EXEC sys.sp_executesql N'ALTER TABLE dbo.Member DROP COLUMN branchId;';
     IF COL_LENGTH(N'dbo.StaffShift', N'branchId') IS NOT NULL
-        ALTER TABLE dbo.StaffShift DROP COLUMN branchId;
+        EXEC sys.sp_executesql N'ALTER TABLE dbo.StaffShift DROP COLUMN branchId;';
+
+    EXEC sys.sp_executesql N'
+        CREATE OR ALTER VIEW dbo.vw_StaffShiftRevenue
+        AS
+        SELECT
+            ss.id AS staffShiftId,
+            ss.title AS shiftTitle,
+            ss.staffId,
+            u.fullName AS staffName,
+            CAST(NULL AS NVARCHAR(100)) AS branchId,
+            CAST(NULL AS NVARCHAR(400)) AS branchName,
+            ss.startTime,
+            ss.endTime,
+            ss.status AS shiftStatus,
+            COUNT(p.id) AS paidPaymentCount,
+            COUNT(DISTINCT p.memberId) AS memberCount,
+            COALESCE(SUM(p.amount), 0) AS totalRevenue
+        FROM dbo.StaffShift AS ss
+        INNER JOIN dbo.[User] AS u
+            ON u.id = ss.staffId
+        LEFT JOIN dbo.Payment AS p
+            ON p.staffShiftId = ss.id
+           AND UPPER(p.status) = N''PAID''
+        GROUP BY
+            ss.id, ss.title, ss.staffId, u.fullName,
+            ss.startTime, ss.endTime, ss.status;';
 
     COMMIT TRANSACTION;
 END TRY

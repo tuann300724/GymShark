@@ -428,7 +428,11 @@ export default function MemberDetailPage() {
       {/* Tab Contents */}
       {activeTab === 'memberships' && (
         <div className="space-y-4">
-          {member.memberships?.some((membership: any) => membership.status === 'PENDING') && (
+          {member.memberships?.some(
+            (membership: any) =>
+              membership.status === 'PENDING' ||
+              membership.payments?.some((payment: any) => payment.status === 'PENDING'),
+          ) && (
             <p className="rounded-xl border border-line bg-surface px-4 py-3 text-xs text-muted">
               Hội viên đang có gói chờ xác nhận. Hãy xử lý hóa đơn trước khi tạo yêu cầu đổi gói
               khác.
@@ -436,22 +440,24 @@ export default function MemberDetailPage() {
           )}
           {member.memberships && member.memberships.length > 0 ? (
             member.memberships.map((m: any) => {
-              const msMeta = MEMBERSHIP_STATUS_META[m.status] || {
-                label: m.status,
+              const pendingPayment = m.payments?.find((p: any) => p.status === 'PENDING');
+              const displayedPayment = pendingPayment || m.payments?.[0];
+              const membershipStatus = pendingPayment ? 'PENDING' : m.status;
+              const msMeta = MEMBERSHIP_STATUS_META[membershipStatus] || {
+                label: membershipStatus,
                 variant: 'outline',
               };
-              const pendingPayment = m.payments?.find((p: any) => p.status === 'PENDING');
               const startTime = new Date(m.startDate).getTime();
               const endTime = new Date(m.endDate).getTime();
               const totalDays = Math.max(1, Math.ceil((endTime - startTime) / 86400000));
               const remainingDays =
-                m.status === 'ACTIVE'
+                membershipStatus === 'ACTIVE'
                   ? Math.max(0, Math.ceil((endTime - Date.now()) / 86400000))
                   : null;
               const usedDays =
                 remainingDays === null ? null : Math.max(0, totalDays - remainingDays);
               const progress =
-                m.status === 'ACTIVE'
+                membershipStatus === 'ACTIVE'
                   ? Math.min(
                       100,
                       Math.max(
@@ -467,27 +473,27 @@ export default function MemberDetailPage() {
                       <div className="flex flex-wrap items-center gap-2">
                         <h4 className="font-bold text-base text-chalk">{m.package?.name}</h4>
                         <Badge variant={msMeta.variant as any}>{msMeta.label}</Badge>
-                        {m.payments?.length > 0 && (
+                        {displayedPayment && (
                           <Badge
                             variant={
-                              PAYMENT_STATUS_META[m.payments[0].status]?.variant || 'outline'
+                              PAYMENT_STATUS_META[displayedPayment.status]?.variant || 'outline'
                             }
                             className="font-mono text-[10px]"
                           >
-                            {m.payments[0].code} •{' '}
-                            {PAYMENT_STATUS_META[m.payments[0].status]?.label ||
-                              m.payments[0].status}
+                            {displayedPayment.code} •{' '}
+                            {PAYMENT_STATUS_META[displayedPayment.status]?.label ||
+                              displayedPayment.status}
                           </Badge>
                         )}
                       </div>
                       <p className="text-xs text-muted mt-1">
                         Hiệu lực: {formatDate(m.startDate)} đến {formatDate(m.endDate)} •{' '}
-                        {PAYMENT_METHOD_LABEL[m.payments?.[0]?.method] ||
+                        {PAYMENT_METHOD_LABEL[displayedPayment?.method] ||
                           (Number(m.finalAmount ?? m.price) === 0
                             ? 'Quy đổi giá trị còn lại'
                             : 'Thanh toán tại quầy')}
                       </p>
-                      {m.status === 'ACTIVE' && (
+                      {membershipStatus === 'ACTIVE' && (
                         <div className="mt-3 w-full max-w-md space-y-1.5">
                           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs">
                             <span className="text-muted">
@@ -514,7 +520,7 @@ export default function MemberDetailPage() {
                           {formatCurrency(m.price)}
                         </p>
                       )}
-                      {m.status === 'PENDING' && pendingPayment && (
+                      {membershipStatus === 'PENDING' && pendingPayment && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -525,9 +531,13 @@ export default function MemberDetailPage() {
                           <CheckCircle2 className="size-3.5 mr-1" /> Xác nhận thanh toán
                         </Button>
                       )}
-                      {m.status === 'ACTIVE' &&
+                      {membershipStatus === 'ACTIVE' &&
                         !member.memberships.some(
-                          (membership: any) => membership.status === 'PENDING',
+                          (membership: any) =>
+                            membership.status === 'PENDING' ||
+                            membership.payments?.some(
+                              (payment: any) => payment.status === 'PENDING',
+                            ),
                         ) && (
                           <Button
                             variant="outline"

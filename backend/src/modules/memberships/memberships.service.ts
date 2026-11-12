@@ -108,6 +108,17 @@ export class MembershipsService {
     if (next === "CANCELLED" && (cur === "CANCELLED" || cur === "EXPIRED")) {
       throw new ConflictException("Hợp đồng đã ở trạng thái này");
     }
+    if (next === "CANCELLED" && cur === "PENDING") {
+      const pendingPayment = await this.prisma.payment.findFirst({
+        where: { membershipId: id, status: "PENDING" },
+        select: { id: true },
+      });
+      if (pendingPayment) {
+        throw new ConflictException(
+          "Gói đang có khoản thanh toán chờ xác nhận. Hãy xác nhận hoặc từ chối khoản thanh toán trước.",
+        );
+      }
+    }
 
     const result = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.membership.update({

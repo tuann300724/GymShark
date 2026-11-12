@@ -114,6 +114,15 @@ export interface BeverageSale {
   }[];
 }
 
+export interface BeverageSalePayload {
+  requestId: string;
+  cassoReference?: string;
+  memberId: string;
+  paymentMethod: 'CASH' | 'BANK_TRANSFER';
+  discountAmount: number;
+  items: { productId: string; quantity: number }[];
+}
+
 export interface BeverageSaleSummary {
   saleId: string;
   saleCode: string;
@@ -249,8 +258,18 @@ export const beverageApi = {
     return res.data;
   },
 
-  createSale: async (payload: Record<string, unknown>): Promise<BeverageSale> => {
+  createSale: async (payload: BeverageSalePayload): Promise<BeverageSale> => {
     const res = await apiClient.post<BeverageSale>('/beverages/sales', payload);
+    return res.data;
+  },
+
+  verifySaleTransfer: async (
+    payload: BeverageSalePayload,
+  ): Promise<{ matched: boolean; message: string }> => {
+    const res = await apiClient.post<{ matched: boolean; message: string }>(
+      '/beverages/sales/verify-transfer',
+      payload,
+    );
     return res.data;
   },
 

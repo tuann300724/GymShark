@@ -18,6 +18,7 @@ import { useToast } from '@/components/ui/toast';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import { getStoredUser } from '@/lib/auth';
 import { MEMBERSHIP_STATUS_META, PAYMENT_METHOD_LABEL } from '@/lib/status';
+import { paymentApi } from '@/services/payment.service';
 import { CreditCard, CheckCircle2, XCircle, Lock, Unlock, Eye, Clock, Ban } from 'lucide-react';
 
 /** Đề xuất số tiền hoàn = tiền gói × tỷ lệ ngày còn lại, làm tròn xuống 1.000đ */
@@ -58,6 +59,7 @@ export default function MembershipsPage() {
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['admin-memberships'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-payments'] });
     queryClient.invalidateQueries({ queryKey: ['reports-summary'] });
     queryClient.invalidateQueries({ queryKey: ['reports-dashboard'] });
   };
@@ -92,6 +94,19 @@ export default function MembershipsPage() {
     },
   });
 
+  const rejectPaymentMutation = useMutation({
+    mutationFn: (paymentId: string) =>
+      paymentApi.reject(paymentId, { reason: 'Từ chối bởi quản trị viên' }),
+    onSuccess: (res: any) => {
+      toast.success('Đã từ chối khoản thanh toán', res.message);
+      invalidate();
+    },
+    onError: (err: any) => {
+      const msg = err.response?.data?.message || 'Từ chối khoản thanh toán thất bại';
+      toast.error('Thất bại', Array.isArray(msg) ? msg.join(', ') : msg);
+    },
+  });
+
   const handleApprove = (m: any) => {
     if (window.confirm('Xác nhận thanh toán cho hợp đồng này? Gói tập sẽ được kích hoạt.')) {
       const pendingPayment = m.payments?.find((p: any) => p.status === 'PENDING');
@@ -104,7 +119,16 @@ export default function MembershipsPage() {
   };
 
   const handleCancel = (m: any) => {
-    if (window.confirm(`Hủy hợp đồng gói ${m.package?.name} của ${m.member?.fullName}?`)) {
+    const pendingPayment = m.payments?.find((p: any) => p.status === 'PENDING');
+    if (pendingPayment) {
+      if (
+        window.confirm(
+          `Từ chối khoản thanh toán của ${m.member?.fullName} cho gói ${m.package?.name}?`,
+        )
+      ) {
+        rejectPaymentMutation.mutate(pendingPayment.id);
+      }
+    } else if (window.confirm(`Hủy hợp đồng gói ${m.package?.name} của ${m.member?.fullName}?`)) {
       statusMutation.mutate({ id: m.id, status: 'CANCELLED', reason: 'Hủy bởi quản trị viên' });
     }
   };
@@ -318,9 +342,13 @@ export default function MembershipsPage() {
                                   variant="outline"
                                   size="sm"
                                   className="text-xs text-danger"
+                                  isLoading={
+                                    rejectPaymentMutation.isPending || statusMutation.isPending
+                                  }
                                   onClick={() => handleCancel(item)}
                                 >
-                                  <XCircle className="size-3.5 mr-1" /> Hủy
+                                  <XCircle className="size-3.5 mr-1" />{' '}
+                                  {pendingPayment ? 'Từ chối' : 'Hủy'}
                                 </Button>
                               </>
                             )}

@@ -1,8 +1,14 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { beverageApi, type BeverageProduct, type BeverageSale } from '@/services/beverage.service';
+import {
+  beverageApi,
+  type BeverageProduct,
+  type BeverageSale,
+  type BeverageSalePayload,
+} from '@/services/beverage.service';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,7 +20,10 @@ import { ErrorState } from '@/components/ui/error-state';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useToast } from '@/components/ui/toast';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
-import { Minus, Plus, Printer, Search, ShoppingCart, UserRound, X } from 'lucide-react';
+import { getStoredUser } from '@/lib/auth';
+import { paymentApi } from '@/services/payment.service';
+import type { BankInfo } from '@/services/types';
+import { Minus, Plus, Printer, Copy, Search, ShoppingCart, UserRound, X } from 'lucide-react';
 
 interface Member {
   id: string;
@@ -47,11 +56,27 @@ export default function BeveragePosPage() {
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'BANK_TRANSFER'>('CASH');
   const [receipt, setReceipt] = useState<BeverageSale | null>(null);
   const [historyOpen, setHistoryOpen] = useState(true);
-  const requestIdRef = useRef<{ fingerprint: string; id: string } | null>(null);
+  const [isStaff, setIsStaff] = useState(false);
+  const [paymentIntent, setPaymentIntent] = useState<{
+    fingerprint: string;
+    requestId: string;
+    cassoReference: string;
+  } | null>(null);
+  const handledCassoRequestRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    setIsStaff(getStoredUser()?.role === 'STAFF');
+  }, []);
 
   const { data: options } = useQuery({
     queryKey: ['beverage-options'],
     queryFn: beverageApi.options,
+    retry: 0,
+  });
+  const bankInfoQuery = useQuery<BankInfo>({
+    queryKey: ['payment-bank-info'],
+    queryFn: paymentApi.getBankInfo,
+    enabled: paymentMethod === 'BANK_TRANSFER',
     retry: 0,
   });
   const { data: members, isFetching: membersLoading } = useQuery({
@@ -84,7 +109,7 @@ export default function BeveragePosPage() {
       setMember(null);
       setMemberSearch('');
       setDiscount('0');
-      requestIdRef.current = null;
+      setPaymentIntent(null);
       queryClient.invalidateQueries({ queryKey: ['beverage-sales'] });
       queryClient.invalidateQueries({ queryKey: ['beverage-pos-products'] });
       queryClient.invalidateQueries({ queryKey: ['beverage-stock'] });
@@ -99,6 +124,68 @@ export default function BeveragePosPage() {
   );
   const discountAmount = Number(discount || 0);
   const total = Math.max(0, subtotal - discountAmount);
+  const orderFingerprint = useMemo(
+    () =>
+      JSON.stringify({
+        memberId: member?.id,
+        paymentMethod,
+        discountAmount,
+        items: cart.map((line) => [line.product.id, line.quantity]),
+      }),
+    [cart, discountAmount, member?.id, paymentMethod],
+  );
+  useEffect(() => {
+    if (!member || !cart.length) {
+      setPaymentIntent(null);
+      return;
+    }
+    if (paymentIntent?.fingerprint === orderFingerprint) return;
+    setPaymentIntent({
+      fingerprint: orderFingerprint,
+      requestId: crypto.randomUUID(),
+      cassoReference: `NUOC${crypto.randomUUID().replace(/-/g, '').slice(0, 12).toUpperCase()}`,
+    });
+  }, [cart.length, member, orderFingerprint, paymentIntent?.fingerprint]);
+  const activePaymentIntent =
+    paymentIntent?.fingerprint === orderFingerprint ? paymentIntent : null;
+  const transferContent =
+    member && activePaymentIntent ? `GYM ${member.code} ${activePaymentIntent.cassoReference}` : '';
+  const bankInfo = bankInfoQuery.data;
+  const qrUrl =
+    bankInfo && transferContent && cart.length > 0 && total > 0
+      ? `https://img.vietqr.io/image/${encodeURIComponent(bankInfo.shortName)}-${encodeURIComponent(bankInfo.accountNumber)}-qr_only.svg?amount=${Math.round(total)}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent(bankInfo.accountName)}`
+      : null;
+  const salePayload = useMemo<BeverageSalePayload | null>(
+    () =>
+      member && activePaymentIntent && cart.length
+        ? {
+            requestId: activePaymentIntent.requestId,
+            ...(paymentMethod === 'BANK_TRANSFER'
+              ? { cassoReference: activePaymentIntent.cassoReference }
+              : {}),
+            memberId: member.id,
+            paymentMethod,
+            discountAmount,
+            items: cart.map((line) => ({
+              productId: line.product.id,
+              quantity: line.quantity,
+            })),
+          }
+        : null,
+    [activePaymentIntent, cart, discountAmount, member, paymentMethod],
+  );
+  const transferCheckQuery = useQuery({
+    queryKey: ['beverage-casso-check', activePaymentIntent?.requestId],
+    queryFn: () => beverageApi.verifySaleTransfer(salePayload!),
+    enabled:
+      paymentMethod === 'BANK_TRANSFER' &&
+      !!salePayload &&
+      !!bankInfo &&
+      (!isStaff || !!options?.activeShift),
+    retry: 0,
+    refetchInterval: (query) => (query.state.data?.matched ? false : 5000),
+    refetchIntervalInBackground: true,
+  });
   const addProduct = (product: BeverageProduct) => {
     const stock = product.stockQuantity ?? 0;
     if (stock <= 0) {
@@ -141,23 +228,24 @@ export default function BeveragePosPage() {
     if (!cart.length) return toast.error('Hóa đơn chưa đủ thông tin', 'Chọn ít nhất một sản phẩm.');
     if (discountAmount < 0 || discountAmount > subtotal)
       return toast.error('Giảm giá không hợp lệ', 'Giảm giá không được lớn hơn tổng tiền hàng.');
-    const fingerprint = JSON.stringify({
-      memberId: member.id,
-      paymentMethod,
-      discountAmount,
-      items: cart.map((line) => [line.product.id, line.quantity]),
-    });
-    if (requestIdRef.current?.fingerprint !== fingerprint) {
-      requestIdRef.current = { fingerprint, id: crypto.randomUUID() };
+    if (!salePayload) {
+      return toast.error('Đang chuẩn bị hóa đơn', 'Vui lòng thử lại sau giây lát.');
     }
-    saleMutation.mutate({
-      requestId: requestIdRef.current.id,
-      memberId: member.id,
-      paymentMethod,
-      discountAmount,
-      items: cart.map((line) => ({ productId: line.product.id, quantity: line.quantity })),
-    });
+    saleMutation.mutate(salePayload);
   };
+  useEffect(() => {
+    if (
+      paymentMethod !== 'BANK_TRANSFER' ||
+      !transferCheckQuery.data?.matched ||
+      !salePayload ||
+      saleMutation.isPending ||
+      handledCassoRequestRef.current === salePayload.requestId
+    ) {
+      return;
+    }
+    handledCassoRequestRef.current = salePayload.requestId;
+    saleMutation.mutate(salePayload);
+  }, [paymentMethod, saleMutation, salePayload, transferCheckQuery.data?.matched]);
 
   return (
     <div className="space-y-5">
@@ -246,10 +334,14 @@ export default function BeveragePosPage() {
                   Ca làm hiện tại đã được ghi tự động vào hóa đơn.
                 </p>
               )}
-              {options && !options.activeShift && (
-                <p className="text-xs text-muted sm:col-span-2">
-                  Nhân viên lễ tân cần bắt đầu ca làm trước khi thanh toán.
-                </p>
+              {isStaff && options && !options.activeShift && (
+                <div className="text-xs text-muted sm:col-span-2">
+                  Nhân viên có thể xem sản phẩm; cần bắt đầu ca được phân công trước khi thanh toán.{' '}
+                  <Link href="/admin/shifts" className="font-semibold text-neon hover:underline">
+                    Đi đến ca làm
+                  </Link>
+                  .
+                </div>
               )}
             </CardContent>
           </Card>
@@ -390,20 +482,127 @@ export default function BeveragePosPage() {
                   { value: 'BANK_TRANSFER', label: 'Chuyển khoản' },
                 ]}
               />
+              {paymentMethod === 'BANK_TRANSFER' && (
+                <div className="space-y-3 rounded-xl border border-line bg-ink p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-chalk">Quét QR chuyển khoản</p>
+                    <span className="text-xs text-muted">{bankInfo?.bankName || 'Casso'}</span>
+                  </div>
+                  {bankInfoQuery.isLoading ? (
+                    <p className="text-xs text-muted">Đang tải thông tin ngân hàng...</p>
+                  ) : bankInfoQuery.isError || !bankInfo ? (
+                    <div className="space-y-2 text-xs text-danger">
+                      <p>Không tải được thông tin nhận tiền.</p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void bankInfoQuery.refetch()}
+                      >
+                        Tải lại
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      {qrUrl ? (
+                        <div className="flex flex-col gap-3 sm:flex-row">
+                          <a
+                            href={qrUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mx-auto shrink-0 sm:mx-0"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={qrUrl}
+                              alt="Mã QR chuyển khoản bán nước"
+                              className="size-36 rounded-lg border border-line bg-chalk object-contain"
+                            />
+                          </a>
+                          <div className="min-w-0 space-y-1 text-xs text-muted">
+                            <p>
+                              <span className="text-chalk">Ngân hàng:</span> {bankInfo.bankName}
+                            </p>
+                            <p>
+                              <span className="text-chalk">Số tài khoản:</span>{' '}
+                              <span className="font-mono text-neon">{bankInfo.accountNumber}</span>
+                            </p>
+                            <p>
+                              <span className="text-chalk">Chủ tài khoản:</span>{' '}
+                              {bankInfo.accountName}
+                            </p>
+                            <p>
+                              <span className="text-chalk">Số tiền:</span> {formatCurrency(total)}
+                            </p>
+                            <p className="break-all">
+                              <span className="text-chalk">Nội dung:</span>{' '}
+                              <span className="font-mono text-chalk">{transferContent}</span>
+                            </p>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                void navigator.clipboard?.writeText(transferContent);
+                                toast.success('Đã sao chép nội dung chuyển khoản');
+                              }}
+                            >
+                              <Copy className="size-3" />
+                              Sao chép nội dung
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="rounded-lg border border-dashed border-line p-4 text-center text-xs text-muted">
+                          Chọn hội viên và sản phẩm để tạo mã QR theo số tiền cần thanh toán.
+                        </p>
+                      )}
+                      {qrUrl && (
+                        <p className="text-xs text-muted" aria-live="polite">
+                          {saleMutation.isPending
+                            ? 'Casso đã nhận tiền, đang hoàn tất hóa đơn...'
+                            : saleMutation.isError && transferCheckQuery.data?.matched
+                              ? 'Casso đã xác nhận tiền nhưng hóa đơn chưa hoàn tất. Hãy thử lại thao tác tạo hóa đơn; không yêu cầu hội viên chuyển khoản lần nữa.'
+                              : isStaff && !options?.activeShift
+                                ? 'Cần bắt đầu ca làm được phân công để nhận thanh toán.'
+                                : transferCheckQuery.isError
+                                  ? 'Chưa kiểm tra được Casso; hệ thống sẽ thử lại sau 5 giây.'
+                                  : transferCheckQuery.data?.matched
+                                    ? 'Đã nhận giao dịch, đang tạo hóa đơn...'
+                                    : transferCheckQuery.isFetching
+                                      ? 'Đang tự động kiểm tra Casso mỗi 5 giây...'
+                                      : transferCheckQuery.data?.message ||
+                                        'Đang chờ giao dịch chuyển khoản; Casso sẽ tự kiểm tra mỗi 5 giây.'}
+                        </p>
+                      )}
+                      {qrUrl && saleMutation.isError && transferCheckQuery.data?.matched && (
+                        <Button
+                          className="w-full"
+                          disabled={
+                            saleMutation.isPending ||
+                            !salePayload ||
+                            (isStaff && !options?.activeShift)
+                          }
+                          onClick={checkout}
+                        >
+                          Thử hoàn tất hóa đơn
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
               <div className="flex justify-between border-t border-line pt-3 font-display text-xl font-bold text-chalk">
                 <span>Thành tiền</span>
                 <span className="text-neon">{formatCurrency(total)}</span>
               </div>
-              <Button
-                className="w-full"
-                disabled={saleMutation.isPending || !cart.length || !member}
-                onClick={checkout}
-              >
-                {saleMutation.isPending ? 'Đang xác nhận...' : 'Xác nhận thanh toán'}
-              </Button>
-              <p className="text-center text-[11px] text-muted">
-                Tồn kho được kiểm tra và trừ trong giao dịch SQL Server.
-              </p>
+              {paymentMethod === 'CASH' && (
+                <Button
+                  className="w-full"
+                  disabled={saleMutation.isPending || !cart.length || !member}
+                  onClick={checkout}
+                >
+                  {saleMutation.isPending ? 'Đang xác nhận...' : 'Xác nhận thanh toán'}
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>

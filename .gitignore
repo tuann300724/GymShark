@@ -15,6 +15,7 @@ dist/
 
 # NestJS build output
 dist/
+dist-dev/
 
 # Environment variables
 .env

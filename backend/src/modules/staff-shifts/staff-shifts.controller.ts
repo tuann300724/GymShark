@@ -17,7 +17,9 @@ import { Role } from "../../common/enums/role.enum";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../common/guards/roles.guard";
 import {
+  CreateStaffShiftTemplateDto,
   CreateStaffShiftDto,
+  GenerateStaffShiftsDto,
   SettleStaffShiftDto,
   StaffShiftQueryDto,
   UpdateStaffShiftDto,
@@ -48,6 +50,45 @@ export class StaffShiftsController {
   @ApiOperation({ summary: "Danh sách nhân viên cho bộ lọc/phân ca" })
   options(@CurrentUser() actor: ShiftActor) {
     return this.shiftsService.options(actor);
+  }
+
+  @Get("templates")
+  @Roles(Role.ADMIN, Role.MANAGER)
+  @ApiOperation({ summary: "Danh sách mẫu phân ca theo tuần" })
+  templates(@CurrentUser() actor: ShiftActor) {
+    return this.shiftsService.templates(actor);
+  }
+
+  @Post("templates")
+  @Roles(Role.ADMIN, Role.MANAGER)
+  @ApiOperation({ summary: "Tạo mẫu phân ca lặp theo thứ trong tuần" })
+  createTemplate(
+    @Body() dto: CreateStaffShiftTemplateDto,
+    @CurrentUser() actor: ShiftActor,
+  ) {
+    return this.shiftsService.createTemplate(dto, actor);
+  }
+
+  @Delete("templates/:id")
+  @Roles(Role.ADMIN, Role.MANAGER)
+  @ApiOperation({ summary: "Xóa mẫu phân ca (không xóa ca đã được sinh)" })
+  removeTemplate(
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @CurrentUser() actor: ShiftActor,
+  ) {
+    return this.shiftsService.removeTemplate(id, actor);
+  }
+
+  @Post("templates/generate")
+  @Roles(Role.ADMIN, Role.MANAGER)
+  @ApiOperation({
+    summary: "Sinh ca theo các mẫu tuần trong khoảng ngày đã chọn",
+  })
+  generateFromTemplates(
+    @Body() dto: GenerateStaffShiftsDto,
+    @CurrentUser() actor: ShiftActor,
+  ) {
+    return this.shiftsService.generateFromTemplates(dto, actor);
   }
 
   @Post()

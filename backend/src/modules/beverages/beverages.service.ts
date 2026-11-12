@@ -6,9 +6,10 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { AuditService } from "../audit-logs/audit-logs.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { CassoMatch, CassoService } from "../casso/casso.service";
 import {
   BeverageProductDto,
   BeverageQueryDto,
@@ -37,6 +38,7 @@ export class BeveragesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly cassoService: CassoService,
   ) {}
 
   private async defaultLocationId(tx?: Prisma.TransactionClient) {
@@ -69,6 +71,111 @@ export class BeveragesService {
       error instanceof Error &&
       /2601|2627|duplicate key|unique constraint/i.test(error.message)
     );
+  }
+
+  private combineSaleItems(dto: CompleteBeverageSaleDto) {
+    const combined = new Map<string, number>();
+    for (const item of dto.items) {
+      combined.set(
+        item.productId,
+        (combined.get(item.productId) ?? 0) + item.quantity,
+      );
+    }
+    return [...combined].map(([productId, quantity]) => ({
+      productId,
+      quantity,
+    }));
+  }
+
+  private async cassoSaleMatch(
+    dto: CompleteBeverageSaleDto,
+    items: { productId: string; quantity: number }[],
+  ): Promise<CassoMatch | null> {
+    if (dto.paymentMethod !== "BANK_TRANSFER") {
+      throw new BadRequestException(
+        "Đối soát CASSO chỉ áp dụng cho chuyển khoản.",
+      );
+    }
+    if (!dto.cassoReference) {
+      throw new BadRequestException("Thiếu mã nội dung chuyển khoản CASSO.");
+    }
+
+    const members = await this.prisma.$queryRaw<{ code: string }[]>(
+      Prisma.sql`
+        SELECT code FROM dbo.Member
+        WHERE id = CONVERT(uniqueidentifier, ${dto.memberId})
+          AND status = N'ACTIVE'
+      `,
+    );
+    if (!members.length) {
+      throw new BadRequestException(
+        "Hội viên không tồn tại hoặc không hoạt động.",
+      );
+    }
+
+    const productIds = items.map(
+      (item) => Prisma.sql`CONVERT(uniqueidentifier, ${item.productId})`,
+    );
+    const products = await this.prisma.$queryRaw<
+      { id: string; sellingPrice: Prisma.Decimal | number }[]
+    >(Prisma.sql`
+      SELECT id, sellingPrice
+      FROM dbo.BeverageProduct
+      WHERE status = N'ACTIVE' AND id IN (${Prisma.join(productIds)})
+    `);
+    if (products.length !== items.length) {
+      throw new BadRequestException(
+        "Một sản phẩm đã ngừng kinh doanh hoặc không tồn tại.",
+      );
+    }
+    const priceById = new Map(
+      products.map((product) => [
+        product.id.toLowerCase(),
+        this.number(product.sellingPrice),
+      ]),
+    );
+    const subtotal = items.reduce(
+      (sum, item) =>
+        sum +
+        (priceById.get(item.productId.toLowerCase()) ?? 0) * item.quantity,
+      0,
+    );
+    const discount = dto.discountAmount ?? 0;
+    if (discount > subtotal) {
+      throw new BadRequestException(
+        "Giảm giá không được lớn hơn tổng tiền hàng.",
+      );
+    }
+
+    const rows = await this.cassoService.poll(true);
+    if (!rows.length) {
+      throw new BadRequestException(
+        "Chưa đọc được dữ liệu CASSO. Vui lòng kiểm tra cấu hình và thử lại.",
+      );
+    }
+    const match = this.cassoService.findMatch(
+      rows,
+      members[0].code,
+      dto.cassoReference,
+      Math.round(subtotal - discount),
+    );
+    if (!match?.maGd) return null;
+    return match;
+  }
+
+  async verifySaleTransfer(dto: CompleteBeverageSaleDto) {
+    const items = this.combineSaleItems(dto);
+    const match = await this.cassoSaleMatch(dto, items);
+    return match
+      ? {
+          matched: true,
+          message: "Đã nhận được giao dịch chuyển khoản.",
+        }
+      : {
+          matched: false,
+          message:
+            "Chưa thấy giao dịch tương ứng trên CASSO. Vui lòng kiểm tra nội dung và số tiền chuyển khoản.",
+        };
   }
 
   private dateFilters(
@@ -117,15 +224,13 @@ export class BeveragesService {
     return rows[0];
   }
 
-  private async authorizeRead(actor: BeverageActor) {
-    if (actor.role === "STAFF") await this.activeShift(actor, true);
-  }
-
   async options(actor: BeverageActor) {
     let activeShift: ActiveShift | null = null;
     if (actor.role === "STAFF")
       activeShift = await this.activeShift(actor, false);
-    const categories = await this.prisma.$queryRaw<{ category: string }[]>(Prisma.sql`
+    const categories = await this.prisma.$queryRaw<
+      { category: string }[]
+    >(Prisma.sql`
         SELECT DISTINCT category
         FROM dbo.BeverageProduct
         WHERE category IS NOT NULL AND LTRIM(RTRIM(category)) <> N''
@@ -139,7 +244,6 @@ export class BeveragesService {
 
   async products(query: BeverageQueryDto, actor: BeverageActor) {
     this.validateRange(query);
-    await this.authorizeRead(actor);
     const filters: Prisma.Sql[] = [];
     if (actor.role === "STAFF" || !query.includeInactive) {
       filters.push(Prisma.sql`p.status = N'ACTIVE'`);
@@ -194,7 +298,6 @@ export class BeveragesService {
   }
 
   async product(id: string, actor?: BeverageActor) {
-    if (actor) await this.authorizeRead(actor);
     const staffProductFilter =
       actor?.role === "STAFF"
         ? Prisma.sql`AND p.status = N'ACTIVE'`
@@ -229,9 +332,7 @@ export class BeveragesService {
 
   async createProduct(dto: BeverageProductDto, actor: BeverageActor) {
     if (dto.initialStock && !dto.initialStockReason?.trim()) {
-      throw new BadRequestException(
-        "Tồn kho đầu kỳ cần có lý do điều chỉnh.",
-      );
+      throw new BadRequestException("Tồn kho đầu kỳ cần có lý do điều chỉnh.");
     }
     const id = randomUUID();
     try {
@@ -543,21 +644,41 @@ export class BeveragesService {
   }
 
   async createSale(dto: CompleteBeverageSaleDto, actor: BeverageActor) {
-    const shift = await this.activeShift(actor, actor.role === "STAFF");
-    const combined = new Map<string, number>();
-    for (const item of dto.items) {
-      combined.set(
-        item.productId,
-        (combined.get(item.productId) ?? 0) + item.quantity,
+    const items = this.combineSaleItems(dto);
+    const previousSale = await this.prisma.$queryRaw<
+      { id: string; status: string }[]
+    >(Prisma.sql`
+      SELECT TOP (1) CONVERT(nvarchar(36), id) AS id, status
+      FROM dbo.BeverageSale
+      WHERE staffId = CONVERT(uniqueidentifier, ${actor.id})
+        AND CHARINDEX(${`[BEVERAGE_REQUEST_ID:${dto.requestId}]`}, COALESCE(notes, N'')) > 0
+    `);
+    if (previousSale.length) {
+      if (previousSale[0].status === "PAID") {
+        return this.saleDetail(previousSale[0].id, actor);
+      }
+      throw new ConflictException(
+        "Yêu cầu này đã được tiếp nhận nhưng chưa hoàn tất.",
       );
     }
-    const items = [...combined].map(([productId, quantity]) => ({
-      productId,
-      quantity,
-    }));
+
     let saleId: string = randomUUID();
     const code = `B-${Date.now()}-${randomUUID().slice(0, 8).toUpperCase()}`;
     const discount = dto.discountAmount ?? 0;
+    const cassoMatch =
+      dto.paymentMethod === "BANK_TRANSFER"
+        ? await this.cassoSaleMatch(dto, items)
+        : null;
+    if (dto.paymentMethod === "BANK_TRANSFER" && !cassoMatch) {
+      throw new BadRequestException(
+        "Chưa xác nhận được giao dịch CASSO. Hóa đơn chưa được tạo và tồn kho chưa bị trừ.",
+      );
+    }
+    if (cassoMatch && !cassoMatch.maGd) {
+      throw new BadRequestException(
+        "Giao dịch CASSO không có mã giao dịch hợp lệ.",
+      );
+    }
 
     try {
       const transactionResult = await this.prisma.$transaction(
@@ -577,6 +698,27 @@ export class BeveragesService {
               "Đang xử lý yêu cầu thanh toán này, vui lòng thử lại.",
             );
           }
+          if (cassoMatch?.maGd) {
+            const transactionLock = createHash("sha256")
+              .update(cassoMatch.maGd)
+              .digest("hex");
+            const cassoLockRows = await tx.$queryRaw<{ result: number }[]>(
+              Prisma.sql`
+                DECLARE @lockResult int;
+                EXEC @lockResult = sys.sp_getapplock
+                  @Resource = ${`beverage-casso:${transactionLock}`},
+                  @LockMode = N'Exclusive',
+                  @LockOwner = N'Transaction',
+                  @LockTimeout = 10000;
+                SELECT @lockResult AS result;
+              `,
+            );
+            if (this.number(cassoLockRows[0]?.result) < 0) {
+              throw new ConflictException(
+                "Giao dịch CASSO đang được xử lý, vui lòng thử lại.",
+              );
+            }
+          }
           const previousSales = await tx.$queryRaw<
             { id: string; status: string }[]
           >(Prisma.sql`
@@ -592,6 +734,45 @@ export class BeveragesService {
             throw new ConflictException(
               "Yêu cầu này đã được tiếp nhận nhưng chưa hoàn tất.",
             );
+          }
+          if (cassoMatch?.maGd) {
+            const marker = `[CASSO_TXN:${cassoMatch.maGd}]`;
+            const previousCassoSales = await tx.$queryRaw<{ id: string }[]>(
+              Prisma.sql`
+                SELECT TOP (1) CONVERT(nvarchar(36), id) AS id
+                FROM dbo.BeverageSale WITH (UPDLOCK, HOLDLOCK)
+                WHERE CHARINDEX(${marker}, COALESCE(notes, N'')) > 0
+              `,
+            );
+            if (previousCassoSales.length) {
+              throw new ConflictException(
+                "Giao dịch CASSO này đã được sử dụng cho hóa đơn khác.",
+              );
+            }
+          }
+
+          let shift: ActiveShift | null = null;
+          if (actor.role === "STAFF") {
+            const activeShifts = await tx.$queryRaw<ActiveShift[]>(Prisma.sql`
+              SELECT TOP (2) CONVERT(nvarchar(36), id) AS id
+              FROM dbo.StaffShift WITH (UPDLOCK, HOLDLOCK)
+              WHERE staffId = CONVERT(uniqueidentifier, ${actor.id})
+                AND UPPER(status) = N'IN_PROGRESS'
+                AND startTime <= SYSDATETIME()
+                AND endTime > SYSDATETIME()
+              ORDER BY startTime DESC
+            `);
+            if (activeShifts.length > 1) {
+              throw new ConflictException(
+                "Bạn có nhiều ca đang mở cùng lúc. Hãy nhờ quản lý xử lý trước.",
+              );
+            }
+            if (!activeShifts.length) {
+              throw new ForbiddenException(
+                "Bạn cần bắt đầu ca làm được phân công trước khi bán nước.",
+              );
+            }
+            shift = activeShifts[0];
           }
 
           const member = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
@@ -665,9 +846,27 @@ export class BeveragesService {
               "Giảm giá không được lớn hơn tổng tiền hàng.",
             );
           }
+          if (
+            cassoMatch?.amount !== undefined &&
+            Math.abs(cassoMatch.amount - Math.round(subtotal - discount)) >=
+              0.01
+          ) {
+            throw new ConflictException(
+              "Giá sản phẩm đã thay đổi sau khi tạo mã QR. Vui lòng tạo mã thanh toán mới.",
+            );
+          }
+          const saleNotes = [
+            dto.notes?.trim(),
+            `[BEVERAGE_REQUEST_ID:${dto.requestId}]`,
+            dto.cassoReference ? `[CASSO_CODE:${dto.cassoReference}]` : null,
+            cassoMatch?.maGd ? `[CASSO_TXN:${cassoMatch.maGd}]` : null,
+          ]
+            .filter(Boolean)
+            .join(" ");
           await tx.$executeRaw(Prisma.sql`
             UPDATE dbo.BeverageSale
-            SET subtotal = ${subtotal}, totalAmount = ${subtotal - discount}
+            SET subtotal = ${subtotal}, totalAmount = ${subtotal - discount},
+                notes = ${saleNotes}
             WHERE id = CONVERT(uniqueidentifier, ${saleId})
           `);
           try {
@@ -810,7 +1009,6 @@ export class BeveragesService {
   }
 
   async stock(query: BeverageQueryDto, actor: BeverageActor) {
-    await this.authorizeRead(actor);
     const filters: Prisma.Sql[] = [Prisma.sql`p.status = N'ACTIVE'`];
     if (query.productId)
       filters.push(
@@ -847,7 +1045,6 @@ export class BeveragesService {
 
   async movements(query: BeverageQueryDto, actor: BeverageActor) {
     this.validateRange(query);
-    await this.authorizeRead(actor);
     const filters: Prisma.Sql[] = [];
     if (query.productId)
       filters.push(
@@ -1029,29 +1226,21 @@ export class BeveragesService {
       month: Prisma.sql`DATEFROMPARTS(YEAR(v.saleDate), MONTH(v.saleDate), 1)`,
       year: Prisma.sql`DATEFROMPARTS(YEAR(v.saleDate), 1, 1)`,
     }[query.groupBy ?? "day"];
-    const [
-      sales,
-      imports,
-      profit,
-      chart,
-      top,
-      slow,
-      byStaff,
-      byShift,
-    ] = await Promise.all([
-      this.prisma.$queryRaw<any[]>(Prisma.sql`
+    const [sales, imports, profit, chart, top, slow, byStaff, byShift] =
+      await Promise.all([
+        this.prisma.$queryRaw<any[]>(Prisma.sql`
           SELECT COALESCE(SUM(v.recognizedRevenue), 0) AS salesRevenue,
             COALESCE(SUM(v.totalSoldQuantity), 0) AS soldQuantity,
             COUNT(DISTINCT v.saleId) AS saleCount
           FROM dbo.vw_BeverageSalesStatistics AS v ${saleWhere}
         `),
-      this.prisma.$queryRaw<any[]>(Prisma.sql`
+        this.prisma.$queryRaw<any[]>(Prisma.sql`
           SELECT COALESCE(SUM(v.calculatedImportCost), 0) AS importCost,
             COALESCE(SUM(v.totalImportedQuantity), 0) AS importedQuantity,
             COUNT(DISTINCT v.importId) AS importCount
           FROM dbo.vw_BeverageImportStatistics AS v ${importWhere}
         `),
-      this.prisma.$queryRaw<any[]>(Prisma.sql`
+        this.prisma.$queryRaw<any[]>(Prisma.sql`
           SELECT
             (SELECT COALESCE(SUM(si.lineTotal - si.quantity * si.unitCost), 0)
              FROM dbo.BeverageSaleItem AS si
@@ -1067,14 +1256,14 @@ export class BeveragesService {
                ${query.to ? Prisma.sql`AND s.saleDate < DATEADD(day, 1, CAST(${query.to} AS date))` : Prisma.empty})
             AS grossProfit
         `),
-      this.prisma.$queryRaw<any[]>(Prisma.sql`
+        this.prisma.$queryRaw<any[]>(Prisma.sql`
           SELECT CONVERT(nvarchar(10), ${bucket}, 23) AS label,
             SUM(v.recognizedRevenue) AS revenue
           FROM dbo.vw_BeverageSalesStatistics AS v ${saleWhere}
           GROUP BY ${bucket}
           ORDER BY ${bucket}
         `),
-      this.prisma.$queryRaw<any[]>(Prisma.sql`
+        this.prisma.$queryRaw<any[]>(Prisma.sql`
           SELECT TOP (10) p.id AS productId, p.code AS productCode, p.name AS productName,
             COALESCE(SUM(si.quantity), 0) AS soldQuantity,
             COALESCE(SUM(si.lineTotal), 0) AS salesRevenue,
@@ -1087,7 +1276,7 @@ export class BeveragesService {
           GROUP BY p.id, p.code, p.name
           ORDER BY soldQuantity DESC, p.name
         `),
-      this.prisma.$queryRaw<any[]>(Prisma.sql`
+        this.prisma.$queryRaw<any[]>(Prisma.sql`
           SELECT TOP (10) p.id AS productId, p.code AS productCode, p.name AS productName,
             COALESCE(SUM(si.quantity), 0) AS soldQuantity,
             COALESCE(SUM(si.lineTotal), 0) AS salesRevenue
@@ -1099,13 +1288,13 @@ export class BeveragesService {
           GROUP BY p.id, p.code, p.name
           ORDER BY soldQuantity ASC, salesRevenue ASC, p.name
         `),
-      this.prisma.$queryRaw<any[]>(Prisma.sql`
+        this.prisma.$queryRaw<any[]>(Prisma.sql`
           SELECT v.staffId AS id, v.staffName AS label,
             SUM(v.recognizedRevenue) AS revenue, COUNT(*) AS saleCount
           FROM dbo.vw_BeverageSalesStatistics AS v ${saleWhere}
           GROUP BY v.staffId, v.staffName ORDER BY revenue DESC
         `),
-      this.prisma.$queryRaw<any[]>(Prisma.sql`
+        this.prisma.$queryRaw<any[]>(Prisma.sql`
           SELECT v.staffShiftId AS id, COALESCE(ss.title, N'Không gán ca') AS label,
             SUM(v.recognizedRevenue) AS revenue, COUNT(*) AS saleCount
           FROM dbo.vw_BeverageSalesStatistics AS v
@@ -1113,7 +1302,7 @@ export class BeveragesService {
           ${saleWhere}
           GROUP BY v.staffShiftId, ss.title ORDER BY revenue DESC
         `),
-    ]);
+      ]);
     const saleSummary = sales[0] ?? {};
     const importSummary = imports[0] ?? {};
     const asNumber = (rows: any[], keys: string[]) =>

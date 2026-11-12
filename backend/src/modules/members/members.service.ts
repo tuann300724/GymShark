@@ -110,6 +110,11 @@ export class MembersService {
           memberships: {
             include: {
               package: { select: { id: true, name: true, durationDays: true } },
+              payments: {
+                where: { status: 'PENDING' },
+                select: { id: true, status: true },
+                take: 1,
+              },
             },
             orderBy: { createdAt: 'desc' },
             take: 3,
@@ -612,7 +617,13 @@ export class MembersService {
           throw new ConflictException('Gói tập hiện tại đã thay đổi, vui lòng tải lại hồ sơ');
         }
         const pending = await tx.membership.findFirst({
-          where: { memberId, status: 'PENDING' },
+          where: {
+            memberId,
+            OR: [
+              { status: 'PENDING' },
+              { payments: { some: { status: 'PENDING' } } },
+            ],
+          },
           select: { id: true },
         });
         if (pending) {

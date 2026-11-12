@@ -20,8 +20,8 @@ model BeverageLocation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@ignore
   @@map("Branch")
+  @@ignore
 }
 
 model Room {
@@ -101,28 +101,28 @@ model Trainer {
 }
 
 model Member {
-  id               String    @id @default(uuid()) @db.NVarChar(100)
-  code             String    @unique @db.NVarChar(400)
-  userId           String?   @unique @db.NVarChar(100)
-  user             User?     @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  fullName         String    @db.NVarChar(400)
-  email            String?   @db.NVarChar(400)
-  phone            String    @db.NVarChar(400)
-  gender           String    @default("MALE") @db.NVarChar(400)
-  dateOfBirth      DateTime?
-  address          String?   @db.NVarChar(Max)
-  avatarUrl        String?   @db.NVarChar(400)
-  status           String    @default("ACTIVE") @db.NVarChar(400)
-  notes            String?   @db.NVarChar(Max)
-  emergencyContact String?   @db.NVarChar(Max)
-  joinedAt         DateTime  @default(now())
+  id                 String    @id @default(uuid()) @db.NVarChar(100)
+  code               String    @unique @db.NVarChar(400)
+  userId             String?   @unique @db.NVarChar(100)
+  user               User?     @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  fullName           String    @db.NVarChar(400)
+  email              String?   @db.NVarChar(400)
+  phone              String    @db.NVarChar(400)
+  gender             String    @default("MALE") @db.NVarChar(400)
+  dateOfBirth        DateTime?
+  address            String?   @db.NVarChar(Max)
+  avatarUrl          String?   @db.NVarChar(400)
+  status             String    @default("ACTIVE") @db.NVarChar(400)
+  notes              String?   @db.NVarChar(Max)
+  emergencyContact   String?   @db.NVarChar(Max)
+  joinedAt           DateTime  @default(now())
   referralCode       String?   @unique @db.NVarChar(400) // Mã giới thiệu cá nhân
   referredById       String?   @db.NVarChar(100) // Hội viên đã giới thiệu người này
   referredBy         Member?   @relation("Referral", fields: [referredById], references: [id], onDelete: NoAction, onUpdate: NoAction)
   referrals          Member[]  @relation("Referral")
   referralRewardedAt DateTime? // Chưa thưởng / đã thưởng khi người được giới thiệu kích hoạt gói đầu tiên
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   memberships    Membership[]
   payments       Payment[]
@@ -195,23 +195,23 @@ model MembershipPackage {
 }
 
 model Membership {
-  id                String            @id @default(uuid()) @db.NVarChar(100)
-  memberId          String            @db.NVarChar(100)
-  member            Member            @relation(fields: [memberId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  packageId         String            @db.NVarChar(100)
-  package           MembershipPackage @relation(fields: [packageId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  startDate         DateTime
-  endDate      DateTime
-  price             Decimal           @db.Decimal(12, 2)
-  discountAmount    Decimal?          @db.Decimal(12, 2)
-  finalAmount       Decimal?          @db.Decimal(12, 2)
-  remainingSessions Int?
-  status            String            @default("ACTIVE") @db.NVarChar(400)
+  id                  String            @id @default(uuid()) @db.NVarChar(100)
+  memberId            String            @db.NVarChar(100)
+  member              Member            @relation(fields: [memberId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  packageId           String            @db.NVarChar(100)
+  package             MembershipPackage @relation(fields: [packageId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  startDate           DateTime
+  endDate             DateTime
+  price               Decimal           @db.Decimal(12, 2)
+  discountAmount      Decimal?          @db.Decimal(12, 2)
+  finalAmount         Decimal?          @db.Decimal(12, 2)
+  remainingSessions   Int?
+  status              String            @default("ACTIVE") @db.NVarChar(400)
   // Hội viên tự gửi yêu cầu hủy gói — chờ admin duyệt (null = không có yêu cầu)
-  cancelRequestedAt DateTime?
-  cancelRequestReason String?         @db.NVarChar(Max)
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  cancelRequestedAt   DateTime?
+  cancelRequestReason String?           @db.NVarChar(Max)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 
   payments Payment[]
   invoices Invoice[]
@@ -248,8 +248,8 @@ model Payment {
   staffShift     StaffShift? @relation(fields: [staffShiftId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Payment_StaffShift")
   paidAt         DateTime?
   // Hoàn tiền: số tiền hoàn thực tế (có thể < amount) + phương thức trả lại tiền
-  refundAmount   Decimal?     @db.Decimal(12, 2)
-  refundMethod   String?      @db.NVarChar(400)
+  refundAmount   Decimal?    @db.Decimal(12, 2)
+  refundMethod   String?     @db.NVarChar(400)
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
@@ -266,25 +266,42 @@ model Payment {
 }
 
 model StaffShift {
-  id        String    @id @default(dbgenerated("newsequentialid()")) @db.UniqueIdentifier
+  id             String    @id @default(dbgenerated("newsequentialid()")) @db.UniqueIdentifier
   /// Database FK to dbo.User; kept scalar because User.id is mapped as NVARCHAR elsewhere in this schema.
-  staffId   String    @db.UniqueIdentifier
-  title     String    @db.NVarChar(255)
-  startTime DateTime
-  endTime   DateTime
-  status    String    @default("SCHEDULED") @db.NVarChar(20)
-  notes     String?   @db.NVarChar(Max)
-  cashExpected  Decimal?  @db.Decimal(12, 2)
-  cashCounted   Decimal?  @db.Decimal(12, 2)
-  cashDifference Decimal? @db.Decimal(12, 2)
-  closedById    String?   @db.UniqueIdentifier
-  closedAt      DateTime?
-  closeNotes    String?   @db.NVarChar(1000)
-  createdAt DateTime  @default(dbgenerated("sysdatetime()"))
-  updatedAt DateTime  @default(dbgenerated("sysdatetime()"))
-  payments  Payment[]
+  staffId        String    @db.UniqueIdentifier
+  title          String    @db.NVarChar(255)
+  startTime      DateTime
+  endTime        DateTime
+  status         String    @default("SCHEDULED") @db.NVarChar(20)
+  notes          String?   @db.NVarChar(Max)
+  cashExpected   Decimal?  @db.Decimal(12, 2)
+  cashCounted    Decimal?  @db.Decimal(12, 2)
+  cashDifference Decimal?  @db.Decimal(12, 2)
+  closedById     String?   @db.UniqueIdentifier
+  closedAt       DateTime?
+  closeNotes     String?   @db.NVarChar(1000)
+  startedAt      DateTime?
+  endedAt        DateTime?
+  createdAt      DateTime  @default(dbgenerated("sysdatetime()"))
+  updatedAt      DateTime  @default(dbgenerated("sysdatetime()"))
+  payments       Payment[]
 
   @@index([staffId, startTime], map: "IX_StaffShift_Staff_StartTime")
+}
+
+model StaffShiftTemplate {
+  id          String   @id @default(dbgenerated("newsequentialid()")) @db.UniqueIdentifier
+  staffId     String   @db.UniqueIdentifier
+  title       String   @db.NVarChar(255)
+  weekday     Int      @db.TinyInt
+  startMinute Int      @db.SmallInt
+  endMinute   Int      @db.SmallInt
+  notes       String?  @db.NVarChar(Max)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(dbgenerated("sysutcdatetime()"))
+  updatedAt   DateTime @default(dbgenerated("sysutcdatetime()"))
+
+  @@index([staffId, weekday, isActive], map: "IX_StaffShiftTemplate_Staff_Weekday")
 }
 
 // Hóa đơn (Invoice) — tài liệu thanh toán, 1-1 với Payment trong flow đăng ký gói
@@ -314,18 +331,18 @@ model Invoice {
 }
 
 model CheckIn {
-  id           String    @id @default(uuid()) @db.NVarChar(100)
-  memberId     String    @db.NVarChar(100)
-  equipmentId  String?   @db.NVarChar(100)
+  id           String     @id @default(uuid()) @db.NVarChar(100)
+  memberId     String     @db.NVarChar(100)
+  equipmentId  String?    @db.NVarChar(100)
   equipment    Equipment? @relation("EquipmentCheckIns", fields: [equipmentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  member       Member    @relation(fields: [memberId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  checkInTime  DateTime  @default(now())
+  member       Member     @relation(fields: [memberId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  checkInTime  DateTime   @default(now())
   checkOutTime DateTime?
-  status       String    @default("CHECKED_IN") @db.NVarChar(400)
-  method       String    @default("MANUAL") @db.NVarChar(400)
-  notes        String?   @db.NVarChar(Max)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  status       String     @default("CHECKED_IN") @db.NVarChar(400)
+  method       String     @default("MANUAL") @db.NVarChar(400)
+  notes        String?    @db.NVarChar(Max)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
   @@index([memberId])
   @@index([equipmentId])
@@ -369,7 +386,7 @@ model TrainingSchedule {
   notes            String?   @db.NVarChar(Max)
   cancellationNote String?   @db.NVarChar(Max)
   completedAt      DateTime?
-  capacity         Int?      // Sức chứa ca nhóm (null = buổi 1:1 PT, hội viên không cần đăng ký)
+  capacity         Int? // Sức chứa ca nhóm (null = buổi 1:1 PT, hội viên không cần đăng ký)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
@@ -439,22 +456,22 @@ model TrainerMember {
 
 // Ghi chú tiến trình buổi tập do HLV đánh giá sau buổi
 model Program {
-  id        String   @id @default(uuid()) @db.NVarChar(100)
-  slug      String   @unique @db.NVarChar(400)
-  name      String   @db.NVarChar(400)
-  group     String?  @db.NVarChar(400)
-  duration  Int?
-  summary   String?  @db.NVarChar(Max)
-  img       String?  @db.NVarChar(400)
-  alt       String?  @db.NVarChar(400)
-  trainerId String?  @db.NVarChar(100)
-  trainer   Trainer? @relation(fields: [trainerId], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  memberId  String?  @db.NVarChar(100)
-  member    Member?  @relation(fields: [memberId], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  status    String   @default("DRAFT") @db.NVarChar(400)
-  isTemplate Boolean @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String            @id @default(uuid()) @db.NVarChar(100)
+  slug             String            @unique @db.NVarChar(400)
+  name             String            @db.NVarChar(400)
+  group            String?           @db.NVarChar(400)
+  duration         Int?
+  summary          String?           @db.NVarChar(Max)
+  img              String?           @db.NVarChar(400)
+  alt              String?           @db.NVarChar(400)
+  trainerId        String?           @db.NVarChar(100)
+  trainer          Trainer?          @relation(fields: [trainerId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  memberId         String?           @db.NVarChar(100)
+  member           Member?           @relation(fields: [memberId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  status           String            @default("DRAFT") @db.NVarChar(400)
+  isTemplate       Boolean           @default(false)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
   programExercises ProgramExercise[]
 
   @@index([slug])
@@ -464,15 +481,15 @@ model Program {
 }
 
 model Exercise {
-  id          String    @id @default(uuid()) @db.NVarChar(100)
-  name        String    @db.NVarChar(400)
-  enName      String?   @db.NVarChar(400)
-  group       String    @db.NVarChar(400)
-  equipment   String?   @db.NVarChar(400)
-  description String?   @db.NVarChar(Max)
-  imageUrl    String?   @db.NVarChar(400)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id          String   @id @default(uuid()) @db.NVarChar(100)
+  name        String   @db.NVarChar(400)
+  enName      String?  @db.NVarChar(400)
+  group       String   @db.NVarChar(400)
+  equipment   String?  @db.NVarChar(400)
+  description String?  @db.NVarChar(Max)
+  imageUrl    String?  @db.NVarChar(400)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   programExercises ProgramExercise[]
 
@@ -481,21 +498,21 @@ model Exercise {
 }
 
 model ProgramExercise {
-  id         String    @id @default(uuid()) @db.NVarChar(100)
-  programId  String    @db.NVarChar(100)
-  exerciseId String    @db.NVarChar(100)
-  exercise   Exercise  @relation(fields: [exerciseId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  program    Program   @relation(fields: [programId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  sets       Int       @default(3)
-  reps       String    @db.NVarChar(100)
-  rest       String?   @db.NVarChar(400)
-  orderIndex Int       @default(0)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id         String   @id @default(uuid()) @db.NVarChar(100)
+  programId  String   @db.NVarChar(100)
+  exerciseId String   @db.NVarChar(100)
+  exercise   Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  program    Program  @relation(fields: [programId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  sets       Int      @default(3)
+  reps       String   @db.NVarChar(100)
+  rest       String?  @db.NVarChar(400)
+  orderIndex Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
+  @@unique([programId, orderIndex])
   @@index([programId])
   @@index([exerciseId])
-  @@unique([programId, orderIndex])
 }
 
 model TrainingProgress {
@@ -518,22 +535,22 @@ model TrainingProgress {
 }
 
 model Promotion {
-  id             String   @id @default(uuid()) @db.NVarChar(100)
-  code           String   @unique @db.NVarChar(400)
-  name           String   @db.NVarChar(400)
-  description    String?  @db.NVarChar(Max)
-  discountType   String   @default("PERCENTAGE") @db.NVarChar(400)
-  discountValue  Decimal  @db.Decimal(12, 2)
-  minOrderValue  Decimal? @db.Decimal(12, 2)
-  maxDiscount    Decimal? @db.Decimal(12, 2)
+  id             String    @id @default(uuid()) @db.NVarChar(100)
+  code           String    @unique @db.NVarChar(400)
+  name           String    @db.NVarChar(400)
+  description    String?   @db.NVarChar(Max)
+  discountType   String    @default("PERCENTAGE") @db.NVarChar(400)
+  discountValue  Decimal   @db.Decimal(12, 2)
+  minOrderValue  Decimal?  @db.Decimal(12, 2)
+  maxDiscount    Decimal?  @db.Decimal(12, 2)
   startDate      DateTime
   endDate        DateTime?
   usageLimit     Int?
   perMemberLimit Int? // STEP 8 — số lần tối đa mỗi hội viên được dùng mã này
-  usedCount      Int      @default(0)
-  status         String   @default("ACTIVE") @db.NVarChar(400)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  usedCount      Int       @default(0)
+  status         String    @default("ACTIVE") @db.NVarChar(400)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   payments Payment[]
 
@@ -790,31 +807,31 @@ model MealItem {
 
 // ==================== EQUIPMENT ====================
 model Equipment {
-  id          String   @id @default(uuid()) @db.NVarChar(100)
-  name        String   @db.NVarChar(400)
-  code        String   @unique @db.NVarChar(400) // mã duy nhất toàn hệ thống, VD: R-01, TREADMILL-01
-  type        String   @default("CARDIO") @db.NVarChar(400) // CARDIO, WEIGHT, FREESTYLE, GROUP_CLASS
-  status      String   @default("AVAILABLE") @db.NVarChar(400) // AVAILABLE, INACTIVE, MAINTENANCE, BROKEN
-  capacity    Int?     // chỉ dùng cho GROUP_CLASS
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(uuid()) @db.NVarChar(100)
+  name      String   @db.NVarChar(400)
+  code      String   @unique @db.NVarChar(400) // mã duy nhất toàn hệ thống, VD: R-01, TREADMILL-01
+  type      String   @default("CARDIO") @db.NVarChar(400) // CARDIO, WEIGHT, FREESTYLE, GROUP_CLASS
+  status    String   @default("AVAILABLE") @db.NVarChar(400) // AVAILABLE, INACTIVE, MAINTENANCE, BROKEN
+  capacity  Int? // chỉ dùng cho GROUP_CLASS
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   maintenance EquipmentMaintenance[] @relation("EquipmentMaintenance")
-  checkIns    CheckIn[]        @relation("EquipmentCheckIns")
+  checkIns    CheckIn[]              @relation("EquipmentCheckIns")
 }
 
 // ==================== EQUIPMENT MAINTENANCE ====================
 model EquipmentMaintenance {
-  id              String    @id @default(uuid()) @db.NVarChar(100)
-  equipmentId     String    @db.NVarChar(100)
-  equipment       Equipment @relation("EquipmentMaintenance", fields: [equipmentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  status          String   @default("PENDING") @db.NVarChar(400) // PENDING, IN_PROGRESS, COMPLETE, CANCELLED
-  startDate       DateTime
-  endDate         DateTime?
-  description     String?  @db.NVarChar(Max)
-  notes           String?  @db.NVarChar(Max)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id          String    @id @default(uuid()) @db.NVarChar(100)
+  equipmentId String    @db.NVarChar(100)
+  equipment   Equipment @relation("EquipmentMaintenance", fields: [equipmentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  status      String    @default("PENDING") @db.NVarChar(400) // PENDING, IN_PROGRESS, COMPLETE, CANCELLED
+  startDate   DateTime
+  endDate     DateTime?
+  description String?   @db.NVarChar(Max)
+  notes       String?   @db.NVarChar(Max)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([equipmentId])
   @@index([status])

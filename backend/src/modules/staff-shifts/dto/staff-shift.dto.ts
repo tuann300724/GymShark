@@ -1,6 +1,7 @@
 import { Type } from "class-transformer";
 import {
   IsDateString,
+  IsInt,
   IsNumber,
   IsNotEmpty,
   IsOptional,
@@ -87,4 +88,42 @@ export class SettleStaffShiftDto {
   @IsString()
   @MaxLength(1000)
   note?: string;
+}
+
+export class CreateStaffShiftTemplateDto {
+  @IsUUID()
+  staffId: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/\S/)
+  @MaxLength(255)
+  title: string;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(7)
+  weekday: number;
+
+  @IsString()
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/)
+  startTime: string;
+
+  @IsString()
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/)
+  endTime: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  notes?: string;
+}
+
+export class GenerateStaffShiftsDto {
+  @IsDateString()
+  from: string;
+
+  @IsDateString()
+  to: string;
 }

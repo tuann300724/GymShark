@@ -3,7 +3,7 @@
 export type BadgeVariant = 'default' | 'success' | 'warning' | 'destructive' | 'outline' | 'info';
 
 export const MEMBERSHIP_STATUS_META: Record<string, { label: string; variant: BadgeVariant }> = {
-  PENDING: { label: 'Chờ xác nhận', variant: 'warning' },
+  PENDING: { label: 'Đang chờ xác nhận', variant: 'warning' },
   ACTIVE: { label: 'Đang hoạt động', variant: 'success' },
   EXPIRED: { label: 'Hết hạn', variant: 'info' },
   CANCELLED: { label: 'Đã hủy', variant: 'destructive' },
@@ -11,7 +11,7 @@ export const MEMBERSHIP_STATUS_META: Record<string, { label: string; variant: Ba
 };
 
 export const PAYMENT_STATUS_META: Record<string, { label: string; variant: BadgeVariant }> = {
-  PENDING: { label: 'Chờ thanh toán', variant: 'warning' },
+  PENDING: { label: 'Đang chờ xác nhận', variant: 'warning' },
   PAID: { label: 'Đã thanh toán', variant: 'success' },
   COMPLETED: { label: 'Đã thanh toán', variant: 'success' }, // tương thích dữ liệu cũ
   FAILED: { label: 'Thất bại', variant: 'destructive' },
