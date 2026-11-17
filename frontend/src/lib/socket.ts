@@ -2,12 +2,28 @@ import { io, Socket } from 'socket.io-client';
 
 let socket: Socket | null = null;
 
+/**
+ * Đọc `exp` của JWT mà không verify (chỉ để tự kiểm tra hạn trước khi kết nối).
+ * Trả về false nếu token hỏng/không đọc được → để server quyết định như bình thường.
+ */
+function isTokenExpired(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return typeof payload.exp === 'number' && payload.exp * 1000 <= Date.now();
+  } catch {
+    return false;
+  }
+}
+
 export function initSocket(): Socket | null {
   if (typeof window === 'undefined') return null;
   if (socket && socket.connected) return socket;
 
   const token = localStorage.getItem('gym_access_token');
   if (!token) return null;
+  // Token hết hạn → không kết nối WS tránh log WARN "jwt expired" lặp mỗi lần
+  // mount; request REST tiếp theo sẽ bị 401 và axios tự redirect về /login.
+  if (isTokenExpired(token)) return null;
 
   const url = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
   // Socket.IO chạy cùng backend (port 3001). Nếu apiUrl là /api thì cắt về gốc
@@ -21,6 +37,13 @@ export function initSocket(): Socket | null {
   });
 
   socket.on('connect_error', (err) => {
+    // Token hết hạn giữa phiên → ngắt hẳn, không reconnect lặp với token cũ
+    // (mỗi lần reconnect backend lại log WARN "jwt expired"). Request REST
+    // kế tiếp sẽ 401 và axios tự redirect về /login.
+    if (/jwt (expired|invalid)/i.test(err.message)) {
+      socket?.disconnect();
+      return;
+    }
     // Chỉ log nhẹ để tránh nhiễu
     if (process.env.NODE_ENV !== 'production') {
       console.error('[ws] connect_error:', err.message);

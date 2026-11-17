@@ -61,10 +61,10 @@ export default function AdminFaceScanPage() {
             }}
           />
         </div>
-        <div className="mt-6 min-h-[3rem] flex items-center gap-3 text-lg font-medium">
-          {status === 'idle' && <Loader2 className="w-6 h-6 animate-spin text-[var(--neon)]" />}
-          {status === 'done' && <CheckCircle2 className="w-6 h-6 text-emerald-400" />}
-          {status === 'error' && <AlertCircle className="w-6 h-6 text-rose-400" />}
+        <div className="mt-6 min-h-12 flex items-center gap-3 text-lg font-medium">
+          {status === 'idle' && <Loader2 className="size-6 animate-spin text-[var(--neon)]" />}
+          {status === 'done' && <CheckCircle2 className="size-6 text-emerald-400" />}
+          {status === 'error' && <AlertCircle className="size-6 text-rose-400" />}
           <span
             className={cn(
               'transition-colors',

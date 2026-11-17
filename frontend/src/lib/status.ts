@@ -40,7 +40,7 @@ export const TRAINER_STATUS_META: Record<string, { label: string; variant: Badge
   ON_LEAVE: { label: 'Tạm nghỉ', variant: 'warning' },
 };
 
-export const SESSION_STATUS_META: Record<string, { label: string; variant: BadgeVariant }> = {
+const SESSION_STATUS_META: Record<string, { label: string; variant: BadgeVariant }> = {
   SCHEDULED: { label: 'Chờ diễn ra', variant: 'info' },
   COMPLETED: { label: 'Hoàn thành', variant: 'success' },
   CANCELLED: { label: 'Đã hủy', variant: 'destructive' },
@@ -78,27 +78,6 @@ export const SESSION_TYPE_META: Record<string, { label: string; variant: BadgeVa
 export const ASSIGNMENT_STATUS_META: Record<string, { label: string; variant: BadgeVariant }> = {
   ACTIVE: { label: 'Đang phụ trách', variant: 'success' },
   INACTIVE: { label: 'Đã kết thúc', variant: 'outline' },
-};
-
-// ---------------------------------------------------------------------------
-// STEP 7 — Rooms
-// ---------------------------------------------------------------------------
-
-export const ROOM_STATUS_META: Record<string, { label: string; variant: BadgeVariant }> = {
-  AVAILABLE: { label: 'Sẵn sàng', variant: 'success' },
-  INACTIVE: { label: 'Đã đóng', variant: 'destructive' },
-  MAINTENANCE: { label: 'Đang bảo trì', variant: 'warning' },
-  OCCUPIED: { label: 'Đang sử dụng', variant: 'info' },
-};
-
-export const ROOM_TYPE_META: Record<string, string> = {
-  GYM_AREA: 'Khu tập Gym',
-  CARDIO: 'Khu Cardio',
-  WEIGHT_AREA: 'Khu tạ',
-  GROUP_CLASS: 'Phòng lớp nhóm',
-  PERSONAL_TRAINING: 'Phòng PT riêng',
-  YOGA: 'Phòng Yoga',
-  OTHER: 'Khác',
 };
 
 // ============ STEP 8 — Khuyến mãi & Thông báo ============

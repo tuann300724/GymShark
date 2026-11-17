@@ -14,5 +14,13 @@
   "rules": {
     "tailwindcss/classnames-order": "off",
     "jsx-a11y/no-autofocus": "warn"
-  }
+  },
+  "overrides": [
+    {
+      "files": ["tailwind.config.ts"],
+      "rules": {
+        "tailwindcss/no-custom-classname": "off"
+      }
+    }
+  ]
 }

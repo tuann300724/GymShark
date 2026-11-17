@@ -40,7 +40,7 @@ export interface BeverageStock {
   stockStatus: 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK';
 }
 
-export interface BeverageImportItem {
+interface BeverageImportItem {
   productId: string;
   productCode: string;
   productName: string;

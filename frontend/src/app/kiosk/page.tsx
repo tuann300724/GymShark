@@ -74,7 +74,7 @@ export default function KioskFacePage() {
   );
 
   return (
-    <main className="min-h-[100dvh] bg-[#0B0D0F] text-[var(--chalk)] flex flex-col items-center px-6 py-10">
+    <main className="min-h-dvh bg-[#0B0D0F] text-[var(--chalk)] flex flex-col items-center px-6 py-10">
       <div className="w-full max-w-2xl text-center mb-6">
         <h1 className="font-[family-name:var(--font-heading)] text-5xl md:text-7xl tracking-tighter text-neutral-200 drop-shadow-lg mb-2">
           QUÉT MẶT
@@ -105,10 +105,10 @@ export default function KioskFacePage() {
         />
       </div>
 
-      <div className="mt-6 min-h-[3.5rem] flex items-center justify-center gap-3 text-xl font-bold">
-        {status === 'idle' && <Loader2 className="w-7 h-7 animate-spin text-[#B7FF00]" />}
-        {status === 'done' && <CheckCircle2 className="w-8 h-8 text-emerald-400" />}
-        {status === 'error' && <AlertCircle className="w-8 h-8 text-rose-400" />}
+      <div className="mt-6 min-h-14 flex items-center justify-center gap-3 text-xl font-bold">
+        {status === 'idle' && <Loader2 className="size-7 animate-spin text-[#B7FF00]" />}
+        {status === 'done' && <CheckCircle2 className="size-8 text-emerald-400" />}
+        {status === 'error' && <AlertCircle className="size-8 text-rose-400" />}
         <span
           className={cn(
             'text-center',

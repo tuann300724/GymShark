@@ -316,7 +316,7 @@ export default function MemberProgressPage() {
           <button
             type="button"
             onClick={() => setShowMore((v) => !v)}
-            className="mt-4 flex w-full items-center justify-between gap-2 rounded-[10px] border border-line bg-ink px-3.5 py-2.5 text-left text-sm font-semibold text-chalk transition-colors hover:border-neon/40"
+            className="mt-4 flex w-full items-center justify-between gap-2 rounded-sm border border-line bg-ink px-3.5 py-2.5 text-left text-sm font-semibold text-chalk transition-colors hover:border-neon/40"
             aria-expanded={showMore}
           >
             <span>Thêm số đo khác (không bắt buộc)</span>
@@ -363,7 +363,7 @@ export default function MemberProgressPage() {
           )}
 
           {formError && (
-            <p className="mt-4 rounded-[10px] border border-danger/40 bg-danger/10 px-3 py-2 text-sm font-medium text-danger">
+            <p className="mt-4 rounded-sm border border-danger/40 bg-danger/10 px-3 py-2 text-sm font-medium text-danger">
               {formError}
             </p>
           )}

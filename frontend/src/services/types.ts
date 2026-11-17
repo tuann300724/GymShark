@@ -266,7 +266,7 @@ export interface CurrentlyInsideRecord {
   method?: string;
 }
 
-export interface DailyAttendanceItem {
+interface DailyAttendanceItem {
   date: string;
   checkIns: number;
   checkOuts: number;
@@ -293,7 +293,7 @@ export interface HourlyAttendanceReport {
   peakCount: number;
 }
 
-export interface MemberAttendanceRow {
+interface MemberAttendanceRow {
   member: {
     id: string;
     code: string;
@@ -741,7 +741,7 @@ export interface TrainerPublic {
   user: TrainerUser;
 }
 
-export interface TrainerUser {
+interface TrainerUser {
   id: string;
   email?: string;
   fullName: string;
@@ -765,7 +765,7 @@ export interface TrainerListResponse {
   totalPages: number;
 }
 
-export interface TrainerMemberSummary {
+interface TrainerMemberSummary {
   id: string;
   code: string;
   fullName: string;

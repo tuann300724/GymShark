@@ -73,12 +73,12 @@ export default function FaceCheckinPage() {
           />
         </div>
 
-        <div className="mt-6 min-h-[3.5rem] flex items-center gap-3 text-lg font-medium">
-          {status === 'idle' && <Loader2 className="w-6 h-6 animate-spin text-[var(--neon)]" />}
+        <div className="mt-6 min-h-14 flex items-center gap-3 text-lg font-medium">
+          {status === 'idle' && <Loader2 className="size-6 animate-spin text-[var(--neon)]" />}
           {(status === 'in' || status === 'out') && (
-            <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+            <CheckCircle2 className="size-6 text-emerald-400" />
           )}
-          {status === 'error' && <AlertCircle className="w-6 h-6 text-rose-400" />}
+          {status === 'error' && <AlertCircle className="size-6 text-rose-400" />}
           <span
             className={cn(
               'transition-colors',
@@ -97,14 +97,14 @@ export default function FaceCheckinPage() {
 
         <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
           <div className="rounded-xl bg-[var(--surface)] border border-[var(--line)] p-3 flex items-center gap-3">
-            <DoorClosed className="w-5 h-5 text-[var(--neon)]" />
+            <DoorClosed className="size-5 text-[var(--neon)]" />
             <div>
               <div className="text-[var(--muted)] text-xs">Vào phòng</div>
               <div className="font-semibold">Face Check-In</div>
             </div>
           </div>
           <div className="rounded-xl bg-[var(--surface)] border border-[var(--line)] p-3 flex items-center gap-3">
-            <DoorOpen className="w-5 h-5 text-amber-400" />
+            <DoorOpen className="size-5 text-amber-400" />
             <div>
               <div className="text-[var(--muted)] text-xs">Ra phòng</div>
               <div className="font-semibold">Face Check-Out</div>

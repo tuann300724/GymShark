@@ -351,13 +351,13 @@ export default function PaymentsPage() {
               <table className="w-full text-left text-sm">
                 <thead className="text-[11px] uppercase tracking-wider text-muted bg-ink/70 border-b border-line">
                   <tr>
-                    <th className="py-3 px-3 font-semibold">Mã HĐ</th>
-                    <th className="py-3 px-3 font-semibold">Hội viên</th>
-                    <th className="py-3 px-3 font-semibold">Gói tập</th>
-                    <th className="py-3 px-3 font-semibold">Số tiền / PTTT</th>
-                    <th className="py-3 px-3 font-semibold">Thời gian</th>
-                    <th className="py-3 px-3 font-semibold text-center">Trạng thái</th>
-                    <th className="py-3 px-3 font-semibold text-right">Thao tác</th>
+                    <th className="p-3 font-semibold">Mã HĐ</th>
+                    <th className="p-3 font-semibold">Hội viên</th>
+                    <th className="p-3 font-semibold">Gói tập</th>
+                    <th className="p-3 font-semibold">Số tiền / PTTT</th>
+                    <th className="p-3 font-semibold">Thời gian</th>
+                    <th className="p-3 font-semibold text-center">Trạng thái</th>
+                    <th className="p-3 font-semibold text-right">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line font-normal">
@@ -372,7 +372,7 @@ export default function PaymentsPage() {
                         className="border-b border-line hover:bg-line/25 transition-colors"
                       >
                         {/* 1. Mã HĐ */}
-                        <td className="py-3 px-3 whitespace-nowrap">
+                        <td className="p-3 whitespace-nowrap">
                           <p className="font-mono font-bold text-chalk text-xs">{p.code}</p>
                           {p.transactionRef && (
                             <p
@@ -385,7 +385,7 @@ export default function PaymentsPage() {
                         </td>
 
                         {/* 2. Hội viên */}
-                        <td className="py-3 px-3">
+                        <td className="p-3">
                           <p className="font-semibold text-chalk text-xs truncate max-w-[150px]">
                             {p.member?.fullName || 'Khách vãng lai'}
                           </p>
@@ -395,7 +395,7 @@ export default function PaymentsPage() {
                         </td>
 
                         {/* 3. Gói tập */}
-                        <td className="py-3 px-3">
+                        <td className="p-3">
                           <p className="font-medium text-chalk text-xs truncate max-w-[150px]">
                             {p.membership?.package?.name || 'Dịch vụ lẻ'}
                           </p>
@@ -407,7 +407,7 @@ export default function PaymentsPage() {
                         </td>
 
                         {/* 4. Số tiền & PTTT */}
-                        <td className="py-3 px-3 whitespace-nowrap">
+                        <td className="p-3 whitespace-nowrap">
                           <p className="font-bold text-neon font-mono text-xs tracking-tight">
                             {formatCurrency(p.amount)}
                           </p>
@@ -417,7 +417,7 @@ export default function PaymentsPage() {
                         </td>
 
                         {/* 5. Thời gian */}
-                        <td className="py-3 px-3 whitespace-nowrap font-mono text-[11px] text-muted">
+                        <td className="p-3 whitespace-nowrap font-mono text-[11px] text-muted">
                           <p className="text-chalk font-medium">
                             {p.paidAt ? formatDateTime(p.paidAt) : formatDateTime(p.createdAt)}
                           </p>
@@ -427,7 +427,7 @@ export default function PaymentsPage() {
                         </td>
 
                         {/* 6. Trạng thái */}
-                        <td className="py-3 px-3 whitespace-nowrap text-center">
+                        <td className="p-3 whitespace-nowrap text-center">
                           <div className="flex flex-col items-center justify-center gap-0.5">
                             {p.status === 'PAID' ? (
                               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-neon/10 text-neon border border-neon/30 whitespace-nowrap">
@@ -466,7 +466,7 @@ export default function PaymentsPage() {
                         </td>
 
                         {/* 7. Thao tác */}
-                        <td className="py-3 px-3 whitespace-nowrap text-right">
+                        <td className="p-3 whitespace-nowrap text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             {/* Contextual Action (Left Slot) */}
                             {p.status === 'PENDING' ? (

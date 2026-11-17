@@ -1,6 +1,6 @@
 import apiClient from '@/lib/axios';
 
-export type StaffShiftStatus = 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+type StaffShiftStatus = 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 
 export interface StaffShift {
   id: string;
