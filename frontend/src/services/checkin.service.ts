@@ -72,41 +72,6 @@ export const checkinApi = {
     return res.data;
   },
 
-  /** Lễ tân nhập/dán mã QR hội viên để đối chiếu hồ sơ trước khi check-in */
-  lookupQr: async (
-    token: string,
-  ): Promise<{
-    member: {
-      id: string;
-      code: string;
-      fullName: string;
-      phone: string;
-      email: string | null;
-      avatarUrl: string | null;
-      status: string;
-    };
-    checkedIn: boolean;
-    currentCheckIn: {
-      id: string;
-      checkInAt: string;
-    } | null;
-    membership: {
-      id: string;
-      packageName: string | null;
-      endDate: string;
-      remainingDays: number;
-    } | null;
-  }> => {
-    const res = await apiClient.get('/checkins/qr/lookup', { params: { token } });
-    return res.data;
-  },
-
-  /** Check-in cho hội viên bằng mã QR (method = QR_CODE, đi qua cùng kiểm tra thẻ tập) */
-  qrCheckIn: async (token: string, note?: string): Promise<CheckInResult> => {
-    const res = await apiClient.post('/checkins/qr', { token, note });
-    return res.data;
-  },
-
   /** Lịch sử toàn hệ thống (admin) */
   getAdminCheckins: async (
     params: {

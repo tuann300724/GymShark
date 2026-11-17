@@ -85,7 +85,6 @@ export type CheckInStatus = (typeof CheckInStatus)[keyof typeof CheckInStatus];
 
 export const CheckInMethod = {
   MANUAL: 'MANUAL',
-  QR_CODE: 'QR_CODE',
   STAFF: 'STAFF',
   FACE_ID: 'FACE_ID',
 } as const;

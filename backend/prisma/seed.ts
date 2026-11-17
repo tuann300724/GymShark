@@ -576,7 +576,7 @@ async function main() {
           checkInTime: daysAgo(1),
           checkOutTime: new Date(daysAgo(1).getTime() + 90 * 60 * 1000),
           status: 'CHECKED_OUT',
-          method: 'QR_CODE',
+          method: 'MANUAL',
           notes: 'Tập gym cá nhân',
         },
         {
@@ -1016,7 +1016,7 @@ async function main() {
         checkInTime: atHour9(daysAgo9(day), hour, 10),
         checkOutTime: atHour9(daysAgo9(day), hour + 1 + (i % 2), 25),
         status: 'CHECKED_OUT',
-        method: i % 3 === 0 ? 'QR_CODE' : i % 3 === 1 ? 'MANUAL' : 'STAFF',
+        method: i % 2 === 0 ? 'MANUAL' : 'STAFF',
         notes: 'Buổi tập demo STEP 9',
       });
     });
@@ -1270,7 +1270,7 @@ async function main() {
         { userId: adminUser.id, action: 'MEMBERSHIP_STATUS_CHANGE', entity: 'Membership', entityId: ms2?.id, metadata: { from: 'PENDING', to: 'ACTIVE' }, ip: '127.0.0.1', at: daysAgo9(88) },
         { userId: managerUser.id, action: 'MEMBERSHIP_EXTEND', entity: 'Membership', entityId: ms2?.id, metadata: { extraDays: 7, reason: 'Bù buổi tập theo yêu cầu hội viên' }, ip: '127.0.0.1', at: daysAgo9(6) },
         { userId: adminUser.id, action: 'PAYMENT_REFUND', entity: 'Payment', entityId: pay6?.id, metadata: { code: 'INV-2026-0006', reason: 'Hội viên hủy trong 7 ngày' }, ip: '127.0.0.1', at: daysAgo9(58) },
-        { userId: memberUser.id, action: 'CHECK_IN', entity: 'CheckIn', entityId: null, metadata: { method: 'QR_CODE' }, ip: '127.0.0.1', at: atHour9(daysAgo9(0), 7, 12) },
+        { userId: memberUser.id, action: 'CHECK_IN', entity: 'CheckIn', entityId: null, metadata: { method: 'MANUAL' }, ip: '127.0.0.1', at: atHour9(daysAgo9(0), 7, 12) },
         { userId: memberUser.id, action: 'CHECK_OUT', entity: 'CheckIn', entityId: null, metadata: { durationMinutes: 65 }, ip: '127.0.0.1', at: atHour9(daysAgo9(0), 8, 17) },
         { userId: staffUser.id, action: 'CHECK_IN', entity: 'CheckIn', entityId: null, metadata: { method: 'MANUAL', memberCode: 'MEM-0002' }, ip: '127.0.0.1', at: atHour9(daysAgo9(0), 18, 5) },
         { userId: managerUser.id, action: 'SCHEDULE_CREATE', entity: 'TrainingSchedule', entityId: sched1?.id, metadata: { title: sched1?.title, type: sched1?.type }, ip: '127.0.0.1', at: daysAgo9(7) },

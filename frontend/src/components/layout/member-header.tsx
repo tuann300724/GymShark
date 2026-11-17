@@ -17,7 +17,6 @@ import {
   Bell,
   LayoutDashboard,
   CalendarDays,
-  QrCode,
   Receipt,
   User,
   CreditCard,
@@ -25,14 +24,12 @@ import {
   LogOut,
   ChevronDown,
   MessageSquare,
-  ScanLine,
   CupSoda,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
   { name: 'Dashboard', href: '/member', icon: LayoutDashboard },
-  { name: 'Thẻ QR', href: '/member/qr', icon: ScanLine },
   { name: 'Lịch tập', href: '/member/schedule', icon: CalendarDays },
   { name: 'Tin nhắn', href: '/member/messages', icon: MessageSquare },
   { name: 'Gói tập của tôi', href: '/member/membership', icon: CreditCard },

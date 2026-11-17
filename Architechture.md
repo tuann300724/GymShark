@@ -16,7 +16,7 @@
 
 * Clean Architechture
 * Mô hình thực tế: **Module-based Monolith** (NestJS) — `AppModule` import 24 feature module: auth, health, users, members, trainers, rooms, packages, memberships, checkins, faces, payments, invoices, schedules, promotions, notifications, reports, public, member, audit-logs, mail, foods, meal-plans, chat, casso
-* Tầng `common/` dùng chung: `guards/` (JwtAuthGuard, RolesGuard), `decorators/` (@Roles, @Public, @CurrentUser), `filters/` (AllExceptionsFilter), `services/` (MemberQrService), `enums/`
+* Tầng `common/` dùng chung: `guards/` (JwtAuthGuard, RolesGuard), `decorators/` (@Roles, @Public, @CurrentUser), `filters/` (AllExceptionsFilter), `enums/`
 * Mỗi module theo cấu trúc: `controller` (HTTP + WebSocket gateway) → `service` (nghiệp vụ, gọi Prisma) → `dto` (class-validator) → `entity`; service gọi nhau qua `imports` của module
 * Lớp truy cập dữ liệu: `PrismaModule` / `PrismaService` (kế thừa `PrismaClient`, `onModuleInit` kết nối) — service không tự query DB trực tiếp ngoài PrismaService
 * Audit: `AuditLogsModule` là `@Global()` — `log()` không bao giờ throw, ghi 34 action / 12 entity

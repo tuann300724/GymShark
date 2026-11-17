@@ -49,7 +49,7 @@
 - Dashboard cá nhân: gói tập hiện tại, số buổi tập tháng này, PT phụ trách, thanh toán gần nhất
 - **Đăng ký / gia hạn gói tập** online (áp dụng mã khuyến mãi, chọn CASH / BANK_TRANSFER / MoMo / VNPay);
   thấy ngay **gói đã gia hạn sắp kích hoạt** và tự **hủy yêu cầu đang chờ thanh toán** nếu chưa chuyển tiền
-- **Check-in / Check-out** tự phục vụ (QR) hoặc lễ tân hỗ trợ
+- **Check-in / Check-out** tự phục vụ hoặc lễ tân hỗ trợ
 - Lịch sử check-in, lịch tập cá nhân, huấn luyện viên phụ trách
 - Hóa đơn: danh sách + chi tiết + **in biên lao**
 - Hồ sơ cá nhân, chuỗi thông báo, cập nhật mật khẩu

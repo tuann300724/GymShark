@@ -11,8 +11,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit-logs/audit-logs.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { FacesService } from '../faces/faces.service';
-import { FaceCheckInDto, FaceScanDto, QrCheckInDto } from './dto/checkin.dto';
-import { MemberQrService } from '../../common/services/member-qr.service';
+import { FaceCheckInDto, FaceScanDto } from './dto/checkin.dto';
 
 interface CheckInMember {
   id: string;
@@ -26,7 +25,6 @@ export class CheckinsService {
     private prisma: PrismaService,
     private auditService: AuditService,
     private facesService: FacesService,
-    private qrService: MemberQrService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -538,81 +536,8 @@ export class CheckinsService {
   }
 
   // ---------------------------------------------------------------------------
-  // Check-in bằng mã QR hội viên
+  // Admin / Staff: danh sách & hiện đang trong phòng
   // ---------------------------------------------------------------------------
-
-  /**
-   * GET /checkins/qr/lookup — lễ tân nhập/dán mã QR để đối chiếu hội viên
-   * trước khi bấm check-in. Trả về hồ sơ + thẻ tập + trạng thái phiên tập hiện tại.
-   */
-  async lookupByQr(token: string) {
-    const payload = this.qrService.verify(token);
-    if (!payload) throw new BadRequestException('Mã QR không hợp lệ hoặc đã bị chỉnh sửa.');
-
-    const member = await this.prisma.member.findUnique({
-      where: { id: payload.memberId },
-      include: {
-        user: { select: { id: true, avatarUrl: true } },
-      },
-    });
-
-    // Mã thẻ ghi trong token phải khớp thẻ thật — nếu không thì QR cũ/đã bị cắt ghép
-    if (!member || member.code !== payload.memberCode) {
-      throw new NotFoundException('Không tìm thấy hội viên theo mã QR này.');
-    }
-
-    const current = await this.prisma.checkIn.findFirst({
-      where: { memberId: member.id, status: 'CHECKED_IN' },
-      orderBy: { checkInTime: 'desc' },
-    });
-
-    const membership = await this.getActiveMembership(member.id);
-
-    return {
-      member: {
-        id: member.id,
-        code: member.code,
-        fullName: member.fullName,
-        phone: member.phone,
-        email: member.email,
-        avatarUrl: member.avatarUrl ?? member.user?.avatarUrl ?? null,
-        status: member.status,
-      },
-      checkedIn: !!current,
-      currentCheckIn: current ? { id: current.id, checkInAt: current.checkInTime } : null,
-      membership: membership
-        ? {
-            id: membership.id,
-            packageName: membership.package?.name ?? null,
-            endDate: membership.endDate,
-            remainingDays: Math.max(
-              0,
-              Math.ceil((new Date(membership.endDate).getTime() - Date.now()) / 86_400_000),
-            ),
-          }
-        : null,
-    };
-  }
-
-  /**
-   * POST /checkins/qr — lễ tân quét/nhập mã QR rồi check-in cho hội viên.
-   * Mã QR chỉ là cách *tìm ra* memberId; toàn bộ kiểm tra thẻ tập và quyền hạn
-   * vẫn đi qua `staffCheckIn` như check-in tay, không có đường tắt.
-   */
-  async checkInByQr(dto: QrCheckInDto, role = 'STAFF', actorId?: string) {
-    const payload = this.qrService.verify(dto.token);
-    if (!payload) throw new BadRequestException('Mã QR không hợp lệ hoặc đã bị chỉnh sửa.');
-
-    return this.staffCheckIn(
-      {
-        memberId: payload.memberId,
-        note: dto.note,
-        method: CheckInMethod.QR_CODE,
-      },
-      role,
-      actorId,
-    );
-  }
 
   /** POST /checkins/:id/checkout — admin/staff check-out giúp member */
   async checkoutById(id: string, actorId?: string) {
