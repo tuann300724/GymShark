@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import { Reveal } from '@/components/home/reveal';
 import { Button } from '@/components/ui/button';
+import { ExerciseFigure } from '@/components/ui/exercise-figure';
+import { getExerciseFigure } from '@/lib/exercise-figures';
 import { PROGRAMS, getProgram, type ProgramExercise } from '@/lib/programs';
 
 interface ProgramDetailProps {
@@ -46,11 +48,21 @@ function MetaChip({ icon, children }: { icon: React.ReactNode; children: React.R
 }
 
 function ExerciseItem({ ex, index }: { ex: ProgramExercise; index: number }) {
+  const figure = getExerciseFigure(ex.en);
+
   return (
     <div className="flex gap-4 rounded-2xl border border-line bg-surface p-5 transition-colors duration-300 hover:border-neon/40 lg:gap-5 lg:p-6">
-      <span className="w-8 shrink-0 font-display text-3xl font-extrabold leading-none tabular-nums text-neon/60">
-        {String(index + 1).padStart(2, '0')}
-      </span>
+      <div className="flex w-20 shrink-0 flex-col items-center gap-2 sm:w-32">
+        <span className="font-display text-3xl font-extrabold leading-none tabular-nums text-neon/60">
+          {String(index + 1).padStart(2, '0')}
+        </span>
+
+        {figure && (
+          <div className="w-full rounded-xl border border-line bg-ink/40 px-1 py-1.5">
+            <ExerciseFigure figure={figure} label={ex.name} className="w-full" />
+          </div>
+        )}
+      </div>
 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
