@@ -13,6 +13,7 @@ import {
   CreateStaffShiftTemplateDto,
   CreateStaffShiftDto,
   GenerateStaffShiftsDto,
+  QuickCreateStaffShiftsDto,
   SettleStaffShiftDto,
   StaffShiftQueryDto,
   UpdateStaffShiftDto,
@@ -132,6 +133,18 @@ export class StaffShiftsService {
     const where = await this.buildWhere(query, actor);
     const paymentWhere = await this.buildWhere(query, actor, "payment");
     const beverageWhere = await this.buildWhere(query, actor, "beverage");
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 6;
+    const offset = (page - 1) * limit;
+    const totalRows = await this.prisma.$queryRaw<{ total: number | bigint }[]>(
+      Prisma.sql`
+        SELECT COUNT(*) AS total
+        FROM dbo.StaffShift AS ss
+        INNER JOIN dbo.[User] AS u ON u.id = ss.staffId
+        ${where}
+      `,
+    );
+    const total = Number(totalRows[0]?.total ?? 0);
     const rows = await this.prisma.$queryRaw<ShiftRow[]>(Prisma.sql`
       SELECT
         CONVERT(nvarchar(36), ss.id) AS id,
@@ -178,7 +191,20 @@ export class StaffShiftsService {
         ) AS shiftMembers
       ) AS memberStats
       ${where}
-      ORDER BY ss.startTime DESC, u.fullName ASC
+      ORDER BY
+        CASE
+          WHEN UPPER(ss.status) IN (N'SCHEDULED', N'IN_PROGRESS') THEN 0
+          ELSE 1
+        END ASC,
+        CASE
+          WHEN UPPER(ss.status) IN (N'SCHEDULED', N'IN_PROGRESS')
+            THEN ABS(DATEDIFF_BIG(second, ss.startTime, SYSUTCDATETIME()))
+          ELSE DATEDIFF_BIG(second, ss.startTime, SYSUTCDATETIME())
+        END ASC,
+        ss.startTime ASC,
+        u.fullName ASC
+      OFFSET ${offset} ROWS
+      FETCH NEXT ${limit} ROWS ONLY
     `);
 
     const paidRows = await this.prisma.$queryRaw<
@@ -263,6 +289,10 @@ export class StaffShiftsService {
       },
       byDay: this.normalizeGroups(byDay),
       byStaff: this.normalizeGroups(byStaff),
+      page,
+      limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
     };
   }
 
@@ -526,17 +556,39 @@ export class StaffShiftsService {
     endTime: string | Date,
     exceptId?: string,
   ) {
-    const overlap = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
-      SELECT TOP (1) CONVERT(nvarchar(36), id) AS id
-      FROM dbo.StaffShift
-      WHERE staffId = CONVERT(uniqueidentifier, ${staffId})
-        AND UPPER(status) IN (N'SCHEDULED', N'IN_PROGRESS')
-        AND startTime < ${new Date(endTime)}
-        AND endTime > ${new Date(startTime)}
-        ${exceptId ? Prisma.sql`AND id <> CONVERT(uniqueidentifier, ${exceptId})` : Prisma.empty}
+    if (new Date(startTime).getTime() >= new Date(endTime).getTime()) {
+      throw new BadRequestException("Giờ bắt đầu phải trước giờ kết thúc ca");
+    }
+    const overlap = await tx.$queryRaw<
+      { id: string; title: string; startTime: Date; endTime: Date }[]
+    >(Prisma.sql`
+      SELECT TOP (1)
+        CONVERT(nvarchar(36), ss.id) AS id,
+        ss.title,
+        ss.startTime,
+        ss.endTime
+      FROM dbo.StaffShift AS ss
+      WHERE ss.staffId = CONVERT(uniqueidentifier, ${staffId})
+        AND ss.startTime < ${new Date(endTime)}
+        AND ss.endTime > ${new Date(startTime)}
+        ${exceptId ? Prisma.sql`AND ss.id <> CONVERT(uniqueidentifier, ${exceptId})` : Prisma.empty}
     `);
-    if (overlap.length)
-      throw new ConflictException("Nhân viên đã có ca khác bị trùng thời gian");
+    if (overlap.length) {
+      const shift = overlap[0];
+      const formatVietnamTime = (value: Date) =>
+        new Intl.DateTimeFormat("vi-VN", {
+          timeZone: "Asia/Ho_Chi_Minh",
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        }).format(new Date(value));
+      throw new ConflictException(
+        `Trùng lịch với ca "${shift.title}" (${formatVietnamTime(shift.startTime)} - ${formatVietnamTime(shift.endTime)}). Hãy chỉnh giờ hoặc bỏ ca này.`,
+      );
+    }
   }
 
   private async getShift(id: string) {
@@ -675,6 +727,172 @@ export class StaffShiftsService {
         Number(transferRows[0]?.bankTransferPaymentCount ?? 0) +
         Number(beverageTransferRows[0]?.bankTransferPaymentCount ?? 0),
       pendingCashCount: Number(pendingRows[0]?.pendingCashCount ?? 0),
+    };
+  }
+
+  async quickCreate(dto: QuickCreateStaffShiftsDto, actor: ShiftActor) {
+    if (actor.role !== "ADMIN" && actor.role !== "MANAGER") {
+      throw new ForbiddenException("Chỉ ADMIN/MANAGER mới được tạo nhanh ca làm");
+    }
+    if (!dto.weekdays.length) {
+      throw new BadRequestException("Hãy chọn ít nhất một ngày trong tuần");
+    }
+    await this.assertStaff(dto.staffId);
+    const fromDay = new Date(`${dto.from.slice(0, 10)}T00:00:00Z`);
+    const toDay = new Date(`${dto.to.slice(0, 10)}T00:00:00Z`);
+    const dayCount = Math.floor(
+      (toDay.getTime() - fromDay.getTime()) / 86_400_000,
+    );
+    if (!Number.isFinite(dayCount) || dayCount < 0) {
+      throw new BadRequestException("Ngày bắt đầu không thể sau ngày kết thúc");
+    }
+    if (dayCount > 30) {
+      throw new BadRequestException("Mỗi lần tạo nhanh tối đa 31 ngày");
+    }
+
+    const todayInVietnam = new Date(Date.now() + 7 * 60 * 60 * 1000);
+    todayInVietnam.setUTCHours(0, 0, 0, 0);
+    if (toDay < todayInVietnam) {
+      throw new BadRequestException("Khoảng ngày phải bao gồm ngày hiện tại hoặc tương lai");
+    }
+
+    const { randomUUID } = await import("crypto");
+    const parseVietnamDateTime = (value: string) => {
+      if (/(Z|[+-]\d{2}:?\d{2})$/i.test(value)) return new Date(value);
+      const iso = value.includes("T") ? value : `${value}T00:00:00`;
+      return new Date(`${iso}+07:00`);
+    };
+    let createdCount = 0;
+    let skippedCount = 0;
+    await this.prisma.$transaction(
+      async (tx) => {
+        if (dto.shifts?.length) {
+          const previewIntervals = dto.shifts.map((shift) => ({
+            title: shift.title,
+            startTime: parseVietnamDateTime(shift.startTime),
+            endTime: parseVietnamDateTime(shift.endTime),
+          }));
+          for (let index = 0; index < previewIntervals.length; index += 1) {
+            const current = previewIntervals[index];
+            if (
+              !Number.isFinite(current.startTime.getTime()) ||
+              !Number.isFinite(current.endTime.getTime()) ||
+              current.startTime >= current.endTime
+            ) {
+              throw new BadRequestException(
+                `Ca thứ ${index + 1} có giờ bắt đầu/kết thúc không hợp lệ`,
+              );
+            }
+            for (let otherIndex = index + 1; otherIndex < previewIntervals.length; otherIndex += 1) {
+              const other = previewIntervals[otherIndex];
+              if (
+                current.startTime < other.endTime &&
+                current.endTime > other.startTime
+              ) {
+                throw new ConflictException(
+                  `Ca "${current.title}" trùng giờ với ca "${other.title}" trong danh sách xem trước`,
+                );
+              }
+            }
+          }
+          for (const shift of dto.shifts) {
+            const startTime = parseVietnamDateTime(shift.startTime);
+            const endTime = parseVietnamDateTime(shift.endTime);
+            if (
+              !Number.isFinite(startTime.getTime()) ||
+              !Number.isFinite(endTime.getTime()) ||
+              startTime >= endTime
+            ) {
+              throw new BadRequestException("Giờ bắt đầu và kết thúc của ca không hợp lệ");
+            }
+            if (endTime <= new Date()) {
+              skippedCount += 1;
+              continue;
+            }
+            await this.assertNoOverlap(tx, dto.staffId, startTime, endTime);
+            const shiftId = randomUUID();
+            await tx.$executeRaw(Prisma.sql`
+              INSERT INTO dbo.StaffShift
+                (id, staffId, title, startTime, endTime, status, notes)
+              VALUES (
+                CONVERT(uniqueidentifier, ${shiftId}),
+                CONVERT(uniqueidentifier, ${dto.staffId}),
+                ${shift.title.trim()},
+                ${startTime},
+                ${endTime},
+                N'SCHEDULED',
+                ${shift.notes?.trim() || null}
+              )
+            `);
+            await this.auditService.log({
+              userId: actor.id,
+              action: "STAFF_SHIFT_CREATE",
+              entity: "StaffShift",
+              entityId: shiftId,
+              metadata: { staffId: dto.staffId, title: shift.title, startTime, endTime },
+            });
+            createdCount += 1;
+          }
+          return;
+        }
+
+        const startMinute = this.timeToMinute(dto.startTime);
+        const endMinute = this.timeToMinute(dto.endTime);
+        if (startMinute === endMinute) {
+          throw new BadRequestException("Giờ bắt đầu và kết thúc không được trùng nhau");
+        }
+        for (let offset = 0; offset <= dayCount; offset += 1) {
+          const date = new Date(fromDay.getTime() + offset * 86_400_000);
+          const jsWeekday = date.getUTCDay();
+          const vietnameseWeekday = jsWeekday === 0 ? 7 : jsWeekday;
+          const mondayBasedWeekday =
+            vietnameseWeekday === 7 ? 0 : vietnameseWeekday;
+          if (!dto.weekdays.includes(mondayBasedWeekday)) continue;
+
+          const dateText = date.toISOString().slice(0, 10);
+          const startTime = new Date(`${dateText}T${dto.startTime}:00+07:00`);
+          const endDateText =
+            endMinute <= startMinute
+              ? new Date(date.getTime() + 86_400_000).toISOString().slice(0, 10)
+              : dateText;
+          const endTime = new Date(`${endDateText}T${dto.endTime}:00+07:00`);
+          if (endTime <= new Date()) {
+            skippedCount += 1;
+            continue;
+          }
+
+          await this.assertNoOverlap(tx, dto.staffId, startTime, endTime);
+          const shiftId = randomUUID();
+          await tx.$executeRaw(Prisma.sql`
+            INSERT INTO dbo.StaffShift
+              (id, staffId, title, startTime, endTime, status, notes)
+            VALUES (
+              CONVERT(uniqueidentifier, ${shiftId}),
+              CONVERT(uniqueidentifier, ${dto.staffId}),
+              ${dto.title.trim()},
+              ${startTime},
+              ${endTime},
+              N'SCHEDULED',
+              ${dto.notes?.trim() || null}
+            )
+          `);
+          await this.auditService.log({
+            userId: actor.id,
+            action: "STAFF_SHIFT_CREATE",
+            entity: "StaffShift",
+            entityId: shiftId,
+            metadata: { staffId: dto.staffId, title: dto.title, startTime, endTime },
+          });
+          createdCount += 1;
+        }
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+
+    return {
+      message: `Đã tạo ${createdCount} ca; bỏ qua ${skippedCount} ca trùng hoặc đã qua.`,
+      createdCount,
+      skippedCount,
     };
   }
 

@@ -71,6 +71,8 @@ export default function BeveragePosPage() {
   const { data: options } = useQuery({
     queryKey: ['beverage-options'],
     queryFn: beverageApi.options,
+    refetchInterval: 5000,
+    refetchOnWindowFocus: true,
     retry: 0,
   });
   const bankInfoQuery = useQuery<BankInfo>({
@@ -597,7 +599,12 @@ export default function BeveragePosPage() {
               {paymentMethod === 'CASH' && (
                 <Button
                   className="w-full"
-                  disabled={saleMutation.isPending || !cart.length || !member}
+                  disabled={
+                    saleMutation.isPending ||
+                    !cart.length ||
+                    !member ||
+                    (isStaff && !options?.activeShift)
+                  }
                   onClick={checkout}
                 >
                   {saleMutation.isPending ? 'Đang xác nhận...' : 'Xác nhận thanh toán'}

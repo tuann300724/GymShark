@@ -206,8 +206,8 @@ export class BeveragesService {
       FROM dbo.StaffShift
       WHERE staffId = CONVERT(uniqueidentifier, ${actor.id})
         AND UPPER(status) = N'IN_PROGRESS'
-        AND startTime <= SYSDATETIME()
-        AND endTime > SYSDATETIME()
+        AND startTime <= SYSUTCDATETIME()
+        AND endTime > SYSUTCDATETIME()
       ORDER BY startTime DESC
     `);
     if (rows.length > 1) {
@@ -760,8 +760,8 @@ export class BeveragesService {
               FROM dbo.StaffShift WITH (UPDLOCK, HOLDLOCK)
               WHERE staffId = CONVERT(uniqueidentifier, ${actor.id})
                 AND UPPER(status) = N'IN_PROGRESS'
-                AND startTime <= SYSDATETIME()
-                AND endTime > SYSDATETIME()
+                AND startTime <= SYSUTCDATETIME()
+                AND endTime > SYSUTCDATETIME()
               ORDER BY startTime DESC
             `);
             if (activeShifts.length > 1) {

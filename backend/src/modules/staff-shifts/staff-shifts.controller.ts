@@ -20,6 +20,7 @@ import {
   CreateStaffShiftTemplateDto,
   CreateStaffShiftDto,
   GenerateStaffShiftsDto,
+  QuickCreateStaffShiftsDto,
   SettleStaffShiftDto,
   StaffShiftQueryDto,
   UpdateStaffShiftDto,
@@ -89,6 +90,16 @@ export class StaffShiftsController {
     @CurrentUser() actor: ShiftActor,
   ) {
     return this.shiftsService.generateFromTemplates(dto, actor);
+  }
+
+  @Post("quick-create")
+  @Roles(Role.ADMIN, Role.MANAGER)
+  @ApiOperation({ summary: "Tạo nhanh ca cho một nhân viên trong khoảng ngày" })
+  quickCreate(
+    @Body() dto: QuickCreateStaffShiftsDto,
+    @CurrentUser() actor: ShiftActor,
+  ) {
+    return this.shiftsService.quickCreate(dto, actor);
   }
 
   @Post()

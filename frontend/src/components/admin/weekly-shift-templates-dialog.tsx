@@ -1,16 +1,15 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
-import { StaffShiftTemplatePayload, staffShiftApi } from '@/services/staff-shift.service';
-import { CalendarDays, Trash2 } from 'lucide-react';
+import { staffShiftApi } from '@/services/staff-shift.service';
+import { CalendarDays } from 'lucide-react';
 
 interface Props {
   open: boolean;
@@ -19,24 +18,22 @@ interface Props {
   onGenerated: () => void;
 }
 
-const WEEKDAYS = [
-  { value: '1', label: 'Thứ Hai' },
-  { value: '2', label: 'Thứ Ba' },
-  { value: '3', label: 'Thứ Tư' },
-  { value: '4', label: 'Thứ Năm' },
-  { value: '5', label: 'Thứ Sáu' },
-  { value: '6', label: 'Thứ Bảy' },
-  { value: '7', label: 'Chủ Nhật' },
-];
+interface PreviewShift {
+  date: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+  notes: string;
+}
 
-const EMPTY_FORM = {
-  staffId: '',
-  title: '',
-  weekday: '1',
-  startTime: '08:00',
-  endTime: '12:00',
-  notes: '',
-};
+const WEEKDAYS = [
+  { value: 1, label: 'Thứ Hai' },
+  { value: 2, label: 'Thứ Ba' },
+  { value: 3, label: 'Thứ Tư' },
+  { value: 4, label: 'Thứ Năm' },
+  { value: 5, label: 'Thứ Sáu' },
+  { value: 6, label: 'Thứ Bảy' },
+];
 
 function toDateInputValue(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
@@ -46,10 +43,11 @@ function toDateInputValue(date: Date) {
 
 function defaultRange() {
   const from = new Date();
-  const daysUntilMonday = (8 - from.getDay()) % 7;
+  from.setHours(0, 0, 0, 0);
+  const daysUntilMonday = (8 - (from.getDay() || 7)) % 7;
   from.setDate(from.getDate() + daysUntilMonday);
   const to = new Date(from);
-  to.setDate(to.getDate() + 13);
+  to.setDate(to.getDate() + 6);
   return { from: toDateInputValue(from), to: toDateInputValue(to) };
 }
 
@@ -67,82 +65,149 @@ function getErrorMessage(error: unknown, fallback: string) {
 export function WeeklyShiftTemplatesDialog({ open, staff, onClose, onGenerated }: Props) {
   const toast = useToast();
   const queryClient = useQueryClient();
-  const [form, setForm] = useState(EMPTY_FORM);
+  const [staffId, setStaffId] = useState('');
+  const [title, setTitle] = useState('');
+  const [weekdays, setWeekdays] = useState<number[]>([1, 2, 3, 4, 5, 6]);
+  const [startTime, setStartTime] = useState('08:00');
+  const [endTime, setEndTime] = useState('12:00');
+  const [notes, setNotes] = useState('');
   const [range, setRange] = useState(defaultRange);
-
-  const templatesQuery = useQuery({
-    queryKey: ['staff-shift-templates'],
-    queryFn: staffShiftApi.templates,
-    enabled: open,
-  });
+  const [preview, setPreview] = useState<PreviewShift[]>([]);
+  const [conflictIndexes, setConflictIndexes] = useState<number[]>([]);
 
   const createMutation = useMutation({
-    mutationFn: (payload: StaffShiftTemplatePayload) => staffShiftApi.createTemplate(payload),
-    onSuccess: () => {
-      toast.success('Đã lưu mẫu ca lặp hàng tuần');
-      setForm(EMPTY_FORM);
-      queryClient.invalidateQueries({ queryKey: ['staff-shift-templates'] });
-    },
-    onError: (error) =>
-      toast.error('Không thể lưu mẫu ca', getErrorMessage(error, 'Vui lòng thử lại.')),
-  });
-
-  const removeMutation = useMutation({
-    mutationFn: staffShiftApi.removeTemplate,
-    onSuccess: () => {
-      toast.success('Đã xóa mẫu ca');
-      queryClient.invalidateQueries({ queryKey: ['staff-shift-templates'] });
-    },
-    onError: (error) =>
-      toast.error('Không thể xóa mẫu ca', getErrorMessage(error, 'Vui lòng thử lại.')),
-  });
-
-  const generateMutation = useMutation({
-    mutationFn: staffShiftApi.generateFromTemplates,
+    mutationFn: staffShiftApi.quickCreate,
     onSuccess: (result) => {
-      toast.success('Đã tạo lịch ca', result.message);
+      toast.success('Đã tạo ca nhanh', result.message);
       queryClient.invalidateQueries({ queryKey: ['staff-shifts'] });
       onGenerated();
+      onClose();
     },
     onError: (error) =>
-      toast.error(
-        'Không thể tạo lịch ca',
-        getErrorMessage(error, 'Vui lòng kiểm tra khoảng ngày.'),
-      ),
+      toast.error('Không thể tạo ca nhanh', getErrorMessage(error, 'Vui lòng thử lại.')),
   });
 
-  const submitTemplate = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    createMutation.mutate({
-      ...form,
-      weekday: Number(form.weekday),
-      notes: form.notes.trim() || undefined,
-    });
+  const toggleWeekday = (weekday: number) => {
+    setWeekdays((current) =>
+      current.includes(weekday)
+        ? current.filter((item) => item !== weekday)
+        : [...current, weekday].sort(),
+    );
   };
 
-  const generate = () => {
-    if (!range.from || !range.to) {
-      toast.error('Thiếu khoảng ngày', 'Hãy chọn ngày bắt đầu và ngày kết thúc.');
+  const submitQuickCreate = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!staffId) {
+      toast.error('Thiếu nhân viên', 'Hãy chọn nhân viên.');
       return;
     }
-    if (window.confirm(`Sinh các ca theo mẫu từ ${range.from} đến ${range.to}?`)) {
-      generateMutation.mutate(range);
+    if (!weekdays.length) {
+      toast.error('Thiếu ngày làm', 'Hãy chọn ít nhất một ngày trong tuần.');
+      return;
     }
+    if (!range.from || !range.to) {
+      toast.error('Thiếu khoảng ngày', 'Hãy chọn từ ngày và đến ngày.');
+      return;
+    }
+    const from = new Date(`${range.from}T00:00:00`);
+    const to = new Date(`${range.to}T00:00:00`);
+    if (to < from) {
+      toast.error('Khoảng ngày không hợp lệ', 'Ngày kết thúc phải sau ngày bắt đầu.');
+      return;
+    }
+    const nextPreview: PreviewShift[] = [];
+    for (let date = new Date(from); date <= to; date.setDate(date.getDate() + 1)) {
+      const jsDay = date.getDay();
+      const mondayBasedDay = jsDay === 0 ? 6 : jsDay - 1;
+      if (!weekdays.includes(mondayBasedDay)) continue;
+      const dateText = toDateInputValue(date);
+      nextPreview.push({
+        date: dateText,
+        title: title.trim(),
+        startTime: `${dateText}T${startTime}:00`,
+        endTime: `${dateText}T${endTime}:00`,
+        notes: notes.trim(),
+      });
+    }
+    setPreview(nextPreview);
+  };
+
+  const updatePreview = (index: number, patch: Partial<PreviewShift>) => {
+    setPreview((current) =>
+      current.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)),
+    );
+    setConflictIndexes([]);
+  };
+
+  const removePreview = (index: number) => {
+    setPreview((current) => current.filter((_, itemIndex) => itemIndex !== index));
+    setConflictIndexes([]);
+  };
+
+  const confirmCreate = () => {
+    if (!preview.length) {
+      toast.error('Danh sách trống', 'Không có ca nào để tạo.');
+      return;
+    }
+    const invalidIndexes = new Set<number>();
+    for (let index = 0; index < preview.length; index += 1) {
+      const current = preview[index];
+      const start = new Date(`${current.startTime}+07:00`).getTime();
+      const end = new Date(`${current.endTime}+07:00`).getTime();
+      if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+        invalidIndexes.add(index);
+      }
+      for (let otherIndex = 0; otherIndex < preview.length; otherIndex += 1) {
+        if (index === otherIndex) continue;
+        const other = preview[otherIndex];
+        const otherStart = new Date(`${other.startTime}+07:00`).getTime();
+        const otherEnd = new Date(`${other.endTime}+07:00`).getTime();
+        if (start < otherEnd && end > otherStart) {
+          invalidIndexes.add(index);
+          invalidIndexes.add(otherIndex);
+        }
+      }
+    }
+    if (invalidIndexes.size) {
+      const indexes = Array.from(invalidIndexes);
+      setConflictIndexes(indexes);
+      toast.error(
+        'Danh sách ca bị trùng hoặc sai giờ',
+        'Ca đánh dấu đỏ đang chồng giờ. Hãy chỉnh lại giờ bắt đầu/kết thúc.',
+      );
+      return;
+    }
+    createMutation.mutate({
+      staffId,
+      title: title.trim(),
+      weekdays,
+      startTime,
+      endTime,
+      from: range.from,
+      to: range.to,
+      notes: notes.trim() || undefined,
+      shifts: preview.map((item) => ({
+        title: item.title,
+        startTime: item.startTime,
+        endTime: item.endTime,
+        notes: item.notes.trim() || undefined,
+      })),
+    });
   };
 
   return (
     <Dialog
       open={open}
       onClose={onClose}
-      title="Mẫu phân ca hàng tuần"
-      description="Lưu lịch lặp theo thứ, sau đó sinh ca cụ thể cho tối đa 31 ngày. Xóa mẫu không ảnh hưởng các ca đã được tạo."
+      title="Tạo ca nhanh trong tuần"
+      description="Chọn nhân viên, các ngày từ thứ Hai đến thứ Bảy và giờ làm trong khoảng ngày."
       className="max-w-3xl"
     >
-      <div className="space-y-6">
-        <form className="grid gap-3 sm:grid-cols-2" onSubmit={submitTemplate}>
+      <form className="space-y-5" onSubmit={submitQuickCreate}>
+        <div className="grid gap-3 sm:grid-cols-2">
           <Select
             label="Nhân viên"
-            value={form.staffId}
+            value={staffId}
             options={[
               { value: '', label: 'Chọn nhân viên' },
               ...staff.map((item) => ({
@@ -150,142 +215,167 @@ export function WeeklyShiftTemplatesDialog({ open, staff, onClose, onGenerated }
                 label: `${item.fullName} · ${item.email}`,
               })),
             ]}
-            onChange={(event) => setForm({ ...form, staffId: event.target.value })}
+            onChange={(event) => setStaffId(event.target.value)}
             required
           />
           <Input
             label="Tên ca"
-            value={form.title}
-            onChange={(event) => setForm({ ...form, title: event.target.value })}
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder="Ví dụ: Ca sáng"
             maxLength={255}
             required
           />
-          <Select
-            label="Lặp vào"
-            value={form.weekday}
-            options={WEEKDAYS}
-            onChange={(event) => setForm({ ...form, weekday: event.target.value })}
-          />
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Bắt đầu"
-              type="time"
-              value={form.startTime}
-              onChange={(event) => setForm({ ...form, startTime: event.target.value })}
-              required
-            />
-            <Input
-              label="Kết thúc"
-              type="time"
-              value={form.endTime}
-              onChange={(event) => setForm({ ...form, endTime: event.target.value })}
-              required
-            />
+        </div>
+
+        <fieldset>
+          <legend className="mb-2 text-sm font-semibold text-chalk">Các ngày trong tuần</legend>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {WEEKDAYS.map((weekday) => {
+              const checked = weekdays.includes(weekday.value);
+              return (
+                <label
+                  key={weekday.value}
+                  className={`flex cursor-pointer items-center gap-2 rounded-xl border p-3 text-sm ${
+                    checked
+                      ? 'border-neon/50 bg-neon/10 text-chalk'
+                      : 'border-line bg-ink/40 text-muted'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleWeekday(weekday.value)}
+                    className="size-4 accent-[#B7FF00]"
+                  />
+                  {weekday.label}
+                </label>
+              );
+            })}
           </div>
+        </fieldset>
+
+        <div className="grid gap-3 sm:grid-cols-2">
           <Input
-            label="Ghi chú (không bắt buộc)"
-            value={form.notes}
-            onChange={(event) => setForm({ ...form, notes: event.target.value })}
-            maxLength={1000}
+            label="Giờ bắt đầu"
+            type="time"
+            value={startTime}
+            onChange={(event) => setStartTime(event.target.value)}
+            required
           />
-          <div className="flex items-end sm:justify-end">
-            <Button type="submit" isLoading={createMutation.isPending}>
-              Lưu mẫu ca
+          <Input
+            label="Giờ kết thúc"
+            type="time"
+            value={endTime}
+            onChange={(event) => setEndTime(event.target.value)}
+            required
+          />
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Input
+            label="Từ ngày"
+            type="date"
+            value={range.from}
+            onChange={(event) => setRange({ ...range, from: event.target.value })}
+            required
+          />
+          <Input
+            label="Đến ngày"
+            type="date"
+            value={range.to}
+            onChange={(event) => setRange({ ...range, to: event.target.value })}
+            required
+          />
+        </div>
+
+        <Input
+          label="Ghi chú (không bắt buộc)"
+          value={notes}
+          onChange={(event) => setNotes(event.target.value)}
+          maxLength={1000}
+        />
+
+        {!preview.length ? (
+          <div className="flex justify-end gap-2 border-t border-line pt-4">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Hủy
+            </Button>
+            <Button type="submit">
+              <CalendarDays className="mr-2 size-4" />
+              Xem danh sách ca
             </Button>
           </div>
-        </form>
-
-        <section className="space-y-3 border-t border-line pt-5">
-          <h3 className="font-display text-lg font-bold uppercase text-chalk">Mẫu đang lưu</h3>
-          {templatesQuery.isLoading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-14" />
-              <Skeleton className="h-14" />
+        ) : (
+          <section className="space-y-3 border-t border-line pt-5">
+            <div className="flex items-center justify-between">
+              <h3 className="font-display text-lg font-bold uppercase text-chalk">
+                Danh sách xem trước
+              </h3>
+              <span className="text-xs text-muted">{preview.length} ca</span>
             </div>
-          ) : templatesQuery.isError ? (
-            <div className="flex items-center justify-between gap-3 text-sm text-danger">
-              Không tải được danh sách mẫu ca.
-              <Button variant="outline" size="sm" onClick={() => templatesQuery.refetch()}>
-                Tải lại
-              </Button>
-            </div>
-          ) : templatesQuery.data?.length ? (
-            <div className="max-h-52 space-y-2 overflow-y-auto">
-              {templatesQuery.data.map((template) => (
+            <div className="max-h-72 space-y-3 overflow-y-auto pr-1">
+              {preview.map((item, index) => (
                 <div
-                  key={template.id}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-line bg-ink/40 p-3"
+                  key={`${item.date}-${index}`}
+                  className={`rounded-xl border p-3 ${
+                    conflictIndexes.includes(index) ? 'border-danger/70 bg-danger/5' : 'border-line'
+                  }`}
                 >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-chalk">
-                      {template.title} · {template.staffName}
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-chalk">
+                      {new Date(`${item.date}T00:00:00`).toLocaleDateString('vi-VN', {
+                        weekday: 'long',
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                      })}
                     </p>
-                    <p className="mt-1 text-xs text-muted">
-                      {WEEKDAYS[template.weekday - 1]?.label} ·{' '}
-                      {`${String(Math.floor(template.startMinute / 60)).padStart(2, '0')}:${String(
-                        template.startMinute % 60,
-                      ).padStart(2, '0')}`}
-                      {' – '}
-                      {`${String(Math.floor(template.endMinute / 60)).padStart(2, '0')}:${String(
-                        template.endMinute % 60,
-                      ).padStart(2, '0')}`}
-                    </p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removePreview(index)}
+                    >
+                      Bỏ ca
+                    </Button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Xóa mẫu ${template.title}`}
-                    isLoading={removeMutation.isPending}
-                    onClick={() => {
-                      if (window.confirm(`Xóa mẫu "${template.title}"?`)) {
-                        removeMutation.mutate(template.id);
-                      }
-                    }}
-                  >
-                    <Trash2 className="size-4 text-danger" />
-                  </Button>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <Input
+                      label="Tên ca"
+                      value={item.title}
+                      onChange={(event) => updatePreview(index, { title: event.target.value })}
+                      required
+                    />
+                    <Input
+                      label="Giờ bắt đầu"
+                      type="datetime-local"
+                      value={item.startTime}
+                      onChange={(event) => updatePreview(index, { startTime: event.target.value })}
+                      required
+                    />
+                    <Input
+                      label="Giờ kết thúc"
+                      type="datetime-local"
+                      value={item.endTime}
+                      onChange={(event) => updatePreview(index, { endTime: event.target.value })}
+                      required
+                    />
+                  </div>
                 </div>
               ))}
             </div>
-          ) : (
-            <p className="text-sm text-muted">Chưa có mẫu ca. Tạo mẫu ở biểu mẫu phía trên.</p>
-          )}
-        </section>
-
-        <section className="space-y-3 border-t border-line pt-5">
-          <h3 className="font-display text-lg font-bold uppercase text-chalk">
-            Sinh ca từ mẫu đã lưu
-          </h3>
-          <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-            <Input
-              label="Từ ngày"
-              type="date"
-              value={range.from}
-              onChange={(event) => setRange({ ...range, from: event.target.value })}
-              required
-            />
-            <Input
-              label="Đến ngày"
-              type="date"
-              value={range.to}
-              onChange={(event) => setRange({ ...range, to: event.target.value })}
-              required
-            />
-            <Button
-              onClick={generate}
-              isLoading={generateMutation.isPending}
-              disabled={!templatesQuery.data?.length}
-            >
-              <CalendarDays className="mr-2 size-4" />
-              Sinh lịch
-            </Button>
-          </div>
-          <p className="text-xs text-muted">
-            Ca đã tồn tại hoặc đã qua sẽ được bỏ qua; lịch tối đa 31 ngày mỗi lần. Giờ ca dùng múi
-            giờ Việt Nam.
-          </p>
-        </section>
-      </div>
+            <div className="flex justify-end gap-2 border-t border-line pt-4">
+              <Button type="button" variant="outline" onClick={() => setPreview([])}>
+                Quay lại chỉnh
+              </Button>
+              <Button type="button" isLoading={createMutation.isPending} onClick={confirmCreate}>
+                Tạo ca
+              </Button>
+            </div>
+          </section>
+        )}
+      </form>
     </Dialog>
   );
 }

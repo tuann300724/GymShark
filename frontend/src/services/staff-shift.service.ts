@@ -58,6 +58,8 @@ export interface StaffShiftFilters {
   to?: string;
   staffId?: string;
   status?: string;
+  page?: number;
+  limit?: number;
 }
 
 export interface StaffShiftReport {
@@ -69,6 +71,10 @@ export interface StaffShiftReport {
   };
   byDay: ShiftReportGroup[];
   byStaff: ShiftReportGroup[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
 }
 
 export interface ShiftReportGroup {
@@ -94,6 +100,23 @@ export interface StaffShiftTemplatePayload {
   startTime: string;
   endTime: string;
   notes?: string | null;
+}
+
+export interface QuickCreateStaffShiftsPayload {
+  staffId: string;
+  title: string;
+  weekdays: number[];
+  startTime: string;
+  endTime: string;
+  from: string;
+  to: string;
+  notes?: string | null;
+  shifts?: {
+    title: string;
+    startTime: string;
+    endTime: string;
+    notes?: string | null;
+  }[];
 }
 
 export const staffShiftApi = {
@@ -125,6 +148,10 @@ export const staffShiftApi = {
 
   generateFromTemplates: async (payload: { from: string; to: string }) => {
     const res = await apiClient.post('/staff-shifts/templates/generate', payload);
+    return res.data as { message: string; createdCount: number; skippedCount: number };
+  },
+  quickCreate: async (payload: QuickCreateStaffShiftsPayload) => {
+    const res = await apiClient.post('/staff-shifts/quick-create', payload);
     return res.data as { message: string; createdCount: number; skippedCount: number };
   },
 

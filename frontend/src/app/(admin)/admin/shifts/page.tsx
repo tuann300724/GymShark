@@ -6,7 +6,6 @@ import { AxiosError } from 'axios';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { CreateStaffAccountDialog } from '@/components/admin/create-staff-account-dialog';
 import { Dialog } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
@@ -123,9 +122,10 @@ export default function StaffShiftsPage() {
   const canManage = user?.role === 'ADMIN' || user?.role === 'MANAGER';
   const [filters, setFilters] = useState<StaffShiftFilters>({});
   const [draftFilters, setDraftFilters] = useState<StaffShiftFilters>({});
+  const [page, setPage] = useState(1);
+  const pageSize = 6;
   const [editing, setEditing] = useState<StaffShift | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [staffAccountOpen, setStaffAccountOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [form, setForm] = useState<StaffShiftPayload>(EMPTY_FORM);
   const [settlingShift, setSettlingShift] = useState<StaffShift | null>(null);
@@ -138,8 +138,8 @@ export default function StaffShiftsPage() {
     staleTime: 5 * 60 * 1000,
   });
   const query = useQuery({
-    queryKey: ['staff-shifts', filters],
-    queryFn: () => staffShiftApi.list(filters),
+    queryKey: ['staff-shifts', filters, page],
+    queryFn: () => staffShiftApi.list({ ...filters, page, limit: pageSize }),
     refetchOnWindowFocus: true,
   });
   const settlementPreviewQuery = useQuery({
@@ -278,9 +278,11 @@ export default function StaffShiftsPage() {
   };
 
   const applyFilters = () => {
+    setPage(1);
     setFilters({ ...draftFilters });
   };
   const resetFilters = () => {
+    setPage(1);
     setDraftFilters({});
     setFilters({});
   };
@@ -327,13 +329,9 @@ export default function StaffShiftsPage() {
         </div>
         {canManage && (
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => setStaffAccountOpen(true)}>
-              <Plus className="mr-2 size-4" />
-              Tạo tài khoản nhân viên
-            </Button>
             <Button variant="outline" onClick={() => setTemplatesOpen(true)}>
               <CalendarDays className="mr-2 size-4" />
-              Mẫu lịch tuần
+              Tạo ca nhanh trong tuần
             </Button>
             <Button
               onClick={openCreate}
@@ -451,162 +449,189 @@ export default function StaffShiftsPage() {
               <h2 className="font-display text-2xl font-bold uppercase text-chalk">
                 Danh sách ca làm
               </h2>
-              <span className="text-xs text-muted">{report?.data.length ?? 0} ca</span>
+              <span className="text-xs text-muted">{report?.total ?? 0} ca</span>
             </div>
             {report?.data.length ? (
-              <div className="grid gap-4 xl:grid-cols-2">
-                {report.data.map((shift) => {
-                  const status = STATUS_META[shift.status] ?? STATUS_META.SCHEDULED;
-                  return (
-                    <Card key={shift.id} className="min-w-0">
-                      <CardContent className="space-y-4 p-5">
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <h3 className="break-words font-bold text-chalk">{shift.title}</h3>
-                            <p className="mt-1 text-sm text-muted">{shift.staffName}</p>
+              <>
+                <div className="grid gap-4 xl:grid-cols-2">
+                  {report.data.map((shift) => {
+                    const status = STATUS_META[shift.status] ?? STATUS_META.SCHEDULED;
+                    return (
+                      <Card key={shift.id} className="min-w-0">
+                        <CardContent className="space-y-4 p-5">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <h3 className="break-words font-bold text-chalk">{shift.title}</h3>
+                              <p className="mt-1 text-sm text-muted">{shift.staffName}</p>
+                            </div>
+                            <Badge variant={status.variant}>{status.label}</Badge>
                           </div>
-                          <Badge variant={status.variant}>{status.label}</Badge>
-                        </div>
-                        <div className="text-sm">
-                          <p className="flex min-w-0 items-center gap-2 text-muted">
-                            <CalendarDays className="size-4 shrink-0 text-neon" />
-                            <span>
-                              {formatDateTime(shift.startTime)} – {formatDateTime(shift.endTime)}
-                            </span>
-                          </p>
-                          {(shift.startedAt || shift.endedAt) && (
-                            <p className="mt-2 text-xs text-muted">
-                              {shift.startedAt
-                                ? `Chấm công vào: ${formatDateTime(shift.startedAt)}`
-                                : 'Chưa chấm công vào'}
-                              {shift.endedAt
-                                ? ` · Chấm công ra: ${formatDateTime(shift.endedAt)}`
-                                : ''}
+                          <div className="text-sm">
+                            <p className="flex min-w-0 items-center gap-2 text-muted">
+                              <CalendarDays className="size-4 shrink-0 text-neon" />
+                              <span>
+                                {formatDateTime(shift.startTime)} – {formatDateTime(shift.endTime)}
+                              </span>
                             </p>
-                          )}
-                        </div>
-                        {shift.notes && <p className="text-sm text-muted">{shift.notes}</p>}
-                        <div className="grid grid-cols-3 gap-2 rounded-xl border border-line bg-ink/60 p-3 text-center">
-                          <div>
-                            <p className="text-[11px] text-muted">Doanh thu</p>
-                            <p className="mt-1 text-sm font-bold text-neon">
-                              {formatCurrency(shift.totalRevenue)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-[11px] text-muted">Giao dịch</p>
-                            <p className="mt-1 text-sm font-bold text-chalk">
-                              {shift.paidPaymentCount}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-[11px] text-muted">Hội viên</p>
-                            <p className="mt-1 text-sm font-bold text-chalk">{shift.memberCount}</p>
-                          </div>
-                        </div>
-                        {shift.status === 'COMPLETED' && (
-                          <div className="rounded-xl border border-line bg-ink/40 p-3">
-                            {shift.cashExpected !== null && shift.cashCounted !== null ? (
-                              <>
-                                <div className="grid gap-3 text-sm sm:grid-cols-3">
-                                  <div>
-                                    <p className="text-xs text-muted">Tiền mặt dự kiến</p>
-                                    <p className="mt-1 font-semibold text-chalk">
-                                      {formatCurrency(shift.cashExpected)}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="text-xs text-muted">Thực đếm</p>
-                                    <p className="mt-1 font-semibold text-chalk">
-                                      {formatCurrency(shift.cashCounted)}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="text-xs text-muted">Chênh lệch</p>
-                                    <p
-                                      className={`mt-1 font-semibold ${
-                                        shift.cashDifference === 0 ? 'text-neon' : 'text-danger'
-                                      }`}
-                                    >
-                                      {formatCurrency(shift.cashDifference ?? 0)}
-                                    </p>
-                                  </div>
-                                </div>
-                                {shift.closeNotes && (
-                                  <p className="mt-3 border-t border-line pt-3 text-sm text-muted">
-                                    Lý do chênh lệch: {shift.closeNotes}
-                                  </p>
-                                )}
-                                <p className="mt-3 border-t border-line pt-3 text-xs text-muted">
-                                  Chốt bởi {shift.closedByName ?? 'Tài khoản không còn hoạt động'}
-                                  {shift.closedAt ? ` · ${formatDateTime(shift.closedAt)}` : ''}
-                                </p>
-                              </>
-                            ) : (
-                              <p className="text-sm text-muted">
-                                Ca đã kết thúc trước khi có chức năng chốt quỹ.
+                            {(shift.startedAt || shift.endedAt) && (
+                              <p className="mt-2 text-xs text-muted">
+                                {shift.startedAt
+                                  ? `Chấm công vào: ${formatDateTime(shift.startedAt)}`
+                                  : 'Chưa chấm công vào'}
+                                {shift.endedAt
+                                  ? ` · Chấm công ra: ${formatDateTime(shift.endedAt)}`
+                                  : ''}
                               </p>
                             )}
                           </div>
-                        )}
-                        <div className="flex flex-wrap gap-2 border-t border-line pt-3">
-                          {shift.status === 'SCHEDULED' && (
-                            <Button
-                              size="sm"
-                              onClick={() => startMutation.mutate(shift.id)}
-                              disabled={startMutation.isPending}
-                            >
-                              <Clock3 className="mr-1.5 size-4" /> Chấm công vào · mở ca
-                            </Button>
+                          {shift.notes && <p className="text-sm text-muted">{shift.notes}</p>}
+                          <div className="grid grid-cols-3 gap-2 rounded-xl border border-line bg-ink/60 p-3 text-center">
+                            <div>
+                              <p className="text-[11px] text-muted">Doanh thu</p>
+                              <p className="mt-1 text-sm font-bold text-neon">
+                                {formatCurrency(shift.totalRevenue)}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-[11px] text-muted">Giao dịch</p>
+                              <p className="mt-1 text-sm font-bold text-chalk">
+                                {shift.paidPaymentCount}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-[11px] text-muted">Hội viên</p>
+                              <p className="mt-1 text-sm font-bold text-chalk">
+                                {shift.memberCount}
+                              </p>
+                            </div>
+                          </div>
+                          {shift.status === 'COMPLETED' && (
+                            <div className="rounded-xl border border-line bg-ink/40 p-3">
+                              {shift.cashExpected !== null && shift.cashCounted !== null ? (
+                                <>
+                                  <div className="grid gap-3 text-sm sm:grid-cols-3">
+                                    <div>
+                                      <p className="text-xs text-muted">Tiền mặt dự kiến</p>
+                                      <p className="mt-1 font-semibold text-chalk">
+                                        {formatCurrency(shift.cashExpected)}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs text-muted">Thực đếm</p>
+                                      <p className="mt-1 font-semibold text-chalk">
+                                        {formatCurrency(shift.cashCounted)}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs text-muted">Chênh lệch</p>
+                                      <p
+                                        className={`mt-1 font-semibold ${
+                                          shift.cashDifference === 0 ? 'text-neon' : 'text-danger'
+                                        }`}
+                                      >
+                                        {formatCurrency(shift.cashDifference ?? 0)}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  {shift.closeNotes && (
+                                    <p className="mt-3 border-t border-line pt-3 text-sm text-muted">
+                                      Lý do chênh lệch: {shift.closeNotes}
+                                    </p>
+                                  )}
+                                  <p className="mt-3 border-t border-line pt-3 text-xs text-muted">
+                                    Chốt bởi {shift.closedByName ?? 'Tài khoản không còn hoạt động'}
+                                    {shift.closedAt ? ` · ${formatDateTime(shift.closedAt)}` : ''}
+                                  </p>
+                                </>
+                              ) : (
+                                <p className="text-sm text-muted">
+                                  Ca đã kết thúc trước khi có chức năng chốt quỹ.
+                                </p>
+                              )}
+                            </div>
                           )}
-                          {shift.status === 'IN_PROGRESS' && (
-                            <Button
-                              size="sm"
-                              onClick={() => openSettlement(shift)}
-                              disabled={endMutation.isPending || Boolean(settlingShift)}
-                            >
-                              <Banknote className="mr-1.5 size-4" /> Chấm công ra · kiểm quỹ & chốt
-                              ca
-                            </Button>
-                          )}
-                          {canManage && shift.status === 'SCHEDULED' && (
-                            <>
-                              <Button size="sm" variant="outline" onClick={() => openEdit(shift)}>
-                                <Edit3 className="mr-1.5 size-4" /> Sửa
+                          <div className="flex flex-wrap gap-2 border-t border-line pt-3">
+                            {shift.status === 'SCHEDULED' && (
+                              <Button
+                                size="sm"
+                                onClick={() => startMutation.mutate(shift.id)}
+                                disabled={startMutation.isPending}
+                              >
+                                <Clock3 className="mr-1.5 size-4" /> Chấm công vào · mở ca
                               </Button>
+                            )}
+                            {shift.status === 'IN_PROGRESS' && (
+                              <Button
+                                size="sm"
+                                onClick={() => openSettlement(shift)}
+                                disabled={endMutation.isPending || Boolean(settlingShift)}
+                              >
+                                <Banknote className="mr-1.5 size-4" /> Chấm công ra · kiểm quỹ &
+                                chốt ca
+                              </Button>
+                            )}
+                            {canManage && shift.status === 'SCHEDULED' && (
+                              <>
+                                <Button size="sm" variant="outline" onClick={() => openEdit(shift)}>
+                                  <Edit3 className="mr-1.5 size-4" /> Sửa
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="danger"
+                                  onClick={() => {
+                                    if (window.confirm(`Xóa ca "${shift.title}"?`))
+                                      removeMutation.mutate(shift.id);
+                                  }}
+                                  disabled={removeMutation.isPending}
+                                >
+                                  <Trash2 className="mr-1.5 size-4" /> Xóa
+                                </Button>
+                              </>
+                            )}
+                            {canManage && shift.status === 'IN_PROGRESS' && (
                               <Button
                                 size="sm"
                                 variant="danger"
                                 onClick={() => {
-                                  if (window.confirm(`Xóa ca "${shift.title}"?`))
-                                    removeMutation.mutate(shift.id);
+                                  if (window.confirm(`Hủy ca "${shift.title}" đang diễn ra?`)) {
+                                    cancelMutation.mutate(shift.id);
+                                  }
                                 }}
-                                disabled={removeMutation.isPending}
+                                disabled={cancelMutation.isPending}
                               >
-                                <Trash2 className="mr-1.5 size-4" /> Xóa
+                                <X className="mr-1.5 size-4" /> Hủy ca
                               </Button>
-                            </>
-                          )}
-                          {canManage && shift.status === 'IN_PROGRESS' && (
-                            <Button
-                              size="sm"
-                              variant="danger"
-                              onClick={() => {
-                                if (window.confirm(`Hủy ca "${shift.title}" đang diễn ra?`)) {
-                                  cancelMutation.mutate(shift.id);
-                                }
-                              }}
-                              disabled={cancelMutation.isPending}
-                            >
-                              <X className="mr-1.5 size-4" /> Hủy ca
-                            </Button>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface/40 px-4 py-3">
+                  <p className="text-sm text-muted">
+                    Trang {report.page}/{report.totalPages} · {report.total} ca
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page <= 1 || query.isFetching}
+                      onClick={() => setPage((current) => Math.max(1, current - 1))}
+                    >
+                      Trước
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page >= report.totalPages || query.isFetching}
+                      onClick={() => setPage((current) => Math.min(report.totalPages, current + 1))}
+                    >
+                      Sau
+                    </Button>
+                  </div>
+                </div>
+              </>
             ) : (
               <EmptyState
                 icon={Clock3}
@@ -823,10 +848,6 @@ export default function StaffShiftsPage() {
           </form>
         )}
       </Dialog>
-      <CreateStaffAccountDialog
-        open={staffAccountOpen}
-        onClose={() => setStaffAccountOpen(false)}
-      />
       <WeeklyShiftTemplatesDialog
         open={templatesOpen}
         staff={optionsQuery.data?.staff ?? []}
