@@ -201,6 +201,11 @@ export const beverageApi = {
     return res.data;
   },
 
+  nextProductCode: async (): Promise<{ code: string }> => {
+    const res = await apiClient.get<{ code: string }>('/beverages/products/next-code');
+    return res.data;
+  },
+
   product: async (id: string): Promise<BeverageProduct> => {
     const res = await apiClient.get<BeverageProduct>(`/beverages/products/${id}`);
     return res.data;

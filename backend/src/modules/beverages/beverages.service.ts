@@ -244,10 +244,53 @@ export class BeveragesService {
     };
   }
 
+  /**
+   * Sinh mã sản phẩm kế tiếp từ các mã hiện có (mẫu: tiền tố chữ + số,
+   * ví dụ GMM001 → GMM002). Nâng bậc số giữ nguyên độ rộng; hết cỡ thì tự dãn
+   * (GMM999 → GMM1000). Không có mã nào đúng mẫu thì bắt đầu từ GMM001.
+   */
+  private computeNextProductCode(codes: string[]): string {
+    let best: { prefix: string; num: number; width: number } | null = null;
+    for (const raw of codes) {
+      const match = /^([A-Za-z]+)(\d+)$/.exec((raw || "").trim());
+      if (!match) continue;
+      const num = parseInt(match[2], 10);
+      if (
+        !best ||
+        num > best.num ||
+        (num === best.num && match[1] > best.prefix)
+      ) {
+        best = { prefix: match[1], num, width: match[2].length };
+      }
+    }
+    if (!best) return "GMM001";
+    return `${best.prefix}${String(best.num + 1).padStart(best.width, "0")}`;
+  }
+
+  /** Xem trước mã sẽ được tự sinh khi thêm sản phẩm mới (không khóa, chỉ tham khảo). */
+  async nextCode() {
+    const rows = await this.prisma.$queryRaw<{ code: string }[]>(Prisma.sql`
+      SELECT code FROM dbo.BeverageProduct
+    `);
+    return {
+      code: this.computeNextProductCode(rows.map((row) => row.code)),
+    };
+  }
+
+  /** Sinh mã kế tiếp bên trong transaction đã giữ khóa (UPDLOCK, HOLDLOCK). */
+  private async nextProductCodeLocked(
+    tx: Prisma.TransactionClient,
+  ): Promise<string> {
+    const rows = await tx.$queryRaw<{ code: string }[]>(Prisma.sql`
+      SELECT code FROM dbo.BeverageProduct WITH (UPDLOCK, HOLDLOCK)
+    `);
+    return this.computeNextProductCode(rows.map((row) => row.code));
+  }
+
   async products(query: BeverageQueryDto, actor: BeverageActor) {
     this.validateRange(query);
     const filters: Prisma.Sql[] = [];
-    if (actor.role === "STAFF" || !query.includeInactive) {
+    if (actor.role === "STAFF" || query.includeInactive !== "true") {
       filters.push(Prisma.sql`p.status = N'ACTIVE'`);
     }
     if (query.category)
@@ -337,15 +380,23 @@ export class BeveragesService {
       throw new BadRequestException("Tồn kho đầu kỳ cần có lý do điều chỉnh.");
     }
     const id = randomUUID();
+    let finalCode = dto.code?.trim() || "";
     try {
       await this.prisma.$transaction(async (tx) => {
-        const duplicate = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
-          SELECT TOP (1) id FROM dbo.BeverageProduct WITH (UPDLOCK, HOLDLOCK)
-          WHERE code = ${dto.code.trim()}
-        `);
-        if (duplicate.length) {
-          throw new ConflictException("Mã sản phẩm đã được sử dụng.");
+        let code = dto.code?.trim();
+        if (code) {
+          const duplicate = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
+            SELECT TOP (1) id FROM dbo.BeverageProduct WITH (UPDLOCK, HOLDLOCK)
+            WHERE code = ${code}
+          `);
+          if (duplicate.length) {
+            throw new ConflictException("Mã sản phẩm đã được sử dụng.");
+          }
+        } else {
+          // Không truyền mã: tự sinh mã kế tiếp dựa trên các mã đã có sẵn
+          code = await this.nextProductCodeLocked(tx);
         }
+        finalCode = code;
         const locationId =
           dto.initialStock && dto.initialStock > 0
             ? await this.defaultLocationId(tx)
@@ -355,7 +406,7 @@ export class BeveragesService {
             (id, code, name, category, brand, unit, volumeMl, costPrice,
              sellingPrice, minStock, status, description, createdAt, updatedAt)
           VALUES
-            (CONVERT(uniqueidentifier, ${id}), ${dto.code.trim()}, ${dto.name.trim()},
+            (CONVERT(uniqueidentifier, ${id}), ${code}, ${dto.name.trim()},
              ${dto.category?.trim() || null}, ${dto.brand?.trim() || null}, ${dto.unit.trim()},
              ${dto.volumeMl ?? null}, ${dto.costPrice}, ${dto.sellingPrice}, ${dto.minStock},
              ${dto.status ?? "ACTIVE"}, ${dto.description?.trim() || null}, SYSDATETIME(), SYSDATETIME())
@@ -382,7 +433,7 @@ export class BeveragesService {
       action: "BEVERAGE_PRODUCT_CREATE",
       entity: "BeverageProduct",
       entityId: id,
-      metadata: { code: dto.code, name: dto.name },
+      metadata: { code: finalCode, name: dto.name },
     });
     return this.product(id);
   }
@@ -924,7 +975,7 @@ export class BeveragesService {
       {
         type: "PAYMENT",
         title: "Đơn bán đồ uống mới 🥤",
-        content: `Nhân viên ${actor.fullName || 'Nhân viên'} vừa bán đơn ${code} — tổng tiền ${Number(saleInfo.finalAmount || 0).toLocaleString("vi-VN")}đ (${dto.paymentMethod === "CASH" ? "Tiền mặt" : "Chuyển khoản"}).`,
+        content: `Nhân viên ${actor.fullName || "Nhân viên"} vừa bán đơn ${code} — tổng tiền ${Number(saleInfo.finalAmount || 0).toLocaleString("vi-VN")}đ (${dto.paymentMethod === "CASH" ? "Tiền mặt" : "Chuyển khoản"}).`,
         link: "/admin/beverages",
         referenceType: "BEVERAGE_SALE",
         referenceId: saleId,

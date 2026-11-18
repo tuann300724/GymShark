@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/components/ui/toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { formatCurrency } from '@/lib/utils';
 import { getStoredUser } from '@/lib/auth';
 import { Eye, Package, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
@@ -76,6 +77,7 @@ function formFrom(product: BeverageProduct): ProductForm {
 export default function BeverageProductsPage() {
   const queryClient = useQueryClient();
   const toast = useToast();
+  const { confirm } = useConfirm();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
   const [includeInactive, setIncludeInactive] = useState(false);
@@ -95,10 +97,16 @@ export default function BeverageProductsPage() {
     queryFn: beverageApi.options,
     retry: 0,
   });
+  const { data: nextCodeData } = useQuery({
+    queryKey: ['beverage-next-code'],
+    queryFn: beverageApi.nextProductCode,
+    enabled: editorOpen && !editing,
+    retry: 0,
+  });
   const query = {
     search: search || undefined,
     category: category || undefined,
-    includeInactive,
+    includeInactive: includeInactive || undefined,
     page,
     limit: 30,
   };
@@ -117,6 +125,7 @@ export default function BeverageProductsPage() {
     queryClient.invalidateQueries({ queryKey: ['beverage-products'] });
     queryClient.invalidateQueries({ queryKey: ['beverage-dashboard'] });
     queryClient.invalidateQueries({ queryKey: ['beverage-stock'] });
+    queryClient.invalidateQueries({ queryKey: ['beverage-next-code'] });
   };
   const createMutation = useMutation({
     mutationFn: (payload: Record<string, unknown>) => beverageApi.createProduct(payload),
@@ -154,7 +163,6 @@ export default function BeverageProductsPage() {
   function submit(event: React.FormEvent) {
     event.preventDefault();
     const payload = {
-      code: form.code.trim(),
       name: form.name.trim(),
       category: form.category.trim() || null,
       brand: form.brand.trim() || null,
@@ -166,8 +174,12 @@ export default function BeverageProductsPage() {
       status: form.status,
       description: form.description.trim() || null,
     };
-    if (editing) updateMutation.mutate({ id: editing.id, payload });
-    else
+    if (editing) {
+      updateMutation.mutate({
+        id: editing.id,
+        payload: { ...payload, code: form.code.trim() },
+      });
+    } else
       createMutation.mutate({
         ...payload,
         initialStock: Number(form.initialStock || 0),
@@ -341,13 +353,13 @@ export default function BeverageProductsPage() {
                               variant="ghost"
                               size="icon"
                               aria-label="Ngừng kinh doanh"
-                              onClick={() => {
-                                if (
-                                  window.confirm(
-                                    `Ngừng kinh doanh "${product.name}"? Lịch sử kho sẽ được giữ lại.`,
-                                  )
-                                )
-                                  deleteMutation.mutate(product.id);
+                              onClick={async () => {
+                                const ok = await confirm({
+                                  title: 'Ngừng kinh doanh',
+                                  description: `Ngừng kinh doanh "${product.name}"? Lịch sử kho sẽ được giữ lại.`,
+                                  type: 'danger',
+                                });
+                                if (ok) deleteMutation.mutate(product.id);
                               }}
                             >
                               <Trash2 className="size-4 text-danger" />
@@ -395,13 +407,32 @@ export default function BeverageProductsPage() {
       >
         <form className="space-y-4" onSubmit={submit}>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Input
-              label="Mã sản phẩm"
-              required
-              maxLength={50}
-              value={form.code}
-              onChange={(e) => setForm({ ...form, code: e.target.value })}
-            />
+            {editing ? (
+              <Input
+                label="Mã sản phẩm"
+                required
+                maxLength={50}
+                value={form.code}
+                onChange={(e) => setForm({ ...form, code: e.target.value })}
+              />
+            ) : (
+              <div className="w-full min-w-0 space-y-1.5">
+                <span className="block text-xs font-semibold uppercase tracking-wider text-muted">
+                  Mã sản phẩm
+                </span>
+                <div
+                  aria-live="polite"
+                  className="flex h-11 w-full min-w-0 items-center justify-between gap-2 rounded-sm border border-line bg-surface/40 px-3.5 text-sm"
+                >
+                  <span className="font-semibold text-chalk">
+                    {nextCodeData?.code ?? 'Đang sinh mã...'}
+                  </span>
+                  <span className="whitespace-nowrap text-[11px] text-muted">
+                    Tự động sinh khi lưu
+                  </span>
+                </div>
+              </div>
+            )}
             <Input
               label="Tên sản phẩm"
               required

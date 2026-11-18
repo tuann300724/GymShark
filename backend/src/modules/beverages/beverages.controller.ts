@@ -64,6 +64,15 @@ export class BeveragesController {
     return this.beveragesService.createProduct(dto, actor);
   }
 
+  @Get("products/next-code")
+  @Roles(Role.ADMIN, Role.MANAGER)
+  @ApiOperation({
+    summary: "Xem trước mã sản phẩm sẽ được tự sinh khi thêm mới",
+  })
+  nextCode() {
+    return this.beveragesService.nextCode();
+  }
+
   @Get("products/:id")
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
   product(

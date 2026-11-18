@@ -11,6 +11,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { Dialog } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { trainerApi } from '@/services/trainer.service';
 import { TRAINER_STATUS_META, ASSIGNMENT_STATUS_META } from '@/lib/status';
 import { SessionDetailDialog } from '@/components/training/session-detail-dialog';
@@ -48,6 +49,7 @@ export default function TrainerDetailPage() {
   const params = useParams();
   const id = params.id as string;
   const toast = useToast();
+  const { confirm } = useConfirm();
   const queryClient = useQueryClient();
 
   const [tab, setTab] = useState<TabKey>('overview');
@@ -153,9 +155,13 @@ export default function TrainerDetailPage() {
               variant="danger"
               size="md"
               isLoading={deactivateMutation.isPending}
-              onClick={() => {
-                if (window.confirm('Ngừng hoạt động HLV này? Tài khoản đăng nhập sẽ bị khóa.'))
-                  deactivateMutation.mutate();
+              onClick={async () => {
+                const ok = await confirm({
+                  title: 'Ngừng hoạt động HLV',
+                  description: 'Ngừng hoạt động HLV này? Tài khoản đăng nhập sẽ bị khóa.',
+                  type: 'danger',
+                });
+                if (ok) deactivateMutation.mutate();
               }}
             >
               <Power className="size-4" /> Ngừng hoạt động
@@ -374,9 +380,13 @@ export default function TrainerDetailPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => {
-                            if (window.confirm(`Kết thúc phân công với ${a.member?.fullName}?`))
-                              unassign(id, a.memberId, toast, queryClient);
+                          onClick={async () => {
+                            const ok = await confirm({
+                              title: 'Kết thúc phân công',
+                              description: `Kết thúc phân công với ${a.member?.fullName}?`,
+                              type: 'danger',
+                            });
+                            if (ok) unassign(id, a.memberId, toast, queryClient);
                           }}
                         >
                           <UserMinus className="size-3.5" /> Kết thúc

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/axios';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -15,6 +15,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { Spinner } from '@/components/ui/spinner';
 import { useToast } from '@/components/ui/toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import { getStoredUser } from '@/lib/auth';
 import { MEMBERSHIP_STATUS_META, PAYMENT_METHOD_LABEL } from '@/lib/status';
@@ -25,13 +26,17 @@ import {
   Clock,
   CreditCard,
   Eye,
+  Filter,
   Lock,
+  Search,
   Unlock,
+  X,
   XCircle,
 } from 'lucide-react';
 
 export default function MembershipsPage() {
   const toast = useToast();
+  const { confirm } = useConfirm();
   const queryClient = useQueryClient();
   const user = getStoredUser();
   /** Hoàn tiền > 0 chỉ ADMIN (backend chặn MANAGER/STAFF) */
@@ -39,6 +44,8 @@ export default function MembershipsPage() {
   const canReviewChanges = isAdmin || user?.role === 'MANAGER';
 
   const [changeTarget, setChangeTarget] = useState<any>(null);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
   const [refundAmount, setRefundAmount] = useState('');
   const [refundMethod, setRefundMethod] = useState('BANK_TRANSFER');
   const [refundReference, setRefundReference] = useState('');
@@ -60,6 +67,26 @@ export default function MembershipsPage() {
       return res.data;
     },
   });
+
+  const filteredMemberships = useMemo(() => {
+    const list = Array.isArray(memberships) ? memberships : [];
+    const q = search.trim().toLowerCase();
+    return list.filter((item: any) => {
+      if (statusFilter !== 'ALL' && item.status !== statusFilter) return false;
+      if (!q) return true;
+      const haystack = [
+        item.member?.fullName,
+        item.member?.code,
+        item.member?.phone,
+        item.package?.name,
+        ...(item.payments || []).map((p: any) => p.code),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [memberships, search, statusFilter]);
 
   const {
     data: changeRequests = [],
@@ -142,8 +169,13 @@ export default function MembershipsPage() {
     },
   });
 
-  const handleApprove = (m: any) => {
-    if (window.confirm('Xác nhận thanh toán cho hợp đồng này? Gói tập sẽ được kích hoạt.')) {
+  const handleApprove = async (m: any) => {
+    const ok = await confirm({
+      title: 'Xác nhận thanh toán',
+      description: 'Xác nhận thanh toán cho hợp đồng này? Gói tập sẽ được kích hoạt.',
+      type: 'info',
+    });
+    if (ok) {
       const pendingPayment = m.payments?.find((p: any) => p.status === 'PENDING');
       if (pendingPayment) approveMutation.mutate(pendingPayment.id);
       else {
@@ -153,32 +185,38 @@ export default function MembershipsPage() {
     }
   };
 
-  const handleCancel = (m: any) => {
+  const handleCancel = async (m: any) => {
     const pendingPayment = m.payments?.find((p: any) => p.status === 'PENDING');
     if (pendingPayment) {
-      if (
-        window.confirm(
-          `Từ chối khoản thanh toán của ${m.member?.fullName} cho gói ${m.package?.name}?`,
-        )
-      ) {
-        rejectPaymentMutation.mutate(pendingPayment.id);
-      }
-    } else if (
-      m.status === 'PENDING' &&
-      window.confirm(`Hủy yêu cầu đăng ký gói ${m.package?.name} của ${m.member?.fullName}?`)
-    ) {
-      statusMutation.mutate({
-        id: m.id,
-        status: 'CANCELLED',
-        reason: 'Hủy yêu cầu đăng ký chưa thanh toán',
+      const ok = await confirm({
+        title: 'Từ chối thanh toán',
+        description: `Từ chối khoản thanh toán của ${m.member?.fullName} cho gói ${m.package?.name}?`,
+        type: 'danger',
       });
+      if (ok) rejectPaymentMutation.mutate(pendingPayment.id);
+    } else if (m.status === 'PENDING') {
+      const ok = await confirm({
+        title: 'Hủy đăng ký',
+        description: `Hủy yêu cầu đăng ký gói ${m.package?.name} của ${m.member?.fullName}?`,
+        type: 'danger',
+      });
+      if (ok) {
+        statusMutation.mutate({
+          id: m.id,
+          status: 'CANCELLED',
+          reason: 'Hủy yêu cầu đăng ký chưa thanh toán',
+        });
+      }
     }
   };
 
-  const handleSuspend = (m: any) => {
-    if (window.confirm('Tạm khóa thẻ này? Hội viên sẽ không thể check-in.')) {
-      statusMutation.mutate({ id: m.id, status: 'SUSPENDED' });
-    }
+  const handleSuspend = async (m: any) => {
+    const ok = await confirm({
+      title: 'Tạm khóa thẻ',
+      description: 'Tạm khóa thẻ này? Hội viên sẽ không thể check-in.',
+      type: 'danger',
+    });
+    if (ok) statusMutation.mutate({ id: m.id, status: 'SUSPENDED' });
   };
 
   const handleReactivate = (m: any) => {
@@ -446,6 +484,65 @@ export default function MembershipsPage() {
       )}
 
       <Card>
+        {/* Thanh tìm kiếm + lọc theo tình trạng hợp đồng */}
+        <div className="flex flex-col gap-3 border-b border-line p-4 sm:flex-row sm:items-center">
+          <div className="relative min-w-0 flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Tìm theo tên, mã hội viên, gói tập, mã hóa đơn..."
+              aria-label="Tìm kiếm hợp đồng"
+              className="h-10 w-full min-w-0 rounded-sm border border-line bg-ink px-9 text-xs text-chalk placeholder:text-muted/70 focus:border-neon/70 focus:outline-none focus:ring-2 focus:ring-neon/70"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                aria-label="Xóa tìm kiếm"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted transition-colors hover:text-chalk"
+              >
+                <X className="size-4" />
+              </button>
+            )}
+          </div>
+          <div className="flex shrink-0 items-center gap-2 sm:w-64">
+            <Filter className="size-4 shrink-0 text-muted" />
+            <Select
+              className="text-xs"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              aria-label="Lọc theo tình trạng hợp đồng"
+              options={[
+                { value: 'ALL', label: 'Tất cả trạng thái' },
+                { value: 'ACTIVE', label: 'Đang hoạt động' },
+                { value: 'PENDING', label: 'Đang chờ xác nhận' },
+                { value: 'SUSPENDED', label: 'Tạm khóa' },
+                { value: 'EXPIRED', label: 'Hết hạn' },
+                { value: 'CANCELLED', label: 'Đã hủy' },
+              ]}
+            />
+          </div>
+          {(search.trim() !== '' || statusFilter !== 'ALL') && (
+            <div className="flex shrink-0 items-center gap-3">
+              <p className="whitespace-nowrap text-[11px] text-muted">
+                {filteredMemberships.length}/{Array.isArray(memberships) ? memberships.length : 0}{' '}
+                hợp đồng
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch('');
+                  setStatusFilter('ALL');
+                }}
+                className="whitespace-nowrap text-[11px] font-semibold text-neon transition-colors hover:text-neon/80"
+              >
+                Xóa bộ lọc
+              </button>
+            </div>
+          )}
+        </div>
         <CardContent className="p-0">
           {isLoading ? (
             <div className="flex items-center justify-center gap-2 py-16 text-xs text-muted">
@@ -458,7 +555,7 @@ export default function MembershipsPage() {
               description="Lỗi tải dữ liệu thẻ hội viên từ Backend. Vui lòng thử lại."
               onRetry={() => refetch()}
             />
-          ) : memberships && memberships.length > 0 ? (
+          ) : memberships && memberships.length > 0 && filteredMemberships.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[840px] text-left text-sm">
                 <thead className="text-[11px] uppercase tracking-wider text-muted bg-ink border-b border-line">
@@ -473,7 +570,7 @@ export default function MembershipsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line font-medium">
-                  {memberships.map((item: any) => {
+                  {filteredMemberships.map((item: any) => {
                     const msMeta = MEMBERSHIP_STATUS_META[item.status] || {
                       label: item.status,
                       variant: 'outline',
@@ -606,6 +703,13 @@ export default function MembershipsPage() {
                 </tbody>
               </table>
             </div>
+          ) : memberships && memberships.length > 0 ? (
+            <EmptyState
+              className="m-3"
+              icon={Search}
+              title="Không tìm thấy hợp đồng"
+              description="Không có hợp đồng nào phù hợp với từ khóa hoặc bộ lọc hiện tại. Thử từ khóa khác hoặc xóa bộ lọc."
+            />
           ) : (
             <EmptyState
               className="m-3"

@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { trainerApi } from '@/services/trainer.service';
 import { TRAINER_STATUS_META } from '@/lib/status';
 import { TrainerFormDialog } from '@/components/training/trainer-form-dialog';
@@ -33,6 +34,7 @@ const PAGE_SIZE = 10;
 
 export default function TrainersPage() {
   const toast = useToast();
+  const { confirm } = useConfirm();
   const queryClient = useQueryClient();
 
   const [page, setPage] = useState(1);
@@ -252,12 +254,18 @@ export default function TrainersPage() {
                           <button
                             type="button"
                             disabled={toggleMutation.isPending}
-                            onClick={() => {
+                            onClick={async () => {
                               const msg =
                                 t.status === 'ACTIVE'
                                   ? `Ngừng hoạt động HLV "${t.user.fullName}"? Tài khoản đăng nhập sẽ bị khóa, lịch sử được giữ lại.`
                                   : `Kích hoạt lại HLV "${t.user.fullName}"?`;
-                              if (window.confirm(msg)) toggleMutation.mutate(t);
+                              const ok = await confirm({
+                                title:
+                                  t.status === 'ACTIVE' ? 'Ngừng hoạt động HLV' : 'Kích hoạt HLV',
+                                description: msg,
+                                type: 'danger',
+                              });
+                              if (ok) toggleMutation.mutate(t);
                             }}
                             className={cn(
                               'flex h-8 items-center gap-1 rounded-[10px] border px-2.5 text-xs font-semibold transition-colors',

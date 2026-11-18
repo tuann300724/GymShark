@@ -16,6 +16,7 @@ import { StatCard } from '@/components/ui/stat-card';
 import { Textarea } from '@/components/ui/textarea';
 import { WeeklyShiftTemplatesDialog } from '@/components/admin/weekly-shift-templates-dialog';
 import { useToast } from '@/components/ui/toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { getStoredUser } from '@/lib/auth';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
 import {
@@ -117,6 +118,7 @@ function ReportGroups({ title, groups }: { title: string; groups: ShiftReportGro
 
 export default function StaffShiftsPage() {
   const toastApi = useToast();
+  const { confirm } = useConfirm();
   const queryClient = useQueryClient();
   const user = getStoredUser();
   const canManage = user?.role === 'ADMIN' || user?.role === 'MANAGER';
@@ -578,9 +580,13 @@ export default function StaffShiftsPage() {
                                 <Button
                                   size="sm"
                                   variant="danger"
-                                  onClick={() => {
-                                    if (window.confirm(`Xóa ca "${shift.title}"?`))
-                                      removeMutation.mutate(shift.id);
+                                  onClick={async () => {
+                                    const ok = await confirm({
+                                      title: 'Xóa ca',
+                                      description: `Xóa ca "${shift.title}"?`,
+                                      type: 'danger',
+                                    });
+                                    if (ok) removeMutation.mutate(shift.id);
                                   }}
                                   disabled={removeMutation.isPending}
                                 >
@@ -592,10 +598,13 @@ export default function StaffShiftsPage() {
                               <Button
                                 size="sm"
                                 variant="danger"
-                                onClick={() => {
-                                  if (window.confirm(`Hủy ca "${shift.title}" đang diễn ra?`)) {
-                                    cancelMutation.mutate(shift.id);
-                                  }
+                                onClick={async () => {
+                                  const ok = await confirm({
+                                    title: 'Hủy ca',
+                                    description: `Hủy ca "${shift.title}" đang diễn ra?`,
+                                    type: 'danger',
+                                  });
+                                  if (ok) cancelMutation.mutate(shift.id);
                                 }}
                                 disabled={cancelMutation.isPending}
                               >

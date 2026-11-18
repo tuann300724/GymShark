@@ -59,10 +59,21 @@ export class FoodsService {
     if (query.category) where.category = query.category;
     if (query.search) where.name = { contains: query.search.trim() };
 
+    const orderBy: Prisma.FoodOrderByWithRelationInput[] =
+      query.sort === 'name'
+        ? [{ name: 'asc' }]
+        : query.sort === 'kcal'
+          ? [{ caloriesPer100g: 'desc' }, { name: 'asc' }]
+          : query.sort === 'protein'
+            ? [{ proteinPer100g: 'desc' }, { name: 'asc' }]
+            : query.sort === 'recent'
+              ? [{ createdAt: 'desc' }]
+              : [{ category: 'asc' }, { name: 'asc' }];
+
     const [data, total] = await this.prisma.$transaction([
       this.prisma.food.findMany({
         where,
-        orderBy: [{ category: 'asc' }, { name: 'asc' }],
+        orderBy,
         skip: (page - 1) * limit,
         take: limit,
       }),
@@ -129,6 +140,27 @@ export class FoodsService {
     await this.audit.log({
       userId: actor.userId,
       action: 'FOOD_DELETE',
+      entity: 'Food',
+      entityId: id,
+      metadata: { name: food.name },
+      ip: actor.ip,
+    });
+
+    return { success: true, id };
+  }
+
+  /** Bỏ ẩn — bật lại thực phẩm đã xoá mềm để dùng lại trong thư viện. */
+  async restore(id: string, actor: { userId: string; ip?: string }) {
+    const food = await this.findOne(id);
+    if (food.isActive) {
+      throw new ForbiddenException('Thực phẩm này đang hiển thị.');
+    }
+
+    await this.prisma.food.update({ where: { id }, data: { isActive: true } });
+
+    await this.audit.log({
+      userId: actor.userId,
+      action: 'FOOD_RESTORE',
       entity: 'Food',
       entityId: id,
       metadata: { name: food.name },

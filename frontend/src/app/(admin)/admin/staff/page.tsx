@@ -13,6 +13,7 @@ import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CreateStaffAccountDialog } from '@/components/admin/create-staff-account-dialog';
 import { useToast } from '@/components/ui/toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import apiClient from '@/lib/axios';
 import { formatDate } from '@/lib/utils';
 
@@ -39,6 +40,7 @@ function getErrorMessage(error: unknown) {
 
 export default function StaffAccountsPage() {
   const toast = useToast();
+  const { confirm } = useConfirm();
   const queryClient = useQueryClient();
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
@@ -228,15 +230,14 @@ export default function StaffAccountsPage() {
                           size="sm"
                           variant={isActive ? 'outline' : 'secondary'}
                           disabled={statusMutation.isPending}
-                          onClick={() => {
+                          onClick={async () => {
                             const action = isActive ? 'khóa' : 'mở lại';
-                            if (
-                              window.confirm(
-                                `Bạn có chắc muốn ${action} tài khoản ${account.fullName}?`,
-                              )
-                            ) {
-                              statusMutation.mutate({ id: account.id, status: nextStatus });
-                            }
+                            const ok = await confirm({
+                              title: isActive ? 'Khóa tài khoản' : 'Mở lại tài khoản',
+                              description: `Bạn có chắc muốn ${action} tài khoản ${account.fullName}?`,
+                              type: 'danger',
+                            });
+                            if (ok) statusMutation.mutate({ id: account.id, status: nextStatus });
                           }}
                         >
                           {isActive ? (

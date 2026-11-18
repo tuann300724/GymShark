@@ -186,6 +186,12 @@ export const AUDIT_ACTION_META: Record<string, { label: string; variant: BadgeVa
   BEVERAGE_IMPORT_RECEIVE: { label: 'Xác nhận nhập nước uống', variant: 'success' },
   BEVERAGE_SALE_COMPLETE: { label: 'Thanh toán hóa đơn nước uống', variant: 'success' },
   BEVERAGE_STOCK_ADJUST: { label: 'Điều chỉnh tồn kho nước uống', variant: 'warning' },
+
+  // Thư viện thực phẩm
+  FOOD_CREATE: { label: 'Tạo thực phẩm', variant: 'success' },
+  FOOD_UPDATE: { label: 'Cập nhật thực phẩm', variant: 'default' },
+  FOOD_DELETE: { label: 'Ẩn thực phẩm', variant: 'warning' },
+  FOOD_RESTORE: { label: 'Bỏ ẩn thực phẩm', variant: 'info' },
 };
 
 /** Nhãn cho loại đối tượng bị tác động */
@@ -205,6 +211,7 @@ export const AUDIT_ENTITY_LABEL: Record<string, string> = {
   BeverageImport: 'Phiếu nhập nước uống',
   BeverageSale: 'Hóa đơn nước uống',
   BeverageStockMovement: 'Biến động kho nước uống',
+  Food: 'Thực phẩm',
 };
 
 /** Nhãn vai trò người thực hiện (hiển thị trong nhật ký) */

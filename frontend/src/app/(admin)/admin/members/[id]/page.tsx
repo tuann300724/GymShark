@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/components/ui/toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { FaceScanner } from '@/components/ui/face-scanner';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
@@ -77,6 +78,7 @@ export default function MemberDetailPage() {
 
   const toast = useToast();
   const queryClient = useQueryClient();
+  const { confirm } = useConfirm();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<any>({});
   const [changePackageMembership, setChangePackageMembership] = useState<any>(null);
@@ -301,10 +303,13 @@ export default function MemberDetailPage() {
               size="sm"
               className="text-xs text-danger"
               isLoading={statusMutation.isPending}
-              onClick={() => {
-                if (window.confirm(`Khóa tài khoản của ${member.fullName}?`)) {
-                  statusMutation.mutate('SUSPENDED');
-                }
+              onClick={async () => {
+                const ok = await confirm({
+                  title: 'Xác nhận khóa',
+                  description: `Khóa tài khoản của ${member.fullName}?`,
+                  type: 'danger',
+                });
+                if (ok) statusMutation.mutate('SUSPENDED');
               }}
             >
               <Lock className="size-3.5 mr-1" /> Khóa tài khoản

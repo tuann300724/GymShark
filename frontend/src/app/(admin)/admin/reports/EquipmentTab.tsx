@@ -26,6 +26,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { formatDate, formatDateTime, cn } from '@/lib/utils';
 import apiClient from '@/lib/axios';
 
@@ -102,6 +103,7 @@ const COMMON_ISSUES = [
 
 export function EquipmentTab() {
   const toast = useToast();
+  const { confirm } = useConfirm();
   // Bộ lọc & tìm kiếm
   const [activeTab, setActiveTab] = useState<'ALL' | 'MAINTENANCE' | 'AVAILABLE' | 'INACTIVE'>(
     'ALL',
@@ -309,11 +311,12 @@ export function EquipmentTab() {
 
   /** Hoàn tất sửa chữa (Chuyển máy về SẴN SÀNG) */
   const handleCompleteMaintenance = async (equipmentId: string, equipmentName: string) => {
-    if (
-      !window.confirm(`Xác nhận máy "${equipmentName}" đã sửa chữa xong và đưa vào sử dụng lại?`)
-    ) {
-      return;
-    }
+    const ok = await confirm({
+      title: 'Hoàn tất sửa chữa',
+      description: `Xác nhận máy "${equipmentName}" đã sửa chữa xong và đưa vào sử dụng lại?`,
+      type: 'info',
+    });
+    if (!ok) return;
     setCompletingId(equipmentId);
     try {
       await apiClient.post(`/equipment/${equipmentId}/complete-maintenance`);
@@ -367,7 +370,12 @@ export function EquipmentTab() {
 
   /** Xóa thiết bị */
   const handleDeleteEquipment = async (id: string, name: string) => {
-    if (!window.confirm(`Bạn có chắc muốn xóa vĩnh viễn thiết bị "${name}" khỏi hệ thống?`)) return;
+    const ok = await confirm({
+      title: 'Xóa thiết bị',
+      description: `Bạn có chắc muốn xóa vĩnh viễn thiết bị "${name}" khỏi hệ thống?`,
+      type: 'danger',
+    });
+    if (!ok) return;
     try {
       await apiClient.delete(`/equipment/${id}`);
       await listQ.refetch();

@@ -145,7 +145,7 @@ export class PackagesService {
     data.type = PackageType.FIXED_TERM;
     if (dto.name !== undefined) data.name = dto.name;
     if (dto.description !== undefined) data.description = dto.description;
-    if (dto.features !== undefined) data.features = dto.features as any;
+    if (dto.features !== undefined) data.features = serializeJsonText(dto.features);
     if (dto.durationDays !== undefined) data.durationDays = dto.durationDays;
     if (dto.price !== undefined)
       data.price = new Prisma.Decimal(dto.price.toFixed(2));

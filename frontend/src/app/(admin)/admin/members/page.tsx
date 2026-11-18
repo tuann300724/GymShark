@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/axios';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -36,12 +37,13 @@ import {
 const DEFAULT_STATUS = 'ALL';
 const LIMIT = 10;
 
-export default function MembersPage() {
+function MembersPageContent() {
   const toast = useToast();
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
 
-  const [searchInput, setSearchInput] = useState('');
-  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState(() => searchParams.get('search') ?? '');
+  const [search, setSearch] = useState(() => searchParams.get('search') ?? '');
   const [statusFilter, setStatusFilter] = useState(DEFAULT_STATUS);
   const [membershipStatus, setMembershipStatus] = useState(DEFAULT_STATUS);
   const [packageId, setPackageId] = useState(DEFAULT_STATUS);
@@ -54,6 +56,15 @@ export default function MembersPage() {
 
   // Đăng ký gói cho hội viên có sẵn tại quầy
   const [cardTarget, setCardTarget] = useState<any>(null);
+
+  // Đồng bộ khi điều hướng từ ô tìm kiếm nhanh ở header (?search=...)
+  useEffect(() => {
+    const q = searchParams.get('search');
+    if (q !== null) {
+      setSearchInput(q);
+      setSearch(q);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     setPage(1);
@@ -564,5 +575,13 @@ export default function MembersPage() {
         onSuccess={() => queryClient.invalidateQueries({ queryKey: ['admin-members'] })}
       />
     </div>
+  );
+}
+
+export default function MembersPage() {
+  return (
+    <Suspense fallback={<Spinner />}>
+      <MembersPageContent />
+    </Suspense>
   );
 }

@@ -6,6 +6,7 @@ import { QueryProvider } from '@/providers/query-provider';
 import { ChatSocketProvider } from '@/providers/chat-socket-provider';
 import { ThemeProvider } from '@/providers/theme-provider';
 import { ToastProvider } from '@/components/ui/toast';
+import { ConfirmProvider } from '@/components/ui/confirm-dialog';
 import { MotionProvider } from '@/components/ui/motion-provider';
 
 const sans = Be_Vietnam_Pro({
@@ -48,10 +49,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {/* MotionProvider: framer-motion tôn trọng prefers-reduced-motion toàn app */}
           <MotionProvider>
             <QueryProvider>
-              {/* ToastProvider phải BAO ChatSocketProvider — socket provider gọi
-                  useToast() để popup "tin nhắn mới" khi HLV/hội viên gửi tin. */}
+              {/* ToastProvider phải BAO ChatSocketProvider và ConfirmProvider — socket provider
+                  và confirm dialog đều gọi useToast(). */}
               <ToastProvider>
-                <ChatSocketProvider>{children}</ChatSocketProvider>
+                <ConfirmProvider>
+                  <ChatSocketProvider>{children}</ChatSocketProvider>
+                </ConfirmProvider>
               </ToastProvider>
             </QueryProvider>
           </MotionProvider>

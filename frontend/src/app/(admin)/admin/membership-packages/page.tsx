@@ -17,6 +17,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { Spinner } from '@/components/ui/spinner';
@@ -35,6 +36,7 @@ const EMPTY_FORM = {
 
 export default function MembershipPackagesPage() {
   const toast = useToast();
+  const { confirm } = useConfirm();
   const queryClient = useQueryClient();
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -160,8 +162,13 @@ export default function MembershipPackagesPage() {
     setDialogOpen(true);
   };
 
-  const confirmDelete = (pkg: any) => {
-    if (window.confirm(`Xóa gói tập "${pkg.name}" khỏi hệ thống?`)) {
+  const confirmDelete = async (pkg: any) => {
+    const ok = await confirm({
+      title: 'Xác nhận xóa',
+      description: `Xóa gói tập "${pkg.name}" khỏi hệ thống?`,
+      type: 'danger',
+    });
+    if (ok) {
       deleteMutation.mutate(pkg.id);
     }
   };

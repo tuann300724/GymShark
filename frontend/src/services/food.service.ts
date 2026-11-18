@@ -11,6 +11,8 @@ export type FoodCategory =
   | 'SNACK'
   | 'OTHER';
 
+export type FoodSort = 'category' | 'name' | 'kcal' | 'protein' | 'recent';
+
 export interface FoodItem {
   id: string;
   name: string;
@@ -42,6 +44,7 @@ export const foodApi = {
     search?: string;
     category?: FoodCategory;
     includeInactive?: boolean;
+    sort?: FoodSort;
   }): Promise<FoodListResponse> => {
     const res = await apiClient.get<FoodListResponse>('/foods', { params });
     return res.data;
@@ -64,6 +67,11 @@ export const foodApi = {
 
   remove: async (id: string): Promise<{ success: boolean; id: string }> => {
     const res = await apiClient.delete<{ success: boolean; id: string }>(`/foods/${id}`);
+    return res.data;
+  },
+
+  restore: async (id: string): Promise<{ success: boolean; id: string }> => {
+    const res = await apiClient.patch<{ success: boolean; id: string }>(`/foods/${id}/restore`);
     return res.data;
   },
 };

@@ -55,6 +55,8 @@ export function SessionDetailDialog({
   const [note, setNote] = useState('');
   const [performance, setPerformance] = useState('');
   const [recommendation, setRecommendation] = useState('');
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
 
   const { data: session, isLoading } = useQuery({
     queryKey: ['session-detail', sessionId],
@@ -89,6 +91,8 @@ export function SessionDetailDialog({
       trainingApi.cancel(sessionId!, cancellationNote || undefined),
     onSuccess: () => {
       toast.success('Đã hủy buổi tập');
+      setCancelOpen(false);
+      setCancelReason('');
       refresh();
     },
     onError: (e: any) => toast.error('Không thể hủy buổi tập', e?.response?.data?.message),
@@ -289,6 +293,39 @@ export function SessionDetailDialog({
             </div>
           )}
 
+          {/* Cancel form — nhập lý do hủy ngay trong dialog, không dùng prompt trình duyệt */}
+          {canManage && cancelOpen && session.status === 'SCHEDULED' && (
+            <div className="space-y-3 rounded-xl border border-danger/40 bg-danger/5 p-4">
+              <Textarea
+                label="Lý do hủy buổi tập (không bắt buộc)"
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Ví dụ: Hội viên báo hủy, trainer bận..."
+                rows={2}
+              />
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setCancelOpen(false);
+                    setCancelReason('');
+                  }}
+                >
+                  Quay lại
+                </Button>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  isLoading={cancelMutation.isPending}
+                  onClick={() => cancelMutation.mutate(cancelReason.trim())}
+                >
+                  Xác nhận hủy buổi tập
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Footer actions */}
           {(canManage || canComplete) && session.status === 'SCHEDULED' && (
             <div className="flex flex-wrap items-center justify-end gap-2 border-t border-line pt-4">
@@ -309,10 +346,7 @@ export function SessionDetailDialog({
                 <Button
                   variant="danger"
                   size="sm"
-                  onClick={() => {
-                    const reason = window.prompt('Lý do hủy buổi tập (không bắt buộc):', '');
-                    if (reason !== null) cancelMutation.mutate(reason);
-                  }}
+                  onClick={() => setCancelOpen((v) => !v)}
                   isLoading={cancelInProgress}
                 >
                   <XCircle className="size-3.5" /> Hủy buổi tập

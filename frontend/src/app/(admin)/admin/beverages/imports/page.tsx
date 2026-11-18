@@ -17,6 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/components/ui/toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
 import { ClipboardList, Eye, PackageCheck, Plus, Trash2 } from 'lucide-react';
 
@@ -50,6 +51,7 @@ const localDate = () => {
 export default function BeverageImportsPage() {
   const queryClient = useQueryClient();
   const toast = useToast();
+  const { confirm } = useConfirm();
   const [supplierName, setSupplierName] = useState('');
   const [supplierPhone, setSupplierPhone] = useState('');
   const [importDate, setImportDate] = useState(localDate());
@@ -256,13 +258,13 @@ export default function BeverageImportsPage() {
                               variant="outline"
                               size="sm"
                               disabled={receiveMutation.isPending}
-                              onClick={() => {
-                                if (
-                                  window.confirm(
-                                    `Xác nhận nhận hàng ${item.importCode}? Tồn kho sẽ được cập nhật một lần.`,
-                                  )
-                                )
-                                  receiveMutation.mutate(item.importId);
+                              onClick={async () => {
+                                const ok = await confirm({
+                                  title: 'Xác nhận nhận hàng',
+                                  description: `Xác nhận nhận hàng ${item.importCode}? Tồn kho sẽ được cập nhật một lần.`,
+                                  type: 'info',
+                                });
+                                if (ok) receiveMutation.mutate(item.importId);
                               }}
                             >
                               <PackageCheck className="size-4" />

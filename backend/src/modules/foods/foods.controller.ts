@@ -66,4 +66,12 @@ export class FoodsController {
   remove(@Param('id') id: string, @CurrentUser('id') userId: string, @Ip() ip: string) {
     return this.foodsService.remove(id, { userId, ip });
   }
+
+  @Patch(':id/restore')
+  @Roles(Role.ADMIN, Role.MANAGER)
+  @ApiOperation({ summary: 'Bỏ ẩn thực phẩm (bật lại sau khi xoá mềm)' })
+  @ApiParam({ name: 'id' })
+  restore(@Param('id') id: string, @CurrentUser('id') userId: string, @Ip() ip: string) {
+    return this.foodsService.restore(id, { userId, ip });
+  }
 }

@@ -1,9 +1,10 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { FoodCategory } from '../../../common/constants/db-enums';
-import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
+import { FoodCategory } from "../../../common/constants/db-enums";
+import { Type } from "class-transformer";
 import {
   IsBoolean,
   IsEnum,
+  IsIn,
   IsInt,
   IsNumber,
   IsOptional,
@@ -11,24 +12,26 @@ import {
   MaxLength,
   Min,
   MinLength,
-} from 'class-validator';
+} from "class-validator";
 
 export class CreateFoodDto {
-  @ApiProperty({ example: 'Ức gà' })
+  @ApiProperty({ example: "Ức gà" })
   @IsString()
-  @MinLength(1, { message: 'Tên thực phẩm không được để trống' })
+  @MinLength(1, { message: "Tên thực phẩm không được để trống" })
   @MaxLength(120)
   name!: string;
 
-  @ApiPropertyOptional({ enum: FoodCategory, description: 'Nhóm thực phẩm' })
+  @ApiPropertyOptional({ enum: FoodCategory, description: "Nhóm thực phẩm" })
   @IsOptional()
-  @IsEnum(FoodCategory, { message: 'Nhóm thực phẩm không hợp lệ' })
+  @IsEnum(FoodCategory, { message: "Nhóm thực phẩm không hợp lệ" })
   category?: FoodCategory;
 
-  @ApiPropertyOptional({ description: 'Ảnh minh họa (URL hoặc data URL base64)' })
+  @ApiPropertyOptional({
+    description: "Ảnh minh họa (URL hoặc data URL base64)",
+  })
   @IsOptional()
   @IsString()
-  @MaxLength(2_000_000, { message: 'Ảnh minh họa quá lớn' })
+  @MaxLength(2_000_000, { message: "Ảnh minh họa quá lớn" })
   imageUrl?: string;
 
   @ApiPropertyOptional()
@@ -37,13 +40,16 @@ export class CreateFoodDto {
   @MaxLength(2000)
   description?: string;
 
-  @ApiPropertyOptional({ example: 100, description: 'Khẩu phần hiển thị (gram/ml)' })
+  @ApiPropertyOptional({
+    example: 100,
+    description: "Khẩu phần hiển thị (gram/ml)",
+  })
   @IsOptional()
   @IsNumber()
   @Min(0)
   servingSize?: number;
 
-  @ApiPropertyOptional({ example: 'g' })
+  @ApiPropertyOptional({ example: "g" })
   @IsOptional()
   @IsString()
   @MaxLength(20)
@@ -77,18 +83,31 @@ export class CreateFoodDto {
 export class UpdateFoodDto extends PartialType(CreateFoodDto) {}
 
 export class FoodQueryDto {
-  @ApiPropertyOptional({ description: 'Tìm theo tên (không phân biệt hoa thường)' })
+  @ApiPropertyOptional({
+    description: "Tìm theo tên (không phân biệt hoa thường)",
+  })
   @IsOptional()
   @IsString()
   @MaxLength(120)
   search?: string;
 
+  @ApiPropertyOptional({
+    enum: ["category", "name", "kcal", "protein", "recent"],
+    description:
+      "Cách sắp xếp: category = nhóm & tên (mặc định), name = tên A–Z, kcal/protein = giảm dần, recent = mới thêm trước",
+  })
+  @IsOptional()
+  @IsIn(["category", "name", "kcal", "protein", "recent"])
+  sort?: "category" | "name" | "kcal" | "protein" | "recent";
+
   @ApiPropertyOptional({ enum: FoodCategory })
   @IsOptional()
-  @IsEnum(FoodCategory, { message: 'Nhóm thực phẩm không hợp lệ' })
+  @IsEnum(FoodCategory, { message: "Nhóm thực phẩm không hợp lệ" })
   category?: FoodCategory;
 
-  @ApiPropertyOptional({ description: 'Bao gồm cả thực phẩm đã ẩn (mặc định false)' })
+  @ApiPropertyOptional({
+    description: "Bao gồm cả thực phẩm đã ẩn (mặc định false)",
+  })
   @IsOptional()
   @IsBoolean()
   includeInactive?: boolean;

@@ -1,7 +1,6 @@
 import { Transform, Type } from "class-transformer";
 import {
   ArrayMinSize,
-  IsBoolean,
   IsArray,
   IsDateString,
   IsIn,
@@ -20,11 +19,11 @@ import {
 } from "class-validator";
 
 export class BeverageProductDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @Matches(/\S/)
   @MaxLength(50)
-  code: string;
+  code?: string;
 
   @IsString()
   @IsNotEmpty()
@@ -286,9 +285,9 @@ export class BeverageStockAdjustmentDto {
 
 export class BeverageQueryDto {
   @IsOptional()
-  @Transform(({ value }) => value === true || value === "true")
-  @IsBoolean()
-  includeInactive?: boolean;
+  @Transform(({ value }) => String(value))
+  @IsIn(["true", "false"])
+  includeInactive?: string;
 
   @IsOptional()
   @IsUUID()
