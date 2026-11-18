@@ -719,7 +719,11 @@ model Message {
   mealPlan       MealPlan?    @relation(fields: [mealPlanId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   isRead         Boolean      @default(false)
   readAt         DateTime?
+  /// Đã tới thiết bị người nhận (double check xám)
+  deliveredAt    DateTime?
   editedAt       DateTime?
+  /// Thu hồi tin nhắn: khi có giá trị, nội dung/ảnh đã bị xoá vĩnh viễn
+  recalledAt     DateTime?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 

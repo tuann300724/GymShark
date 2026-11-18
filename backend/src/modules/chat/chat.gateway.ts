@@ -61,10 +61,59 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   private readonly logger = new Logger("ChatGateway");
 
+  /** userId → số socket đang mở (nhiều tab = nhiều socket). Dùng cho receipt "đã nhận". */
+  private readonly onlineCounts = new Map<string, number>();
+
   constructor(
     private readonly jwt: JwtService,
     private readonly prisma: PrismaService,
   ) {}
+
+  /** true nếu người dùng có ít nhất một socket đang kết nối. */
+  isOnline(userId: string | null | undefined): boolean {
+    return !!userId && this.onlineCounts.has(userId);
+  }
+
+  /**
+   * Đánh dấu "đã nhận" cho mọi tin nhắn GỬI ĐẾN user đang online (chưa delivered),
+   * rồi báo cho từng người gửi để họ thấy tick kép tức thì.
+   */
+  private async sweepDeliveredReceipts(userId: string, role: string) {
+    try {
+      if (role !== "TRAINER" && role !== "MEMBER") return;
+      const conversationSide =
+        role === "TRAINER" ? { trainer: { userId } } : { member: { userId } };
+      const pending = await this.prisma.message.findMany({
+        where: {
+          deliveredAt: null,
+          senderId: { not: userId },
+          conversation: conversationSide,
+        },
+        select: { id: true, conversationId: true, senderId: true },
+        take: 500,
+      });
+      if (!pending.length) return;
+
+      await this.prisma.message.updateMany({
+        where: { id: { in: pending.map((m) => m.id) } },
+        data: { deliveredAt: new Date() },
+      });
+
+      const bySender = new Map<string, Set<string>>();
+      for (const m of pending) {
+        const set = bySender.get(m.senderId) ?? new Set<string>();
+        set.add(m.conversationId);
+        bySender.set(m.senderId, set);
+      }
+      for (const [senderId, conversationIds] of bySender) {
+        this.emitToUser(senderId, "messages:delivered", {
+          conversationIds: [...conversationIds],
+        });
+      }
+    } catch (err) {
+      this.logger.warn(`Không thể quét trạng thái "đã nhận": ${err}`);
+    }
+  }
 
   private extractToken(client: Socket): string | null {
     const fromAuth = client.handshake.auth?.token as string | undefined;
@@ -96,6 +145,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
 
       client.data.user = { id: user.id, role: user.role } satisfies WsUser;
+      this.onlineCounts.set(user.id, (this.onlineCounts.get(user.id) ?? 0) + 1);
       await client.join(`user:${user.id}`);
       await client.join(`role:${user.role}`);
       if (["ADMIN", "MANAGER", "STAFF"].includes(user.role)) {
@@ -103,6 +153,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         await client.join("staff-shift:admins");
       }
       client.emit("ws:ready", { userId: user.id });
+      // Receipt "đã nhận": thiết bị của user đang online sẽ nhận mọi tin chưa delivered.
+      void this.sweepDeliveredReceipts(user.id, user.role);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Xác thực thất bại.";
@@ -112,8 +164,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  handleDisconnect(_client: Socket) {
-    // Socket.IO tự dọn phòng khi ngắt kết nối — không cần trạng thái riêng.
+  handleDisconnect(client: Socket) {
+    const user = client.data?.user as WsUser | undefined;
+    if (!user) return;
+    const next = (this.onlineCounts.get(user.id) ?? 1) - 1;
+    if (next <= 0) this.onlineCounts.delete(user.id);
+    else this.onlineCounts.set(user.id, next);
   }
 
   /** Phát sự kiện realtime tới đúng một người dùng (mọi thiết bị của họ). */

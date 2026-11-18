@@ -11,7 +11,9 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MessageSquare, Send, User, Users, Utensils } from 'lucide-react';
+import { MessageSquare, Send, User, Users, Utensils, Undo2, Check, CheckCheck } from 'lucide-react';
+import { useToast } from '@/components/ui/toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 type Role = 'TRAINER' | 'MEMBER';
 
@@ -22,6 +24,8 @@ interface ChatClientProps {
 
 export default function ChatClient({ myRole, emptyHint }: ChatClientProps) {
   const qc = useQueryClient();
+  const toast = useToast();
+  const { confirm } = useConfirm();
   const { ensure } = useChatSocket();
   const [activeConv, setActiveConv] = useState<string | null>(null);
   const [text, setText] = useState('');
@@ -111,6 +115,31 @@ export default function ChatClient({ myRole, emptyHint }: ChatClientProps) {
     if (!t || sendingRef.current) return;
     sendingRef.current = true;
     sendMut.mutate({ content: t });
+  };
+
+  const recallMut = useMutation({
+    mutationFn: (messageId: string) => {
+      if (!activeConv) return Promise.reject(new Error('no conversation'));
+      return chatApi.recallMessage(activeConv, messageId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['chat-messages', activeConv] });
+      qc.invalidateQueries({ queryKey: ['chat-conversations'] });
+      toast.success('Đã thu hồi tin nhắn');
+    },
+    onError: (e: any) => {
+      toast.error('Không thể thu hồi', e?.response?.data?.message || e?.message);
+    },
+  });
+
+  const handleRecall = async (messageId: string) => {
+    const ok = await confirm({
+      title: 'Thu hồi tin nhắn',
+      description:
+        'Tin nhắn sẽ bị xoá vĩnh viễn nội dung và ảnh đính kèm. Cả hai bên sẽ thấy "Tin nhắn đã được thu hồi".',
+      type: 'danger',
+    });
+    if (ok) recallMut.mutate(messageId);
   };
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -244,39 +273,86 @@ export default function ChatClient({ myRole, emptyHint }: ChatClientProps) {
                       myRole === 'TRAINER'
                         ? m.sender.role === 'TRAINER'
                         : m.sender.role === 'MEMBER';
+                    const isRecalled = !!m.recalledAt;
                     return (
                       <div
                         key={m.id}
-                        className={cn('flex', isMine ? 'justify-end' : 'justify-start')}
+                        className={cn(
+                          'group flex items-start gap-1.5',
+                          isMine ? 'justify-end' : 'justify-start',
+                        )}
                       >
+                        {isMine && !isRecalled && (
+                          <button
+                            type="button"
+                            onClick={() => handleRecall(m.id)}
+                            disabled={recallMut.isPending}
+                            title="Thu hồi tin nhắn"
+                            aria-label="Thu hồi tin nhắn"
+                            className="mt-1.5 flex size-7 shrink-0 items-center justify-center rounded-full border border-line bg-surface text-muted opacity-40 transition hover:border-danger/40 hover:text-danger focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neon/40 md:opacity-0 md:group-hover:opacity-100 md:hover:opacity-100"
+                          >
+                            <Undo2 className="size-3.5" />
+                          </button>
+                        )}
                         <div
                           className={cn(
                             'max-w-[80%] rounded-[14px] px-3.5 py-2 text-sm',
-                            isMine
-                              ? 'rounded-br-[4px] border border-neon/25 bg-neon/10 text-chalk'
-                              : 'rounded-bl-[4px] border border-line bg-ink text-chalk',
+                            isRecalled
+                              ? isMine
+                                ? 'rounded-br-[4px] border border-dashed border-line bg-surface/40'
+                                : 'rounded-bl-[4px] border border-dashed border-line bg-surface/40'
+                              : isMine
+                                ? 'rounded-br-[4px] border border-neon/25 bg-neon/10 text-chalk'
+                                : 'rounded-bl-[4px] border border-line bg-ink text-chalk',
                           )}
                         >
-                          {m.type === 'IMAGE' && m.attachments[0]?.dataUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={m.attachments[0].dataUrl}
-                              alt={m.attachments[0].fileName || 'Ảnh đính kèm'}
-                              className="mb-1 max-h-64 rounded-sm object-cover"
-                            />
-                          ) : null}
-                          {m.mealPlan && <MealPlanCard message={m} />}
-                          {m.content && (
-                            <p className="whitespace-pre-wrap break-words">{m.content}</p>
+                          {isRecalled ? (
+                            <p className="flex items-center gap-1.5 italic text-muted">
+                              <Undo2 className="size-3.5 shrink-0" />
+                              Tin nhắn đã được thu hồi
+                            </p>
+                          ) : (
+                            <>
+                              {m.type === 'IMAGE' && m.attachments[0]?.dataUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={m.attachments[0].dataUrl}
+                                  alt={m.attachments[0].fileName || 'Ảnh đính kèm'}
+                                  className="mb-1 max-h-64 rounded-sm object-cover"
+                                />
+                              ) : null}
+                              {m.mealPlan && <MealPlanCard message={m} />}
+                              {m.content && (
+                                <p className="whitespace-pre-wrap break-words">{m.content}</p>
+                              )}
+                            </>
                           )}
-                          <p
-                            className={cn(
-                              'mt-1 text-[10px]',
-                              isMine ? 'text-muted/80' : 'text-muted',
-                            )}
-                          >
-                            {new Date(m.createdAt).toLocaleTimeString('vi-VN')}
-                          </p>
+                          {isMine ? (
+                            <p className="mt-1 flex items-center justify-end gap-1.5 text-[10px] text-muted/80">
+                              <span>{new Date(m.createdAt).toLocaleTimeString('vi-VN')}</span>
+                              {!isRecalled &&
+                                (m.isRead ? (
+                                  <span className="flex items-center gap-0.5 font-semibold text-neon">
+                                    <CheckCheck className="size-3.5" />
+                                    Đã xem
+                                  </span>
+                                ) : m.deliveredAt ? (
+                                  <span className="flex items-center gap-0.5 text-muted">
+                                    <CheckCheck className="size-3.5" />
+                                    Đã nhận
+                                  </span>
+                                ) : (
+                                  <span className="flex items-center gap-0.5 text-muted">
+                                    <Check className="size-3.5" />
+                                    Đã gửi
+                                  </span>
+                                ))}
+                            </p>
+                          ) : (
+                            <p className="mt-1 text-[10px] text-muted">
+                              {new Date(m.createdAt).toLocaleTimeString('vi-VN')}
+                            </p>
+                          )}
                         </div>
                       </div>
                     );

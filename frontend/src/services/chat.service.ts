@@ -54,6 +54,8 @@ export interface MessageItem {
   attachments: MessageAttachment[];
   isRead: boolean;
   readAt: string | null;
+  deliveredAt: string | null;
+  recalledAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -118,6 +120,13 @@ export const chatApi = {
   markRead: async (conversationId: string): Promise<{ conversationId: string; read: number }> => {
     const res = await apiClient.post<{ conversationId: string; read: number }>(
       `/chat/conversations/${conversationId}/read`,
+    );
+    return res.data;
+  },
+
+  recallMessage: async (conversationId: string, messageId: string): Promise<MessageItem> => {
+    const res = await apiClient.post<MessageItem>(
+      `/chat/conversations/${conversationId}/messages/${messageId}/recall`,
     );
     return res.data;
   },

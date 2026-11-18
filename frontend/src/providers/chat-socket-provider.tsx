@@ -134,9 +134,22 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
       queryClient.invalidateQueries({ queryKey: ['chat-conversations'] });
     };
 
+    // Tin nhắn bị thu hồi — không hiện toast, chỉ làm mới danh sách hội thoại + tin nhắn
+    const onMessageRecalled = () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-messages'] });
+    };
+
     const onMessagesRead = () => {
       queryClient.invalidateQueries({ queryKey: ['chat-conversations'] });
       queryClient.invalidateQueries({ queryKey: ['chat-unread'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-messages'] });
+    };
+
+    // Tin nhắn đã tới thiết bị người nhận — cập nhật tick "Đã nhận" trên UI người gửi
+    const onMessagesDelivered = () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-messages'] });
     };
 
     const onStaffShiftUpdated = (payload?: StaffShiftUpdatePayload) => {
@@ -241,8 +254,10 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
     };
 
     socket.on('message:new', onMessageNew);
+    socket.on('message:recalled', onMessageRecalled);
     socket.on('conversation:updated', onConversationUpdated);
     socket.on('messages:read', onMessagesRead);
+    socket.on('messages:delivered', onMessagesDelivered);
     socket.on('staff-shift:updated', onStaffShiftUpdated);
     socket.on('notification:new', onRealtimeNotification);
     socket.on('admin:event', onRealtimeNotification);
@@ -253,8 +268,10 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
       window.removeEventListener('gym:mutation-complete', scheduleRealtimeRefresh);
       if (refreshTimer) clearTimeout(refreshTimer);
       socket.off('message:new', onMessageNew);
+      socket.off('message:recalled', onMessageRecalled);
       socket.off('conversation:updated', onConversationUpdated);
       socket.off('messages:read', onMessagesRead);
+      socket.off('messages:delivered', onMessagesDelivered);
       socket.off('staff-shift:updated', onStaffShiftUpdated);
       socket.off('notification:new', onRealtimeNotification);
       socket.off('admin:event', onRealtimeNotification);

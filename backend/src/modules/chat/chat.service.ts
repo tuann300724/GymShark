@@ -3,23 +3,23 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
-} from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { MessageType } from '../../common/constants/db-enums';
-import { PrismaService } from '../../prisma/prisma.service';
-import { AuditService } from '../audit-logs/audit-logs.service';
-import { NotificationsService } from '../notifications/notifications.service';
-import { ChatGateway } from './chat.gateway';
+} from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import { MessageType } from "../../common/constants/db-enums";
+import { PrismaService } from "../../prisma/prisma.service";
+import { AuditService } from "../audit-logs/audit-logs.service";
+import { NotificationsService } from "../notifications/notifications.service";
+import { ChatGateway } from "./chat.gateway";
 import {
   ConversationQueryDto,
   MessageQueryDto,
   SendMessageDto,
   StartConversationDto,
-} from './dto/chat.dto';
+} from "./dto/chat.dto";
 
 export type ChatActor =
-  | { kind: 'TRAINER'; userId: string; trainerId: string }
-  | { kind: 'MEMBER'; userId: string; memberId: string };
+  | { kind: "TRAINER"; userId: string; trainerId: string }
+  | { kind: "MEMBER"; userId: string; memberId: string };
 
 const conversationInclude = {
   member: {
@@ -45,14 +45,16 @@ const messageInclude = {
   mealPlan: {
     include: {
       meals: {
-        orderBy: { orderIndex: 'asc' as const },
-        include: { items: { orderBy: { orderIndex: 'asc' as const } } },
+        orderBy: { orderIndex: "asc" as const },
+        include: { items: { orderBy: { orderIndex: "asc" as const } } },
       },
     },
   },
 } satisfies Prisma.MessageInclude;
 
-type ConversationRow = Prisma.ConversationGetPayload<{ include: typeof conversationInclude }> & {
+type ConversationRow = Prisma.ConversationGetPayload<{
+  include: typeof conversationInclude;
+}> & {
   _count: { messages: number };
 };
 
@@ -72,36 +74,42 @@ export class ChatService {
   // ---------------------------------------------------------------------------
 
   async resolveActor(user: { id: string; role: string }): Promise<ChatActor> {
-    if (user.role === 'TRAINER') {
+    if (user.role === "TRAINER") {
       const trainer = await this.prisma.trainer.findUnique({
         where: { userId: user.id },
         select: { id: true },
       });
-      if (!trainer) throw new ForbiddenException('Tài khoản chưa gắn hồ sơ huấn luyện viên.');
-      return { kind: 'TRAINER', userId: user.id, trainerId: trainer.id };
+      if (!trainer)
+        throw new ForbiddenException(
+          "Tài khoản chưa gắn hồ sơ huấn luyện viên.",
+        );
+      return { kind: "TRAINER", userId: user.id, trainerId: trainer.id };
     }
 
-    if (user.role === 'MEMBER') {
+    if (user.role === "MEMBER") {
       const member = await this.prisma.member.findUnique({
         where: { userId: user.id },
         select: { id: true },
       });
-      if (!member) throw new ForbiddenException('Tài khoản chưa gắn hồ sơ hội viên.');
-      return { kind: 'MEMBER', userId: user.id, memberId: member.id };
+      if (!member)
+        throw new ForbiddenException("Tài khoản chưa gắn hồ sơ hội viên.");
+      return { kind: "MEMBER", userId: user.id, memberId: member.id };
     }
 
-    throw new ForbiddenException('Chỉ huấn luyện viên và hội viên sử dụng được khu vực trò chuyện.');
+    throw new ForbiddenException(
+      "Chỉ huấn luyện viên và hội viên sử dụng được khu vực trò chuyện.",
+    );
   }
 
   /** Chỉ cho phép khi còn phân công TrainerMember ACTIVE giữa HLV và hội viên. */
   private async assertAssignment(trainerId: string, memberId: string) {
     const assignment = await this.prisma.trainerMember.findFirst({
-      where: { trainerId, memberId, status: 'ACTIVE' },
+      where: { trainerId, memberId, status: "ACTIVE" },
       select: { id: true },
     });
     if (!assignment) {
       throw new ForbiddenException(
-        'Bạn chỉ có thể trò chuyện với hội viên đang được phân công phụ trách.',
+        "Bạn chỉ có thể trò chuyện với hội viên đang được phân công phụ trách.",
       );
     }
     return assignment;
@@ -113,7 +121,7 @@ export class ChatService {
 
   private async syncTrainerConversations(trainerId: string) {
     const assignments = await this.prisma.trainerMember.findMany({
-      where: { trainerId, status: 'ACTIVE' },
+      where: { trainerId, status: "ACTIVE" },
       select: { memberId: true },
     });
     if (!assignments.length) return;
@@ -130,7 +138,7 @@ export class ChatService {
 
   private async syncMemberConversations(memberId: string) {
     const assignments = await this.prisma.trainerMember.findMany({
-      where: { memberId, status: 'ACTIVE' },
+      where: { memberId, status: "ACTIVE" },
       select: { trainerId: true },
     });
     if (!assignments.length) return;
@@ -158,19 +166,29 @@ export class ChatService {
   // Truy vấn
   // ---------------------------------------------------------------------------
 
-  private mapConversation(conversation: ConversationRow, actor: ChatActor, myUserId: string) {
-    const isTrainer = actor.kind === 'TRAINER';
-    const partnerName = isTrainer ? conversation.member.fullName : conversation.trainer.user.fullName;
+  private mapConversation(
+    conversation: ConversationRow,
+    actor: ChatActor,
+    myUserId: string,
+  ) {
+    const isTrainer = actor.kind === "TRAINER";
+    const partnerName = isTrainer
+      ? conversation.member.fullName
+      : conversation.trainer.user.fullName;
     const partnerAvatar = isTrainer
-      ? conversation.member.avatarUrl ?? conversation.member.user?.avatarUrl ?? null
+      ? (conversation.member.avatarUrl ??
+        conversation.member.user?.avatarUrl ??
+        null)
       : conversation.trainer.user.avatarUrl;
 
     return {
       id: conversation.id,
       partner: {
-        type: isTrainer ? 'MEMBER' : 'TRAINER',
+        type: isTrainer ? "MEMBER" : "TRAINER",
         id: isTrainer ? conversation.member.id : conversation.trainer.id,
-        userId: isTrainer ? conversation.member.user?.id ?? null : conversation.trainer.user.id,
+        userId: isTrainer
+          ? (conversation.member.user?.id ?? null)
+          : conversation.trainer.user.id,
         name: partnerName,
         avatarUrl: partnerAvatar,
         code: isTrainer ? conversation.member.code : null,
@@ -183,21 +201,29 @@ export class ChatService {
     };
   }
 
-  async listConversations(user: { id: string; role: string }, query: ConversationQueryDto) {
+  async listConversations(
+    user: { id: string; role: string },
+    query: ConversationQueryDto,
+  ) {
     const actor = await this.resolveActor(user);
 
-    if (actor.kind === 'TRAINER') await this.syncTrainerConversations(actor.trainerId);
+    if (actor.kind === "TRAINER")
+      await this.syncTrainerConversations(actor.trainerId);
     else await this.syncMemberConversations(actor.memberId);
 
     const where: Prisma.ConversationWhereInput =
-      actor.kind === 'TRAINER'
+      actor.kind === "TRAINER"
         ? {
             trainerId: actor.trainerId,
-            member: { trainerMembers: { some: { trainerId: actor.trainerId, status: 'ACTIVE' } } },
+            member: {
+              trainerMembers: {
+                some: { trainerId: actor.trainerId, status: "ACTIVE" },
+              },
+            },
           }
         : { memberId: actor.memberId };
 
-    if (actor.kind === 'TRAINER' && query.search) {
+    if (actor.kind === "TRAINER" && query.search) {
       where.member = { fullName: { contains: query.search.trim() } };
     }
 
@@ -211,38 +237,61 @@ export class ChatService {
           ...conversationInclude,
           _count: {
             select: {
-              messages: { where: { isRead: false, senderId: { not: user.id } } },
+              messages: {
+                where: { isRead: false, senderId: { not: user.id } },
+              },
             },
           },
         },
-        orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }],
+        orderBy: [{ lastMessageAt: "desc" }, { createdAt: "desc" }],
         skip: (page - 1) * limit,
         take: limit,
       }),
       this.prisma.conversation.count({ where }),
     ]);
 
-    let data = rows.map((row) => this.mapConversation(row as ConversationRow, actor, user.id));
+    let data = rows.map((row) =>
+      this.mapConversation(row as ConversationRow, actor, user.id),
+    );
     if (query.unreadOnly) data = data.filter((c) => c.unreadCount > 0);
 
     return { data, total, page, limit };
   }
 
-  private async getConversationForActor(actor: ChatActor, conversationId: string) {
+  private async getConversationForActor(
+    actor: ChatActor,
+    conversationId: string,
+  ) {
     const conversation = await this.prisma.conversation.findUnique({
       where: { id: conversationId },
       include: {
-        trainer: { select: { id: true, userId: true, user: { select: { fullName: true, avatarUrl: true } } } },
-        member: { select: { id: true, userId: true, fullName: true, avatarUrl: true } },
+        trainer: {
+          select: {
+            id: true,
+            userId: true,
+            user: { select: { fullName: true, avatarUrl: true } },
+          },
+        },
+        member: {
+          select: { id: true, userId: true, fullName: true, avatarUrl: true },
+        },
       },
     });
 
-    if (!conversation) throw new NotFoundException('Không tìm thấy cuộc trò chuyện.');
-    if (actor.kind === 'TRAINER' && conversation.trainerId !== actor.trainerId) {
-      throw new ForbiddenException('Bạn không có quyền truy cập cuộc trò chuyện này.');
+    if (!conversation)
+      throw new NotFoundException("Không tìm thấy cuộc trò chuyện.");
+    if (
+      actor.kind === "TRAINER" &&
+      conversation.trainerId !== actor.trainerId
+    ) {
+      throw new ForbiddenException(
+        "Bạn không có quyền truy cập cuộc trò chuyện này.",
+      );
     }
-    if (actor.kind === 'MEMBER' && conversation.memberId !== actor.memberId) {
-      throw new ForbiddenException('Bạn không có quyền truy cập cuộc trò chuyện này.');
+    if (actor.kind === "MEMBER" && conversation.memberId !== actor.memberId) {
+      throw new ForbiddenException(
+        "Bạn không có quyền truy cập cuộc trò chuyện này.",
+      );
     }
     return conversation;
   }
@@ -253,7 +302,25 @@ export class ChatService {
     query: MessageQueryDto,
   ) {
     const actor = await this.resolveActor(user);
-    await this.getConversationForActor(actor, conversationId);
+    const conversation = await this.getConversationForActor(
+      actor,
+      conversationId,
+    );
+
+    // Receipt "đã nhận": thiết bị của người xem đang mở cuộc trò chuyện này
+    const undelivered = await this.prisma.message.updateMany({
+      where: { conversationId, senderId: { not: user.id }, deliveredAt: null },
+      data: { deliveredAt: new Date() },
+    });
+    if (undelivered.count > 0) {
+      const otherUserId =
+        actor.kind === "TRAINER"
+          ? conversation.member.userId
+          : conversation.trainer.userId;
+      this.gateway.emitToUser(otherUserId, "messages:delivered", {
+        conversationIds: [conversationId],
+      });
+    }
 
     const page = Math.max(1, Number(query.page) || 1);
     const limit = Math.min(100, Math.max(1, Number(query.limit) || 30));
@@ -262,19 +329,25 @@ export class ChatService {
       this.prisma.message.findMany({
         where: { conversationId },
         include: messageInclude,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         skip: (page - 1) * limit,
         take: limit,
       }),
       this.prisma.message.count({ where: { conversationId } }),
     ]);
 
-    return { data: rows.reverse(), total, page, limit };
+    // Tin nhắn đã thu hồi: ẩn nội dung thực đơn (nếu có) — nội dung text/ảnh đã bị
+    // xoá vĩnh viễn trong DB nên chỉ cần che phần còn lại tại đây.
+    const data = rows
+      .reverse()
+      .map((m) => (m.recalledAt ? { ...m, mealPlan: null } : m));
+
+    return { data, total, page, limit };
   }
 
   async unreadCount(user: { id: string; role: string }) {
     const actor = await this.resolveActor(user);
-    await (actor.kind === 'TRAINER'
+    await (actor.kind === "TRAINER"
       ? this.syncTrainerConversations(actor.trainerId)
       : this.syncMemberConversations(actor.memberId));
 
@@ -282,7 +355,9 @@ export class ChatService {
       isRead: false,
       senderId: { not: user.id },
       conversation:
-        actor.kind === 'TRAINER' ? { trainerId: actor.trainerId } : { memberId: actor.memberId },
+        actor.kind === "TRAINER"
+          ? { trainerId: actor.trainerId }
+          : { memberId: actor.memberId },
     };
 
     const count = await this.prisma.message.count({ where });
@@ -293,31 +368,48 @@ export class ChatService {
   // Ghi dữ liệu
   // ---------------------------------------------------------------------------
 
-  async startConversation(user: { id: string; role: string }, dto: StartConversationDto) {
+  async startConversation(
+    user: { id: string; role: string },
+    dto: StartConversationDto,
+  ) {
     const actor = await this.resolveActor(user);
-    if (actor.kind !== 'TRAINER') {
-      throw new ForbiddenException('Chỉ huấn luyện viên được chủ động mở cuộc trò chuyện.');
+    if (actor.kind !== "TRAINER") {
+      throw new ForbiddenException(
+        "Chỉ huấn luyện viên được chủ động mở cuộc trò chuyện.",
+      );
     }
 
-    const conversation = await this.ensureConversation(actor.trainerId, dto.memberId);
+    const conversation = await this.ensureConversation(
+      actor.trainerId,
+      dto.memberId,
+    );
 
     const row = await this.prisma.conversation.findUnique({
       where: { id: conversation.id },
       include: {
         ...conversationInclude,
-        _count: { select: { messages: { where: { isRead: false, senderId: { not: user.id } } } } },
+        _count: {
+          select: {
+            messages: { where: { isRead: false, senderId: { not: user.id } } },
+          },
+        },
       },
     });
 
     return this.mapConversation(row as ConversationRow, actor, user.id);
   }
 
-  private previewOf(message: { type: string; content: string | null }): string {
-    const text = (message.content ?? '').trim();
+  private previewOf(message: {
+    type: string;
+    content: string | null;
+    recalledAt?: Date | null;
+  }): string {
+    if (message.recalledAt) return "[Tin nhắn đã được thu hồi]";
+    const text = (message.content ?? "").trim();
     if (text) return text.length > 140 ? `${text.slice(0, 140)}…` : text;
-    if (message.type === 'IMAGE') return '[Hình ảnh]';
-    if (message.type === 'MEAL_PLAN') return '[Thực đơn dinh dưỡng]';
-    return 'Tin nhắn';
+    if (message.type === "IMAGE") return "[Hình ảnh]";
+    if (message.type === "MEAL_PLAN") return "[Thực đơn dinh dưỡng]";
+    return "Tin nhắn";
   }
 
   private recipientUserId(conversation: {
@@ -333,24 +425,36 @@ export class ChatService {
     dto: SendMessageDto,
   ) {
     const actor = await this.resolveActor(user);
-    const conversation = await this.getConversationForActor(actor, conversationId);
+    const conversation = await this.getConversationForActor(
+      actor,
+      conversationId,
+    );
 
     await this.assertAssignment(conversation.trainerId, conversation.memberId);
 
     const attachments = dto.attachments ?? [];
     const explicitType = dto.type;
-    if (explicitType === MessageType.MEAL_PLAN || explicitType === MessageType.SYSTEM) {
-      throw new BadRequestException('Loại tin nhắn này không gửi trực tiếp qua API.');
+    if (
+      explicitType === MessageType.MEAL_PLAN ||
+      explicitType === MessageType.SYSTEM
+    ) {
+      throw new BadRequestException(
+        "Loại tin nhắn này không gửi trực tiếp qua API.",
+      );
     }
 
-    const type: MessageType = explicitType ?? (attachments.length ? MessageType.IMAGE : MessageType.TEXT);
-    const content = dto.content?.trim() ?? '';
+    const type: MessageType =
+      explicitType ??
+      (attachments.length ? MessageType.IMAGE : MessageType.TEXT);
+    const content = dto.content?.trim() ?? "";
 
     if (type === MessageType.TEXT && !content) {
-      throw new BadRequestException('Nội dung tin nhắn không được để trống.');
+      throw new BadRequestException("Nội dung tin nhắn không được để trống.");
     }
     if (type === MessageType.IMAGE && attachments.length === 0) {
-      throw new BadRequestException('Tin nhắn hình ảnh cần có ít nhất một tệp.');
+      throw new BadRequestException(
+        "Tin nhắn hình ảnh cần có ít nhất một tệp.",
+      );
     }
 
     const created = await this.prisma.message.create({
@@ -362,7 +466,7 @@ export class ChatService {
         attachments: attachments.length
           ? {
               create: attachments.map((a) => ({
-                kind: a.kind ?? 'IMAGE',
+                kind: a.kind ?? "IMAGE",
                 fileName: a.fileName ?? null,
                 mimeType: a.mimeType ?? null,
                 sizeBytes: a.sizeBytes ?? null,
@@ -378,35 +482,74 @@ export class ChatService {
 
     await this.prisma.conversation.update({
       where: { id: conversationId },
-      data: { lastMessageAt: created.createdAt, lastMessagePreview: this.previewOf(created) },
+      data: {
+        lastMessageAt: created.createdAt,
+        lastMessagePreview: this.previewOf(created),
+      },
     });
+
+    // Receipt "đã nhận": nếu thiết bị người nhận đang online, đánh dấu ngay.
+    const recipientUserId =
+      user.id === conversation.trainer.userId
+        ? conversation.member.userId
+        : conversation.trainer.userId;
+    const messageOut = await this.markDeliveredIfOnline(
+      created,
+      user.id,
+      recipientUserId,
+    );
 
     const participants = [
       conversation.trainer.userId,
       conversation.member.userId ?? conversation.trainer.userId,
     ];
     for (const uid of participants) {
-      this.gateway.emitToUser(uid, 'message:new', { conversationId, message: created });
+      this.gateway.emitToUser(uid, "message:new", {
+        conversationId,
+        message: messageOut,
+      });
     }
     for (const uid of participants) {
-      this.gateway.emitToUser(uid, 'conversation:updated', {
+      this.gateway.emitToUser(uid, "conversation:updated", {
         conversationId,
         lastMessageAt: created.createdAt,
         lastMessagePreview: this.previewOf(created),
       });
     }
 
-    await this.notifyRecipient(conversation, created, actor);
+    await this.notifyRecipient(conversation, messageOut, actor);
 
     await this.audit.log({
       userId: user.id,
-      action: 'CHAT_MESSAGE_SEND',
-      entity: 'Conversation',
+      action: "CHAT_MESSAGE_SEND",
+      entity: "Conversation",
       entityId: conversationId,
       metadata: { messageId: created.id, type },
     });
 
-    return created;
+    return messageOut;
+  }
+
+  /**
+   * Receipt "đã nhận": nếu thiết bị người nhận đang online (socket mở),
+   * đánh dấu tin đã tới máy họ và báo cho người gửi.
+   */
+  private async markDeliveredIfOnline(
+    message: MessageRow,
+    senderUserId: string,
+    recipientUserId: string | null | undefined,
+  ): Promise<MessageRow> {
+    if (!recipientUserId || !this.gateway.isOnline(recipientUserId))
+      return message;
+    const updated = await this.prisma.message.update({
+      where: { id: message.id },
+      data: { deliveredAt: new Date() },
+      include: messageInclude,
+    });
+    this.gateway.emitToUser(senderUserId, "messages:delivered", {
+      conversationIds: [message.conversationId],
+    });
+    return updated;
   }
 
   private async notifyRecipient(
@@ -420,15 +563,15 @@ export class ChatService {
     message: MessageRow,
     actor: ChatActor,
   ): Promise<void> {
-    if (actor.kind === 'TRAINER') {
+    if (actor.kind === "TRAINER") {
       if (!conversation.member.userId) return;
       await this.notifications.create({
         userId: conversation.member.userId,
-        type: 'CHAT',
-        title: 'Tin nhắn mới từ huấn luyện viên',
+        type: "CHAT",
+        title: "Tin nhắn mới từ huấn luyện viên",
         content: this.previewOf(message),
-        link: '/member/messages',
-        referenceType: 'Message',
+        link: "/member/messages",
+        referenceType: "Message",
         referenceId: message.id,
       });
       return;
@@ -436,28 +579,49 @@ export class ChatService {
 
     await this.notifications.create({
       userId: conversation.trainer.userId,
-      type: 'CHAT',
-      title: 'Tin nhắn mới từ hội viên',
+      type: "CHAT",
+      title: "Tin nhắn mới từ hội viên",
       content: `${conversation.member.fullName}: ${this.previewOf(message)}`,
-      link: '/trainer/messages',
-      referenceType: 'Message',
+      link: "/trainer/messages",
+      referenceType: "Message",
       referenceId: message.id,
     });
   }
 
   async markRead(user: { id: string; role: string }, conversationId: string) {
     const actor = await this.resolveActor(user);
-    const conversation = await this.getConversationForActor(actor, conversationId);
+    const conversation = await this.getConversationForActor(
+      actor,
+      conversationId,
+    );
 
+    // Đã xem thì chắc chắn đã nhận — điền deliveredAt cho các tin chưa có trong cùng lượt cập nhật
+    const now = new Date();
     const result = await this.prisma.message.updateMany({
       where: { conversationId, senderId: { not: user.id }, isRead: false },
-      data: { isRead: true, readAt: new Date() },
+      data: { isRead: true, readAt: now, deliveredAt: now },
     });
 
     if (result.count > 0) {
+      // Cả các tin đã read trước đó nhưng chưa từng delivered (dữ liệu cũ) — điền cho đủ
       const otherUserId =
-        actor.kind === 'TRAINER' ? conversation.member.userId : conversation.trainer.userId;
-      this.gateway.emitToUser(otherUserId, 'messages:read', {
+        actor.kind === "TRAINER"
+          ? conversation.member.userId
+          : conversation.trainer.userId;
+      const deliveredBackfill = await this.prisma.message.updateMany({
+        where: {
+          conversationId,
+          senderId: { not: user.id },
+          deliveredAt: null,
+        },
+        data: { deliveredAt: now },
+      });
+      if (deliveredBackfill.count > 0) {
+        this.gateway.emitToUser(otherUserId, "messages:delivered", {
+          conversationIds: [conversationId],
+        });
+      }
+      this.gateway.emitToUser(otherUserId, "messages:read", {
         conversationId,
         readerId: user.id,
         readerRole: actor.kind,
@@ -466,6 +630,100 @@ export class ChatService {
     }
 
     return { conversationId, read: result.count };
+  }
+
+  /**
+   * Thu hồi một tin nhắn của chính mình: xoá vĩnh viễn nội dung và ảnh đính kèm,
+   * đánh dấu `recalledAt` để giao diện hiển thị placeholder.
+   * Không gửi thông báo mới; hai bên nhận sự kiện socket `message:recalled` để tải lại.
+   */
+  async recallMessage(
+    user: { id: string; role: string },
+    conversationId: string,
+    messageId: string,
+  ) {
+    const actor = await this.resolveActor(user);
+    const conversation = await this.getConversationForActor(
+      actor,
+      conversationId,
+    );
+
+    const message = await this.prisma.message.findUnique({
+      where: { id: messageId },
+      include: messageInclude,
+    });
+    if (!message || message.conversationId !== conversation.id) {
+      throw new NotFoundException("Không tìm thấy tin nhắn.");
+    }
+    if (message.senderId !== user.id) {
+      throw new ForbiddenException(
+        "Bạn chỉ có thể thu hồi tin nhắn của chính mình.",
+      );
+    }
+
+    // Gọi lặp lại thì trả về trạng thái đã thu hồi luôn (idempotent).
+    if (message.recalledAt) {
+      return { ...message, attachments: [], mealPlan: null };
+    }
+
+    const recalledAt = new Date();
+    await this.prisma.$transaction([
+      this.prisma.message.update({
+        where: { id: message.id },
+        data: { recalledAt, content: null },
+      }),
+      this.prisma.messageAttachment.deleteMany({
+        where: { messageId: message.id },
+      }),
+    ]);
+
+    // Cập nhật preview của hội thoại theo tin nhắn mới nhất (sau khi thu hồi)
+    const latest = await this.prisma.message.findFirst({
+      where: { conversationId: conversation.id },
+      orderBy: { createdAt: "desc" },
+      select: { type: true, content: true, recalledAt: true, createdAt: true },
+    });
+    const preview = latest ? this.previewOf(latest) : null;
+    const lastMessageAt = latest?.createdAt ?? null;
+    await this.prisma.conversation.update({
+      where: { id: conversation.id },
+      data: { lastMessageAt, lastMessagePreview: preview },
+    });
+
+    const participants = [
+      conversation.trainer.userId,
+      conversation.member.userId ?? conversation.trainer.userId,
+    ];
+    const payload = {
+      conversationId: conversation.id,
+      messageId: message.id,
+      recalledAt: recalledAt.toISOString(),
+    };
+    for (const uid of participants) {
+      this.gateway.emitToUser(uid, "message:recalled", payload);
+      this.gateway.emitToUser(uid, "conversation:updated", {
+        conversationId: conversation.id,
+        lastMessageAt,
+        lastMessagePreview: preview,
+      });
+    }
+
+    await this.audit.log({
+      userId: user.id,
+      action: "CHAT_MESSAGE_RECALL",
+      entity: "Conversation",
+      entityId: conversation.id,
+      metadata: { messageId: message.id, type: message.type },
+    });
+
+    // Không trả attachments/mealPlan về cho người gọi — chúng đã bị xoá/ẩn.
+    return {
+      ...message,
+      recalledAt,
+      content: null,
+      attachments: [],
+      mealPlan: null,
+    };
   }
 
   /**
@@ -483,10 +741,18 @@ export class ChatService {
       where: { userId: params.trainerUserId },
       select: { id: true },
     });
-    if (!trainer) throw new ForbiddenException('Tài khoản chưa gắn hồ sơ huấn luyện viên.');
+    if (!trainer)
+      throw new ForbiddenException("Tài khoản chưa gắn hồ sơ huấn luyện viên.");
 
-    const conversation = await this.ensureConversation(trainer.id, params.memberId);
-    const actor: ChatActor = { kind: 'TRAINER', userId: params.trainerUserId, trainerId: trainer.id };
+    const conversation = await this.ensureConversation(
+      trainer.id,
+      params.memberId,
+    );
+    const actor: ChatActor = {
+      kind: "TRAINER",
+      userId: params.trainerUserId,
+      trainerId: trainer.id,
+    };
 
     const created = await this.prisma.message.create({
       data: {
@@ -499,30 +765,54 @@ export class ChatService {
       include: messageInclude,
     });
 
+    const mealPlanMember = await this.prisma.member.findUnique({
+      where: { id: params.memberId },
+      select: { userId: true },
+    });
+    const messageOut = await this.markDeliveredIfOnline(
+      created,
+      params.trainerUserId,
+      mealPlanMember?.userId,
+    );
+
     await this.prisma.conversation.update({
       where: { id: conversation.id },
-      data: { lastMessageAt: created.createdAt, lastMessagePreview: params.preview },
+      data: {
+        lastMessageAt: created.createdAt,
+        lastMessagePreview: params.preview,
+      },
     });
 
     const detailed = await this.prisma.conversation.findUniqueOrThrow({
       where: { id: conversation.id },
       include: {
-        trainer: { select: { id: true, userId: true, user: { select: { fullName: true, avatarUrl: true } } } },
-        member: { select: { id: true, userId: true, fullName: true, avatarUrl: true } },
+        trainer: {
+          select: {
+            id: true,
+            userId: true,
+            user: { select: { fullName: true, avatarUrl: true } },
+          },
+        },
+        member: {
+          select: { id: true, userId: true, fullName: true, avatarUrl: true },
+        },
       },
     });
 
     for (const uid of [detailed.trainer.userId, detailed.member.userId]) {
-      this.gateway.emitToUser(uid, 'message:new', { conversationId: conversation.id, message: created });
-      this.gateway.emitToUser(uid, 'conversation:updated', {
+      this.gateway.emitToUser(uid, "message:new", {
+        conversationId: conversation.id,
+        message: messageOut,
+      });
+      this.gateway.emitToUser(uid, "conversation:updated", {
         conversationId: conversation.id,
         lastMessageAt: created.createdAt,
         lastMessagePreview: params.preview,
       });
     }
 
-    await this.notifyRecipient(detailed, created, actor);
-    return created;
+    await this.notifyRecipient(detailed, messageOut, actor);
+    return messageOut;
   }
 
   /**
@@ -540,10 +830,18 @@ export class ChatService {
       where: { userId: params.trainerUserId },
       select: { id: true },
     });
-    if (!trainer) throw new ForbiddenException('Tài khoản chưa gắn hồ sơ huấn luyện viên.');
+    if (!trainer)
+      throw new ForbiddenException("Tài khoản chưa gắn hồ sơ huấn luyện viên.");
 
-    const conversation = await this.ensureConversation(trainer.id, params.memberId);
-    const actor: ChatActor = { kind: 'TRAINER', userId: params.trainerUserId, trainerId: trainer.id };
+    const conversation = await this.ensureConversation(
+      trainer.id,
+      params.memberId,
+    );
+    const actor: ChatActor = {
+      kind: "TRAINER",
+      userId: params.trainerUserId,
+      trainerId: trainer.id,
+    };
 
     const created = await this.prisma.message.create({
       data: {
@@ -555,6 +853,16 @@ export class ChatService {
       include: messageInclude,
     });
 
+    const programMember = await this.prisma.member.findUnique({
+      where: { id: params.memberId },
+      select: { userId: true },
+    });
+    const messageOut = await this.markDeliveredIfOnline(
+      created,
+      params.trainerUserId,
+      programMember?.userId,
+    );
+
     const preview = this.previewOf(created);
     await this.prisma.conversation.update({
       where: { id: conversation.id },
@@ -564,21 +872,32 @@ export class ChatService {
     const detailed = await this.prisma.conversation.findUniqueOrThrow({
       where: { id: conversation.id },
       include: {
-        trainer: { select: { id: true, userId: true, user: { select: { fullName: true, avatarUrl: true } } } },
-        member: { select: { id: true, userId: true, fullName: true, avatarUrl: true } },
+        trainer: {
+          select: {
+            id: true,
+            userId: true,
+            user: { select: { fullName: true, avatarUrl: true } },
+          },
+        },
+        member: {
+          select: { id: true, userId: true, fullName: true, avatarUrl: true },
+        },
       },
     });
 
     for (const uid of [detailed.trainer.userId, detailed.member.userId]) {
-      this.gateway.emitToUser(uid, 'message:new', { conversationId: conversation.id, message: created });
-      this.gateway.emitToUser(uid, 'conversation:updated', {
+      this.gateway.emitToUser(uid, "message:new", {
+        conversationId: conversation.id,
+        message: messageOut,
+      });
+      this.gateway.emitToUser(uid, "conversation:updated", {
         conversationId: conversation.id,
         lastMessageAt: created.createdAt,
         lastMessagePreview: preview,
       });
     }
 
-    await this.notifyRecipient(detailed, created, actor);
-    return created;
+    await this.notifyRecipient(detailed, messageOut, actor);
+    return messageOut;
   }
 }
