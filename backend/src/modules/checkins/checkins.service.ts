@@ -4,14 +4,14 @@ import {
   InternalServerErrorException,
   Injectable,
   NotFoundException,
-} from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { CheckInMethod } from '../../common/constants/db-enums';
-import { PrismaService } from '../../prisma/prisma.service';
-import { AuditService } from '../audit-logs/audit-logs.service';
-import { NotificationsService } from '../notifications/notifications.service';
-import { FacesService } from '../faces/faces.service';
-import { FaceCheckInDto, FaceScanDto } from './dto/checkin.dto';
+} from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import { CheckInMethod } from "../../common/constants/db-enums";
+import { PrismaService } from "../../prisma/prisma.service";
+import { AuditService } from "../audit-logs/audit-logs.service";
+import { NotificationsService } from "../notifications/notifications.service";
+import { FacesService } from "../faces/faces.service";
+import { FaceCheckInDto, FaceScanDto } from "./dto/checkin.dto";
 
 interface CheckInMember {
   id: string;
@@ -25,6 +25,7 @@ export class CheckinsService {
     private prisma: PrismaService,
     private auditService: AuditService,
     private facesService: FacesService,
+    private notificationsService: NotificationsService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -33,7 +34,8 @@ export class CheckinsService {
 
   /** Map user đang đăng nhập → hồ sơ Member (không tin memberId từ client) */
   private async resolveMemberByUserId(userId: string) {
-    if (!userId) throw new ForbiddenException('Không xác định được tài khoản đăng nhập');
+    if (!userId)
+      throw new ForbiddenException("Không xác định được tài khoản đăng nhập");
     const member = await this.prisma.member.findUnique({
       where: { userId },
       include: {
@@ -41,7 +43,9 @@ export class CheckinsService {
       },
     });
     if (!member) {
-      throw new ForbiddenException('Tài khoản này không gắn với hồ sơ hội viên.');
+      throw new ForbiddenException(
+        "Tài khoản này không gắn với hồ sơ hội viên.",
+      );
     }
     return member;
   }
@@ -49,8 +53,8 @@ export class CheckinsService {
   /** Đóng các thẻ ACTIVE đã hết hạn (chạy nền, không phá dữ liệu) */
   private async syncExpiredMemberships(memberId: string) {
     await this.prisma.membership.updateMany({
-      where: { memberId, status: 'ACTIVE', endDate: { lt: new Date() } },
-      data: { status: 'EXPIRED' },
+      where: { memberId, status: "ACTIVE", endDate: { lt: new Date() } },
+      data: { status: "EXPIRED" },
     });
   }
 
@@ -61,14 +65,14 @@ export class CheckinsService {
     return this.prisma.membership.findFirst({
       where: {
         memberId,
-        status: 'ACTIVE',
+        status: "ACTIVE",
         startDate: { lte: now },
         endDate: { gte: now },
       },
       include: {
         package: { select: { id: true, name: true } },
       },
-      orderBy: { endDate: 'desc' },
+      orderBy: { endDate: "desc" },
     });
   }
 
@@ -80,35 +84,67 @@ export class CheckinsService {
    */
   private async validateMemberForCheckIn(member: CheckInMember) {
     // Điều kiện 2: tài khoản hội viên phải ACTIVE
-    if (member.status !== 'ACTIVE') {
+    if (member.status !== "ACTIVE") {
       const message =
-        member.status === 'SUSPENDED'
-          ? 'Tài khoản của bạn đang bị tạm khóa.'
+        member.status === "SUSPENDED"
+          ? "Tài khoản của bạn đang bị tạm khóa."
           : `Tài khoản hội viên đang ở trạng thái ${member.status}.`;
       throw new BadRequestException(message);
     }
 
+    const pendingRefund = await this.prisma.membershipChangeRequest.findFirst({
+      where: {
+        memberId: member.id,
+        type: "CANCEL_REFUND",
+        status: "PENDING_PAYOUT",
+      },
+      select: { id: true },
+    });
+    if (pendingRefund) {
+      throw new BadRequestException(
+        "Hợp đồng đang chờ hoàn tiền và không thể check-in cho đến khi xử lý xong",
+      );
+    }
+
     // Điều kiện 3 + 4 + 5: phải có membership ACTIVE còn hiệu lực hôm nay
+    const now = new Date();
+    const frozenMembership = await this.prisma.membership.findFirst({
+      where: {
+        memberId: member.id,
+        status: "ACTIVE",
+        startDate: { lte: now },
+        endDate: { gte: now },
+        freezeStartedAt: { lte: now },
+        freezeEndsAt: { gte: now },
+      },
+      select: { id: true },
+    });
+    if (frozenMembership) {
+      throw new BadRequestException(
+        "Hợp đồng của bạn đang trong thời gian bảo lưu. Bạn có thể check-in sau khi thời gian này kết thúc.",
+      );
+    }
+
     const membership = await this.getActiveMembership(member.id);
     if (!membership) {
       const anyMembership = await this.prisma.membership.findFirst({
         where: { memberId: member.id },
-        orderBy: { endDate: 'desc' },
+        orderBy: { endDate: "desc" },
       });
       if (anyMembership) {
         throw new BadRequestException(
-          'Gói tập của bạn đã hết hạn. Vui lòng gia hạn để tiếp tục check-in.',
+          "Gói tập của bạn đã hết hạn. Vui lòng gia hạn để tiếp tục check-in.",
         );
       }
-      throw new BadRequestException('Bạn chưa có gói tập đang hoạt động.');
+      throw new BadRequestException("Bạn chưa có gói tập đang hoạt động.");
     }
 
     // Điều kiện 6: không được có attendance đang CHECKED_IN
     const active = await this.prisma.checkIn.findFirst({
-      where: { memberId: member.id, status: 'CHECKED_IN' },
+      where: { memberId: member.id, status: "CHECKED_IN" },
     });
     if (active) {
-      throw new BadRequestException('Bạn đang trong phòng gym.');
+      throw new BadRequestException("Bạn đang trong phòng gym.");
     }
 
     return membership;
@@ -129,15 +165,21 @@ export class CheckinsService {
     const member = membersById.get(checkIn.memberId.toLowerCase());
     if (!member) {
       throw new InternalServerErrorException(
-        'Dữ liệu check-in đang tham chiếu đến hội viên không tồn tại.',
+        "Dữ liệu check-in đang tham chiếu đến hội viên không tồn tại.",
       );
     }
     return member;
   }
 
-  private computeDurationMinutes(checkInTime: Date, checkOutTime?: Date | null): number | null {
+  private computeDurationMinutes(
+    checkInTime: Date,
+    checkOutTime?: Date | null,
+  ): number | null {
     if (!checkOutTime) return null;
-    return Math.max(1, Math.round((checkOutTime.getTime() - checkInTime.getTime()) / 60000));
+    return Math.max(
+      1,
+      Math.round((checkOutTime.getTime() - checkInTime.getTime()) / 60000),
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -153,35 +195,46 @@ export class CheckinsService {
       data: {
         memberId: member.id,
         checkInTime: new Date(),
-        status: 'CHECKED_IN',
+        status: "CHECKED_IN",
         method: method ?? CheckInMethod.MANUAL,
       },
     });
 
-    // Thông báo check-in thành công (STEP 8)
-    await this.prisma.notification.create({
-      data: {
-        memberId: member.id,
-        title: 'Check-in thành công 💪',
-        content: `Bạn đã check-in lúc ${checkIn.checkInTime.toLocaleTimeString('vi-VN')}.`,
-        type: 'CHECKIN',
-        link: '/member/checkins',
-        referenceType: 'CHECKIN',
+    // Thông báo check-in thành công (STEP 8 + Realtime)
+    await this.notificationsService.create({
+      memberId: member.id,
+      title: "Check-in thành công 💪",
+      content: `Bạn đã check-in lúc ${checkIn.checkInTime.toLocaleTimeString("vi-VN")}.`,
+      type: "CHECKIN",
+      link: "/member/checkins",
+      referenceType: "CHECKIN",
+      referenceId: checkIn.id,
+    });
+
+    // Báo tổ quản trị / lễ tân chuông realtime
+    await this.notificationsService.notifyAdmins(
+      {
+        type: "CHECKIN",
+        title: "Hội viên check-in 💪",
+        content: `${member.fullName} (${member.code}) vừa check-in lúc ${checkIn.checkInTime.toLocaleTimeString("vi-VN")} qua hình thức ${checkIn.method}.`,
+        link: "/admin/checkins",
+        referenceType: "CHECKIN",
         referenceId: checkIn.id,
       },
-    });
+      userId,
+    );
 
     await this.auditService.log({
       userId,
-      action: 'CHECK_IN',
-      entity: 'CheckIn',
+      action: "CHECK_IN",
+      entity: "CheckIn",
       entityId: checkIn.id,
       metadata: { method: checkIn.method, memberCode: member.code },
     });
 
     return {
       success: true,
-      message: 'Check-in thành công',
+      message: "Check-in thành công",
       data: {
         id: checkIn.id,
         checkInAt: checkIn.checkInTime,
@@ -205,48 +258,62 @@ export class CheckinsService {
     const member = await this.resolveMemberByUserId(userId);
 
     const active = await this.prisma.checkIn.findFirst({
-      where: { memberId: member.id, status: 'CHECKED_IN' },
+      where: { memberId: member.id, status: "CHECKED_IN" },
     });
     if (!active) {
-      throw new BadRequestException('Không tìm thấy phiên tập đang hoạt động.');
+      throw new BadRequestException("Không tìm thấy phiên tập đang hoạt động.");
     }
 
     const checkOutAt = new Date();
     const updated = await this.prisma.checkIn.update({
       where: { id: active.id },
-      data: { checkOutTime: checkOutAt, status: 'CHECKED_OUT' },
+      data: { checkOutTime: checkOutAt, status: "CHECKED_OUT" },
     });
 
-    // Thông báo check-out thành công (STEP 8)
-    await this.prisma.notification.create({
-      data: {
-        memberId: member.id,
-        title: 'Check-out thành công 👋',
-        content: `Buổi tập kết thúc lúc ${checkOutAt.toLocaleTimeString('vi-VN')}. Hẹn gặp lại bạn!`,
-        type: 'CHECKIN',
-        link: '/member/checkins',
-        referenceType: 'CHECKOUT',
+    // Thông báo check-out thành công (STEP 8 + Realtime)
+    await this.notificationsService.create({
+      memberId: member.id,
+      title: "Check-out thành công 👋",
+      content: `Buổi tập kết thúc lúc ${checkOutAt.toLocaleTimeString("vi-VN")}. Hẹn gặp lại bạn!`,
+      type: "CHECKIN",
+      link: "/member/checkins",
+      referenceType: "CHECKOUT",
+      referenceId: updated.id,
+    });
+
+    // Báo tổ quản trị / lễ tân chuông realtime
+    await this.notificationsService.notifyAdmins(
+      {
+        type: "CHECKIN",
+        title: "Hội viên check-out 👋",
+        content: `${member.fullName} (${member.code}) đã kết thúc buổi tập lúc ${checkOutAt.toLocaleTimeString("vi-VN")}.`,
+        link: "/admin/checkins",
+        referenceType: "CHECKOUT",
         referenceId: updated.id,
       },
-    });
+      userId,
+    );
 
     await this.auditService.log({
       userId,
-      action: 'CHECK_OUT',
-      entity: 'CheckIn',
+      action: "CHECK_OUT",
+      entity: "CheckIn",
       entityId: updated.id,
       metadata: { memberCode: member.code },
     });
 
     return {
       success: true,
-      message: 'Check-out thành công',
+      message: "Check-out thành công",
       data: {
         id: updated.id,
         checkInAt: updated.checkInTime,
         checkOutAt,
         status: updated.status,
-        durationMinutes: this.computeDurationMinutes(updated.checkInTime, checkOutAt),
+        durationMinutes: this.computeDurationMinutes(
+          updated.checkInTime,
+          checkOutAt,
+        ),
       },
     };
   }
@@ -263,10 +330,13 @@ export class CheckinsService {
    */
   async faceCheckIn(userId: string, dto: FaceCheckInDto) {
     const member = await this.resolveMemberByUserId(userId);
-    const match = await this.facesService.matchForMember(member.id, dto.embedding);
+    const match = await this.facesService.matchForMember(
+      member.id,
+      dto.embedding,
+    );
     if (!match) {
       throw new BadRequestException(
-        'Khuôn mặt không khớp với hồ sơ đăng ký. Vui lòng thử lại (đảm bảo đủ ánh sáng) hoặc đăng ký lại khuôn mặt.',
+        "Khuôn mặt không khớp với hồ sơ đăng ký. Vui lòng thử lại (đảm bảo đủ ánh sáng) hoặc đăng ký lại khuôn mặt.",
       );
     }
 
@@ -284,42 +354,57 @@ export class CheckinsService {
   /**
    * POST /checkins/face-checkout — lễ tân quét 1:N để check-out (tự tìm hội viên rồi đóng phiên đang mở)
    */
-  async faceCheckOut(dto: FaceScanDto, role = 'STAFF', actorId?: string) {
+  async faceCheckOut(dto: FaceScanDto, role = "STAFF", actorId?: string) {
     const match = await this.facesService.matchGlobal(dto.embedding);
     if (!match) {
-      throw new NotFoundException('Không nhận diện được hội viên nào.');
+      throw new NotFoundException("Không nhận diện được hội viên nào.");
     }
     const active = await this.prisma.checkIn.findFirst({
-      where: { memberId: match.memberId, status: 'CHECKED_IN' },
+      where: { memberId: match.memberId, status: "CHECKED_IN" },
     });
     if (!active) {
-      throw new BadRequestException('Hội viên chưa check-in (không có phiên tập đang mở).');
+      throw new BadRequestException(
+        "Hội viên chưa check-in (không có phiên tập đang mở).",
+      );
     }
     const updated = await this.prisma.checkIn.update({
       where: { id: active.id },
-      data: { checkOutTime: new Date(), status: 'CHECKED_OUT' },
+      data: { checkOutTime: new Date(), status: "CHECKED_OUT" },
     });
-    await this.prisma.notification.create({
-      data: {
-        memberId: active.memberId,
-        title: 'Check-out thành công 👋',
-        content: `Bạn đã kết thúc buổi tập lúc ${updated.checkOutTime!.toLocaleTimeString('vi-VN')}.`,
-        type: 'CHECKIN',
-        link: '/member/checkins',
-        referenceType: 'CHECKOUT',
+    await this.notificationsService.create({
+      memberId: active.memberId,
+      title: "Check-out thành công 👋",
+      content: `Bạn đã kết thúc buổi tập lúc ${updated.checkOutTime!.toLocaleTimeString("vi-VN")}.`,
+      type: "CHECKIN",
+      link: "/member/checkins",
+      referenceType: "CHECKOUT",
+      referenceId: updated.id,
+    });
+    await this.notificationsService.notifyAdmins(
+      {
+        type: "CHECKIN",
+        title: "Hội viên check-out (Face ID) 👋",
+        content: `Hội viên ${match.memberCode ?? "hội viên"} vừa quét mặt check-out lúc ${updated.checkOutTime!.toLocaleTimeString("vi-VN")}.`,
+        link: "/admin/checkins",
+        referenceType: "CHECKOUT",
         referenceId: updated.id,
       },
-    });
+      actorId,
+    );
     await this.auditService.log({
       userId: actorId,
-      action: 'CHECK_OUT',
-      entity: 'CheckIn',
+      action: "CHECK_OUT",
+      entity: "CheckIn",
       entityId: updated.id,
-      metadata: { method: CheckInMethod.FACE_ID, memberCode: match.memberCode ?? '', via: 'staff-face-checkout' },
+      metadata: {
+        method: CheckInMethod.FACE_ID,
+        memberCode: match.memberCode ?? "",
+        via: "staff-face-checkout",
+      },
     });
     return {
       success: true,
-      message: 'Check-out thành công',
+      message: "Check-out thành công",
       data: {
         id: updated.id,
         checkInTime: updated.checkInTime,
@@ -327,11 +412,28 @@ export class CheckinsService {
         status: updated.status,
         member: {
           id: active.memberId,
-          code: match.memberCode ?? (await this.prisma.member.findUnique({ where: { id: match.memberId }, select: { code: true } }))?.code ?? '',
-          fullName: (await this.prisma.member.findUnique({ where: { id: match.memberId }, select: { fullName: true } }))?.fullName ?? '',
+          code:
+            match.memberCode ??
+            (
+              await this.prisma.member.findUnique({
+                where: { id: match.memberId },
+                select: { code: true },
+              })
+            )?.code ??
+            "",
+          fullName:
+            (
+              await this.prisma.member.findUnique({
+                where: { id: match.memberId },
+                select: { fullName: true },
+              })
+            )?.fullName ?? "",
         },
       },
-      face: { similarity: Number(match.similarity.toFixed(4)), imageData: match.imageData },
+      face: {
+        similarity: Number(match.similarity.toFixed(4)),
+        imageData: match.imageData,
+      },
     };
   }
 
@@ -339,7 +441,7 @@ export class CheckinsService {
     const match = await this.facesService.matchGlobal(dto.embedding);
     if (!match) {
       throw new NotFoundException(
-        'Không nhận diện được hội viên nào. Vui lòng thử lại hoặc check-in thủ công.',
+        "Không nhận diện được hội viên nào. Vui lòng thử lại hoặc check-in thủ công.",
       );
     }
 
@@ -354,7 +456,10 @@ export class CheckinsService {
     );
     return {
       ...result,
-      face: { similarity: Number(match.similarity.toFixed(4)), imageData: match.imageData },
+      face: {
+        similarity: Number(match.similarity.toFixed(4)),
+        imageData: match.imageData,
+      },
     };
   }
 
@@ -366,7 +471,7 @@ export class CheckinsService {
   async getCurrent(userId: string) {
     const member = await this.resolveMemberByUserId(userId);
     const active = await this.prisma.checkIn.findFirst({
-      where: { memberId: member.id, status: 'CHECKED_IN' },
+      where: { memberId: member.id, status: "CHECKED_IN" },
     });
     if (!active) {
       return { checkedIn: false };
@@ -390,7 +495,7 @@ export class CheckinsService {
     const where: Prisma.CheckInWhereInput = { memberId: member.id };
 
     if (query.month) {
-      const [y, m] = query.month.split('-').map(Number);
+      const [y, m] = query.month.split("-").map(Number);
       const start = new Date(y, m - 1, 1);
       const end = new Date(y, m, 1);
       where.checkInTime = { gte: start, lt: end };
@@ -398,7 +503,9 @@ export class CheckinsService {
       const from = query.fromDate
         ? this.startOfDay(new Date(query.fromDate))
         : undefined;
-      const to = query.toDate ? this.endOfDay(new Date(query.toDate)) : undefined;
+      const to = query.toDate
+        ? this.endOfDay(new Date(query.toDate))
+        : undefined;
       where.checkInTime = {
         ...(from ? { gte: from } : {}),
         ...(to ? { lte: to } : {}),
@@ -408,7 +515,7 @@ export class CheckinsService {
     const [data, total] = await Promise.all([
       this.prisma.checkIn.findMany({
         where,
-        orderBy: { checkInTime: 'desc' },
+        orderBy: { checkInTime: "desc" },
         skip,
         take: limit,
       }),
@@ -442,16 +549,19 @@ export class CheckinsService {
       const totalMinutes = doneRows.reduce(
         (sum, r) =>
           sum +
-          Math.max(1, Math.round((r.checkOutTime!.getTime() - r.checkInTime.getTime()) / 60000)),
+          Math.max(
+            1,
+            Math.round(
+              (r.checkOutTime!.getTime() - r.checkInTime.getTime()) / 60000,
+            ),
+          ),
         0,
       );
       avgDuration = Math.round(totalMinutes / doneRows.length);
     }
 
     return {
-      data: await Promise.all(
-        data.map((c) => this.toHistoryRow(c)),
-      ),
+      data: await Promise.all(data.map((c) => this.toHistoryRow(c))),
       total,
       page,
       limit,
@@ -466,7 +576,10 @@ export class CheckinsService {
       checkOutTime: c.checkOutTime,
       status: c.status,
       method: c.method,
-      durationMinutes: this.computeDurationMinutes(c.checkInTime, c.checkOutTime),
+      durationMinutes: this.computeDurationMinutes(
+        c.checkInTime,
+        c.checkOutTime,
+      ),
     };
   }
 
@@ -475,11 +588,11 @@ export class CheckinsService {
   // ---------------------------------------------------------------------------
 
   /** POST /checkins/staff — lễ tân check-in hội viên theo memberId (không tin member) */
-  async staffCheckIn(dto: StaffCheckInInput, role = 'STAFF', actorId?: string) {
+  async staffCheckIn(dto: StaffCheckInInput, role = "STAFF", actorId?: string) {
     const member = await this.prisma.member.findUnique({
       where: { id: dto.memberId },
     });
-    if (!member) throw new NotFoundException('Không tìm thấy hội viên.');
+    if (!member) throw new NotFoundException("Không tìm thấy hội viên.");
 
     const membership = await this.validateMemberForCheckIn(member);
 
@@ -487,36 +600,50 @@ export class CheckinsService {
       data: {
         memberId: member.id,
         checkInTime: new Date(),
-        status: 'CHECKED_IN',
+        status: "CHECKED_IN",
         method: dto.method ?? CheckInMethod.STAFF,
         notes: dto.note ?? null,
       },
     });
 
-    // Thông báo check-in bởi lễ tân (STEP 8)
-    await this.prisma.notification.create({
-      data: {
-        memberId: member.id,
-        title: 'Check-in thành công 💪',
-        content: `Lễ tân đã check-in cho bạn lúc ${checkIn.checkInTime.toLocaleTimeString('vi-VN')}.`,
-        type: 'CHECKIN',
-        link: '/member/checkins',
-        referenceType: 'CHECKIN_STAFF',
+    // Thông báo check-in bởi lễ tân (STEP 8 + Realtime)
+    await this.notificationsService.create({
+      memberId: member.id,
+      title: "Check-in thành công 💪",
+      content: `Lễ tân đã check-in cho bạn lúc ${checkIn.checkInTime.toLocaleTimeString("vi-VN")}.`,
+      type: "CHECKIN",
+      link: "/member/checkins",
+      referenceType: "CHECKIN_STAFF",
+      referenceId: checkIn.id,
+    });
+
+    await this.notificationsService.notifyAdmins(
+      {
+        type: "CHECKIN",
+        title: "Check-in tại quầy 💪",
+        content: `Đã check-in cho ${member.fullName} (${member.code}) lúc ${checkIn.checkInTime.toLocaleTimeString("vi-VN")}.`,
+        link: "/admin/checkins",
+        referenceType: "CHECKIN",
         referenceId: checkIn.id,
       },
-    });
+      actorId,
+    );
 
     await this.auditService.log({
       userId: actorId,
-      action: 'CHECK_IN',
-      entity: 'CheckIn',
+      action: "CHECK_IN",
+      entity: "CheckIn",
       entityId: checkIn.id,
-      metadata: { method: checkIn.method, memberCode: member.code, via: 'staff' },
+      metadata: {
+        method: checkIn.method,
+        memberCode: member.code,
+        via: "staff",
+      },
     });
 
     return {
       success: true,
-      message: 'Check-in thành công',
+      message: "Check-in thành công",
       data: {
         id: checkIn.id,
         checkInAt: checkIn.checkInTime,
@@ -542,39 +669,68 @@ export class CheckinsService {
   /** POST /checkins/:id/checkout — admin/staff check-out giúp member */
   async checkoutById(id: string, actorId?: string) {
     const record = await this.prisma.checkIn.findUnique({ where: { id } });
-    if (!record) throw new NotFoundException('Không tìm thấy phiên check-in.');
+    if (!record) throw new NotFoundException("Không tìm thấy phiên check-in.");
 
-    if (record.status === 'CHECKED_OUT') {
-      throw new BadRequestException('Phiên tập này đã kết thúc (đã check-out).');
+    if (record.status === "CHECKED_OUT") {
+      throw new BadRequestException(
+        "Phiên tập này đã kết thúc (đã check-out).",
+      );
     }
 
     const checkOutAt = new Date();
     const updated = await this.prisma.checkIn.update({
       where: { id },
-      data: { checkOutTime: checkOutAt, status: 'CHECKED_OUT' },
+      data: { checkOutTime: checkOutAt, status: "CHECKED_OUT" },
       include: {
         member: { select: CheckinsService.memberSelect },
       },
     });
 
+    if (updated.memberId) {
+      await this.notificationsService.create({
+        memberId: updated.memberId,
+        title: "Check-out thành công 👋",
+        content: `Lễ tân đã kết thúc buổi tập giúp bạn lúc ${checkOutAt.toLocaleTimeString("vi-VN")}. Hẹn gặp lại bạn!`,
+        type: "CHECKIN",
+        link: "/member/checkins",
+        referenceType: "CHECKOUT",
+        referenceId: updated.id,
+      });
+
+      await this.notificationsService.notifyAdmins(
+        {
+          type: "CHECKIN",
+          title: "Check-out tại quầy 👋",
+          content: `Đã check-out cho ${updated.member?.fullName || "hội viên"} (${updated.member?.code || ""}) lúc ${checkOutAt.toLocaleTimeString("vi-VN")}.`,
+          link: "/admin/checkins",
+          referenceType: "CHECKOUT",
+          referenceId: updated.id,
+        },
+        actorId,
+      );
+    }
+
     await this.auditService.log({
       userId: actorId,
-      action: 'CHECK_OUT',
-      entity: 'CheckIn',
+      action: "CHECK_OUT",
+      entity: "CheckIn",
       entityId: updated.id,
-      metadata: { memberCode: updated.member?.code ?? null, via: 'staff' },
+      metadata: { memberCode: updated.member?.code ?? null, via: "staff" },
     });
 
     return {
       success: true,
-      message: 'Check-out thành công',
+      message: "Check-out thành công",
       data: {
         id: updated.id,
         member: updated.member,
         checkInAt: updated.checkInTime,
         checkOutAt,
         status: updated.status,
-        durationMinutes: this.computeDurationMinutes(updated.checkInTime, checkOutAt),
+        durationMinutes: this.computeDurationMinutes(
+          updated.checkInTime,
+          checkOutAt,
+        ),
       },
     };
   }
@@ -611,18 +767,24 @@ export class CheckinsService {
     }
 
     if (query.fromDate || query.toDate) {
-      const from = query.fromDate ? this.startOfDay(new Date(query.fromDate)) : undefined;
-      const to = query.toDate ? this.endOfDay(new Date(query.toDate)) : undefined;
+      const from = query.fromDate
+        ? this.startOfDay(new Date(query.fromDate))
+        : undefined;
+      const to = query.toDate
+        ? this.endOfDay(new Date(query.toDate))
+        : undefined;
       where.checkInTime = {
         ...(from ? { gte: from } : {}),
         ...(to ? { lte: to } : {}),
       };
     }
 
-    const sortBy = ['checkInTime', 'checkOutTime', 'createdAt'].includes(query.sortBy!)
+    const sortBy = ["checkInTime", "checkOutTime", "createdAt"].includes(
+      query.sortBy!,
+    )
       ? query.sortBy!
-      : 'checkInTime';
-    const sortOrder = query.sortOrder === 'asc' ? 'asc' : 'desc';
+      : "checkInTime";
+    const sortOrder = query.sortOrder === "asc" ? "asc" : "desc";
 
     const [data, total] = await Promise.all([
       this.prisma.checkIn.findMany({
@@ -652,7 +814,10 @@ export class CheckinsService {
         status: c.status,
         method: c.method,
         notes: c.notes,
-        durationMinutes: this.computeDurationMinutes(c.checkInTime, c.checkOutTime),
+        durationMinutes: this.computeDurationMinutes(
+          c.checkInTime,
+          c.checkOutTime,
+        ),
         member: this.resolveCheckInMember(membersById, c),
       })),
       total,
@@ -664,8 +829,8 @@ export class CheckinsService {
   /** GET /checkins/currently-inside — danh sách hội viên đang có mặt trong phòng */
   async currentlyInside() {
     const rows = await this.prisma.checkIn.findMany({
-      where: { status: 'CHECKED_IN' },
-      orderBy: { checkInTime: 'asc' },
+      where: { status: "CHECKED_IN" },
+      orderBy: { checkInTime: "asc" },
     });
     const memberIds = [...new Set(rows.map((checkIn) => checkIn.memberId))];
     const members = await this.prisma.member.findMany({
@@ -673,9 +838,9 @@ export class CheckinsService {
       select: {
         ...CheckinsService.memberSelect,
         memberships: {
-          where: { status: 'ACTIVE' },
+          where: { status: "ACTIVE" },
           include: { package: { select: { id: true, name: true } } },
-          orderBy: { endDate: 'desc' },
+          orderBy: { endDate: "desc" },
           take: 1,
         },
       },

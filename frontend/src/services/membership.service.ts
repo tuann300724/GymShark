@@ -52,4 +52,31 @@ export const membershipApi = {
     });
     return res.data as { message: string; membership: Membership };
   },
+
+  getChangeRequests: async () => {
+    const res = await apiClient.get('/membership-changes/mine');
+    return res.data;
+  },
+
+  createChangeRequest: async (
+    membershipId: string,
+    payload: {
+      type: 'CANCEL_REFUND' | 'FREEZE';
+      reason?: string;
+      freezeDays?: number;
+    },
+  ) => {
+    const res = await apiClient.post(`/membership-changes/for/${membershipId}`, payload);
+    return res.data;
+  },
+
+  confirmChangeRequest: async (requestId: string) => {
+    const res = await apiClient.post(`/membership-changes/${requestId}/confirm`);
+    return res.data;
+  },
+
+  declineChangeRequest: async (requestId: string) => {
+    const res = await apiClient.post(`/membership-changes/${requestId}/decline`);
+    return res.data;
+  },
 };

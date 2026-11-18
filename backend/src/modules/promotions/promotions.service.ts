@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { DiscountType, PaymentStatus } from '../../common/constants/db-enums';
+import { DiscountType, PackageType, PaymentStatus } from '../../common/constants/db-enums';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit-logs/audit-logs.service';
@@ -444,7 +444,7 @@ export class PromotionsService {
     }
 
     const pkg = await this.prisma.membershipPackage.findUnique({ where: { id: dto.packageId } });
-    if (!pkg || pkg.status !== 'ACTIVE') {
+    if (!pkg || pkg.status !== 'ACTIVE' || pkg.type === PackageType.SESSION_BASED) {
       return { valid: false, message: 'Gói tập không tồn tại hoặc đã ngừng bán' };
     }
 

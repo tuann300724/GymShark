@@ -67,7 +67,6 @@ export function MemberHeader() {
   const { data: notifData } = useQuery({
     queryKey: ['member-notif-badge'],
     queryFn: notificationApi.getUnreadCount,
-    refetchInterval: 60_000,
     retry: 0,
   });
 
@@ -76,7 +75,6 @@ export function MemberHeader() {
   const { data: chatUnreadData } = useQuery({
     queryKey: ['chat-unread'],
     queryFn: chatApi.unreadCount,
-    refetchInterval: 60_000,
     retry: 0,
   });
   const chatUnread = chatUnreadData?.count ?? 0;

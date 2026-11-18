@@ -282,19 +282,28 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       }),
       this.prisma.payment.count({ where }),
       this.prisma.payment.aggregate({
-        _sum: { amount: true },
-        where: { status: "PAID" },
+        _sum: { amount: true, refundAmount: true },
+        where: { status: { in: [PaymentStatus.PAID, PaymentStatus.REFUNDED] } },
       }),
       this.prisma.payment.aggregate({
-        _sum: { amount: true },
-        where: { status: "PAID", paidAt: { gte: startOfToday } },
+        _sum: { amount: true, refundAmount: true },
+        where: {
+          status: { in: [PaymentStatus.PAID, PaymentStatus.REFUNDED] },
+          paidAt: { gte: startOfToday },
+        },
       }),
       this.prisma.payment.count({ where: { status: "PENDING" } }),
       this.prisma.payment.count({ where: { status: "PAID" } }),
       this.prisma.payment.count({ where: { status: "FAILED" } }),
       this.prisma.payment.count({ where: { status: "CANCELLED" } }),
       this.prisma.payment.findMany({
-        where: { status: "REFUNDED" },
+        where: {
+          status: { in: [PaymentStatus.PAID, PaymentStatus.REFUNDED] },
+          OR: [
+            { refundAmount: { gt: 0 } },
+            { status: PaymentStatus.REFUNDED, refundAmount: null },
+          ],
+        },
         select: { amount: true, refundAmount: true },
       }),
     ]);
@@ -305,8 +314,12 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       page,
       limit,
       stats: {
-        totalRevenue: paidAgg._sum.amount || 0,
-        revenueToday: revenueTodayAgg._sum.amount || 0,
+        totalRevenue:
+          Number(paidAgg._sum.amount || 0) -
+          Number(paidAgg._sum.refundAmount || 0),
+        revenueToday:
+          Number(revenueTodayAgg._sum.amount || 0) -
+          Number(revenueTodayAgg._sum.refundAmount || 0),
         pendingCount,
         paidCount,
         failedCount,
@@ -1003,23 +1016,32 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     });
     if (!payment)
       throw new NotFoundException("Không tìm thấy giao dịch thanh toán");
+    if (payment.membershipId) {
+      throw new BadRequestException(
+        "Khoản hoàn gắn với hợp đồng phải đi qua quy trình yêu cầu, xác nhận và phê duyệt chấm dứt",
+      );
+    }
     if (payment.status !== "PAID") {
       throw new BadRequestException(
         "Chỉ giao dịch đã thanh toán (PAID) mới hoàn tiền được",
       );
     }
 
-    // Số tiền hoàn: mặc định toàn bộ, cho phép hoàn một phần (0 < refundAmount <= amount)
+    // Chỉ cho hoàn phần còn lại; không ghi nhận phê duyệt là đã chi tiền.
     const paidAmount = Number(payment.amount);
-    const refundAmount = dto.refundAmount ?? paidAmount;
+    const previousRefund = Number(payment.refundAmount ?? 0);
+    const availableAmount = Math.max(0, paidAmount - previousRefund);
+    const refundAmount = dto.refundAmount ?? availableAmount;
     if (refundAmount <= 0) {
       throw new BadRequestException("Số tiền hoàn phải lớn hơn 0");
     }
-    if (refundAmount > paidAmount) {
+    if (refundAmount > availableAmount) {
       throw new BadRequestException(
-        `Số tiền hoàn không được vượt quá ${paidAmount.toLocaleString("vi-VN")}đ`,
+        `Số tiền hoàn không được vượt quá ${availableAmount.toLocaleString("vi-VN")}đ còn lại`,
       );
     }
+    const totalRefund = previousRefund + refundAmount;
+    const fullyRefunded = totalRefund >= paidAmount;
     const refundMethod = dto.refundMethod ?? "BANK_TRANSFER";
     const refundMethodLabel =
       refundMethod === "CASH" ? "tiền mặt" : "chuyển khoản";
@@ -1027,12 +1049,16 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     const now = new Date();
     const result = await this.prisma.$transaction(async (tx) => {
       const updateCount = await tx.payment.updateMany({
-        where: { id, status: PaymentStatus.PAID },
+        where: {
+          id,
+          status: PaymentStatus.PAID,
+          refundAmount: payment.refundAmount,
+        },
         data: {
-          status: PaymentStatus.REFUNDED,
+          status: fullyRefunded ? PaymentStatus.REFUNDED : PaymentStatus.PAID,
           confirmedById: actor.id,
           confirmedAt: now,
-          refundAmount,
+          refundAmount: totalRefund,
           refundMethod,
           notes: [
             payment.notes,
@@ -1051,13 +1077,15 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       if (!updated)
         throw new NotFoundException("Không tìm thấy giao dịch thanh toán");
 
-      await tx.invoice.updateMany({
-        where: { paymentId: id, status: InvoiceStatus.PAID },
-        data: { status: InvoiceStatus.CANCELLED },
-      });
+      if (fullyRefunded) {
+        await tx.invoice.updateMany({
+          where: { paymentId: id, status: InvoiceStatus.PAID },
+          data: { status: InvoiceStatus.CANCELLED },
+        });
+      }
 
       // Legacy sync: hoàn tiền → giảm usedCount của promo (không bị âm)
-      if (payment.promotionId) {
+      if (fullyRefunded && payment.promotionId) {
         await tx.promotion.updateMany({
           where: { id: payment.promotionId, usedCount: { gt: 0 } },
           data: { usedCount: { decrement: 1 } },
@@ -1114,7 +1142,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
         data: {
           memberId: payment.member.id,
           title: "Đã hoàn tiền 💸",
-          content: `Hóa đơn ${payment.code} (${payment.membership?.package?.name || ""}) đã hoàn ${refundAmount.toLocaleString("vi-VN")}đ qua ${refundMethodLabel}.${dto.reason ? " Lý do: " + dto.reason : ""}`,
+          content: `Hóa đơn ${payment.code} đã hoàn ${refundAmount.toLocaleString("vi-VN")}đ qua ${refundMethodLabel}.${dto.reason ? " Lý do: " + dto.reason : ""}`,
           type: "PAYMENT",
           link: "/member/payments",
           referenceType: "PAYMENT_REFUNDED",

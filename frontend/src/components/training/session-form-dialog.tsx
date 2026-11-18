@@ -65,6 +65,12 @@ function toLocalInputs(iso: string) {
   };
 }
 
+function getLocalDate() {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 export function SessionFormDialog({
   open,
   onClose,
@@ -356,6 +362,10 @@ export function SessionFormDialog({
   });
 
   const onSubmit = (values: SessionFormValues) => {
+    if (!isEdit && values.date < getLocalDate()) {
+      toast.error('Không thể tạo lịch trong ngày đã qua');
+      return;
+    }
     if (values.type === 'PERSONAL_TRAINING' && !values.memberId) {
       toast.error('Buổi kèm riêng (PT) bắt buộc phải chọn hội viên');
       return;
@@ -530,7 +540,13 @@ export function SessionFormDialog({
           )}
 
           <div>
-            <Input label="Ngày *" type="date" error={errors.date?.message} {...register('date')} />
+            <Input
+              label="Ngày *"
+              type="date"
+              min={!isEdit ? getLocalDate() : undefined}
+              error={errors.date?.message}
+              {...register('date')}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">

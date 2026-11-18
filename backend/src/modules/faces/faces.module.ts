@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { FacesController } from './faces.controller';
 import { FacesService } from './faces.service';
 import { AzureFaceService } from './azure-face.service';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 /**
  * Module sinh trắc học: đăng ký / rút lui / so khớp khuôn mặt.
@@ -11,6 +12,7 @@ import { AzureFaceService } from './azure-face.service';
  * AzureFaceService chỉ phục vụ bước kiểm tra kính lúc ĐĂNG KÝ (xem file service).
  */
 @Module({
+  imports: [NotificationsModule],
   controllers: [FacesController],
   providers: [FacesService, AzureFaceService],
   exports: [FacesService, AzureFaceService],

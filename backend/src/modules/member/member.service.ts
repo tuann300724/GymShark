@@ -1,15 +1,27 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import * as bcrypt from 'bcryptjs';
-import { Prisma } from '@prisma/client';
-import { InvoiceStatus, PaymentMethod, PaymentStatus, UserRole } from '../../common/constants/db-enums';
-import { PrismaService } from '../../prisma/prisma.service';
-import { AuditService } from '../audit-logs/audit-logs.service';
-import { NotificationsService } from '../notifications/notifications.service';
-import { BANK_INFO } from '../payments/bank-info';
-import { UpdateMemberDto } from './dto/update-member.dto';
-import { ChangePasswordDto } from './dto/change-password.dto';
-import { RegisterMembershipDto } from './dto/register-membership.dto';
-import { uniqueReferralCode } from '../../common/utils/referral-code';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import * as bcrypt from "bcryptjs";
+import { Prisma } from "@prisma/client";
+import {
+  InvoiceStatus,
+  PackageType,
+  PaymentMethod,
+  PaymentStatus,
+  UserRole,
+} from "../../common/constants/db-enums";
+import { PrismaService } from "../../prisma/prisma.service";
+import { AuditService } from "../audit-logs/audit-logs.service";
+import { NotificationsService } from "../notifications/notifications.service";
+import { BANK_INFO } from "../payments/bank-info";
+import { UpdateMemberDto } from "./dto/update-member.dto";
+import { ChangePasswordDto } from "./dto/change-password.dto";
+import { RegisterMembershipDto } from "./dto/register-membership.dto";
+import { uniqueReferralCode } from "../../common/utils/referral-code";
 
 @Injectable()
 export class MemberService {
@@ -44,13 +56,13 @@ export class MemberService {
     const prefix = `INV-${year}-`;
     const last = await this.prisma.payment.findFirst({
       where: { code: { startsWith: prefix } },
-      orderBy: { code: 'desc' },
+      orderBy: { code: "desc" },
       select: { code: true },
     });
     let seq = last ? parseInt(last.code.slice(prefix.length), 10) || 0 : 0;
     for (let i = 0; i < 500; i++) {
       seq += 1;
-      const code = `${prefix}${String(seq).padStart(4, '0')}`;
+      const code = `${prefix}${String(seq).padStart(4, "0")}`;
       const pay = await this.prisma.payment.findUnique({
         where: { code },
         select: { id: true },
@@ -72,7 +84,7 @@ export class MemberService {
   async getMyReferral(userId: string) {
     const member = await this.resolveMember(userId);
     if (!member) {
-      throw new ForbiddenException('Tài khoản chưa gắn hồ sơ hội viên.');
+      throw new ForbiddenException("Tài khoản chưa gắn hồ sơ hội viên.");
     }
 
     // Hội viên cũ chưa có mã → sinh ngay khi mở trang
@@ -91,9 +103,9 @@ export class MemberService {
         id: true,
         fullName: true,
         joinedAt: true,
-        _count: { select: { memberships: { where: { status: 'ACTIVE' } } } },
+        _count: { select: { memberships: { where: { status: "ACTIVE" } } } },
       },
-      orderBy: { joinedAt: 'desc' },
+      orderBy: { joinedAt: "desc" },
       take: 50,
     });
 
@@ -124,7 +136,7 @@ export class MemberService {
         avatarUrl: true,
       },
     });
-    if (!user) throw new NotFoundException('Không tìm thấy tài khoản');
+    if (!user) throw new NotFoundException("Không tìm thấy tài khoản");
 
     const member = await this.resolveMember(userId);
 
@@ -167,7 +179,7 @@ export class MemberService {
 
   async updateMe(userId: string, dto: UpdateMemberDto) {
     const member = await this.resolveMember(userId);
-    if (!member) throw new ForbiddenException('Bạn chưa có hồ sơ hội viên');
+    if (!member) throw new ForbiddenException("Bạn chưa có hồ sơ hội viên");
 
     const data: any = {};
     if (dto.fullName) data.fullName = dto.fullName;
@@ -176,7 +188,8 @@ export class MemberService {
     if (dto.dateOfBirth) data.dateOfBirth = new Date(dto.dateOfBirth);
     if (dto.address !== undefined) data.address = dto.address;
     if (dto.avatarUrl !== undefined) data.avatarUrl = dto.avatarUrl;
-    if (dto.emergencyContact !== undefined) data.emergencyContact = dto.emergencyContact;
+    if (dto.emergencyContact !== undefined)
+      data.emergencyContact = dto.emergencyContact;
 
     const [, updatedMember] = await this.prisma.$transaction([
       // Đồng bộ thông tin sang User để login/hiển thị thống nhất
@@ -193,21 +206,25 @@ export class MemberService {
 
     await this.auditService.log({
       userId,
-      action: 'MEMBER_PROFILE_UPDATE',
-      entity: 'Member',
+      action: "MEMBER_PROFILE_UPDATE",
+      entity: "Member",
       entityId: member.id,
       metadata: { fields: Object.keys(data) },
     });
 
-    return { message: 'Cập nhật hồ sơ thành công', member: updatedMember };
+    return { message: "Cập nhật hồ sơ thành công", member: updatedMember };
   }
 
   async changePassword(userId: string, dto: ChangePasswordDto) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException('Không tìm thấy tài khoản');
+    if (!user) throw new NotFoundException("Không tìm thấy tài khoản");
 
-    const isMatch = await bcrypt.compare(dto.currentPassword, user.passwordHash);
-    if (!isMatch) throw new BadRequestException('Mật khẩu hiện tại không chính xác');
+    const isMatch = await bcrypt.compare(
+      dto.currentPassword,
+      user.passwordHash,
+    );
+    if (!isMatch)
+      throw new BadRequestException("Mật khẩu hiện tại không chính xác");
 
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(dto.newPassword, salt);
@@ -219,13 +236,13 @@ export class MemberService {
 
     await this.auditService.log({
       userId,
-      action: 'PASSWORD_CHANGE',
-      entity: 'Auth',
+      action: "PASSWORD_CHANGE",
+      entity: "Auth",
       entityId: userId,
       metadata: null,
     });
 
-    return { message: 'Đổi mật khẩu thành công' };
+    return { message: "Đổi mật khẩu thành công" };
   }
 
   /** HLV hiện tại đang phụ trách hội viên đang đăng nhập (nếu có) */
@@ -234,7 +251,7 @@ export class MemberService {
     if (!member) return { trainer: null };
 
     const assignment = await this.prisma.trainerMember.findFirst({
-      where: { memberId: member.id, status: 'ACTIVE' },
+      where: { memberId: member.id, status: "ACTIVE" },
       include: {
         trainer: {
           include: {
@@ -250,7 +267,7 @@ export class MemberService {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     return {
@@ -265,11 +282,11 @@ export class MemberService {
 
   /** Đánh dấu các membership ACTIVE đã hết hạn → EXPIRED (backend tự tính, không tin frontend) */
   private async syncExpiredMemberships(memberId?: string) {
-    const where: any = { status: 'ACTIVE', endDate: { lt: new Date() } };
+    const where: any = { status: "ACTIVE", endDate: { lt: new Date() } };
     if (memberId) where.memberId = memberId;
     await this.prisma.membership.updateMany({
       where,
-      data: { status: 'EXPIRED' },
+      data: { status: "EXPIRED" },
     });
   }
 
@@ -279,12 +296,12 @@ export class MemberService {
       where: {
         memberId,
         OR: [
-          { status: 'PENDING' },
+          { status: "PENDING" },
           { payments: { some: { status: PaymentStatus.PENDING } } },
         ],
       },
       include: { package: true },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
   }
 
@@ -293,12 +310,12 @@ export class MemberService {
     return this.prisma.membership.findFirst({
       where: {
         memberId,
-        status: 'ACTIVE',
+        status: "ACTIVE",
         startDate: { lte: new Date() },
         endDate: { gte: new Date() },
       },
       include: { package: true },
-      orderBy: { endDate: 'desc' },
+      orderBy: { endDate: "desc" },
     });
   }
 
@@ -307,7 +324,11 @@ export class MemberService {
    * originalPrice - discount = finalAmount
    * STEP 8 — cộng thêm: giới hạn tổng lượt (đếm Payment PENDING+PAID) + giới hạn mỗi hội viên.
    */
-  private async calcPrice(pkg: { price: Prisma.Decimal }, promotionCode?: string, memberId?: string) {
+  private async calcPrice(
+    pkg: { price: Prisma.Decimal },
+    promotionCode?: string,
+    memberId?: string,
+  ) {
     const original = new Prisma.Decimal(pkg.price.toString());
     let discount = new Prisma.Decimal(0);
     let promotion: any = null;
@@ -316,42 +337,56 @@ export class MemberService {
       promotion = await this.prisma.promotion.findUnique({
         where: { code: promotionCode },
       });
-      if (!promotion || promotion.status !== 'ACTIVE') {
-        throw new BadRequestException('Mã khuyến mãi không hợp lệ');
+      if (!promotion || promotion.status !== "ACTIVE") {
+        throw new BadRequestException("Mã khuyến mãi không hợp lệ");
       }
       const now = new Date();
       if (now < promotion.startDate || now > promotion.endDate) {
-        throw new BadRequestException('Mã khuyến mãi đã hết hạn hoặc chưa có hiệu lực');
+        throw new BadRequestException(
+          "Mã khuyến mãi đã hết hạn hoặc chưa có hiệu lực",
+        );
       }
       // Giới hạn tổng lượt: đếm Payment PENDING + PAID (giữ chỗ thật, không phụ thuộc usedCount)
       const reserved = await this.prisma.payment.count({
         where: {
           promotionId: promotion.id,
-          status: { in: ['PENDING', 'PAID'] },
+          status: { in: ["PENDING", "PAID"] },
         },
       });
       if (promotion.usageLimit !== null && reserved >= promotion.usageLimit) {
-        throw new BadRequestException('Mã khuyến mãi đã hết lượt sử dụng');
+        throw new BadRequestException("Mã khuyến mãi đã hết lượt sử dụng");
       }
       // Giới hạn mỗi hội viên
-      if (memberId && promotion.perMemberLimit !== null && promotion.perMemberLimit !== undefined) {
+      if (
+        memberId &&
+        promotion.perMemberLimit !== null &&
+        promotion.perMemberLimit !== undefined
+      ) {
         const memberUsed = await this.prisma.payment.count({
           where: {
             promotionId: promotion.id,
             memberId,
-            status: { in: ['PENDING', 'PAID'] },
+            status: { in: ["PENDING", "PAID"] },
           },
         });
         if (memberUsed >= promotion.perMemberLimit) {
-          throw new BadRequestException('Bạn đã dùng hết lượt của mã này');
+          throw new BadRequestException("Bạn đã dùng hết lượt của mã này");
         }
       }
-      if (promotion.minOrderValue !== null && original.lt(new Prisma.Decimal(promotion.minOrderValue.toString()))) {
-        throw new BadRequestException(`Mã khuyến mãi chỉ áp dụng cho đơn từ ${Number(promotion.minOrderValue).toLocaleString('vi-VN')}đ`);
+      if (
+        promotion.minOrderValue !== null &&
+        original.lt(new Prisma.Decimal(promotion.minOrderValue.toString()))
+      ) {
+        throw new BadRequestException(
+          `Mã khuyến mãi chỉ áp dụng cho đơn từ ${Number(promotion.minOrderValue).toLocaleString("vi-VN")}đ`,
+        );
       }
 
       const dv = new Prisma.Decimal(promotion.discountValue.toString());
-      discount = promotion.discountType === 'PERCENTAGE' ? original.mul(dv).div(100) : dv;
+      discount =
+        promotion.discountType === "PERCENTAGE"
+          ? original.mul(dv).div(100)
+          : dv;
 
       if (promotion.maxDiscount !== null) {
         const maxD = new Prisma.Decimal(promotion.maxDiscount.toString());
@@ -394,19 +429,26 @@ export class MemberService {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     const now = new Date();
-    const current = all.find((m) => m.status === 'ACTIVE' && m.startDate <= now && m.endDate >= now) || null;
+    const current =
+      all.find(
+        (m) => m.status === "ACTIVE" && m.startDate <= now && m.endDate >= now,
+      ) || null;
     const pending =
       all.find(
-        (m) => m.status === 'PENDING' || m.payments.some((payment) => payment.status === 'PENDING'),
+        (m) =>
+          m.status === "PENDING" ||
+          m.payments.some((payment) => payment.status === "PENDING"),
       ) || null;
     // Gói ĐÃ gia hạn nhưng chưa tới ngày kích hoạt (ACTIVE, startDate > now).
     // Phải trả riêng nếu không hội viên sẽ không thấy gói mới đã cộng thêm.
     const upcoming =
-      all.filter((m) => m.status === 'ACTIVE' && m.startDate > now).sort((a, b) => a.startDate.getTime() - b.startDate.getTime())[0] ||
+      all
+        .filter((m) => m.status === "ACTIVE" && m.startDate > now)
+        .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())[0] ||
       null;
     const history = all; // lịch sử: toàn bộ gói đã đăng ký
 
@@ -423,11 +465,12 @@ export class MemberService {
   /** Đăng ký gói tập mới (khi chưa có membership đang hoạt động) — luôn tạo Membership + Payment ở trạng thái PENDING */
   async registerMembership(userId: string, dto: RegisterMembershipDto) {
     const member = await this.resolveMember(userId);
-    if (!member) throw new ForbiddenException('Chỉ hội viên mới có thể đăng ký gói tập');
+    if (!member)
+      throw new ForbiddenException("Chỉ hội viên mới có thể đăng ký gói tập");
 
     return this.createPendingMembership(member, dto, {
       actorUserId: userId,
-      via: 'self',
+      via: "self",
     });
   }
 
@@ -445,13 +488,13 @@ export class MemberService {
     const member = await this.prisma.member.findUnique({
       where: { id: memberId },
     });
-    if (!member) throw new NotFoundException('Không tìm thấy hội viên.');
+    if (!member) throw new NotFoundException("Không tìm thấy hội viên.");
 
     return this.createPendingMembership(member, dto, {
       actorUserId,
-      via: 'staff',
-      staffUserId: actorRole === 'STAFF' ? actorUserId : null,
-      staffShiftId: actorRole === 'STAFF' ? staffShiftId : null,
+      via: "staff",
+      staffUserId: actorRole === "STAFF" ? actorUserId : null,
+      staffShiftId: actorRole === "STAFF" ? staffShiftId : null,
     });
   }
 
@@ -461,7 +504,7 @@ export class MemberService {
     dto: RegisterMembershipDto,
     ctx: {
       actorUserId: string;
-      via: 'self' | 'staff';
+      via: "self" | "staff";
       staffUserId?: string | null;
       staffShiftId?: string | null;
     },
@@ -469,8 +512,12 @@ export class MemberService {
     const pkg = await this.prisma.membershipPackage.findUnique({
       where: { id: dto.packageId },
     });
-    if (!pkg || pkg.status !== 'ACTIVE') {
-      throw new NotFoundException('Gói tập không tồn tại hoặc đã ngừng bán');
+    if (
+      !pkg ||
+      pkg.status !== "ACTIVE" ||
+      pkg.type === PackageType.SESSION_BASED
+    ) {
+      throw new NotFoundException("Gói tập không tồn tại hoặc đã ngừng bán");
     }
 
     await this.syncExpiredMemberships(member.id);
@@ -478,7 +525,7 @@ export class MemberService {
     const active = await this.getActiveMembership(member.id);
     if (active) {
       throw new ConflictException(
-        ctx.via === 'staff'
+        ctx.via === "staff"
           ? 'Hội viên đang có một gói tập hoạt động. Hãy dùng chức năng "Gia hạn" thay thế.'
           : 'Bạn đang có một gói tập đang hoạt động. Hãy dùng chức năng "Gia hạn" thay thế.',
       );
@@ -486,17 +533,23 @@ export class MemberService {
     const pending = await this.getPendingMembership(member.id);
     if (pending) {
       throw new ConflictException(
-        ctx.via === 'staff'
-          ? 'Hội viên đang có một yêu cầu đăng ký chờ xác nhận thanh toán. Hãy xử lý ở /admin/payments trước.'
-          : 'Bạn đang có một yêu cầu đăng ký đang chờ xác nhận thanh toán.',
+        ctx.via === "staff"
+          ? "Hội viên đang có một yêu cầu đăng ký chờ xác nhận thanh toán. Hãy xử lý ở /admin/payments trước."
+          : "Bạn đang có một yêu cầu đăng ký đang chờ xác nhận thanh toán.",
       );
     }
 
     const startDate = new Date();
-    const endDate = new Date(startDate.getTime() + pkg.durationDays * 24 * 60 * 60 * 1000);
+    const endDate = new Date(
+      startDate.getTime() + pkg.durationDays * 24 * 60 * 60 * 1000,
+    );
     const paymentCode = await this.genPaymentCode();
 
-    const { original, discount, final, promotion } = await this.calcPrice(pkg, dto.promotionCode, member.id);
+    const { original, discount, final, promotion } = await this.calcPrice(
+      pkg,
+      dto.promotionCode,
+      member.id,
+    );
 
     const result = await this.prisma.$transaction(async (tx) => {
       if (ctx.staffUserId && ctx.staffShiftId) {
@@ -510,7 +563,9 @@ export class MemberService {
             AND endTime > SYSUTCDATETIME()
         `);
         if (activeShift.length !== 1) {
-          throw new ForbiddenException('Ca làm đã kết thúc hoặc không còn hợp lệ; không thể tạo giao dịch tại quầy');
+          throw new ForbiddenException(
+            "Ca làm đã kết thúc hoặc không còn hợp lệ; không thể tạo giao dịch tại quầy",
+          );
         }
       }
 
@@ -523,7 +578,9 @@ export class MemberService {
           price: original,
           discountAmount: discount,
           finalAmount: final,
-          status: 'PENDING',
+          ptSessionsIncluded: pkg.sessions,
+          ptSessionValue: pkg.ptSessionValue,
+          status: "PENDING",
         },
         include: { package: true },
       });
@@ -538,7 +595,7 @@ export class MemberService {
           discountAmount: discount.gt(0) ? discount : null,
           method: dto.paymentMethod || PaymentMethod.CASH,
           status: PaymentStatus.PENDING,
-          notes: `Thanh toán gói ${pkg.name}${ctx.staffUserId && ctx.staffShiftId ? ` [STAFF_POS:${ctx.staffUserId}:${ctx.staffShiftId}]` : ''}`,
+          notes: `Thanh toán gói ${pkg.name}${ctx.staffUserId && ctx.staffShiftId ? ` [STAFF_POS:${ctx.staffUserId}:${ctx.staffShiftId}]` : ""}`,
         },
       });
 
@@ -562,10 +619,10 @@ export class MemberService {
       await tx.notification.create({
         data: {
           memberId: member.id,
-          title: 'Đăng ký gói tập thành công 🎟️',
+          title: "Đăng ký gói tập thành công 🎟️",
           content: `Bạn vừa đăng ký gói ${pkg.name} (${pkg.durationDays} ngày). Gói tập đang chờ xác nhận thanh toán. Sau khi lễ tân xác nhận, gói sẽ tự động kích hoạt.`,
-          type: 'PAYMENT',
-          link: '/member/membership',
+          type: "PAYMENT",
+          link: "/member/membership",
         },
       });
 
@@ -577,8 +634,8 @@ export class MemberService {
 
     await this.auditService.log({
       userId: ctx.actorUserId,
-      action: 'MEMBERSHIP_REGISTER',
-      entity: 'Membership',
+      action: "MEMBERSHIP_REGISTER",
+      entity: "Membership",
       entityId: result.membership.id,
       metadata: {
         packageName: pkg.name,
@@ -593,20 +650,21 @@ export class MemberService {
     // Báo cho tổ quản trị: có yêu cầu thanh toán mới cần xác nhận (chuông admin)
     await this.notificationsService.notifyAdmins(
       {
-        type: 'PAYMENT',
-        title: 'Yêu cầu thanh toán mới cần xác nhận 💳',
+        type: "PAYMENT",
+        title: "Yêu cầu thanh toán mới cần xác nhận 💳",
         content: `Hội viên ${member.fullName} (${member.code}) vừa gửi yêu cầu ${
-          ctx.via === 'staff' ? 'đăng ký tại quầy' : 'đăng ký'
-        } gói ${pkg.name} — mã ${paymentCode}, số tiền ${Number(final).toLocaleString('vi-VN')}đ. Vào /admin/payments để xác nhận.`,
-        link: '/admin/payments',
-        referenceType: 'PAYMENT_REQUEST',
+          ctx.via === "staff" ? "đăng ký tại quầy" : "đăng ký"
+        } gói ${pkg.name} — mã ${paymentCode}, số tiền ${Number(final).toLocaleString("vi-VN")}đ. Vào /admin/payments để xác nhận.`,
+        link: "/admin/payments",
+        referenceType: "PAYMENT_REQUEST",
         referenceId: result.payment.id,
       },
       ctx.actorUserId,
     );
 
     return {
-      message: 'Đã gửi yêu cầu đăng ký. Gói tập sẽ kích hoạt sau khi thanh toán được xác nhận.',
+      message:
+        "Đã gửi yêu cầu đăng ký. Gói tập sẽ kích hoạt sau khi thanh toán được xác nhận.",
       membership: result.membership,
       payment: result.payment,
     };
@@ -616,7 +674,10 @@ export class MemberService {
    * Entry point POST /payments/me (STEP 6): renew=true → gia hạn, ngược lại đăng ký mới.
    * Amount luôn do backend tính từ package — frontend không quyết định giá.
    */
-  async requestPayment(userId: string, dto: RegisterMembershipDto & { renew?: boolean }) {
+  async requestPayment(
+    userId: string,
+    dto: RegisterMembershipDto & { renew?: boolean },
+  ) {
     if (dto.renew) return this.renewMembership(userId, dto);
     return this.registerMembership(userId, dto);
   }
@@ -624,13 +685,18 @@ export class MemberService {
   /** Gia hạn gói tập: tạo Membership NÓI TIẾP ngay sau ngày hết hạn gói hiện tại (không overlap), Payment PENDING */
   async renewMembership(userId: string, dto: RegisterMembershipDto) {
     const member = await this.resolveMember(userId);
-    if (!member) throw new ForbiddenException('Chỉ hội viên mới có thể gia hạn gói tập');
+    if (!member)
+      throw new ForbiddenException("Chỉ hội viên mới có thể gia hạn gói tập");
 
     const pkg = await this.prisma.membershipPackage.findUnique({
       where: { id: dto.packageId },
     });
-    if (!pkg || pkg.status !== 'ACTIVE') {
-      throw new NotFoundException('Gói tập không tồn tại hoặc đã ngừng bán');
+    if (
+      !pkg ||
+      pkg.status !== "ACTIVE" ||
+      pkg.type === PackageType.SESSION_BASED
+    ) {
+      throw new NotFoundException("Gói tập không tồn tại hoặc đã ngừng bán");
     }
 
     await this.syncExpiredMemberships(member.id);
@@ -643,15 +709,23 @@ export class MemberService {
 
     const pending = await this.getPendingMembership(member.id);
     if (pending) {
-      throw new ConflictException('Bạn đang có một yêu cầu gia hạn đang chờ xác nhận thanh toán.');
+      throw new ConflictException(
+        "Bạn đang có một yêu cầu gia hạn đang chờ xác nhận thanh toán.",
+      );
     }
 
     // startDate = endDate của gói hiện tại + 1 ngày → không bị overlap
     const startDate = new Date(active.endDate.getTime() + 24 * 60 * 60 * 1000);
-    const endDate = new Date(startDate.getTime() + pkg.durationDays * 24 * 60 * 60 * 1000);
+    const endDate = new Date(
+      startDate.getTime() + pkg.durationDays * 24 * 60 * 60 * 1000,
+    );
     const paymentCode = await this.genPaymentCode();
 
-    const { original, discount, final, promotion } = await this.calcPrice(pkg, dto.promotionCode, member.id);
+    const { original, discount, final, promotion } = await this.calcPrice(
+      pkg,
+      dto.promotionCode,
+      member.id,
+    );
 
     const result = await this.prisma.$transaction(async (tx) => {
       const created = await tx.membership.create({
@@ -663,7 +737,9 @@ export class MemberService {
           price: original,
           discountAmount: discount,
           finalAmount: final,
-          status: 'PENDING',
+          ptSessionsIncluded: pkg.sessions,
+          ptSessionValue: pkg.ptSessionValue,
+          status: "PENDING",
         },
         include: { package: true },
       });
@@ -702,10 +778,10 @@ export class MemberService {
       await tx.notification.create({
         data: {
           memberId: member.id,
-          title: 'Yêu cầu gia hạn đã được tiếp nhận 🔄',
-          content: `Gói ${pkg.name} của bạn sẽ nối tiếp sau khi gói hiện tại hết hạn (từ ${startDate.toLocaleDateString('vi-VN')}). Đang chờ xác nhận thanh toán.`,
-          type: 'PAYMENT',
-          link: '/member/membership',
+          title: "Yêu cầu gia hạn đã được tiếp nhận 🔄",
+          content: `Gói ${pkg.name} của bạn sẽ nối tiếp sau khi gói hiện tại hết hạn (từ ${startDate.toLocaleDateString("vi-VN")}). Đang chờ xác nhận thanh toán.`,
+          type: "PAYMENT",
+          link: "/member/membership",
         },
       });
 
@@ -717,8 +793,8 @@ export class MemberService {
 
     await this.auditService.log({
       userId,
-      action: 'MEMBERSHIP_RENEW',
-      entity: 'Membership',
+      action: "MEMBERSHIP_RENEW",
+      entity: "Membership",
       entityId: result.membership.id,
       metadata: {
         packageName: pkg.name,
@@ -731,18 +807,19 @@ export class MemberService {
     // Báo cho tổ quản trị: có yêu cầu gia hạn mới cần xác nhận (chuông admin)
     await this.notificationsService.notifyAdmins(
       {
-        type: 'PAYMENT',
-        title: 'Yêu cầu gia hạn gói mới cần xác nhận 💳',
-        content: `Hội viên ${member.fullName} (${member.code}) vừa gửi yêu cầu gia hạn gói ${pkg.name} — mã ${paymentCode}, số tiền ${Number(final).toLocaleString('vi-VN')}đ. Vào /admin/payments để xác nhận.`,
-        link: '/admin/payments',
-        referenceType: 'PAYMENT_REQUEST',
+        type: "PAYMENT",
+        title: "Yêu cầu gia hạn gói mới cần xác nhận 💳",
+        content: `Hội viên ${member.fullName} (${member.code}) vừa gửi yêu cầu gia hạn gói ${pkg.name} — mã ${paymentCode}, số tiền ${Number(final).toLocaleString("vi-VN")}đ. Vào /admin/payments để xác nhận.`,
+        link: "/admin/payments",
+        referenceType: "PAYMENT_REQUEST",
         referenceId: result.payment.id,
       },
       userId,
     );
 
     return {
-      message: 'Đã gửi yêu cầu gia hạn. Gói mới sẽ có hiệu lực từ ngày gói hiện tại hết hạn.',
+      message:
+        "Đã gửi yêu cầu gia hạn. Gói mới sẽ có hiệu lực từ ngày gói hiện tại hết hạn.",
       membership: result.membership,
       payment: result.payment,
     };
@@ -755,18 +832,22 @@ export class MemberService {
    */
   async cancelPendingRequest(userId: string, paymentId: string) {
     const member = await this.resolveMember(userId);
-    if (!member) throw new ForbiddenException('Chỉ hội viên mới có thể hủy yêu cầu');
+    if (!member)
+      throw new ForbiddenException("Chỉ hội viên mới có thể hủy yêu cầu");
 
     const payment = await this.prisma.payment.findFirst({
       where: { id: paymentId, memberId: member.id },
       include: { membership: { include: { package: true } } },
     });
-    if (!payment) throw new NotFoundException('Không tìm thấy yêu cầu thanh toán');
+    if (!payment)
+      throw new NotFoundException("Không tìm thấy yêu cầu thanh toán");
     if (payment.status !== PaymentStatus.PENDING) {
-      throw new BadRequestException('Chỉ yêu cầu đang chờ thanh toán mới hủy được');
+      throw new BadRequestException(
+        "Chỉ yêu cầu đang chờ thanh toán mới hủy được",
+      );
     }
 
-    const packageName = payment.membership?.package?.name || 'gói tập';
+    const packageName = payment.membership?.package?.name || "gói tập";
     const now = new Date();
 
     const result = await this.prisma.$transaction(async (tx) => {
@@ -776,15 +857,17 @@ export class MemberService {
           status: PaymentStatus.CANCELLED,
           confirmedById: userId,
           confirmedAt: now,
-          notes: [payment.notes, 'Hội viên tự hủy yêu cầu'].filter(Boolean).join(' | '),
+          notes: [payment.notes, "Hội viên tự hủy yêu cầu"]
+            .filter(Boolean)
+            .join(" | "),
         },
       });
 
       let cancelledMembership = null;
-      if (payment.membership && payment.membership.status === 'PENDING') {
+      if (payment.membership && payment.membership.status === "PENDING") {
         cancelledMembership = await tx.membership.update({
           where: { id: payment.membership.id },
-          data: { status: 'CANCELLED' },
+          data: { status: "CANCELLED" },
           include: { package: true },
         });
       }
@@ -797,11 +880,11 @@ export class MemberService {
       await tx.notification.create({
         data: {
           memberId: member.id,
-          title: 'Đã hủy yêu cầu đăng ký 🗑️',
+          title: "Đã hủy yêu cầu đăng ký 🗑️",
           content: `Yêu cầu cho ${packageName} (${payment.code}) đã được hủy. Bạn có thể đăng ký gói khác bất cứ lúc nào.`,
-          type: 'PAYMENT',
-          link: '/member/membership',
-          referenceType: 'PAYMENT_CANCELLED_BY_MEMBER',
+          type: "PAYMENT",
+          link: "/member/membership",
+          referenceType: "PAYMENT_CANCELLED_BY_MEMBER",
           referenceId: payment.id,
         },
       });
@@ -811,26 +894,26 @@ export class MemberService {
 
     await this.auditService.log({
       userId,
-      action: 'MEMBERSHIP_CANCEL_REQUEST',
-      entity: 'Membership',
+      action: "MEMBERSHIP_CANCEL_REQUEST",
+      entity: "Membership",
       entityId: payment.membershipId ?? payment.id,
       metadata: {
         packageName,
         paymentCode: payment.code,
         amount: payment.amount,
         memberCode: member.code,
-        via: 'self',
+        via: "self",
       },
     });
 
     // Hội viên tự hủy yêu cầu → báo tổ quản trị để không chờ xác nhận vô ích
     await this.notificationsService.notifyAdmins(
       {
-        type: 'PAYMENT',
-        title: 'Hội viên đã hủy yêu cầu thanh toán 🗑️',
+        type: "PAYMENT",
+        title: "Hội viên đã hủy yêu cầu thanh toán 🗑️",
         content: `Hội viên ${member.fullName} (${member.code}) đã tự hủy yêu cầu ${packageName} — mã ${payment.code}. Không cần xác nhận nữa.`,
-        link: '/admin/payments',
-        referenceType: 'PAYMENT_REQUEST_CANCELLED',
+        link: "/admin/payments",
+        referenceType: "PAYMENT_REQUEST_CANCELLED",
         referenceId: payment.id,
       },
       userId,
@@ -861,7 +944,7 @@ export class MemberService {
     const [data, total] = await Promise.all([
       this.prisma.checkIn.findMany({
         where,
-        orderBy: { checkInTime: 'desc' },
+        orderBy: { checkInTime: "desc" },
         skip,
         take: limit,
       }),
@@ -918,7 +1001,7 @@ export class MemberService {
         room: { select: { id: true, name: true, capacity: true } },
         member: { select: { id: true, code: true, fullName: true } },
       },
-      orderBy: { startTime: 'asc' },
+      orderBy: { startTime: "asc" },
       take: 30,
     });
 
@@ -944,13 +1027,13 @@ export class MemberService {
         promotion: { select: { id: true, code: true, name: true } },
         invoice: { select: { id: true, invoiceNumber: true, status: true } },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
   }
 
   async getPaymentDetail(userId: string, paymentId: string) {
     const member = await this.resolveMember(userId);
-    if (!member) throw new NotFoundException('Không tìm thấy hóa đơn');
+    if (!member) throw new NotFoundException("Không tìm thấy hóa đơn");
 
     const payment = await this.prisma.payment.findFirst({
       where: { id: paymentId, memberId: member.id },
@@ -978,11 +1061,11 @@ export class MemberService {
       },
     });
 
-    if (!payment) throw new NotFoundException('Không tìm thấy hóa đơn');
+    if (!payment) throw new NotFoundException("Không tìm thấy hóa đơn");
 
     // Thông tin chuyển khoản nếu chọn BANK_TRANSFER (chưa xác nhận mới cần ghi nội dung)
     let bankInfo: any = null;
-    if (payment.method === 'BANK_TRANSFER') {
+    if (payment.method === "BANK_TRANSFER") {
       bankInfo = {
         bankName: BANK_INFO.bankName,
         accountName: BANK_INFO.accountName,
@@ -1006,7 +1089,7 @@ export class MemberService {
       select: { id: true, role: true },
     });
 
-    if (!member && user?.role !== 'TRAINER') {
+    if (!member && user?.role !== "TRAINER") {
       return { data: [], unreadCount: 0 };
     }
 
@@ -1017,7 +1100,7 @@ export class MemberService {
     const [data, unreadCount] = await Promise.all([
       this.prisma.notification.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         take: 50,
       }),
       this.prisma.notification.count({ where: { ...where, isRead: false } }),
@@ -1035,16 +1118,16 @@ export class MemberService {
 
     const where: any = { id: notificationId };
     if (member) where.memberId = member.id;
-    else if (user?.role === 'TRAINER') where.userId = userId;
+    else if (user?.role === "TRAINER") where.userId = userId;
 
     const notif = await this.prisma.notification.findFirst({ where });
-    if (!notif) throw new NotFoundException('Không tìm thấy thông báo');
+    if (!notif) throw new NotFoundException("Không tìm thấy thông báo");
 
     await this.prisma.notification.update({
       where: { id: notificationId },
       data: { isRead: true },
     });
-    return { message: 'Đã đánh dấu là đã đọc' };
+    return { message: "Đã đánh dấu là đã đọc" };
   }
 
   async markAllNotificationsRead(userId: string) {
@@ -1056,14 +1139,14 @@ export class MemberService {
 
     const where: any = {};
     if (member) where.memberId = member.id;
-    else if (user?.role === 'TRAINER') where.userId = userId;
+    else if (user?.role === "TRAINER") where.userId = userId;
 
     const result = await this.prisma.notification.updateMany({
       where: { ...where, isRead: false },
       data: { isRead: true },
     });
 
-    return { message: 'Đã đánh dấu tất cả là đã đọc', updated: result.count };
+    return { message: "Đã đánh dấu tất cả là đã đọc", updated: result.count };
   }
 
   // ---------------------------------------------------------------------------
@@ -1126,12 +1209,12 @@ export class MemberService {
             select: { id: true },
           },
         },
-        orderBy: { endDate: 'desc' },
+        orderBy: { endDate: "desc" },
       }),
       this.prisma.trainingSchedule.count({
         where: {
           memberId: member.id,
-          status: 'SCHEDULED',
+          status: "SCHEDULED",
           startTime: { gte: now },
         },
       }),
@@ -1145,17 +1228,17 @@ export class MemberService {
         },
       }),
       this.prisma.trainingSchedule.count({
-        where: { memberId: member.id, status: 'COMPLETED' },
+        where: { memberId: member.id, status: "COMPLETED" },
       }),
       // Tổng tiền đã thanh toán thành công (không tính REFUNDED — đã hạch toán riêng)
       this.prisma.payment.aggregate({
         _sum: { amount: true },
         _count: true,
-        where: { memberId: member.id, status: 'PAID' },
+        where: { memberId: member.id, status: "PAID" },
       }),
       this.prisma.payment.findFirst({
-        where: { memberId: member.id, status: 'PAID' },
-        orderBy: { paidAt: 'desc' },
+        where: { memberId: member.id, status: "PAID" },
+        orderBy: { paidAt: "desc" },
         select: {
           id: true,
           code: true,
@@ -1165,12 +1248,12 @@ export class MemberService {
         },
       }),
       this.prisma.payment.count({
-        where: { memberId: member.id, status: 'PENDING' },
+        where: { memberId: member.id, status: "PENDING" },
       }),
     ]);
 
     const trainerAssignment = await this.prisma.trainerMember.findFirst({
-      where: { memberId: member.id, status: 'ACTIVE' },
+      where: { memberId: member.id, status: "ACTIVE" },
       include: {
         trainer: {
           include: {
@@ -1186,19 +1269,32 @@ export class MemberService {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
-    const active = memberships.find((m) => m.status === 'ACTIVE' && m.startDate <= now && m.endDate >= now) || null;
+    const active =
+      memberships.find(
+        (m) => m.status === "ACTIVE" && m.startDate <= now && m.endDate >= now,
+      ) || null;
     const pending =
-      memberships.find((m) => m.status === 'PENDING' || m.payments.length > 0) || null;
+      memberships.find(
+        (m) => m.status === "PENDING" || m.payments.length > 0,
+      ) || null;
     let remainingDays = 0;
     let membershipProgress = 0;
     if (active) {
       const totalMs = active.endDate.getTime() - active.startDate.getTime();
       const elapsedMs = now.getTime() - active.startDate.getTime();
-      remainingDays = Math.max(0, Math.ceil((active.endDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)));
-      membershipProgress = totalMs > 0 ? Math.min(100, Math.max(0, Math.round((elapsedMs / totalMs) * 100))) : 0;
+      remainingDays = Math.max(
+        0,
+        Math.ceil(
+          (active.endDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000),
+        ),
+      );
+      membershipProgress =
+        totalMs > 0
+          ? Math.min(100, Math.max(0, Math.round((elapsedMs / totalMs) * 100)))
+          : 0;
     }
 
     return {

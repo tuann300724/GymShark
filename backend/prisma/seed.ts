@@ -208,6 +208,11 @@ async function main() {
   console.log('✅ Created users and trainer profiles');
 
   // 5. Membership Packages
+  await prisma.membershipPackage.updateMany({
+    where: { type: PackageType.SESSION_BASED, status: 'ACTIVE' },
+    data: { status: 'INACTIVE' },
+  });
+
   const pkg1M = await prisma.membershipPackage.upsert({
     where: { code: 'PKG-1M' },
     update: {
@@ -233,6 +238,7 @@ async function main() {
   const pkg6M = await prisma.membershipPackage.upsert({
     where: { code: 'PKG-6M-VIP' },
     update: {
+      sessions: 3,
       features: JSON.stringify({
         title: 'Gói VIP 6 Tháng',
         items: ['Toàn quyền sử dụng dịch vụ gym', 'Khu xông hơi & massage', 'Tặng 3 buổi tập cùng HLV', 'Ưu đãi 10% dịch vụ bổ sung'],
@@ -248,6 +254,7 @@ async function main() {
       }),
       durationDays: 180,
       price: 2400000,
+      sessions: 3,
       type: PackageType.FIXED_TERM,
     },
   });
@@ -255,6 +262,7 @@ async function main() {
   const pkg12M = await prisma.membershipPackage.upsert({
     where: { code: 'PKG-12M-DIAMOND' },
     update: {
+      sessions: 6,
       features: JSON.stringify({
         title: 'Gói Kim Cương 12 Tháng',
         items: ['Trọn gói cao cấp', 'Tặng khăn tập & tủ đồ VIP', 'Tặng 6 buổi PT trị giá 2.100.000đ', 'Ưu tiên đặt phòng & lớp học'],
@@ -270,6 +278,7 @@ async function main() {
       }),
       durationDays: 365,
       price: 4200000,
+      sessions: 6,
       type: PackageType.FIXED_TERM,
     },
   });

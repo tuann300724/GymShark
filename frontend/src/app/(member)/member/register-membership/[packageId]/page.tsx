@@ -263,8 +263,7 @@ export default function RegisterMembershipPage() {
                 <span className="flex items-center gap-1.5">
                   <CalendarDays className="size-3.5" /> {pkg.durationDays} ngày
                 </span>
-                {pkg.sessions ? <span>{pkg.sessions} buổi</span> : null}
-                <span>{pkg.type === 'FIXED_TERM' ? 'Theo thời hạn' : 'Theo buổi'}</span>
+                {pkg.sessions ? <span>{pkg.sessions} buổi tập với PT</span> : null}
               </div>
             </div>
             <ul className="space-y-2">

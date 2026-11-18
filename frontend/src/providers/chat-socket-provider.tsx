@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { initSocket, ensureSocket } from '@/lib/socket';
 import { useToast } from '@/components/ui/toast';
 import { chatApi } from '@/services/chat.service';
+import { notificationApi } from '@/services/notification.service';
 import { getStoredUser } from '@/services/auth.service';
 
 interface ChatSocketContextType {
@@ -32,6 +33,18 @@ interface StaffShiftUpdatePayload {
   actorId: string;
 }
 
+interface RealtimeNotificationPayload {
+  id?: string;
+  type?: string;
+  title?: string;
+  content?: string;
+  link?: string | null;
+  referenceType?: string | null;
+  referenceId?: string | null;
+  queryKeys?: string[];
+  createdAt?: string | Date;
+}
+
 export function ChatSocketProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -39,51 +52,67 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
 
   // Chỉ gọi API khi đã đăng nhập — khách vãng lai không bắn request 401.
   const hasToken = typeof window !== 'undefined' && !!localStorage.getItem('gym_access_token');
-  // Backend khai báo @Roles(TRAINER, MEMBER) cấp controller cho toàn bộ /chat/* —
-  //Admin/MANAGER/STAFF gọi sẽ nhận 403 lặp mỗi 60s, nên chỉ bật query khi đúng role.
-  const canChatRole = getStoredUser()?.role === 'TRAINER' || getStoredUser()?.role === 'MEMBER';
+  const storedUser = getStoredUser();
+  const canChatRole = storedUser?.role === 'TRAINER' || storedUser?.role === 'MEMBER';
+  const isAdminRole =
+    storedUser?.role === 'ADMIN' || storedUser?.role === 'MANAGER' || storedUser?.role === 'STAFF';
 
-  // Số tin chưa đọc — CHUNG queryKey với badge "Tin nhắn" ở header,
-  // nên invalidate từ socket làm badge sáng ngay.
+  // Số tin nhắn chưa đọc (HLV / Hội viên)
   const { data: unreadData } = useQuery({
     queryKey: ['chat-unread'],
     queryFn: chatApi.unreadCount,
     enabled: hasToken && canChatRole,
-    refetchInterval: 60_000,
     retry: 0,
   });
-  const unread = canChatRole ? (unreadData?.count ?? 0) : 0;
+  const chatUnread = canChatRole ? (unreadData?.count ?? 0) : 0;
 
-  // Hiện số tin chưa đọc trên TIÊU ĐỀ TAB (taskbar trình duyệt): "(2) GymMaster...".
-  // Next tự đổi title theo metadata khi chuyển trang → chạy lại theo pathname
-  // để gắn lại tiền tố, và strip tiền tố cũ trước khi ghi (tránh "(1) (1) ...").
+  // Số thông báo chưa đọc đối với tổ quản trị / vận hành
+  const { data: adminUnreadData } = useQuery({
+    queryKey: ['admin', 'unread'],
+    queryFn: notificationApi.getUnreadCount,
+    enabled: hasToken && isAdminRole,
+    retry: 0,
+  });
+  const adminUnread = isAdminRole ? (adminUnreadData?.count ?? 0) : 0;
+
+  const totalUnread = canChatRole ? chatUnread : adminUnread;
+
+  // Hiện số chưa đọc trên TIÊU ĐỀ TAB: "(2) GymMaster..."
   useEffect(() => {
     const base = document.title.replace(/^\(\d+\)\s*/, '');
-    document.title = unread > 0 ? `(${unread}) ${base}` : base;
-  }, [unread, pathname]);
+    document.title = totalUnread > 0 ? `(${totalUnread}) ${base}` : base;
+  }, [totalUnread, pathname]);
 
   useEffect(() => {
-    // Không giữ guard "registered": nếu user mở app khi CHƯA đăng nhập thì
-    // initSocket() trả null — phải thử lại ở lần navigate sau (sau login),
-    // lúc đó token đã có.
+    let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+    const scheduleRealtimeRefresh = () => {
+      if (refreshTimer) return;
+      refreshTimer = setTimeout(() => {
+        queryClient.invalidateQueries({ refetchType: 'active' });
+        refreshTimer = undefined;
+      }, 150);
+    };
+
+    window.addEventListener('gym:mutation-complete', scheduleRealtimeRefresh);
     const socket = initSocket();
-    if (!socket) return;
+    if (!socket) {
+      return () => {
+        window.removeEventListener('gym:mutation-complete', scheduleRealtimeRefresh);
+        if (refreshTimer) clearTimeout(refreshTimer);
+      };
+    }
 
     const onMessageNew = (payload?: { message?: IncomingMessagePayload }) => {
       queryClient.invalidateQueries({ queryKey: ['chat-conversations'] });
       queryClient.invalidateQueries({ queryKey: ['chat-unread'] });
-      // Nạp lại câu thoại đang mở — nếu không, thành viên ngồi trong trang
-      // Tin nhắn sẽ không thấy tin mới cho tới khi F5.
       queryClient.invalidateQueries({ queryKey: ['chat-messages'] });
 
       const msg = payload?.message;
       const myId = getStoredUser()?.id;
-      // Không popup khi tin do chính mình gửi, hoặc khi đang ngồi đọc trang Tin nhắn.
       if (!msg || (myId && msg.senderId === myId)) return;
       if (pathname.endsWith('/messages')) return;
 
       const fullName = msg.sender?.fullName?.trim();
-      // Prefix "HLV " khi gửi cho hội viên — nhưng bỏ qua nếu tên đã có sẵn "HLV".
       const rolePrefix =
         msg.sender?.role === 'TRAINER' && fullName && !/^HLV\b/i.test(fullName) ? 'HLV ' : '';
       const previewRaw =
@@ -125,21 +154,115 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
       });
     };
 
+    const onRealtimeNotification = (payload?: RealtimeNotificationPayload) => {
+      if (!payload) return;
+
+      // 1. Cập nhật chuông thông báo & danh sách thông báo toàn bộ các vai trò
+      queryClient.invalidateQueries({ queryKey: ['admin', 'unread'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'mini'] });
+      queryClient.invalidateQueries({ queryKey: ['member', 'unread'] });
+      queryClient.invalidateQueries({ queryKey: ['member', 'mini'] });
+      queryClient.invalidateQueries({ queryKey: ['member-notif-badge'] });
+      queryClient.invalidateQueries({ queryKey: ['trainer', 'unread'] });
+      queryClient.invalidateQueries({ queryKey: ['trainer', 'mini'] });
+      queryClient.invalidateQueries({ queryKey: ['trainer-notif-badge'] });
+      queryClient.invalidateQueries({ queryKey: ['notif-list'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications-admin'] });
+      queryClient.invalidateQueries({ queryKey: ['member-stats'] });
+
+      // 2. Invalidate các bảng dữ liệu nghiệp vụ tương ứng theo sự kiện
+      const type = (payload.type || '').toUpperCase();
+      const refType = (payload.referenceType || '').toUpperCase();
+      const title = payload.title || '';
+
+      if (type === 'PAYMENT' || refType.includes('PAYMENT')) {
+        queryClient.invalidateQueries({ queryKey: ['admin-payments'] });
+        queryClient.invalidateQueries({ queryKey: ['admin-memberships'] });
+        queryClient.invalidateQueries({ queryKey: ['member-payments'] });
+        queryClient.invalidateQueries({ queryKey: ['member-memberships'] });
+        queryClient.invalidateQueries({ queryKey: ['reports-summary'] });
+        queryClient.invalidateQueries({ queryKey: ['reports-dashboard'] });
+        queryClient.invalidateQueries({ queryKey: ['reports-revenue'] });
+        queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      }
+
+      if (type === 'MEMBERSHIP' || refType.includes('MEMBER') || refType.includes('FACE')) {
+        queryClient.invalidateQueries({ queryKey: ['admin-members'] });
+        queryClient.invalidateQueries({ queryKey: ['admin-memberships'] });
+        queryClient.invalidateQueries({ queryKey: ['member-memberships'] });
+        queryClient.invalidateQueries({ queryKey: ['member-profile'] });
+        queryClient.invalidateQueries({ queryKey: ['reports-summary'] });
+        queryClient.invalidateQueries({ queryKey: ['reports-dashboard'] });
+      }
+
+      if (type === 'CHECKIN' || refType.includes('CHECKIN') || refType.includes('CHECKOUT')) {
+        queryClient.invalidateQueries({ queryKey: ['checkins-history'] });
+        queryClient.invalidateQueries({ queryKey: ['checkins-inside'] });
+        queryClient.invalidateQueries({ queryKey: ['checkins-daily'] });
+        queryClient.invalidateQueries({ queryKey: ['checkins-hourly'] });
+        queryClient.invalidateQueries({ queryKey: ['reports-attendance'] });
+        queryClient.invalidateQueries({ queryKey: ['reports-dashboard'] });
+      }
+
+      if (
+        type === 'SCHEDULE' ||
+        refType.includes('CLASS') ||
+        refType.includes('SCHEDULE') ||
+        refType.includes('TRAINING')
+      ) {
+        queryClient.invalidateQueries({ queryKey: ['class-bookings'] });
+        queryClient.invalidateQueries({ queryKey: ['schedules'] });
+        queryClient.invalidateQueries({ queryKey: ['trainer-schedules'] });
+        queryClient.invalidateQueries({ queryKey: ['member-schedule'] });
+      }
+
+      if (refType.includes('BEVERAGE') || title.includes('đồ uống')) {
+        queryClient.invalidateQueries({ queryKey: ['beverage-pos-sales'] });
+        queryClient.invalidateQueries({ queryKey: ['beverage-pos-products'] });
+        queryClient.invalidateQueries({ queryKey: ['beverage-sales'] });
+        queryClient.invalidateQueries({ queryKey: ['beverage-stock'] });
+        queryClient.invalidateQueries({ queryKey: ['beverage-dashboard'] });
+        queryClient.invalidateQueries({ queryKey: ['beverages'] });
+      }
+
+      if (Array.isArray(payload.queryKeys)) {
+        payload.queryKeys.forEach((key) => {
+          queryClient.invalidateQueries({ queryKey: [key] });
+        });
+      }
+
+      // 3. Hiển thị Popup Toast thông báo realtime trên màn hình
+      toast({
+        type: 'info',
+        title: payload.title || 'Thông báo mới',
+        description: payload.content || '',
+      });
+    };
+
     socket.on('message:new', onMessageNew);
     socket.on('conversation:updated', onConversationUpdated);
     socket.on('messages:read', onMessagesRead);
     socket.on('staff-shift:updated', onStaffShiftUpdated);
+    socket.on('notification:new', onRealtimeNotification);
+    socket.on('admin:event', onRealtimeNotification);
+    socket.on('realtime:event', onRealtimeNotification);
+    socket.on('data:changed', scheduleRealtimeRefresh);
 
     return () => {
+      window.removeEventListener('gym:mutation-complete', scheduleRealtimeRefresh);
+      if (refreshTimer) clearTimeout(refreshTimer);
       socket.off('message:new', onMessageNew);
       socket.off('conversation:updated', onConversationUpdated);
       socket.off('messages:read', onMessagesRead);
       socket.off('staff-shift:updated', onStaffShiftUpdated);
-      // Không disconnect toàn cục — trang khác có thể cần.
+      socket.off('notification:new', onRealtimeNotification);
+      socket.off('admin:event', onRealtimeNotification);
+      socket.off('realtime:event', onRealtimeNotification);
+      socket.off('data:changed', scheduleRealtimeRefresh);
     };
   }, [queryClient, toast, pathname]);
 
-  // Tránh StrictMode/điều hướng gọi ensure không cần thiết lần đầu.
   const value = useMemo<ChatSocketContextType>(
     () => ({
       ensure: () => {

@@ -63,7 +63,6 @@ export function TrainerHeader() {
   const { data: notifData } = useQuery({
     queryKey: ['trainer-notif-badge'],
     queryFn: notificationApi.getUnreadCount,
-    refetchInterval: 60_000,
     retry: 0,
   });
 
@@ -72,7 +71,6 @@ export function TrainerHeader() {
   const { data: chatUnreadData } = useQuery({
     queryKey: ['chat-unread'],
     queryFn: chatApi.unreadCount,
-    refetchInterval: 60_000,
     retry: 0,
   });
   const chatUnread = chatUnreadData?.count ?? 0;

@@ -5,10 +5,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { membershipApi } from '@/services/membership.service';
 import { packageApi } from '@/services/package.service';
+import { trainerApi } from '@/services/trainer.service';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -17,14 +20,16 @@ import { useToast } from '@/components/ui/toast';
 import {
   CreditCard,
   AlertTriangle,
+  Dumbbell,
   RefreshCw,
   CalendarDays,
   Wallet,
   ChevronRight,
   CheckCircle2,
   XCircle,
-  Ban,
   Clock,
+  ArrowRightLeft,
+  CircleDollarSign,
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { MEMBERSHIP_STATUS_META } from '@/lib/status';
@@ -46,13 +51,20 @@ export default function MemberMembershipPage() {
   const [selectedMethod, setSelectedMethod] = useState('CASH');
   const [selectedPackageId, setSelectedPackageId] = useState<string>('');
   const [cancelOpen, setCancelOpen] = useState(false);
-  /** Yêu cầu hủy gói đang hoạt động (không tập nữa) */
-  const [cancelReqOpen, setCancelReqOpen] = useState(false);
-  const [cancelReason, setCancelReason] = useState('');
+  const [changeOpen, setChangeOpen] = useState(false);
+  const [changeType, setChangeType] = useState<'CANCEL_REFUND' | 'FREEZE'>('CANCEL_REFUND');
+  const [changeReason, setChangeReason] = useState('');
+  const [freezeDays, setFreezeDays] = useState('14');
 
   const { data: membershipData, isLoading } = useQuery({
     queryKey: ['member-memberships'],
     queryFn: membershipApi.getMyMemberships,
+    retry: 0,
+  });
+
+  const { data: trainerInfo } = useQuery({
+    queryKey: ['member-trainer-dash'],
+    queryFn: trainerApi.myTrainer,
     retry: 0,
   });
 
@@ -63,11 +75,33 @@ export default function MemberMembershipPage() {
     retry: 0,
   });
 
+  const { data: changeRequests = [] } = useQuery({
+    queryKey: ['member-membership-changes'],
+    queryFn: membershipApi.getChangeRequests,
+  });
+
   const current = membershipData?.current;
   const pending = membershipData?.pending;
   /** Gói đã gia hạn, chưa tới ngày kích hoạt — không cảnh báo "sắp hết hạn" nữa */
   const upcoming = membershipData?.upcoming;
   const history = membershipData?.history || [];
+  const activeChanges = changeRequests.filter(
+    (request: any) => !['COMPLETED', 'REJECTED'].includes(request.status),
+  );
+  const currentChange = activeChanges.find((request: any) => request.membershipId === current?.id);
+
+  const changeTypeLabel: Record<string, string> = {
+    CANCEL_REFUND: 'Chấm dứt hợp đồng và xem xét hoàn tiền',
+    FREEZE: 'Bảo lưu hợp đồng',
+  };
+  const changeStatusLabel: Record<string, string> = {
+    REQUESTED: 'Chờ quản lý đề xuất',
+    AWAITING_MEMBER_CONFIRMATION: 'Chờ bạn xác nhận mức hoàn',
+    PENDING_MANAGER_APPROVAL: 'Chờ quản lý phê duyệt',
+    PENDING_PAYOUT: 'Đã duyệt, chờ ghi nhận chi hoàn',
+    COMPLETED: 'Hoàn tất',
+    REJECTED: 'Đã từ chối',
+  };
 
   /** Payment PENDING gắn với yêu cầu đang chờ — dùng để hủy */
   const pendingPaymentId = pending?.payments?.find((p) => p.status === 'PENDING')?.id;
@@ -140,19 +174,47 @@ export default function MemberMembershipPage() {
     setRenewOpen(true);
   };
 
-  /** Gửi yêu cầu hủy gói — admin duyệt (kèm quyết định hoàn tiền) */
-  const cancelReqMutation = useMutation({
-    mutationFn: () => membershipApi.createCancelRequest(current?.id || '', cancelReason.trim()),
+  const changeMutation = useMutation({
+    mutationFn: () =>
+      membershipApi.createChangeRequest(current?.id || '', {
+        type: changeType,
+        reason: changeReason.trim() || undefined,
+        ...(changeType === 'FREEZE' ? { freezeDays: Number(freezeDays) } : {}),
+      }),
     onSuccess: (res: any) => {
-      toast.success('Đã gửi yêu cầu hủy gói', res.message);
-      setCancelReqOpen(false);
-      setCancelReason('');
+      toast.success('Đã gửi yêu cầu', res.message);
+      setChangeOpen(false);
+      setChangeReason('');
+      queryClient.invalidateQueries({ queryKey: ['member-memberships'] });
+      queryClient.invalidateQueries({ queryKey: ['member-membership-changes'] });
+      queryClient.invalidateQueries({ queryKey: ['member-notif-badge'] });
+    },
+    onError: (err: any) => {
+      const msg = err.response?.data?.message || 'Không thể gửi yêu cầu';
+      toast.error('Gửi yêu cầu thất bại', Array.isArray(msg) ? msg.join(', ') : msg);
+    },
+  });
+
+  const actionMutation = useMutation({
+    mutationFn: async ({
+      requestId,
+      action,
+    }: {
+      requestId: string;
+      action: 'confirm' | 'decline';
+    }) =>
+      action === 'confirm'
+        ? membershipApi.confirmChangeRequest(requestId)
+        : membershipApi.declineChangeRequest(requestId),
+    onSuccess: (res: any) => {
+      toast.success('Đã xác nhận yêu cầu', res.message);
+      queryClient.invalidateQueries({ queryKey: ['member-membership-changes'] });
       queryClient.invalidateQueries({ queryKey: ['member-memberships'] });
       queryClient.invalidateQueries({ queryKey: ['member-notif-badge'] });
     },
     onError: (err: any) => {
-      const msg = err.response?.data?.message || 'Không thể gửi yêu cầu hủy';
-      toast.error('Gửi yêu cầu thất bại', Array.isArray(msg) ? msg.join(', ') : msg);
+      const msg = err.response?.data?.message || 'Không thể xác nhận yêu cầu';
+      toast.error('Thao tác thất bại', Array.isArray(msg) ? msg.join(', ') : msg);
     },
   });
 
@@ -241,21 +303,27 @@ export default function MemberMembershipPage() {
             </div>
           )}
 
-          {/* Đã gửi yêu cầu hủy gói — chờ admin xét duyệt */}
-          {current.cancelRequestedAt && (
-            <div className="flex items-start gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-amber-300">
-              <Clock className="mt-0.5 size-5 shrink-0" />
+          {currentChange && (
+            <div className="flex items-start gap-3 rounded-xl border border-line bg-surface p-4 text-muted">
+              <Clock className="mt-0.5 size-5 shrink-0 text-neon" />
               <div>
-                <p className="text-sm font-semibold">Yêu cầu hủy gói đang chờ xét duyệt</p>
+                <p className="text-sm font-semibold text-chalk">
+                  {changeTypeLabel[currentChange.type]} · {changeStatusLabel[currentChange.status]}
+                </p>
                 <p className="mt-0.5 text-xs">
-                  Gửi lúc {formatDate(current.cancelRequestedAt)}
-                  {current.cancelRequestReason ? ` — Lý do: ${current.cancelRequestReason}` : ''}.
-                  Gói vẫn hoạt động tới khi quản trị viên quyết định; kết quả (bao gồm xét hoàn tiền
-                  theo số ngày còn lại) sẽ được thông báo qua hộp thư.
+                  {currentChange.reason || 'Yêu cầu đang được xử lý theo quy trình của phòng tập.'}
                 </p>
               </div>
             </div>
           )}
+          {current.freezeStartedAt &&
+            current.freezeEndsAt &&
+            new Date(current.freezeEndsAt).getTime() >= Date.now() && (
+              <div className="rounded-xl border border-line bg-surface p-3 text-xs text-muted">
+                Hợp đồng đang được bảo lưu đến {formatDate(current.freezeEndsAt)}. Hạn sử dụng đã
+                được gia hạn tương ứng.
+              </div>
+            )}
 
           {/* Current membership */}
           <Card className="overflow-hidden border-neon/30">
@@ -269,7 +337,7 @@ export default function MemberMembershipPage() {
                   <h2 className="mt-2 font-display text-2xl font-bold uppercase">
                     {current.package?.name || 'Gói tập'}
                   </h2>
-                  <div className="mt-3 grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
+                  <div className="mt-3 grid grid-cols-2 gap-4 text-sm sm:grid-cols-5">
                     <div>
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">
                         Giá
@@ -296,6 +364,17 @@ export default function MemberMembershipPage() {
                         {MEMBERSHIP_STATUS_META[current.status]?.label || current.status}
                       </p>
                     </div>
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">
+                        Buổi PT trong gói
+                      </p>
+                      <p className="font-bold text-chalk">
+                        {current.ptSessionsIncluded == null
+                          ? 'Không bao gồm'
+                          : Math.max(0, current.ptSessionsIncluded - (current.ptSessionsUsed ?? 0))}
+                        {current.ptSessionsIncluded == null ? '' : ' buổi'}
+                      </p>
+                    </div>
                   </div>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-2">
@@ -303,17 +382,19 @@ export default function MemberMembershipPage() {
                     <RefreshCw className="size-4" />
                     Gia hạn
                   </Button>
-                  {!current.cancelRequestedAt && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-xs text-muted hover:text-danger"
-                      onClick={() => setCancelReqOpen(true)}
-                    >
-                      <Ban className="size-3.5" />
-                      Không tập nữa? Hủy gói
-                    </Button>
-                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-muted"
+                    disabled={!!currentChange}
+                    onClick={() => {
+                      setChangeType('CANCEL_REFUND');
+                      setChangeOpen(true);
+                    }}
+                  >
+                    <CircleDollarSign className="size-3.5" />
+                    Yêu cầu thay đổi hợp đồng
+                  </Button>
                 </div>
               </div>
 
@@ -326,6 +407,35 @@ export default function MemberMembershipPage() {
               </div>
             </div>
           </Card>
+
+          {trainerInfo?.trainer && (
+            <Card className="border-neon/25">
+              <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-neon/25 bg-neon/10">
+                    <Dumbbell className="size-5 text-neon" />
+                  </span>
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-neon">
+                      HLV đang phụ trách
+                    </p>
+                    <p className="font-bold text-chalk">{trainerInfo.trainer.user.fullName}</p>
+                    <p className="text-xs text-muted">
+                      {trainerInfo.trainer.specialization}
+                      {current.ptSessionsIncluded == null
+                        ? ' · HLV hỗ trợ không đồng nghĩa gói có quota buổi PT'
+                        : ''}
+                    </p>
+                  </div>
+                </div>
+                <Link href="/member/schedule">
+                  <Button variant="outline" size="sm">
+                    Xem lịch tập
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Gói ĐÃ gia hạn — chưa tới ngày kích hoạt */}
           {upcoming && (
@@ -398,6 +508,75 @@ export default function MemberMembershipPage() {
             </CardContent>
           </Card>
         </>
+      )}
+
+      {changeRequests.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ArrowRightLeft className="size-4 text-neon" />
+              Yêu cầu thay đổi hợp đồng
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {changeRequests.map((request: any) => (
+              <div key={request.id} className="rounded-xl border border-line bg-ink p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-chalk">
+                      {changeTypeLabel[request.type]} ·{' '}
+                      {request.membership?.package?.name || 'Gói tập'}
+                    </p>
+                    <p className="mt-1 text-xs text-muted">
+                      {changeStatusLabel[request.status] || request.status}
+                      {request.freezeDays ? ` · ${request.freezeDays} ngày` : ''}
+                      {request.proposedRefundAmount !== null &&
+                      request.proposedRefundAmount !== undefined
+                        ? ` · Đề xuất hoàn ${formatCurrency(request.proposedRefundAmount)}`
+                        : ''}
+                    </p>
+                    {(request.reason || request.reviewNote) && (
+                      <p className="mt-2 text-xs text-muted">
+                        {request.reason || request.reviewNote}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    {request.isRequester && request.status === 'AWAITING_MEMBER_CONFIRMATION' && (
+                      <>
+                        <Button
+                          size="sm"
+                          isLoading={actionMutation.isPending}
+                          onClick={() =>
+                            actionMutation.mutate({
+                              requestId: request.id,
+                              action: 'confirm',
+                            })
+                          }
+                        >
+                          Xác nhận
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          isLoading={actionMutation.isPending}
+                          onClick={() =>
+                            actionMutation.mutate({
+                              requestId: request.id,
+                              action: 'decline',
+                            })
+                          }
+                        >
+                          Từ chối
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       )}
 
       {/* Renew dialog */}
@@ -480,61 +659,74 @@ export default function MemberMembershipPage() {
         </div>
       </Dialog>
 
-      {/* Gửi yêu cầu hủy gói đang hoạt động */}
+      {/* Yêu cầu thay đổi hợp đồng */}
       <Dialog
-        open={cancelReqOpen}
-        onClose={() => setCancelReqOpen(false)}
-        title="Yêu cầu hủy gói tập"
-        description="Không tập nữa? Gửi yêu cầu để quản trị viên xét duyệt."
+        open={changeOpen}
+        onClose={() => setChangeOpen(false)}
+        title="Yêu cầu thay đổi hợp đồng"
+        description="Phòng tập xử lý theo đúng trạng thái, lịch sử thanh toán và dịch vụ đã sử dụng."
         className="max-w-md"
       >
         <div className="space-y-4 text-sm">
-          <div className="rounded-xl border border-line bg-ink p-4 text-xs text-muted">
-            <p className="mb-1.5 font-semibold text-chalk">Quy trình xử lý</p>
-            <ul className="list-disc space-y-1 pl-4">
-              <li>
-                Gói tập <b className="text-chalk">vẫn hoạt động</b> cho tới khi quản trị viên duyệt.
-              </li>
-              <li>
-                Nếu bạn không tập nữa, quản trị viên sẽ{' '}
-                <b className="text-chalk">xét hoàn tiền theo số ngày còn lại</b> của gói (quyết định
-                cuối cùng của phòng tập).
-              </li>
-              <li>
-                Tiền hoàn (nếu có) được trả bằng <b className="text-chalk">chuyển khoản</b> hoặc{' '}
-                <b className="text-chalk">tiền mặt</b> và thông báo qua hộp thư.
-              </li>
-            </ul>
-          </div>
+          <Select
+            label="Loại yêu cầu"
+            value={changeType}
+            onChange={(e) => setChangeType(e.target.value as typeof changeType)}
+            options={[
+              { value: 'CANCEL_REFUND', label: 'Chấm dứt hợp đồng và xem xét hoàn tiền' },
+              { value: 'FREEZE', label: 'Bảo lưu hợp đồng' },
+            ]}
+          />
+          {changeType === 'CANCEL_REFUND' && (
+            <div className="rounded-xl border border-line bg-ink p-4 text-xs text-muted">
+              Quản lý tính khoản hoàn theo thời gian và quota PT chưa sử dụng. Bạn xác nhận số tiền
+              trước khi phê duyệt; ADMIN ghi nhận việc chi tiền sau khi được duyệt.
+            </div>
+          )}
+          {changeType === 'FREEZE' && (
+            <>
+              <Input
+                label="Số ngày bảo lưu"
+                type="number"
+                min={1}
+                max={30}
+                value={freezeDays}
+                onChange={(e) => setFreezeDays(e.target.value)}
+              />
+              <p className="text-xs text-muted">
+                Có thể bảo lưu một lần, tối đa 30 ngày. Trong thời gian này không thể check-in và
+                hạn hợp đồng được kéo dài tương ứng sau khi quản lý phê duyệt.
+              </p>
+            </>
+          )}
           <div>
             <label
-              htmlFor="cancel-req-reason"
+              htmlFor="membership-change-reason"
               className="mb-1.5 block text-xs font-semibold text-muted"
             >
-              Lý do hủy (khuyến nghị)
+              Lý do (khuyến nghị)
             </label>
             <Textarea
-              id="cancel-req-reason"
+              id="membership-change-reason"
               rows={3}
               maxLength={500}
-              placeholder="Ví dụ: Chuyển chỗ nên không tập nữa..."
-              value={cancelReason}
-              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="Nhập lý do yêu cầu..."
+              value={changeReason}
+              onChange={(e) => setChangeReason(e.target.value)}
             />
-            <p className="mt-1 text-right text-[10px] text-muted">{cancelReason.length}/500</p>
+            <p className="mt-1 text-right text-[10px] text-muted">{changeReason.length}/500</p>
           </div>
           <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="ghost" onClick={() => setCancelReqOpen(false)}>
-              Giữ gói
+            <Button type="button" variant="ghost" onClick={() => setChangeOpen(false)}>
+              Đóng
             </Button>
             <Button
               type="button"
-              variant="danger"
-              isLoading={cancelReqMutation.isPending}
-              onClick={() => cancelReqMutation.mutate()}
+              isLoading={changeMutation.isPending}
+              onClick={() => changeMutation.mutate()}
             >
-              <Ban className="size-4" />
-              Gửi yêu cầu hủy
+              <ArrowRightLeft className="size-4" />
+              Gửi yêu cầu
             </Button>
           </div>
         </div>

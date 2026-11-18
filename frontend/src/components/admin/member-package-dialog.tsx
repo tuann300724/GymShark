@@ -120,8 +120,8 @@ export function MemberPackageDialog({ open, onClose, member, onSuccess }: Props)
 
   useEffect(() => {
     if (!packageId && packages.length > 0) {
-      const firstActive = packages.find((p) => p.status === 'ACTIVE') ?? packages[0];
-      setPackageId(firstActive.id);
+      const firstActive = packages.find((p) => p.status === 'ACTIVE');
+      if (firstActive) setPackageId(firstActive.id);
     }
   }, [packages, packageId]);
 
@@ -532,7 +532,7 @@ export function MemberPackageDialog({ open, onClose, member, onSuccess }: Props)
                 </p>
                 <p className="mt-1 text-[11px] text-muted">
                   Thời hạn {selectedPackage.durationDays} ngày
-                  {selectedPackage.sessions ? ` · ${selectedPackage.sessions} buổi` : ''}
+                  {selectedPackage.sessions ? ` · ${selectedPackage.sessions} buổi PT` : ''}
                 </p>
               </div>
             )}

@@ -5,6 +5,66 @@
 
 ---
 
+## 2026-11-17 — Ẩn gói tập tính theo buổi, giữ gói theo ngày
+
+> Trạng thái: **ĐÃ TRIỂN KHAI, CHƯA COMMIT/PUSH**.
+
+- Ngừng bán và ẩn khỏi danh mục các gói `SESSION_BASED`, gồm vé lẻ, gói 10/20/50 buổi và gói “3 buoi” đã được phân loại lại. Không xóa các bản ghi package; giữ nguyên 11 membership lịch sử và các liên kết.
+- Giữ các gói theo thời hạn ngày, gồm cả những gói cũ 1/30/60 ngày đang inactive. Gói có số buổi PT đi kèm nhưng tính hạn theo tháng/năm vẫn là `FIXED_TERM`.
+- API danh sách admin/public và kiểm tra mã khuyến mãi không cho gói `SESSION_BASED` xuất hiện hoặc được dùng; đăng ký/gia hạn cũ đã có kiểm tra chặn.
+- Seed/update package tiếp tục retire gói theo buổi; bỏ thao tác xóa toàn bộ danh mục khi không có membership để không làm mất gói theo ngày.
+- Database dev: 5 gói theo buổi đều `INACTIVE`; 11 membership được giữ. Kiểm tra backend build, type-check script seed/update và frontend typecheck/lint/format:check đều PASS.
+
+### Luồng chấm dứt hợp đồng, hoàn tiền và bảo lưu
+
+> Trạng thái: **ĐÃ TRIỂN KHAI CODE VÀ ÁP DỤNG MIGRATION DB DEV; chuyển nhượng đã gỡ ở mục bên dưới**.
+
+- Chấm dứt: quản lý đề xuất mức hoàn theo thời gian còn lại và quota PT chưa dùng; hội viên xác nhận; ADMIN/MANAGER phê duyệt; ADMIN ghi nhận tiền đã chi. Hoàn một phần được phân bổ vào payment và trừ khỏi doanh thu ròng.
+- Bảo lưu: một lần, tối đa 30 ngày; ADMIN/MANAGER duyệt, kéo dài hạn hợp đồng và chặn check-in trong thời gian bảo lưu.
+- Gói lưu giá trị từng buổi PT; membership lưu snapshot quota, số buổi đã dùng và giá trị PT để không suy đoán giá cho hợp đồng cũ. Hợp đồng cũ thiếu dữ liệu PT cần đối soát trước khi tính hoàn tiền.
+- Đã thêm API, giao diện hội viên và quản trị, audit/notification, kiểm tra trạng thái đồng thời, Prisma fields/model và migration additive `backend/prisma/sqlserver-add-membership-change-workflows.sql`.
+- Trước migration đã tạo backup `C:\Program Files\Microsoft SQL Server\MSSQL17.SQLEXPRESS\MSSQL\Backup\GymShark-before-membership-workflows-20261117070913.bak`; `RESTORE VERIFYONLY` PASS. Đối chiếu DB thật cho thấy các khóa ID dùng `UNIQUEIDENTIFIER`; migration đã được chỉnh cho đúng kiểu và áp dụng thành công.
+- Xác minh cột, FK, index mới bằng SQL Server; Prisma Client đã generate lại, truy vấn đọc qua các quan hệ workflow PASS. Backend đã được khởi động lại, `/api/health` trả 200 và `database: connected`. Prisma schema validate, backend build, frontend typecheck/lint/format:check và `git diff --check` đều PASS. Chưa kiểm thử end-to-end bằng tài khoản hội viên/quản trị.
+- Không commit/push.
+
+### Gỡ chức năng chuyển nhượng hợp đồng
+
+> Trạng thái: **ĐÃ HOÀN TẤT, CHƯA COMMIT/PUSH**.
+
+- Gỡ lựa chọn chuyển nhượng khỏi giao diện hội viên và quản trị; xóa API chọn người nhận/chấp nhận, logic service, DTO và trạng thái chỉ phục vụ chuyển nhượng.
+- Giữ nguyên hai luồng chấm dứt/hoàn tiền và bảo lưu. Migration từ chối chạy nếu phát hiện lịch sử chuyển nhượng, tránh xóa dữ liệu.
+- SQL Server không có yêu cầu thay đổi hợp đồng; backup `C:\Program Files\Microsoft SQL Server\MSSQL17.SQLEXPRESS\MSSQL\Backup\GymShark-before-removing-membership-transfer-20261117073939.bak` đã qua `RESTORE VERIFYONLY`. Đã xóa các cột/FK/index chuyển nhượng; migration chạy lại idempotent.
+- Prisma generate/validate, backend build, frontend typecheck/lint/format:check đều PASS. Backend đã chạy lại; health `200`, database connected; Swagger xác nhận không còn API chuyển nhượng. Không commit/push.
+
+### Đối soát quota PT cho yêu cầu hoàn tiền
+
+> Trạng thái: **ĐÃ TRIỂN KHAI CODE, CHƯA COMMIT/PUSH**.
+
+- Với hợp đồng cũ chưa lưu snapshot PT, modal quản trị hiển thị quota cấu hình của gói, các buổi PT hoàn thành liên kết trực tiếp và các buổi cùng thời hạn chưa liên kết để nhân viên đối chiếu hồ sơ.
+- ADMIN/MANAGER xác nhận tổng quota, buổi đã dùng, giá trị mỗi buổi PT và căn cứ; backend kiểm tra số đã dùng không thấp hơn buổi hoàn thành liên kết trực tiếp, lưu snapshot vào hợp đồng trong transaction và ghi audit `MEMBERSHIP_PT_QUOTA_RECONCILED`.
+- Chỉ sau khi snapshot quota và giá trị PT đã có mới bật nút đề xuất hoàn; số buổi còn lại hiển thị trước khi lưu. API giới hạn theo yêu cầu chấm dứt đang chờ đề xuất, không thêm migration DB.
+- Backend build, frontend typecheck/lint/format:check và `git diff --check` PASS. Chưa ghi dữ liệu đối soát cho hội viên trong ảnh vì chưa có xác nhận số buổi/giá trị từ hồ sơ hợp đồng. Không commit/push.
+
+### Thông báo khi phân công HLV cho hội viên
+
+> Trạng thái: **ĐÃ TRIỂN KHAI CODE, CHƯA COMMIT/PUSH**.
+
+- Khi ADMIN/MANAGER/STAFF gán hoặc mở lại phân công HLV, tạo thông báo cho hội viên trong cùng transaction; notification phát qua Socket.IO nên member nhận chuông/toast ngay khi đang trực tuyến.
+- Trang `/member/membership` tải phân công HLV hiện tại và hiển thị thẻ HLV. Đổi nhãn quota thành “Buổi PT trong gói”/“Không bao gồm” để phân biệt HLV được phân công hỗ trợ với quyền lợi buổi PT trả theo gói.
+- Không sửa dữ liệu phân công hiện có; sau khi cập nhật code, hồ sơ đang có phân công cũng hiển thị HLV khi hội viên mở trang.
+
+### Realtime toàn hệ thống
+
+> Trạng thái: **ĐÃ TRIỂN KHAI CODE, CHƯA COMMIT/PUSH**.
+
+- Thêm global NestJS interceptor phát event sau mỗi request ghi HTTP thành công (`POST`/`PUT`/`PATCH`/`DELETE`); bỏ qua đăng nhập, refresh và đăng xuất. Socket.IO gửi metadata route/phương thức/thời điểm tới các client đã xác thực, không phát payload nghiệp vụ.
+- Frontend invalidate các truy vấn React Query đang hoạt động và tải lại qua REST API theo quyền hiện có; Axios cũng kích hoạt làm mới local sau mutation thành công để không phụ thuộc socket. Gom event trong cửa sổ 150ms để tránh refetch dồn dập nhưng vẫn cập nhật liên tục.
+- Gỡ polling của tin nhắn, thông báo, dashboard, check-in và ca làm; giữ polling ở các màn hình đang chờ CASSO xác nhận chuyển khoản và health check backend. Sửa vòng đời socket khi logout, token đổi hoặc reconnect để không giữ session socket cũ.
+- Chuyển danh sách bài tập/hội viên ở trang builder của HLV sang React Query để nhận cùng cơ chế realtime.
+- Backend build, frontend typecheck/lint/format:check và `git diff --check` đều PASS. Chưa thực hiện E2E với nhiều phiên đăng nhập; không commit/push.
+
+---
+
 ## 2026-11-07 — Quản lý kinh doanh nước uống
 
 > Trạng thái: **ĐÃ TRIỂN KHAI, CHƯA COMMIT/PUSH**.

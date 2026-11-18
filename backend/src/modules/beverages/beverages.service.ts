@@ -10,6 +10,7 @@ import { createHash, randomUUID } from "crypto";
 import { AuditService } from "../audit-logs/audit-logs.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CassoMatch, CassoService } from "../casso/casso.service";
+import { NotificationsService } from "../notifications/notifications.service";
 import {
   BeverageProductDto,
   BeverageQueryDto,
@@ -39,6 +40,7 @@ export class BeveragesService {
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly cassoService: CassoService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   private async defaultLocationId(tx?: Prisma.TransactionClient) {
@@ -916,7 +918,21 @@ export class BeveragesService {
       entityId: saleId,
       metadata: { code, memberId: dto.memberId, itemCount: items.length },
     });
-    return this.saleDetail(saleId, actor);
+
+    const saleInfo = await this.saleDetail(saleId, actor);
+    await this.notificationsService.notifyAdmins(
+      {
+        type: "PAYMENT",
+        title: "Đơn bán đồ uống mới 🥤",
+        content: `Nhân viên ${actor.fullName || 'Nhân viên'} vừa bán đơn ${code} — tổng tiền ${Number(saleInfo.finalAmount || 0).toLocaleString("vi-VN")}đ (${dto.paymentMethod === "CASH" ? "Tiền mặt" : "Chuyển khoản"}).`,
+        link: "/admin/beverages",
+        referenceType: "BEVERAGE_SALE",
+        referenceId: saleId,
+      },
+      actor.id,
+    );
+
+    return saleInfo;
   }
 
   async sales(query: BeverageQueryDto, actor: BeverageActor) {

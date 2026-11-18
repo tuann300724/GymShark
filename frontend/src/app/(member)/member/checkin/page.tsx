@@ -44,7 +44,6 @@ export default function MemberCheckInPage() {
     queryKey: ['checkin-current'],
     queryFn: checkinApi.getMyCurrent,
     retry: 0,
-    refetchInterval: 30000,
   });
 
   // ------------------ Check-in bằng khuôn mặt ------------------

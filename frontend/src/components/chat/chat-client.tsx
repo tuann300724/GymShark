@@ -55,7 +55,6 @@ export default function ChatClient({ myRole, emptyHint }: ChatClientProps) {
         ? chatApi.getMessages(activeConv, { limit: 50 })
         : Promise.resolve({ data: [], total: 0, page: 1, limit: 50 }),
     enabled: !!activeConv,
-    refetchInterval: 1000,
   });
 
   const messageList = msgs?.data ?? [];

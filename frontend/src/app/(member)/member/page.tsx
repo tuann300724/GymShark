@@ -60,7 +60,6 @@ export default function MemberDashboardPage() {
     queryKey: ['checkin-current-dash'],
     queryFn: checkinApi.getMyCurrent,
     retry: 0,
-    refetchInterval: 30000,
   });
 
   const checkOutMutation = useMutation({

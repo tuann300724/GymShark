@@ -44,6 +44,15 @@
   qua email (SMTP) → nhập mã mới tạo tài khoản · Đăng nhập (`/login`)
 - Trang `404` và `error` riêng, không để lộ thông tin kỹ thuật
 
+### Realtime toàn hệ thống
+
+- Các vai trò `ADMIN`, `MANAGER`, `STAFF`, `TRAINER` và `MEMBER` dùng Socket.IO đã xác thực JWT.
+- Sau mỗi thao tác ghi HTTP thành công, backend chỉ phát metadata của route; frontend làm mới các
+  truy vấn React Query đang hoạt động qua REST API và quyền hiện có, không gửi dữ liệu nghiệp vụ
+  trong socket event và không cần tải lại trang.
+- Trình duyệt thực hiện thao tác cũng làm mới dữ liệu sau khi API thành công, kể cả khi socket tạm
+  mất kết nối. Bộ đếm thông báo/tin nhắn dựa trên sự kiện realtime thay vì polling mỗi phút.
+
 ### Khu vực hội viên `/member` — vai trò `MEMBER`
 
 - Dashboard cá nhân: gói tập hiện tại, số buổi tập tháng này, PT phụ trách, thanh toán gần nhất
@@ -51,6 +60,7 @@
   thấy ngay **gói đã gia hạn sắp kích hoạt** và tự **hủy yêu cầu đang chờ thanh toán** nếu chưa chuyển tiền
 - **Check-in / Check-out** tự phục vụ hoặc lễ tân hỗ trợ
 - Lịch sử check-in, lịch tập cá nhân, huấn luyện viên phụ trách
+- Khi ADMIN/MANAGER/STAFF phân công HLV phụ trách, hội viên nhận thông báo realtime và thấy thông tin HLV tại trang Gói tập của tôi. Phân công HLV không tự tạo quota buổi PT trong gói.
 - Hóa đơn: danh sách + chi tiết + **in biên lao**
 - Hồ sơ cá nhân, chuỗi thông báo, cập nhật mật khẩu
 
@@ -63,6 +73,11 @@
 | Tài chính | Hóa đơn & thu phí (+ xác nhận / từ chối / hoàn tiền), báo cáo doanh thu, khuyến mãi & voucher |
 | Cơ sở & thiết bị | Thiết bị máy móc (+ lịch sử bảo trì), phòng tập |
 | Hệ thống | Báo cáo thống kê (8 tab), thông báo, **nhật ký hệ thống**, cài đặt & phân quyền |
+
+- Với hợp đồng cũ thiếu snapshot quota PT, ADMIN/MANAGER phải đối chiếu hồ sơ và lịch PT, xác nhận
+  tổng quota, số buổi đã dùng và giá trị mỗi buổi; hệ thống lưu kết quả kèm ghi chú audit trước khi
+  mở bước đề xuất hoàn tiền. Lịch đã gắn hợp đồng là mức đã dùng tối thiểu; lịch chưa liên kết chỉ
+  hiển thị tham khảo để tránh tự động tính nhầm cho hợp đồng khác.
 
 ### Ca làm & doanh thu — `/admin/shifts`
 
@@ -93,10 +108,11 @@
 
 ### Nhật ký hệ thống (Audit Log) — _tính năng STEP 9_
 
-- Ghi lại **46 loại hành động** trên 14 entity: đăng nhập, đổi mật khẩu, tạo/cập nhật hội viên,
+- Ghi lại **47 loại hành động** trên 14 entity: đăng nhập, đổi mật khẩu, tạo/cập nhật hội viên,
   đăng ký hội viên kèm mã xác minh email (gửi / gửi lại / sai mã), đổi trạng thái & gia hạn thẻ,
   hội viên tự hủy yêu cầu thanh toán, xác nhận/từ chối/hoàn tiền, check-in/out, sinh trắc học
-  khuôn mặt, thao tác HLV, tạo/sửa/hủy/hoàn thành lịch tập, khuyến mãi, hội thoại & kế hoạch dinh dưỡng
+  khuôn mặt, đối soát quota PT, thao tác HLV, tạo/sửa/hủy/hoàn thành lịch tập, khuyến mãi,
+  hội thoại & kế hoạch dinh dưỡng
 - **Không bao giờ** ghi mật khẩu, `passwordHash` hay token
 - Trang `/admin/audit-logs`: lọc theo người dùng / hành động / entity / từ ngày / đến ngày /
   tìm kiếm nội dung, phân trang, xem metadata dạng JSON — chỉ `ADMIN` & `MANAGER`

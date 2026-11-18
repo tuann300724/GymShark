@@ -9,6 +9,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { MAIL_EVENTS } from '../mail/mail.events';
 import { AuditService } from '../audit-logs/audit-logs.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 /**
  * Đăng ký ca nhóm (ClassBooking).
@@ -23,6 +24,7 @@ export class ClassBookingsService {
     private prisma: PrismaService,
     private eventEmitter: EventEmitter2,
     private auditService: AuditService,
+    private notificationsService: NotificationsService,
   ) {}
 
   private async resolveMember(userId: string) {
@@ -156,6 +158,30 @@ export class ClassBookingsService {
       data: { scheduleId: session.id, memberId: member.id },
     });
 
+    // Thông báo in-app hội viên + phát realtime
+    await this.notificationsService.create({
+      memberId: member.id,
+      title: 'Đăng ký ca tập thành công 📅',
+      content: `Bạn đã đăng ký ca "${session.title}" (${session.startTime.toLocaleString('vi-VN')}).`,
+      type: 'SCHEDULE',
+      link: '/member/schedule',
+      referenceType: 'CLASS_BOOKING',
+      referenceId: booking.id,
+    });
+
+    // Báo tổ quản trị (chuông admin)
+    await this.notificationsService.notifyAdmins(
+      {
+        type: 'SCHEDULE',
+        title: 'Đăng ký ca nhóm mới 📅',
+        content: `Hội viên ${member.fullName} (${member.code}) vừa đăng ký ca "${session.title}" (${session.startTime.toLocaleString('vi-VN')}).`,
+        link: '/admin/schedules',
+        referenceType: 'CLASS_BOOKING',
+        referenceId: booking.id,
+      },
+      userId,
+    );
+
     // Email xác nhận xếp lịch (Nhóm B — nền): emit KHÔNG await, MailListener xử lý.
     // Hội viên không có email trong hồ sơ thì bỏ qua — đăng ký vẫn thành công.
     if (member.email) {
@@ -183,7 +209,7 @@ export class ClassBookingsService {
     const member = await this.resolveMember(userId);
     const booking = await this.prisma.classBooking.findUnique({
       where: { id },
-      include: { schedule: { select: { startTime: true } } },
+      include: { schedule: { select: { title: true, startTime: true } } },
     });
     if (!booking || booking.memberId !== member.id) {
       throw new NotFoundException('Không tìm thấy đăng ký của bạn.');
@@ -192,6 +218,20 @@ export class ClassBookingsService {
       throw new BadRequestException('Ca tập đã bắt đầu, không thể hủy đăng ký.');
     }
     await this.prisma.classBooking.delete({ where: { id } });
+
+    // Báo tổ quản trị (chuông admin)
+    await this.notificationsService.notifyAdmins(
+      {
+        type: 'SCHEDULE',
+        title: 'Hội viên hủy ca nhóm ⚠️',
+        content: `Hội viên ${member.fullName} (${member.code}) đã hủy đăng ký ca "${booking.schedule.title}".`,
+        link: '/admin/schedules',
+        referenceType: 'CLASS_BOOKING_CANCEL',
+        referenceId: id,
+      },
+      userId,
+    );
+
     return { message: 'Đã hủy đăng ký ca tập.' };
   }
 
@@ -356,14 +396,14 @@ export class ClassBookingsService {
 
     // Notification in-app + email xác nhận (chạy nền, không await)
     for (const m of members) {
-      await this.prisma.notification.create({
-        data: {
-          memberId: m.id,
-          title: 'Bạn được gán vào ca nhóm 📅',
-          content: `${session.title} lúc ${session.startTime.toLocaleString('vi-VN')}${session.room?.name ? ` · ${session.room.name}` : ''}.`,
-          type: 'SCHEDULE',
-          link: '/member/schedule',
-        },
+      await this.notificationsService.create({
+        memberId: m.id,
+        title: 'Bạn được gán vào ca nhóm 📅',
+        content: `${session.title} lúc ${session.startTime.toLocaleString('vi-VN')}${session.room?.name ? ` · ${session.room.name}` : ''}.`,
+        type: 'SCHEDULE',
+        link: '/member/schedule',
+        referenceType: 'CLASS_ASSIGN',
+        referenceId: scheduleId,
       });
       if (m.userId && m.email) {
         this.eventEmitter.emit(MAIL_EVENTS.SESSION_BOOKED, {

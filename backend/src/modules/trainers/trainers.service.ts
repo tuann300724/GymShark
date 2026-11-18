@@ -5,21 +5,31 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
-} from '@nestjs/common';
-import { TrainerStatus, UserRole, UserStatus } from '../../common/constants/db-enums';
-import * as bcrypt from 'bcryptjs';
-import { PrismaService } from '../../prisma/prisma.service';
-import { CreateTrainerDto, TrainerQueryDto, UpdateTrainerDto } from './dto/trainer.dto';
-import { AuditService } from '../audit-logs/audit-logs.service';
+} from "@nestjs/common";
+import {
+  TrainerStatus,
+  UserRole,
+  UserStatus,
+} from "../../common/constants/db-enums";
+import * as bcrypt from "bcryptjs";
+import { PrismaService } from "../../prisma/prisma.service";
+import {
+  CreateTrainerDto,
+  TrainerQueryDto,
+  UpdateTrainerDto,
+} from "./dto/trainer.dto";
+import { AuditService } from "../audit-logs/audit-logs.service";
+import { NotificationsService } from "../notifications/notifications.service";
 
 /** Mật khẩu mặc định cho tài khoản HLV mới do admin tạo (trả về 1 lần khi tạo) */
-export const DEFAULT_TRAINER_PASSWORD = 'Trainer@123456';
+export const DEFAULT_TRAINER_PASSWORD = "Trainer@123456";
 
 @Injectable()
 export class TrainersService {
   constructor(
     private prisma: PrismaService,
     private auditService: AuditService,
+    private notificationsService: NotificationsService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -29,18 +39,29 @@ export class TrainersService {
   async resolveTrainerByUserId(userId: string) {
     const trainer = await this.prisma.trainer.findUnique({
       where: { userId },
-      include: { user: { select: { id: true, fullName: true, avatarUrl: true, email: true } } },
+      include: {
+        user: {
+          select: { id: true, fullName: true, avatarUrl: true, email: true },
+        },
+      },
     });
-    if (!trainer) throw new ForbiddenException('Tài khoản này không gắn với hồ sơ huấn luyện viên.');
+    if (!trainer)
+      throw new ForbiddenException(
+        "Tài khoản này không gắn với hồ sơ huấn luyện viên.",
+      );
     return trainer;
   }
 
   private async checkEmailAvailable(email: string, excludeUserId?: string) {
     const user = await this.prisma.user.findFirst({
-      where: { email, ...(excludeUserId ? { id: { not: excludeUserId } } : {}) },
+      where: {
+        email,
+        ...(excludeUserId ? { id: { not: excludeUserId } } : {}),
+      },
       select: { id: true },
     });
-    if (user) throw new ConflictException('Email đã được sử dụng bởi tài khoản khác.');
+    if (user)
+      throw new ConflictException("Email đã được sử dụng bởi tài khoản khác.");
   }
 
   // ---------------------------------------------------------------------------
@@ -78,12 +99,12 @@ export class TrainersService {
           },
           _count: {
             select: {
-              trainerMembers: { where: { status: 'ACTIVE' } },
+              trainerMembers: { where: { status: "ACTIVE" } },
               schedules: true,
             },
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         skip,
         take: limit,
       }),
@@ -119,42 +140,49 @@ export class TrainersService {
               include: {
                 user: { select: { id: true, fullName: true, avatarUrl: true } },
                 memberships: {
-                  where: { status: 'ACTIVE' },
+                  where: { status: "ACTIVE" },
                   include: { package: { select: { id: true, name: true } } },
-                  orderBy: { endDate: 'desc' },
+                  orderBy: { endDate: "desc" },
                   take: 1,
                 },
               },
             },
           },
-          orderBy: { createdAt: 'desc' },
+          orderBy: { createdAt: "desc" },
           take: 100,
         },
         schedules: {
           include: {
-            member: { select: { id: true, code: true, fullName: true, phone: true } },
+            member: {
+              select: { id: true, code: true, fullName: true, phone: true },
+            },
             room: { select: { id: true, name: true } },
           },
-          orderBy: { startTime: 'desc' },
+          orderBy: { startTime: "desc" },
           take: 50,
         },
       },
     });
 
-    if (!trainer) throw new NotFoundException('Không tìm thấy huấn luyện viên.');
+    if (!trainer)
+      throw new NotFoundException("Không tìm thấy huấn luyện viên.");
 
     const now = new Date();
     const [totalSessions, activeMembers, upcomingSessions, completedSessions] =
       await Promise.all([
         this.prisma.trainingSchedule.count({ where: { trainerId: id } }),
         this.prisma.trainerMember.count({
-          where: { trainerId: id, status: 'ACTIVE' },
+          where: { trainerId: id, status: "ACTIVE" },
         }),
         this.prisma.trainingSchedule.count({
-          where: { trainerId: id, status: 'SCHEDULED', startTime: { gte: now } },
+          where: {
+            trainerId: id,
+            status: "SCHEDULED",
+            startTime: { gte: now },
+          },
         }),
         this.prisma.trainingSchedule.count({
-          where: { trainerId: id, status: 'COMPLETED' },
+          where: { trainerId: id, status: "COMPLETED" },
         }),
       ]);
 
@@ -186,7 +214,10 @@ export class TrainersService {
           fullName: dto.fullName,
           phone: dto.phone ?? null,
           role: UserRole.TRAINER,
-          status: dto.status === TrainerStatus.INACTIVE ? UserStatus.INACTIVE : UserStatus.ACTIVE,
+          status:
+            dto.status === TrainerStatus.INACTIVE
+              ? UserStatus.INACTIVE
+              : UserStatus.ACTIVE,
           avatarUrl: dto.avatarUrl ?? null,
         },
       });
@@ -222,14 +253,18 @@ export class TrainersService {
 
     await this.auditService.log({
       userId: actorId,
-      action: 'TRAINER_CREATE',
-      entity: 'Trainer',
+      action: "TRAINER_CREATE",
+      entity: "Trainer",
       entityId: result.trainer.id,
-      metadata: { fullName: dto.fullName, email: dto.email, specialization: dto.specialization },
+      metadata: {
+        fullName: dto.fullName,
+        email: dto.email,
+        specialization: dto.specialization,
+      },
     });
 
     return {
-      message: 'Tạo huấn luyện viên thành công.',
+      message: "Tạo huấn luyện viên thành công.",
       trainer: result.trainer,
       tempPassword: DEFAULT_TRAINER_PASSWORD,
     };
@@ -237,7 +272,8 @@ export class TrainersService {
 
   async update(id: string, dto: UpdateTrainerDto, actorId?: string) {
     const trainer = await this.prisma.trainer.findUnique({ where: { id } });
-    if (!trainer) throw new NotFoundException('Không tìm thấy huấn luyện viên.');
+    if (!trainer)
+      throw new NotFoundException("Không tìm thấy huấn luyện viên.");
 
     const userData: any = {};
     if (dto.email) {
@@ -250,22 +286,32 @@ export class TrainersService {
     // Đồng bộ trạng thái khóa tài khoản theo trạng thái HLV
     if (dto.status !== undefined) {
       userData.status =
-        dto.status === TrainerStatus.INACTIVE ? UserStatus.INACTIVE : UserStatus.ACTIVE;
+        dto.status === TrainerStatus.INACTIVE
+          ? UserStatus.INACTIVE
+          : UserStatus.ACTIVE;
     }
 
     const trainerData: any = {};
-    if (dto.specialization !== undefined) trainerData.specialization = dto.specialization;
-    if (dto.certification !== undefined) trainerData.certification = dto.certification;
-    if (dto.experienceYears !== undefined) trainerData.experienceYears = dto.experienceYears;
+    if (dto.specialization !== undefined)
+      trainerData.specialization = dto.specialization;
+    if (dto.certification !== undefined)
+      trainerData.certification = dto.certification;
+    if (dto.experienceYears !== undefined)
+      trainerData.experienceYears = dto.experienceYears;
     if (dto.bio !== undefined) trainerData.bio = dto.bio;
     if (dto.gender !== undefined) trainerData.gender = dto.gender;
     if (dto.dateOfBirth !== undefined)
-      trainerData.dateOfBirth = dto.dateOfBirth ? new Date(dto.dateOfBirth) : null;
+      trainerData.dateOfBirth = dto.dateOfBirth
+        ? new Date(dto.dateOfBirth)
+        : null;
     if (dto.hourlyRate !== undefined) trainerData.hourlyRate = dto.hourlyRate;
     if (dto.status !== undefined) trainerData.status = dto.status;
 
     const updated = await this.prisma.$transaction([
-      this.prisma.user.update({ where: { id: trainer.userId }, data: userData }),
+      this.prisma.user.update({
+        where: { id: trainer.userId },
+        data: userData,
+      }),
       this.prisma.trainer.update({
         where: { id },
         data: trainerData,
@@ -286,19 +332,23 @@ export class TrainersService {
 
     await this.auditService.log({
       userId: actorId,
-      action: 'TRAINER_UPDATE',
-      entity: 'Trainer',
+      action: "TRAINER_UPDATE",
+      entity: "Trainer",
       entityId: id,
       metadata: { fields: Object.keys({ ...userData, ...trainerData }) },
     });
 
-    return { message: 'Cập nhật huấn luyện viên thành công.', trainer: updated[1] };
+    return {
+      message: "Cập nhật huấn luyện viên thành công.",
+      trainer: updated[1],
+    };
   }
 
   /** Deactivate (soft delete) — giữ lịch sử, chỉ chuyển trạng thái INACTIVE */
   async remove(id: string, actorId?: string) {
     const trainer = await this.prisma.trainer.findUnique({ where: { id } });
-    if (!trainer) throw new NotFoundException('Không tìm thấy huấn luyện viên.');
+    if (!trainer)
+      throw new NotFoundException("Không tìm thấy huấn luyện viên.");
 
     await this.prisma.$transaction([
       this.prisma.user.update({
@@ -313,13 +363,15 @@ export class TrainersService {
 
     await this.auditService.log({
       userId: actorId,
-      action: 'TRAINER_REMOVE',
-      entity: 'Trainer',
+      action: "TRAINER_REMOVE",
+      entity: "Trainer",
       entityId: id,
       metadata: { softDeleted: true },
     });
 
-    return { message: 'Đã ngừng hoạt động huấn luyện viên. Lịch sử được giữ lại.' };
+    return {
+      message: "Đã ngừng hoạt động huấn luyện viên. Lịch sử được giữ lại.",
+    };
   }
 
   // ---------------------------------------------------------------------------
@@ -327,8 +379,11 @@ export class TrainersService {
   // ---------------------------------------------------------------------------
 
   async getMembers(trainerId: string) {
-    const trainer = await this.prisma.trainer.findUnique({ where: { id: trainerId } });
-    if (!trainer) throw new NotFoundException('Không tìm thấy huấn luyện viên.');
+    const trainer = await this.prisma.trainer.findUnique({
+      where: { id: trainerId },
+    });
+    if (!trainer)
+      throw new NotFoundException("Không tìm thấy huấn luyện viên.");
 
     return this.prisma.trainerMember.findMany({
       where: { trainerId },
@@ -337,41 +392,55 @@ export class TrainersService {
           include: {
             user: { select: { id: true, fullName: true, avatarUrl: true } },
             memberships: {
-              where: { status: 'ACTIVE' },
+              where: { status: "ACTIVE" },
               include: { package: { select: { id: true, name: true } } },
-              orderBy: { endDate: 'desc' },
+              orderBy: { endDate: "desc" },
               take: 1,
             },
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
   }
 
   async assignMember(trainerId: string, memberId: string) {
-    const trainer = await this.prisma.trainer.findUnique({ where: { id: trainerId } });
-    if (!trainer) throw new NotFoundException('Không tìm thấy huấn luyện viên.');
+    const trainer = await this.prisma.trainer.findUnique({
+      where: { id: trainerId },
+      include: { user: { select: { fullName: true } } },
+    });
+    if (!trainer)
+      throw new NotFoundException("Không tìm thấy huấn luyện viên.");
     if (trainer.status !== TrainerStatus.ACTIVE) {
-      throw new BadRequestException('Huấn luyện viên đang không hoạt động, không thể gán hội viên mới.');
+      throw new BadRequestException(
+        "Huấn luyện viên đang không hoạt động, không thể gán hội viên mới.",
+      );
     }
 
-    const member = await this.prisma.member.findUnique({ where: { id: memberId } });
-    if (!member) throw new NotFoundException('Không tìm thấy hội viên.');
-    if (member.status !== 'ACTIVE') {
-      throw new BadRequestException('Hội viên đang không hoạt động, không thể gán huấn luyện viên.');
+    const member = await this.prisma.member.findUnique({
+      where: { id: memberId },
+    });
+    if (!member) throw new NotFoundException("Không tìm thấy hội viên.");
+    if (member.status !== "ACTIVE") {
+      throw new BadRequestException(
+        "Hội viên đang không hoạt động, không thể gán huấn luyện viên.",
+      );
     }
 
     const existing = await this.prisma.trainerMember.findFirst({
-      where: { trainerId, memberId, status: 'ACTIVE' },
+      where: { trainerId, memberId, status: "ACTIVE" },
     });
     if (existing) {
-      throw new ConflictException('Hội viên này đã được gán cho huấn luyện viên này.');
+      throw new ConflictException(
+        "Hội viên này đã được gán cho huấn luyện viên này.",
+      );
     }
 
     const otherActive = await this.prisma.trainerMember.findFirst({
-      where: { memberId, status: 'ACTIVE', trainerId: { not: trainerId } },
-      include: { trainer: { include: { user: { select: { fullName: true } } } } },
+      where: { memberId, status: "ACTIVE", trainerId: { not: trainerId } },
+      include: {
+        trainer: { include: { user: { select: { fullName: true } } } },
+      },
     });
     if (otherActive) {
       throw new ConflictException(
@@ -382,57 +451,68 @@ export class TrainersService {
     // Mở lại phân công cũ cùng cặp (nếu có) thay vì tạo trùng lịch sử
     const history = await this.prisma.trainerMember.findFirst({
       where: { trainerId, memberId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
-    if (history) {
-      await this.prisma.trainerMember.update({
-        where: { id: history.id },
-        data: { status: 'ACTIVE', startDate: new Date(), endDate: null },
+    const assignmentId = await this.prisma.$transaction(async (tx) => {
+      const assignment = history
+        ? await tx.trainerMember.update({
+            where: { id: history.id },
+            data: { status: "ACTIVE", startDate: new Date(), endDate: null },
+          })
+        : await tx.trainerMember.create({
+            data: { trainerId, memberId, status: "ACTIVE" },
+          });
+      await this.notificationsService.createTx(tx, {
+        memberId,
+        type: "MEMBERSHIP",
+        title: "Bạn đã được phân công huấn luyện viên",
+        content: `Huấn luyện viên ${trainer.user.fullName}${trainer.specialization ? ` (${trainer.specialization})` : ""} đang phụ trách hỗ trợ bạn. Xem thông tin tại trang Gói tập của tôi.`,
+        link: "/member/membership",
+        referenceType: "TRAINER_ASSIGNMENT",
+        referenceId: `${assignment.id}:${assignment.startDate.getTime()}`,
+        data: { trainerId, assignmentId: assignment.id },
       });
-      return {
-        message: 'Đã gán huấn luyện viên cho hội viên.',
-        assignment: await this.getAssignmentDetail(history.id),
-      };
-    }
-
-    const assignment = await this.prisma.trainerMember.create({
-      data: { trainerId, memberId, status: 'ACTIVE' },
+      return assignment.id;
     });
 
     return {
-      message: 'Đã gán huấn luyện viên cho hội viên.',
-      assignment: await this.getAssignmentDetail(assignment.id),
+      message: "Đã gán huấn luyện viên cho hội viên.",
+      assignment: await this.getAssignmentDetail(assignmentId),
     };
   }
 
   async unassignMember(trainerId: string, memberId: string) {
     const assignment = await this.prisma.trainerMember.findFirst({
-      where: { trainerId, memberId, status: 'ACTIVE' },
+      where: { trainerId, memberId, status: "ACTIVE" },
     });
     if (!assignment) {
-      throw new BadRequestException('Không có phân công đang hoạt động giữa HLV và hội viên này.');
+      throw new BadRequestException(
+        "Không có phân công đang hoạt động giữa HLV và hội viên này.",
+      );
     }
 
     await this.prisma.trainerMember.update({
       where: { id: assignment.id },
-      data: { status: 'INACTIVE', endDate: new Date() },
+      data: { status: "INACTIVE", endDate: new Date() },
     });
 
-    return { message: 'Đã kết thúc phân công huấn luyện viên cho hội viên.' };
+    return { message: "Đã kết thúc phân công huấn luyện viên cho hội viên." };
   }
 
   private async getAssignmentDetail(id: string) {
     return this.prisma.trainerMember.findUnique({
       where: { id },
       include: {
-        trainer: { include: { user: { select: { fullName: true, avatarUrl: true } } } },
+        trainer: {
+          include: { user: { select: { fullName: true, avatarUrl: true } } },
+        },
         member: {
           include: {
             user: { select: { id: true, fullName: true, avatarUrl: true } },
             memberships: {
-              where: { status: 'ACTIVE' },
+              where: { status: "ACTIVE" },
               include: { package: { select: { id: true, name: true } } },
-              orderBy: { endDate: 'desc' },
+              orderBy: { endDate: "desc" },
               take: 1,
             },
           },
@@ -468,24 +548,40 @@ export class TrainersService {
         },
       },
     });
-    if (!trainer) throw new ForbiddenException('Tài khoản này không gắn với hồ sơ huấn luyện viên.');
+    if (!trainer)
+      throw new ForbiddenException(
+        "Tài khoản này không gắn với hồ sơ huấn luyện viên.",
+      );
 
     const now = new Date();
     const [totalSessions, activeMembers, upcomingSessions, completedSessions] =
       await Promise.all([
-        this.prisma.trainingSchedule.count({ where: { trainerId: trainer.id } }),
-        this.prisma.trainerMember.count({ where: { trainerId: trainer.id, status: 'ACTIVE' } }),
         this.prisma.trainingSchedule.count({
-          where: { trainerId: trainer.id, status: 'SCHEDULED', startTime: { gte: now } },
+          where: { trainerId: trainer.id },
+        }),
+        this.prisma.trainerMember.count({
+          where: { trainerId: trainer.id, status: "ACTIVE" },
         }),
         this.prisma.trainingSchedule.count({
-          where: { trainerId: trainer.id, status: 'COMPLETED' },
+          where: {
+            trainerId: trainer.id,
+            status: "SCHEDULED",
+            startTime: { gte: now },
+          },
+        }),
+        this.prisma.trainingSchedule.count({
+          where: { trainerId: trainer.id, status: "COMPLETED" },
         }),
       ]);
 
     return {
       ...trainer,
-      stats: { totalSessions, activeMembers, upcomingSessions, completedSessions },
+      stats: {
+        totalSessions,
+        activeMembers,
+        upcomingSessions,
+        completedSessions,
+      },
     };
   }
 
@@ -495,10 +591,13 @@ export class TrainersService {
       where: { userId },
       select: { id: true },
     });
-    if (!member) throw new ForbiddenException('Tài khoản này không gắn với hồ sơ hội viên.');
+    if (!member)
+      throw new ForbiddenException(
+        "Tài khoản này không gắn với hồ sơ hội viên.",
+      );
 
     const assignment = await this.prisma.trainerMember.findFirst({
-      where: { memberId: member.id, status: 'ACTIVE' },
+      where: { memberId: member.id, status: "ACTIVE" },
       include: {
         trainer: {
           include: {
@@ -514,9 +613,12 @@ export class TrainersService {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
-    return { trainer: assignment?.trainer ?? null, assignment: assignment ?? null };
+    return {
+      trainer: assignment?.trainer ?? null,
+      assignment: assignment ?? null,
+    };
   }
 }

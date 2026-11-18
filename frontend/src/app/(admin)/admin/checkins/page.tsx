@@ -58,13 +58,11 @@ export default function AdminCheckinsPage() {
     queryKey: ['checkins-daily', today],
     queryFn: () => checkinApi.getDailyReport(today, today),
     retry: 0,
-    refetchInterval: 30000,
   });
   const { data: hourly } = useQuery({
     queryKey: ['checkins-hourly', today],
     queryFn: () => checkinApi.getHourlyReport(today),
     retry: 0,
-    refetchInterval: 30000,
   });
 
   // ------------------ Currently inside (live) ------------------
@@ -77,7 +75,6 @@ export default function AdminCheckinsPage() {
     queryKey: ['checkins-inside'],
     queryFn: checkinApi.getCurrentlyInside,
     retry: 0,
-    refetchInterval: 3000,
   });
 
   // ------------------ History list ------------------

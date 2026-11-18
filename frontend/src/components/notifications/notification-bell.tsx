@@ -36,14 +36,12 @@ export default function NotificationBell({
   const { data: unread } = useQuery({
     queryKey: unreadKey,
     queryFn: notificationApi.getUnreadCount,
-    refetchInterval: 60_000,
     retry: 0,
   });
 
   const { data: items = [] } = useQuery({
     queryKey: miniKey,
     queryFn: () => notificationApi.getMineMini(5),
-    refetchInterval: 120_000,
     retry: 0,
     enabled: open,
   });
@@ -102,10 +100,15 @@ export default function NotificationBell({
         aria-label="Thông báo"
         aria-expanded={open}
       >
-        {badge ? <BellRing className="size-4" /> : <Bell className="size-4" />}
+        {badge ? (
+          <BellRing className="size-4 animate-bounce text-neon" />
+        ) : (
+          <Bell className="size-4" />
+        )}
         {badge && (
           <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-danger px-0.5 text-[9px] font-bold text-white">
-            {unread!.count > 99 ? '99+' : unread!.count}
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-danger opacity-75" />
+            <span className="relative z-10">{unread!.count > 99 ? '99+' : unread!.count}</span>
           </span>
         )}
       </button>

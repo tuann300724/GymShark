@@ -144,7 +144,7 @@ export default function StaffAccountsPage() {
                 if (event.key === 'Enter') searchStaff();
               }}
               placeholder="Tìm theo tên, email hoặc số điện thoại"
-              className="h-11 w-full rounded-[10px] border border-line bg-ink pl-9 pr-4 text-sm text-chalk placeholder:text-muted/70 focus:border-neon/70 focus:outline-none focus:ring-2 focus:ring-neon/70"
+              className="h-11 w-full rounded-sm border border-line bg-ink pl-9 pr-4 text-sm text-chalk placeholder:text-muted/70 focus:border-neon/70 focus:outline-none focus:ring-2 focus:ring-neon/70"
             />
           </div>
           <Button variant="outline" onClick={searchStaff}>

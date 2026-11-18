@@ -78,7 +78,6 @@ export default function DashboardPage() {
       const res = await apiClient.get('/reports/dashboard');
       return res.data;
     },
-    refetchInterval: 30000,
   });
 
   const summary = dashboardData?.stats;
@@ -96,7 +95,6 @@ export default function DashboardPage() {
       const res = await apiClient.get('/reports/checkins/hourly');
       return res.data;
     },
-    refetchInterval: 30000,
     retry: 0,
   });
 
@@ -111,7 +109,6 @@ export default function DashboardPage() {
       const res = await apiClient.get('/checkins', { params: { page: 1, limit: 6 } });
       return res.data.data || [];
     },
-    refetchInterval: 15000,
   });
 
   const isAnyRefetching = isSummaryFetching || isHourlyFetching || isCheckInsFetching;

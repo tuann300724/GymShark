@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Prisma } from '@prisma/client';
 import { UserRole } from '../../common/constants/db-enums';
 import { parseJsonText, serializeJsonText } from '../../common/utils/json-text';
@@ -17,6 +18,7 @@ export const NOTIFICATION_TYPES = [
   'MEMBERSHIP',
   'CHECKIN',
   'TRAINING',
+  'SCHEDULE',
   'PROMOTION',
   'SYSTEM',
   'CHAT',
@@ -37,7 +39,10 @@ export interface CreateNotificationInput {
 
 @Injectable()
 export class NotificationsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private eventEmitter: EventEmitter2,
+  ) {}
 
   private withParsedData<T extends { data: string | null }>(notification: T) {
     return { ...notification, data: parseJsonText<unknown>(notification.data) };
@@ -51,7 +56,7 @@ export class NotificationsService {
    * Tạo 1 thông báo. Nếu có referenceType/referenceId và đã tồn tại thông báo
    * cùng cặp ref + cùng người nhận → bỏ qua (không spam cùng sự kiện).
    */
-  async create(input: CreateNotificationInput): Promise<void> {
+  async create(input: CreateNotificationInput) {
     const where: Prisma.NotificationWhereInput = {
       ...(input.userId ? { userId: input.userId } : {}),
       ...(input.memberId ? { memberId: input.memberId } : {}),
@@ -61,10 +66,10 @@ export class NotificationsService {
 
     if (input.referenceType && input.referenceId) {
       const dup = await this.prisma.notification.findFirst({ where });
-      if (dup) return;
+      if (dup) return this.withParsedData(dup);
     }
 
-    await this.prisma.notification.create({
+    const created = await this.prisma.notification.create({
       data: {
         userId: input.userId ?? null,
         memberId: input.memberId ?? null,
@@ -77,11 +82,20 @@ export class NotificationsService {
         referenceId: input.referenceId ?? null,
       },
     });
+
+    const parsed = this.withParsedData(created);
+    this.eventEmitter.emit('notification.created', {
+      notification: parsed,
+      userId: input.userId,
+      memberId: input.memberId,
+    });
+
+    return parsed;
   }
 
   /** Tạo thông báo trong transaction hiện có (dùng cho flow register/confirm...) */
-  createTx(tx: Prisma.TransactionClient, input: CreateNotificationInput) {
-    return tx.notification.create({
+  async createTx(tx: Prisma.TransactionClient, input: CreateNotificationInput) {
+    const created = await tx.notification.create({
       data: {
         userId: input.userId ?? null,
         memberId: input.memberId ?? null,
@@ -94,6 +108,17 @@ export class NotificationsService {
         referenceId: input.referenceId ?? null,
       },
     });
+
+    const parsed = this.withParsedData(created);
+    setImmediate(() => {
+      this.eventEmitter.emit('notification.created', {
+        notification: parsed,
+        userId: input.userId,
+        memberId: input.memberId,
+      });
+    });
+
+    return created;
   }
 
   // ---------------------------------------------------------------------------
@@ -133,6 +158,15 @@ export class NotificationsService {
         referenceId: input.referenceId,
         data: serializeJsonText(input.data),
       })),
+    });
+
+    this.eventEmitter.emit('notification.broadcast', {
+      type: input.type,
+      title: input.title,
+      content: input.content,
+      link: input.link ?? null,
+      data: input.data,
+      target,
     });
 
     return { created: targets.length, skipped: false };
@@ -196,6 +230,12 @@ export class NotificationsService {
       for (const admin of admins) {
         await this.create({ ...input, userId: admin.id });
       }
+
+      this.eventEmitter.emit('admin.notification', {
+        ...input,
+        excludeUserId,
+        adminIds: admins.map((a) => a.id),
+      });
     } catch (err) {
       // Báo lỗi ra log nhưng không chặn luồng nghiệp vụ đang chạy
       // eslint-disable-next-line no-console

@@ -5,7 +5,11 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { InvoiceStatus, PaymentStatus } from "../../common/constants/db-enums";
+import {
+  InvoiceStatus,
+  MembershipChangeStatus,
+  PaymentStatus,
+} from "../../common/constants/db-enums";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AuditService } from "../audit-logs/audit-logs.service";
 import { NotificationsService } from "../notifications/notifications.service";
@@ -44,6 +48,10 @@ export class MembershipsService {
             createdAt: true,
           },
           orderBy: { createdAt: "desc" },
+        },
+        changeRequests: {
+          where: { status: MembershipChangeStatus.PENDING_PAYOUT },
+          select: { id: true, type: true, status: true },
         },
       },
       orderBy: { createdAt: "desc" },
@@ -89,6 +97,15 @@ export class MembershipsService {
     const next = dto.status;
     const cur = membership.status;
 
+    if (next === "CANCELLED" && (cur === "CANCELLED" || cur === "EXPIRED")) {
+      throw new ConflictException("Hợp đồng đã ở trạng thái này");
+    }
+    if (next === "CANCELLED" && cur !== "PENDING") {
+      throw new ConflictException(
+        "Hợp đồng đang hoạt động cần xử lý qua quy trình yêu cầu, xác nhận và phê duyệt",
+      );
+    }
+
     if (next === "SUSPENDED" && cur !== "ACTIVE") {
       throw new ConflictException(
         "Chỉ có thể tạm khóa thẻ đang hoạt động (ACTIVE)",
@@ -105,8 +122,20 @@ export class MembershipsService {
         );
       }
     }
-    if (next === "CANCELLED" && (cur === "CANCELLED" || cur === "EXPIRED")) {
-      throw new ConflictException("Hợp đồng đã ở trạng thái này");
+    if (next === "ACTIVE" && cur === "SUSPENDED") {
+      const awaitingPayout =
+        await this.prisma.membershipChangeRequest.findFirst({
+          where: {
+            membershipId: id,
+            status: MembershipChangeStatus.PENDING_PAYOUT,
+          },
+          select: { id: true },
+        });
+      if (awaitingPayout) {
+        throw new ConflictException(
+          "Hợp đồng đang chờ ADMIN ghi nhận khoản chi hoàn và không thể kích hoạt lại",
+        );
+      }
     }
     if (next === "CANCELLED" && cur === "PENDING") {
       const pendingPayment = await this.prisma.payment.findFirst({
@@ -411,14 +440,12 @@ export class MembershipsService {
       data: { cancelRequestedAt: null, cancelRequestReason: null },
     });
 
-    await this.prisma.notification.create({
-      data: {
-        memberId: membership.member.id,
-        title: "Yêu cầu hủy gói bị từ chối ❌",
-        content: `Yêu cầu hủy gói ${membership.package.name} của bạn không được chấp thuận${dto.reason ? ` (Lý do: ${dto.reason})` : ""}. Gói tập tiếp tục hoạt động bình thường — liên hệ lễ tân nếu cần hỗ trợ thêm.`,
-        type: "MEMBERSHIP",
-        link: "/member/membership",
-      },
+    await this.notificationsService.create({
+      memberId: membership.member.id,
+      title: "Yêu cầu hủy gói bị từ chối ❌",
+      content: `Yêu cầu hủy gói ${membership.package.name} của bạn không được chấp thuận${dto.reason ? ` (Lý do: ${dto.reason})` : ""}. Gói tập tiếp tục hoạt động bình thường — liên hệ lễ tân nếu cần hỗ trợ thêm.`,
+      type: "MEMBERSHIP",
+      link: "/member/membership",
     });
 
     await this.auditService.log({

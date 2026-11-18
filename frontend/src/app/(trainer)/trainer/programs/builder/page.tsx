@@ -1,10 +1,27 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from '@/lib/axios';
 import { Dumbbell, CheckSquare, Square, Send, Save, Plus } from 'lucide-react';
 
 export default function Builder() {
-  const [items, setItems] = useState<any[]>([]);
+  const queryClient = useQueryClient();
+  const { data: items = [] } = useQuery({
+    queryKey: ['exercises'],
+    queryFn: async () => {
+      const response = await axios.get('/exercises');
+      return response.data || [];
+    },
+  });
+  const { data: members = [] } = useQuery({
+    queryKey: ['trainer-me-members'],
+    queryFn: async () => {
+      const response = await axios.get('/trainers/me/members');
+      const data = response.data;
+      const assignments = Array.isArray(data) ? data : data?.data || [];
+      return assignments.filter((assignment: any) => assignment.status === 'ACTIVE');
+    },
+  });
   const [name, setName] = useState('');
   const [group, setGroup] = useState('');
   const [chosen, setChosen] = useState<string[]>([]);
@@ -13,23 +30,8 @@ export default function Builder() {
   const [editName, setEditName] = useState('');
   const [editGroup, setEditGroup] = useState('');
   const [saving, setSaving] = useState(false);
-  const [members, setMembers] = useState<any[]>([]);
   const [pickedMembers, setPickedMembers] = useState<string[]>([]);
   const [sending, setSending] = useState(false);
-
-  useEffect(() => {
-    axios
-      .get('/exercises')
-      .then((r) => setItems(r.data || []))
-      .catch(() => setItems([]));
-    axios
-      .get('/trainers/me/members')
-      .then((r) => {
-        const arr = Array.isArray(r.data) ? r.data : r.data?.data || [];
-        setMembers(arr.filter((a: any) => a.status === 'ACTIVE'));
-      })
-      .catch(() => setMembers([]));
-  }, []);
 
   const toggle = (id: string) =>
     setChosen((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -39,7 +41,9 @@ export default function Builder() {
 
   const toggleAllMembers = () =>
     setPickedMembers((prev) =>
-      prev.length === members.length ? [] : members.map((a) => a.memberId),
+      prev.length === members.length
+        ? []
+        : members.map((assignment: { memberId: string }) => assignment.memberId),
     );
 
   const handleSave = async () => {
@@ -56,7 +60,10 @@ export default function Builder() {
         group: trimmedGroup,
       });
       const newExercise = res.data;
-      setItems((prev) => [newExercise, ...prev.filter((x) => x.id !== newExercise.id)]);
+      queryClient.setQueryData<any[]>(['exercises'], (previous = []) => [
+        newExercise,
+        ...previous.filter((exercise) => exercise.id !== newExercise.id),
+      ]);
       setName('');
       setGroup('');
       setStatus(`Đã lưu bài tập "${newExercise.name}" vào danh sách bài tập.`);
@@ -334,16 +341,18 @@ export default function Builder() {
                                         group: editGroup || null,
                                       })
                                       .then(() => {
-                                        setItems((prev) =>
-                                          prev.map((i) =>
-                                            i.id === ex.id
-                                              ? {
-                                                  ...i,
-                                                  name: editName,
-                                                  group: editGroup || i.group,
-                                                }
-                                              : i,
-                                          ),
+                                        queryClient.setQueryData<any[]>(
+                                          ['exercises'],
+                                          (previous = []) =>
+                                            previous.map((item) =>
+                                              item.id === ex.id
+                                                ? {
+                                                    ...item,
+                                                    name: editName,
+                                                    group: editGroup || item.group,
+                                                  }
+                                                : item,
+                                            ),
                                         );
                                         setStatus('Đã sửa bài tập');
                                         setEditingId(null);
@@ -396,7 +405,9 @@ export default function Builder() {
                               axios
                                 .delete(`/exercises/${ex.id}`)
                                 .then(() => {
-                                  setItems((prev) => prev.filter((i) => i.id !== ex.id));
+                                  queryClient.setQueryData<any[]>(['exercises'], (previous = []) =>
+                                    previous.filter((item) => item.id !== ex.id),
+                                  );
                                   setChosen((prev) => prev.filter((id) => id !== ex.id));
                                   setStatus('Đã xoá bài tập khỏi danh sách');
                                 })

@@ -1,7 +1,7 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { RevenueReportQueryDto } from './dto/revenue-report-query.dto';
+import { BadRequestException, Injectable } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { RevenueReportQueryDto } from "./dto/revenue-report-query.dto";
 
 @Injectable()
 export class ReportsService {
@@ -11,67 +11,81 @@ export class ReportsService {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const [totalMembers, activeMemberIds, expiredMembers, pendingMemberships, pendingPayments, totalRevenue, revenueThisMonth, newMembersThisMonth, totalTrainers, todayCheckIns, todayCheckOuts, currentlyInside] =
-      await Promise.all([
-        this.prisma.member.count(),
-        // Hội viên đang có thẻ còn hiệu lực
-        this.prisma.membership.findMany({
-          where: {
-            status: 'ACTIVE',
-            endDate: { gte: now },
-          },
-          select: { memberId: true },
-          distinct: ['memberId'],
-        }),
-        // Hội viên có thẻ đã hết hạn và hiện không có thẻ hiệu lực
-        this.prisma.membership.findMany({
-          where: {
-            endDate: { lt: now },
-          },
-          select: { memberId: true, endDate: true },
-          distinct: ['memberId'],
-        }),
-        this.prisma.membership.count({
-          where: { status: 'PENDING' },
-        }),
-        this.prisma.payment.count({
-          where: { status: 'PENDING' },
-        }),
-        this.prisma.payment.aggregate({
-          _sum: { amount: true },
-          where: { status: 'PAID' },
-        }),
-        this.prisma.payment.aggregate({
-          _sum: { amount: true },
-          where: {
-            status: 'PAID',
-            createdAt: { gte: startOfMonth },
-          },
-        }),
-        this.prisma.member.count({
-          where: { joinedAt: { gte: startOfMonth } },
-        }),
-        this.prisma.trainer.count({
-          where: { status: 'ACTIVE' },
-        }),
-        this.prisma.checkIn.count({
-          where: {
-            checkInTime: { gte: new Date(now.setHours(0, 0, 0, 0)) },
-          },
-        }),
-        this.prisma.checkIn.count({
-          where: {
-            checkOutTime: { gte: new Date(now.setHours(0, 0, 0, 0)) },
-          },
-        }),
-        this.prisma.checkIn.count({
-          where: { status: 'CHECKED_IN' },
-        }),
-      ]);
+    const [
+      totalMembers,
+      activeMemberIds,
+      expiredMembers,
+      pendingMemberships,
+      pendingPayments,
+      totalRevenue,
+      revenueThisMonth,
+      newMembersThisMonth,
+      totalTrainers,
+      todayCheckIns,
+      todayCheckOuts,
+      currentlyInside,
+    ] = await Promise.all([
+      this.prisma.member.count(),
+      // Hội viên đang có thẻ còn hiệu lực
+      this.prisma.membership.findMany({
+        where: {
+          status: "ACTIVE",
+          endDate: { gte: now },
+        },
+        select: { memberId: true },
+        distinct: ["memberId"],
+      }),
+      // Hội viên có thẻ đã hết hạn và hiện không có thẻ hiệu lực
+      this.prisma.membership.findMany({
+        where: {
+          endDate: { lt: now },
+        },
+        select: { memberId: true, endDate: true },
+        distinct: ["memberId"],
+      }),
+      this.prisma.membership.count({
+        where: { status: "PENDING" },
+      }),
+      this.prisma.payment.count({
+        where: { status: "PENDING" },
+      }),
+      this.prisma.payment.aggregate({
+        _sum: { amount: true, refundAmount: true },
+        where: { status: { in: ["PAID", "REFUNDED"] } },
+      }),
+      this.prisma.payment.aggregate({
+        _sum: { amount: true, refundAmount: true },
+        where: {
+          status: { in: ["PAID", "REFUNDED"] },
+          createdAt: { gte: startOfMonth },
+        },
+      }),
+      this.prisma.member.count({
+        where: { joinedAt: { gte: startOfMonth } },
+      }),
+      this.prisma.trainer.count({
+        where: { status: "ACTIVE" },
+      }),
+      this.prisma.checkIn.count({
+        where: {
+          checkInTime: { gte: new Date(now.setHours(0, 0, 0, 0)) },
+        },
+      }),
+      this.prisma.checkIn.count({
+        where: {
+          checkOutTime: { gte: new Date(now.setHours(0, 0, 0, 0)) },
+        },
+      }),
+      this.prisma.checkIn.count({
+        where: { status: "CHECKED_IN" },
+      }),
+    ]);
 
     const activeIds = new Set(activeMemberIds.map((m) => m.memberId));
     const expiredSet = new Set(
-      expiredMembers.filter((m) => !activeIds.has(m.memberId)).map((m) => m.memberId),
+      expiredMembers
+        .filter((m) => !activeIds.has(m.memberId))
+        .map((m) => m.memberId),
     );
 
     return {
@@ -81,8 +95,12 @@ export class ReportsService {
       pendingMemberships,
       pendingPayments,
       newMembersThisMonth,
-      totalRevenue: totalRevenue._sum.amount || 0,
-      revenueThisMonth: revenueThisMonth._sum.amount || 0,
+      totalRevenue:
+        Number(totalRevenue._sum.amount || 0) -
+        Number(totalRevenue._sum.refundAmount || 0),
+      revenueThisMonth:
+        Number(revenueThisMonth._sum.amount || 0) -
+        Number(revenueThisMonth._sum.refundAmount || 0),
       totalTrainers,
       todayCheckIns,
       todayCheckOuts,
@@ -92,17 +110,21 @@ export class ReportsService {
 
   async getRevenueTrend() {
     const payments = await this.prisma.payment.findMany({
-      where: { status: 'PAID' },
+      where: { status: { in: ["PAID", "REFUNDED"] } },
       select: {
         amount: true,
+        refundAmount: true,
         createdAt: true,
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: "asc" },
     });
 
     return {
       totalTransactions: payments.length,
-      data: payments,
+      data: payments.map((payment) => ({
+        amount: Number(payment.amount) - Number(payment.refundAmount ?? 0),
+        createdAt: payment.createdAt,
+      })),
     };
   }
 
@@ -121,12 +143,17 @@ export class ReportsService {
     const startOfYear = new Date(now.getFullYear(), 0, 1);
 
     // Filter chung (áp dụng cho toàn bộ aggregation)
-    const baseWhere: Prisma.PaymentWhereInput = { status: 'PAID' };
+    const baseWhere: Prisma.PaymentWhereInput = {
+      status: { in: ["PAID", "REFUNDED"] },
+    };
     if (query.method) baseWhere.method = query.method;
-    if (query.packageId) baseWhere.membership = { is: { packageId: query.packageId } };
+    if (query.packageId)
+      baseWhere.membership = { is: { packageId: query.packageId } };
 
     // Phạm vi ngày cho biểu đồ theo ngày (mặc định 30 ngày gần nhất)
-    const rangeFrom = query.from ? this.startOfDay(new Date(query.from)) : this.daysAgo(29);
+    const rangeFrom = query.from
+      ? this.startOfDay(new Date(query.from))
+      : this.daysAgo(29);
     const rangeTo = query.to ? this.endOfDay(new Date(query.to)) : now;
 
     const [
@@ -147,86 +174,144 @@ export class ReportsService {
       packageRows,
       recentPayments,
     ] = await Promise.all([
-      this.prisma.payment.aggregate({ _sum: { amount: true }, where: { ...baseWhere, paidAt: { gte: startOfToday } } }),
-      this.prisma.payment.aggregate({ _sum: { amount: true }, where: { ...baseWhere, paidAt: { gte: startOfWeek } } }),
-      this.prisma.payment.aggregate({ _sum: { amount: true }, where: { ...baseWhere, paidAt: { gte: startOfMonth } } }),
-      this.prisma.payment.aggregate({ _sum: { amount: true }, where: { ...baseWhere, paidAt: { gte: startOfYear } } }),
-      // Hoàn tiền hạch toán riêng (không tính doanh thu thực nhận)
       this.prisma.payment.aggregate({
-        _sum: { amount: true },
-        _count: true,
-        where: { status: 'REFUNDED', paidAt: { gte: startOfMonth } },
+        _sum: { amount: true, refundAmount: true },
+        where: { ...baseWhere, paidAt: { gte: startOfToday } },
       }),
-      this.prisma.payment.aggregate({ _sum: { amount: true }, where: baseWhere }),
+      this.prisma.payment.aggregate({
+        _sum: { amount: true, refundAmount: true },
+        where: { ...baseWhere, paidAt: { gte: startOfWeek } },
+      }),
+      this.prisma.payment.aggregate({
+        _sum: { amount: true, refundAmount: true },
+        where: { ...baseWhere, paidAt: { gte: startOfMonth } },
+      }),
+      this.prisma.payment.aggregate({
+        _sum: { amount: true, refundAmount: true },
+        where: { ...baseWhere, paidAt: { gte: startOfYear } },
+      }),
+      this.prisma.payment.findMany({
+        where: {
+          status: { in: ["PAID", "REFUNDED"] },
+          paidAt: { gte: startOfMonth },
+          OR: [
+            { refundAmount: { gt: 0 } },
+            { status: "REFUNDED", refundAmount: null },
+          ],
+        },
+        select: { amount: true, refundAmount: true, status: true },
+      }),
+      this.prisma.payment.aggregate({
+        _sum: { amount: true, refundAmount: true },
+        where: baseWhere,
+      }),
       this.prisma.payment.count({ where: baseWhere }),
-      this.prisma.payment.count({ where: { status: 'PENDING', ...(query.method ? { method: query.method } : {}) } }),
-      this.prisma.payment.count({ where: { status: 'FAILED', ...(query.method ? { method: query.method } : {}) } }),
-      this.prisma.payment.count({ where: { status: 'CANCELLED', ...(query.method ? { method: query.method } : {}) } }),
-      this.prisma.payment.count({ where: { status: 'REFUNDED', ...(query.method ? { method: query.method } : {}) } }),
+      this.prisma.payment.count({
+        where: {
+          status: "PENDING",
+          ...(query.method ? { method: query.method } : {}),
+        },
+      }),
+      this.prisma.payment.count({
+        where: {
+          status: "FAILED",
+          ...(query.method ? { method: query.method } : {}),
+        },
+      }),
+      this.prisma.payment.count({
+        where: {
+          status: "CANCELLED",
+          ...(query.method ? { method: query.method } : {}),
+        },
+      }),
+      this.prisma.payment.count({
+        where: {
+          status: { in: ["PAID", "REFUNDED"] },
+          OR: [
+            { refundAmount: { gt: 0 } },
+            { status: "REFUNDED", refundAmount: null },
+          ],
+          ...(query.method ? { method: query.method } : {}),
+        },
+      }),
       // Dữ liệu theo ngày (trong phạm vi)
       this.prisma.payment.findMany({
         where: { ...baseWhere, paidAt: { gte: rangeFrom, lte: rangeTo } },
-        select: { amount: true, paidAt: true },
+        select: { amount: true, refundAmount: true, paidAt: true },
       }),
       // Dữ liệu 12 tháng gần nhất (theo tháng)
       this.prisma.payment.findMany({
         where: { ...baseWhere, paidAt: { gte: this.monthsAgo(11) } },
-        select: { amount: true, paidAt: true },
+        select: { amount: true, refundAmount: true, paidAt: true },
       }),
       this.prisma.payment.groupBy({
-        by: ['method'],
+        by: ["method"],
         where: baseWhere,
-        _sum: { amount: true },
+        _sum: { amount: true, refundAmount: true },
         _count: true,
       }),
       this.prisma.payment.groupBy({
-        by: ['membershipId'],
+        by: ["membershipId"],
         where: baseWhere,
-        _sum: { amount: true },
+        _sum: { amount: true, refundAmount: true },
         _count: true,
       }),
       this.prisma.payment.findMany({
         where: baseWhere,
         include: {
           member: { select: { id: true, code: true, fullName: true } },
-          membership: { include: { package: { select: { id: true, name: true } } } },
+          membership: {
+            include: { package: { select: { id: true, name: true } } },
+          },
         },
-        orderBy: { paidAt: 'desc' },
+        orderBy: { paidAt: "desc" },
         take: 10,
       }),
     ]);
 
     // Group theo ngày
-    const dayMap = new Map<string, { date: string; revenue: number; count: number }>();
+    const dayMap = new Map<
+      string,
+      { date: string; revenue: number; count: number }
+    >();
     dayRows.forEach((r) => {
       const key = this.dayKey(r.paidAt!);
       const cur = dayMap.get(key) || { date: key, revenue: 0, count: 0 };
-      cur.revenue += Number(r.amount);
+      cur.revenue += Number(r.amount) - Number(r.refundAmount ?? 0);
       cur.count += 1;
       dayMap.set(key, cur);
     });
-    const byDay = Array.from(dayMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+    const byDay = Array.from(dayMap.values()).sort((a, b) =>
+      a.date.localeCompare(b.date),
+    );
 
     // Group theo tháng (12 tháng)
-    const monthMap = new Map<string, { month: string; revenue: number; count: number }>();
+    const monthMap = new Map<
+      string,
+      { month: string; revenue: number; count: number }
+    >();
     monthRows.forEach((r) => {
       const key = this.monthKey(r.paidAt!);
       const cur = monthMap.get(key) || { month: key, revenue: 0, count: 0 };
-      cur.revenue += Number(r.amount);
+      cur.revenue += Number(r.amount) - Number(r.refundAmount ?? 0);
       cur.count += 1;
       monthMap.set(key, cur);
     });
-    const byMonth = Array.from(monthMap.values()).sort((a, b) => a.month.localeCompare(b.month));
+    const byMonth = Array.from(monthMap.values()).sort((a, b) =>
+      a.month.localeCompare(b.month),
+    );
 
     // Group theo phương thức
     const byMethod = methodRows.map((r) => ({
       method: r.method,
-      revenue: Number(r._sum.amount || 0),
+      revenue: Number(r._sum.amount || 0) - Number(r._sum.refundAmount || 0),
       count: r._count,
     }));
 
     // Group theo gói tập (lấy tên package)
-    const membershipIds = packageRows.map((r) => r.membershipId).filter(Boolean) as string[];
+    const membershipIds = packageRows
+      .map((r) => r.membershipId)
+      .filter(Boolean) as string[];
     const memberships = membershipIds.length
       ? await this.prisma.membership.findMany({
           where: { id: { in: membershipIds } },
@@ -238,25 +323,43 @@ export class ReportsService {
       .filter((r) => r.membershipId)
       .map((r) => ({
         packageId: r.membershipId,
-        packageName: pkgNameById.get(r.membershipId!) || 'Không xác định',
-        revenue: Number(r._sum.amount || 0),
+        packageName: pkgNameById.get(r.membershipId!) || "Không xác định",
+        revenue: Number(r._sum.amount || 0) - Number(r._sum.refundAmount || 0),
         count: r._count,
       }))
       .sort((a, b) => b.revenue - a.revenue);
 
     return {
       stats: {
-        revenueToday: revenueToday._sum.amount || 0,
-        revenueThisWeek: revenueWeek._sum.amount || 0,
-        revenueThisMonth: revenueMonth._sum.amount || 0,
-        revenueThisYear: revenueYear._sum.amount || 0,
-        totalRevenue: totalsAgg._sum.amount || 0,
+        revenueToday:
+          Number(revenueToday._sum.amount || 0) -
+          Number(revenueToday._sum.refundAmount || 0),
+        revenueThisWeek:
+          Number(revenueWeek._sum.amount || 0) -
+          Number(revenueWeek._sum.refundAmount || 0),
+        revenueThisMonth:
+          Number(revenueMonth._sum.amount || 0) -
+          Number(revenueMonth._sum.refundAmount || 0),
+        revenueThisYear:
+          Number(revenueYear._sum.amount || 0) -
+          Number(revenueYear._sum.refundAmount || 0),
+        totalRevenue:
+          Number(totalsAgg._sum.amount || 0) -
+          Number(totalsAgg._sum.refundAmount || 0),
         totalPaidCount: paidCount,
         pendingCount,
         failedCount,
         cancelledCount,
-        refundedThisMonth: refundedAgg._sum.amount || 0,
-        refundedThisMonthCount: refundedAgg._count,
+        refundedThisMonth: refundedAgg.reduce(
+          (sum, payment) =>
+            sum +
+            Number(
+              payment.refundAmount ??
+                (payment.status === "REFUNDED" ? payment.amount : 0),
+            ),
+          0,
+        ),
+        refundedThisMonthCount: refundedAgg.length,
         refundedCount,
       },
       byDay,
@@ -265,8 +368,11 @@ export class ReportsService {
       byPackage,
       recentPayments,
       // Back-compat với trang Reports cũ
-      totalTransactions: paidCount,
-      data: recentPayments.map((p) => ({ amount: p.amount, createdAt: p.paidAt })),
+      totalTransactions: paidCount + refundedCount,
+      data: recentPayments.map((p) => ({
+        amount: Number(p.amount) - Number(p.refundAmount ?? 0),
+        createdAt: p.paidAt,
+      })),
     };
   }
 
@@ -278,19 +384,25 @@ export class ReportsService {
       this.prisma.membership.findMany({
         where: {},
         include: {
-          member: { select: { id: true, code: true, fullName: true, phone: true } },
+          member: {
+            select: { id: true, code: true, fullName: true, phone: true },
+          },
           package: { select: { id: true, name: true } },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         take: 6,
       }),
       this.prisma.payment.findMany({
-        where: { status: 'PENDING' },
+        where: { status: "PENDING" },
         include: {
-          member: { select: { id: true, code: true, fullName: true, phone: true } },
-          membership: { include: { package: { select: { id: true, name: true } } } },
+          member: {
+            select: { id: true, code: true, fullName: true, phone: true },
+          },
+          membership: {
+            include: { package: { select: { id: true, name: true } } },
+          },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         take: 6,
       }),
     ]);
@@ -315,21 +427,21 @@ export class ReportsService {
     ]);
 
     const map = new Map<string, { checkIns: number; checkOuts: number }>();
-    const add = (key: string, field: 'checkIns' | 'checkOuts') => {
+    const add = (key: string, field: "checkIns" | "checkOuts") => {
       const cur = map.get(key) || { checkIns: 0, checkOuts: 0 };
       cur[field] += 1;
       map.set(key, cur);
     };
 
-    checkIns.forEach((c) => add(this.dayKey(c.checkInTime), 'checkIns'));
-    checkOuts.forEach((c) => add(this.dayKey(c.checkOutTime!), 'checkOuts'));
+    checkIns.forEach((c) => add(this.dayKey(c.checkInTime), "checkIns"));
+    checkOuts.forEach((c) => add(this.dayKey(c.checkOutTime!), "checkOuts"));
 
     const data = [...map.entries()]
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([date, counts]) => ({ date, ...counts }));
 
     const currentlyInside = await this.prisma.checkIn.count({
-      where: { status: 'CHECKED_IN' },
+      where: { status: "CHECKED_IN" },
     });
 
     return {
@@ -353,7 +465,10 @@ export class ReportsService {
       select: { checkInTime: true },
     });
 
-    const buckets = Array.from({ length: 24 }, (_, hour) => ({ hour, count: 0 }));
+    const buckets = Array.from({ length: 24 }, (_, hour) => ({
+      hour,
+      count: 0,
+    }));
     for (const r of rows) {
       const h = r.checkInTime.getHours();
       if (h >= 0 && h < 24) buckets[h].count += 1;
@@ -397,10 +512,10 @@ export class ReportsService {
         checkIns: {
           where: { checkInTime: { gte: fromDate, lte: toDate } },
           select: { checkInTime: true, checkOutTime: true },
-          orderBy: { checkInTime: 'asc' },
+          orderBy: { checkInTime: "asc" },
         },
       },
-      orderBy: { fullName: 'asc' },
+      orderBy: { fullName: "asc" },
     });
 
     return {
@@ -412,7 +527,12 @@ export class ReportsService {
         const totalMinutes = done.reduce(
           (sum, c) =>
             sum +
-            Math.max(1, Math.round((c.checkOutTime!.getTime() - c.checkInTime.getTime()) / 60000)),
+            Math.max(
+              1,
+              Math.round(
+                (c.checkOutTime!.getTime() - c.checkInTime.getTime()) / 60000,
+              ),
+            ),
           0,
         );
         return {
@@ -436,7 +556,9 @@ export class ReportsService {
   // ---------------------------------------------------------------------------
 
   /** GET /reports/members — Hội viên: tổng, trạng thái, tăng trưởng theo tháng */
-  async getMembersReport(query: { from?: string; to?: string; search?: string } = {}) {
+  async getMembersReport(
+    query: { from?: string; to?: string; search?: string } = {},
+  ) {
     const now = new Date();
     const memberWhere: Prisma.MemberWhereInput = {};
     if (query.from || query.to) {
@@ -452,29 +574,34 @@ export class ReportsService {
       ];
     }
 
-    const [total, byStatus, recent, activeMemberRows, pendingCount] = await Promise.all([
-      this.prisma.member.count({ where: memberWhere }),
-      this.prisma.member.groupBy({ by: ['status'], where: memberWhere, _count: true }),
-      this.prisma.member.findMany({
-        where: memberWhere,
-        include: {
-          _count: { select: { payments: true, checkIns: true } },
-        },
-        orderBy: { joinedAt: 'desc' },
-        take: 100,
-      }),
-      this.prisma.membership.findMany({
-        where: {
-          status: 'ACTIVE',
-          endDate: { gte: now },
-        },
-        select: { memberId: true },
-        distinct: ['memberId'],
-      }),
-      this.prisma.membership.count({
-        where: { status: 'PENDING' },
-      }),
-    ]);
+    const [total, byStatus, recent, activeMemberRows, pendingCount] =
+      await Promise.all([
+        this.prisma.member.count({ where: memberWhere }),
+        this.prisma.member.groupBy({
+          by: ["status"],
+          where: memberWhere,
+          _count: true,
+        }),
+        this.prisma.member.findMany({
+          where: memberWhere,
+          include: {
+            _count: { select: { payments: true, checkIns: true } },
+          },
+          orderBy: { joinedAt: "desc" },
+          take: 100,
+        }),
+        this.prisma.membership.findMany({
+          where: {
+            status: "ACTIVE",
+            endDate: { gte: now },
+          },
+          select: { memberId: true },
+          distinct: ["memberId"],
+        }),
+        this.prisma.membership.count({
+          where: { status: "PENDING" },
+        }),
+      ]);
 
     // Tăng trưởng theo tháng
     const joinedRows = await this.prisma.member.findMany({
@@ -517,13 +644,22 @@ export class ReportsService {
       };
     }
 
-    const [byStatus, packageRows, monthRows, expiredCount, pendingCount] = await Promise.all([
-      this.prisma.membership.groupBy({ by: ['status'], where, _count: true }),
-      this.prisma.membership.groupBy({ by: ['packageId'], where, _count: true }),
-      this.prisma.membership.findMany({ where, select: { createdAt: true } }),
-      this.prisma.membership.count({ where: { ...where, status: 'EXPIRED' } }),
-      this.prisma.membership.count({ where: { ...where, status: 'PENDING' } }),
-    ]);
+    const [byStatus, packageRows, monthRows, expiredCount, pendingCount] =
+      await Promise.all([
+        this.prisma.membership.groupBy({ by: ["status"], where, _count: true }),
+        this.prisma.membership.groupBy({
+          by: ["packageId"],
+          where,
+          _count: true,
+        }),
+        this.prisma.membership.findMany({ where, select: { createdAt: true } }),
+        this.prisma.membership.count({
+          where: { ...where, status: "EXPIRED" },
+        }),
+        this.prisma.membership.count({
+          where: { ...where, status: "PENDING" },
+        }),
+      ]);
 
     const pkgIds = packageRows.map((r) => r.packageId);
     const pkgs = pkgIds.length
@@ -549,7 +685,7 @@ export class ReportsService {
       packagePopularity: packageRows
         .map((r) => ({
           packageId: r.packageId,
-          packageName: pkgById.get(r.packageId)?.name || 'Không xác định',
+          packageName: pkgById.get(r.packageId)?.name || "Không xác định",
           price: pkgById.get(r.packageId)?.price || 0,
           count: r._count,
         }))
@@ -571,20 +707,22 @@ export class ReportsService {
         },
         _count: { select: { trainerMembers: true, schedules: true } },
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: "asc" },
     });
 
     const completedRows = await this.prisma.trainingSchedule.groupBy({
-      by: ['trainerId'],
-      where: { status: 'COMPLETED' },
+      by: ["trainerId"],
+      where: { status: "COMPLETED" },
       _count: true,
     });
-    const completedMap = new Map(completedRows.map((r) => [r.trainerId, r._count]));
+    const completedMap = new Map(
+      completedRows.map((r) => [r.trainerId, r._count]),
+    );
 
     return {
       stats: {
         totalTrainers: trainers.length,
-        activeTrainers: trainers.filter((t) => t.status === 'ACTIVE').length,
+        activeTrainers: trainers.filter((t) => t.status === "ACTIVE").length,
       },
       data: trainers.map((t) => ({
         id: t.id,
@@ -602,7 +740,9 @@ export class ReportsService {
   /** GET /reports/attendance — chuyên cần tổng hợp: theo ngày/giờ/thứ/hình thức */
   async getAttendanceReport(query: { from?: string; to?: string } = {}) {
     const toDate = query.to ? this.endOfDay(new Date(query.to)) : new Date();
-    const fromDate = query.from ? this.startOfDay(new Date(query.from)) : this.daysAgo(30);
+    const fromDate = query.from
+      ? this.startOfDay(new Date(query.from))
+      : this.daysAgo(30);
 
     const [checkIns, checkOuts, byMethodRows] = await Promise.all([
       this.prisma.checkIn.findMany({
@@ -615,7 +755,7 @@ export class ReportsService {
       }),
       // Số lượt theo hình thức check-in (MANUAL / STAFF / QR_CODE / FACE_ID)
       this.prisma.checkIn.groupBy({
-        by: ['method'],
+        by: ["method"],
         where: { checkInTime: { gte: fromDate, lte: toDate } },
         _count: true,
       }),
@@ -623,7 +763,10 @@ export class ReportsService {
 
     const dayMap = new Map<string, { checkIns: number; checkOuts: number }>();
     const weekdayMap = new Map<number, number>();
-    const hourBuckets = Array.from({ length: 24 }, (_, hour) => ({ hour, count: 0 }));
+    const hourBuckets = Array.from({ length: 24 }, (_, hour) => ({
+      hour,
+      count: 0,
+    }));
 
     checkIns.forEach((c) => {
       const key = this.dayKey(c.checkInTime);
@@ -643,10 +786,22 @@ export class ReportsService {
       dayMap.set(key, cur);
     });
 
-    const WEEKDAY_LABELS = ['Chủ Nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+    const WEEKDAY_LABELS = [
+      "Chủ Nhật",
+      "Thứ 2",
+      "Thứ 3",
+      "Thứ 4",
+      "Thứ 5",
+      "Thứ 6",
+      "Thứ 7",
+    ];
     const byWeekday = Array.from(weekdayMap.entries())
       .sort((a, b) => a[0] - b[0])
-      .map(([day, count]) => ({ day, label: WEEKDAY_LABELS[day] || `Thứ ${day + 1}`, count }));
+      .map(([day, count]) => ({
+        day,
+        label: WEEKDAY_LABELS[day] || `Thứ ${day + 1}`,
+        count,
+      }));
 
     let peakHour: number | null = null;
     let peakCount = 0;
@@ -704,36 +859,40 @@ export class ReportsService {
     type: string,
     query: { from?: string; to?: string; search?: string } = {},
   ): Promise<{ filename: string; csv: string }> {
-    if (type === 'revenue') {
+    if (type === "revenue") {
       const r = await this.getRevenue(query);
-      const headers = ['Ngày', 'Doanh thu (VNĐ)', 'Số giao dịch'];
-      const rows = r.byDay.map((d) => [d.date, Number(d.revenue || 0).toFixed(0), d.count]);
-      return { filename: 'doanh-thu.csv', csv: this.toCsv(headers, rows) };
+      const headers = ["Ngày", "Doanh thu (VNĐ)", "Số giao dịch"];
+      const rows = r.byDay.map((d) => [
+        d.date,
+        Number(d.revenue || 0).toFixed(0),
+        d.count,
+      ]);
+      return { filename: "doanh-thu.csv", csv: this.toCsv(headers, rows) };
     }
-    if (type === 'members') {
+    if (type === "members") {
       const r = await this.getMembersReport(query);
-      const headers = ['Mã HV', 'Họ tên', 'Ngày tham gia'];
+      const headers = ["Mã HV", "Họ tên", "Ngày tham gia"];
       const rows = r.recent.map((m) => [
         m.code,
         m.fullName,
         m.joinedAt.toISOString().slice(0, 10),
       ]);
-      return { filename: 'hoi-vien.csv', csv: this.toCsv(headers, rows) };
+      return { filename: "hoi-vien.csv", csv: this.toCsv(headers, rows) };
     }
-    if (type === 'attendance') {
+    if (type === "attendance") {
       const r = await this.getAttendanceReport(query);
-      const headers = ['Ngày', 'Check-in', 'Check-out'];
+      const headers = ["Ngày", "Check-in", "Check-out"];
       const rows = r.byDay.map((d) => [d.date, d.checkIns, d.checkOuts]);
-      return { filename: 'chuyen-can.csv', csv: this.toCsv(headers, rows) };
+      return { filename: "chuyen-can.csv", csv: this.toCsv(headers, rows) };
     }
-    if (type === 'memberships') {
+    if (type === "memberships") {
       const r = await this.getMembershipsReport(query);
-      const headers = ['Gói tập', 'Số đăng ký'];
+      const headers = ["Gói tập", "Số đăng ký"];
       const rows = r.packagePopularity.map((p) => [p.packageName, p.count]);
-      return { filename: 'goi-tap.csv', csv: this.toCsv(headers, rows) };
+      return { filename: "goi-tap.csv", csv: this.toCsv(headers, rows) };
     }
     throw new BadRequestException(
-      'Loại báo cáo CSV không hợp lệ (revenue/members/attendance/memberships)',
+      "Loại báo cáo CSV không hợp lệ (revenue/members/attendance/memberships)",
     );
   }
 
@@ -744,7 +903,11 @@ export class ReportsService {
     };
     // BOM để Excel mở tiếng Việt đúng encoding
     return (
-      '\uFEFF' + [headers.map(esc).join(','), ...rows.map((r) => r.map(esc).join(','))].join('\n')
+      "\uFEFF" +
+      [
+        headers.map(esc).join(","),
+        ...rows.map((r) => r.map(esc).join(",")),
+      ].join("\n")
     );
   }
 
@@ -777,14 +940,14 @@ export class ReportsService {
 
   private dayKey(d: Date): string {
     const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
     return `${y}-${m}-${day}`;
   }
 
   private monthKey(d: Date): string {
     const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const m = String(d.getMonth() + 1).padStart(2, "0");
     return `${y}-${m}`;
   }
 }

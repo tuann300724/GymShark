@@ -140,7 +140,6 @@ export default function StaffShiftsPage() {
   const query = useQuery({
     queryKey: ['staff-shifts', filters],
     queryFn: () => staffShiftApi.list(filters),
-    refetchInterval: 15_000,
     refetchOnWindowFocus: true,
   });
   const settlementPreviewQuery = useQuery({

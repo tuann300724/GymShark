@@ -73,6 +73,7 @@ export interface MembershipPackage {
   durationDays: number;
   price: string;
   sessions?: number | null;
+  ptSessionValue?: string | null;
   type: 'FIXED_TERM' | 'SESSION_BASED';
   status: string;
   _count?: { memberships: number };
@@ -175,6 +176,11 @@ export interface Membership {
   discountAmount?: string | null;
   finalAmount?: string | null;
   remainingSessions?: number | null;
+  ptSessionsIncluded?: number | null;
+  ptSessionsUsed?: number;
+  ptSessionValue?: string | null;
+  freezeStartedAt?: string | null;
+  freezeEndsAt?: string | null;
   status: 'PENDING' | 'ACTIVE' | 'EXPIRED' | 'CANCELLED' | 'SUSPENDED';
   /** Hội viên gửi yêu cầu hủy gói — chờ admin duyệt (null = không có) */
   cancelRequestedAt?: string | null;

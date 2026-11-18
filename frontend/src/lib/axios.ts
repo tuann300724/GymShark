@@ -28,7 +28,18 @@ apiClient.interceptors.request.use(
 
 // Response interceptor for unified error and 401 handling
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const method = response.config.method?.toLowerCase();
+    const url = response.config.url || '';
+    const isWrite = ['post', 'put', 'patch', 'delete'].includes(method || '');
+    const isSessionRequest = /(?:^|\/)auth\/(login|refresh|logout)(?:\/|$)/i.test(url);
+
+    if (isWrite && !isSessionRequest && typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('gym:mutation-complete'));
+    }
+
+    return response;
+  },
   (error) => {
     if (error.response?.status === 401) {
       if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {

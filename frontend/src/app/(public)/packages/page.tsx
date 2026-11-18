@@ -33,8 +33,6 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: 'duration_desc', label: 'Thời hạn giảm dần' },
 ];
 
-const TYPE_FILTERS = ['ALL', 'FIXED_TERM', 'SESSION_BASED'] as const;
-
 function promoDiscount(p: PublicPromotion): string {
   if (p.discountType === 'PERCENTAGE') {
     const base = `-${parseFloat(String(p.discountValue))}%`;
@@ -46,7 +44,6 @@ function promoDiscount(p: PublicPromotion): string {
 export default function PublicPackagesPage() {
   const router = useRouter();
   const [sort, setSort] = useState<SortKey>('price_asc');
-  const [typeFilter, setTypeFilter] = useState<'ALL' | 'FIXED_TERM' | 'SESSION_BASED'>('ALL');
 
   const {
     data: packages,
@@ -77,20 +74,18 @@ export default function PublicPackagesPage() {
     }
   };
 
-  const filtered = (packages || [])
-    .filter((p) => typeFilter === 'ALL' || p.type === typeFilter)
-    .sort((a, b) => {
-      switch (sort) {
-        case 'price_asc':
-          return parseFloat(a.price) - parseFloat(b.price);
-        case 'price_desc':
-          return parseFloat(b.price) - parseFloat(a.price);
-        case 'duration_asc':
-          return a.durationDays - b.durationDays;
-        case 'duration_desc':
-          return b.durationDays - a.durationDays;
-      }
-    });
+  const filtered = [...(packages || [])].sort((a, b) => {
+    switch (sort) {
+      case 'price_asc':
+        return parseFloat(a.price) - parseFloat(b.price);
+      case 'price_desc':
+        return parseFloat(b.price) - parseFloat(a.price);
+      case 'duration_asc':
+        return a.durationDays - b.durationDays;
+      case 'duration_desc':
+        return b.durationDays - a.durationDays;
+    }
+  });
 
   return (
     <div className="overflow-x-hidden">
@@ -116,26 +111,6 @@ export default function PublicPackagesPage() {
           {/* Filter / sort */}
           <Reveal>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap gap-2">
-                {TYPE_FILTERS.map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => setTypeFilter(t)}
-                    className={`rounded-sm border px-4 py-2 text-sm transition-colors ${
-                      typeFilter === t
-                        ? 'border-neon bg-neon font-bold text-ink'
-                        : 'border-line text-muted hover:border-neon/40 hover:text-chalk'
-                    }`}
-                  >
-                    {t === 'ALL'
-                      ? 'Tất cả'
-                      : t === 'FIXED_TERM'
-                        ? 'Theo thời hạn'
-                        : 'Theo buổi tập'}
-                  </button>
-                ))}
-              </div>
-
               <div className="flex items-center gap-2.5">
                 <label htmlFor="pkg-sort" className="text-xs uppercase tracking-wider text-muted">
                   Sắp xếp
@@ -197,10 +172,7 @@ export default function PublicPackagesPage() {
           ) : isError ? (
             <ErrorState className="mt-8" onRetry={() => refetch()} />
           ) : (
-            <StaggerGroup
-              key={typeFilter}
-              className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3"
-            >
+            <StaggerGroup className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
               {filtered.map((pkg) => {
                 const isActive = pkg.status === 'ACTIVE';
                 return (
@@ -225,12 +197,7 @@ export default function PublicPackagesPage() {
                         <span className="font-display text-4xl font-extrabold leading-none text-neon">
                           {formatCurrency(pkg.price)}
                         </span>
-                        <span className="text-xs text-muted">
-                          /{' '}
-                          {pkg.type === 'SESSION_BASED'
-                            ? `${pkg.sessions} buổi`
-                            : `${pkg.durationDays} ngày`}
-                        </span>
+                        <span className="text-xs text-muted">/ {pkg.durationDays} ngày</span>
                       </div>
 
                       <p className="mt-4 text-sm leading-relaxed text-muted">{pkg.description}</p>
@@ -241,7 +208,7 @@ export default function PublicPackagesPage() {
                         {pkg.sessions ? (
                           <>
                             <span aria-hidden>•</span>
-                            <span>{pkg.sessions} buổi</span>
+                            <span>{pkg.sessions} buổi tập với PT</span>
                           </>
                         ) : null}
                       </div>
@@ -275,7 +242,7 @@ export default function PublicPackagesPage() {
               className="mt-8"
               icon={PackageOpen}
               title="Không tìm thấy gói tập phù hợp"
-              description="Thử đổi bộ lọc hoặc thứ tự sắp xếp."
+              description="Hiện không có gói tập nào đang mở bán."
             />
           )}
         </div>

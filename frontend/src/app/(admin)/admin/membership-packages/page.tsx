@@ -29,7 +29,7 @@ const EMPTY_FORM = {
   durationDays: '30',
   price: '',
   sessions: '',
-  type: 'FIXED_TERM',
+  ptSessionValue: '',
   status: 'ACTIVE',
 };
 
@@ -70,8 +70,13 @@ export default function MembershipPackagesPage() {
         description: payload.description || undefined,
         durationDays: parseInt(payload.durationDays, 10),
         price: parseFloat(payload.price),
-        sessions: payload.sessions ? parseInt(payload.sessions, 10) : undefined,
-        type: payload.type,
+        sessions: payload.sessions ? parseInt(payload.sessions, 10) : null,
+        ptSessionValue:
+          payload.sessions && payload.ptSessionValue !== ''
+            ? Number(payload.ptSessionValue)
+            : payload.sessions
+              ? undefined
+              : null,
         status: payload.status,
         features: { title: payload.name, items: featureItems },
       };
@@ -145,7 +150,10 @@ export default function MembershipPackagesPage() {
       durationDays: String(pkg.durationDays || 30),
       price: String(pkg.price ?? ''),
       sessions: pkg.sessions ? String(pkg.sessions) : '',
-      type: pkg.type || 'FIXED_TERM',
+      ptSessionValue:
+        pkg.ptSessionValue !== null && pkg.ptSessionValue !== undefined
+          ? String(pkg.ptSessionValue)
+          : '',
       status: pkg.status || 'ACTIVE',
     });
     setFeatureItems(pkg.features?.items || []);
@@ -215,9 +223,16 @@ export default function MembershipPackagesPage() {
                     {formatCurrency(pkg.price)}
                   </span>
                   <span className="text-xs text-muted block mt-1">
-                    Thời hạn: <strong className="text-chalk">{pkg.durationDays} ngày</strong> (
-                    {pkg.type === 'FIXED_TERM' ? 'Theo thời hạn' : 'Theo buổi'}
-                    {pkg.sessions ? ` • ${pkg.sessions} buổi` : ''})
+                    Thời hạn: <strong className="text-chalk">{pkg.durationDays} ngày</strong>
+                    {pkg.sessions && pkg.type !== 'SESSION_BASED'
+                      ? ` · ${pkg.sessions} buổi PT · ${
+                          pkg.ptSessionValue == null
+                            ? 'chưa cấu hình giá trị'
+                            : `${formatCurrency(pkg.ptSessionValue)}/buổi`
+                        }`
+                      : pkg.type === 'SESSION_BASED'
+                        ? ' · Gói cũ theo buổi, không còn mở bán'
+                        : ''}
                   </span>
                   {pkg._count?.memberships > 0 && (
                     <span className="text-[11px] text-muted block mt-1">
@@ -241,6 +256,7 @@ export default function MembershipPackagesPage() {
                     size="sm"
                     className="text-xs font-semibold"
                     onClick={() => openEdit(pkg)}
+                    disabled={pkg.type === 'SESSION_BASED'}
                   >
                     <Pencil className="size-3.5 mr-1" /> Sửa
                   </Button>
@@ -249,6 +265,7 @@ export default function MembershipPackagesPage() {
                     size="sm"
                     className="text-xs font-semibold"
                     onClick={() => toggleStatus(pkg)}
+                    disabled={pkg.type === 'SESSION_BASED'}
                   >
                     {pkg.status === 'ACTIVE' ? (
                       <>
@@ -298,15 +315,6 @@ export default function MembershipPackagesPage() {
               placeholder="Ví dụ: Gói Cao Cấp 6 Tháng"
               onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
-            <Select
-              label="Loại gói"
-              value={form.type}
-              options={[
-                { value: 'FIXED_TERM', label: 'Theo thời hạn (ngày)' },
-                { value: 'SESSION_BASED', label: 'Theo buổi tập' },
-              ]}
-              onChange={(e) => setForm({ ...form, type: e.target.value })}
-            />
             <Input
               label="Thời hạn (ngày) *"
               type="number"
@@ -323,12 +331,22 @@ export default function MembershipPackagesPage() {
               onChange={(e) => setForm({ ...form, price: e.target.value })}
             />
             <Input
-              label="Số buổi (nếu gói theo buổi)"
+              label="Số buổi PT kèm trong gói (không bắt buộc)"
+              type="number"
+              min={1}
+              value={form.sessions}
+              placeholder="Để trống nếu không kèm PT"
+              onChange={(e) => setForm({ ...form, sessions: e.target.value })}
+            />
+            <Input
+              label="Giá trị mỗi buổi PT (VND)"
               type="number"
               min={0}
-              value={form.sessions}
-              placeholder="12"
-              onChange={(e) => setForm({ ...form, sessions: e.target.value })}
+              step="0.01"
+              value={form.ptSessionValue}
+              placeholder="Bắt buộc nếu gói có buổi PT"
+              disabled={!form.sessions}
+              onChange={(e) => setForm({ ...form, ptSessionValue: e.target.value })}
             />
             <Select
               label="Trạng thái"

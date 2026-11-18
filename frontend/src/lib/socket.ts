@@ -17,13 +17,34 @@ function isTokenExpired(token: string): boolean {
 
 export function initSocket(): Socket | null {
   if (typeof window === 'undefined') return null;
-  if (socket && socket.connected) return socket;
 
   const token = localStorage.getItem('gym_access_token');
-  if (!token) return null;
+  if (!token) {
+    socket?.disconnect();
+    socket = null;
+    return null;
+  }
   // Token hết hạn → không kết nối WS tránh log WARN "jwt expired" lặp mỗi lần
   // mount; request REST tiếp theo sẽ bị 401 và axios tự redirect về /login.
-  if (isTokenExpired(token)) return null;
+  if (isTokenExpired(token)) {
+    socket?.disconnect();
+    socket = null;
+    return null;
+  }
+
+  if (socket) {
+    const currentToken =
+      typeof socket.auth === 'object' && socket.auth !== null ? socket.auth.token : undefined;
+    if (currentToken === token) {
+      if (!socket.connected && !socket.active) socket.connect();
+      return socket;
+    }
+
+    socket.auth = { token };
+    if (socket.connected) socket.disconnect();
+    if (!socket.active) socket.connect();
+    return socket;
+  }
 
   const url = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
   // Socket.IO chạy cùng backend (port 3001). Nếu apiUrl là /api thì cắt về gốc

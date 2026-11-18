@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { PackageType } from '../../common/constants/db-enums';
 import { PrismaService } from '../../prisma/prisma.service';
 import { parseJsonText } from '../../common/utils/json-text';
 
@@ -9,7 +10,7 @@ export class PublicService {
   /** Membership packages cho trang public (chỉ lấy gói ACTIVE) */
   async getPackages() {
     const packages = await this.prisma.membershipPackage.findMany({
-      where: { status: 'ACTIVE' },
+      where: { status: 'ACTIVE', type: { not: PackageType.SESSION_BASED } },
       orderBy: { price: 'asc' },
     });
     return packages.map((pkg) => ({

@@ -7,6 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit-logs/audit-logs.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { EnrollFaceDto } from './dto/faces.dto';
 import { parseJsonText } from '../../common/utils/json-text';
 
@@ -41,6 +42,7 @@ export class FacesService {
     private prisma: PrismaService,
     private config: ConfigService,
     private auditService: AuditService,
+    private notificationsService: NotificationsService,
   ) {
     this.thresholdSelf = this.readThreshold('FACE_MATCH_THRESHOLD', 0.6);
     this.thresholdGlobal = this.readThreshold('FACE_MATCH_THRESHOLD_1N', 0.7);
@@ -220,6 +222,20 @@ export class FacesService {
       },
     });
 
+    if (opts.via === 'self') {
+      await this.notificationsService.notifyAdmins(
+        {
+          type: 'SYSTEM',
+          title: 'Hội viên đăng ký Face ID 📸',
+          content: `Hội viên ${member.code} vừa đăng ký dữ liệu khuôn mặt nhận diện Face ID.`,
+          link: `/admin/members/${member.id}`,
+          referenceType: 'FACE_ENROLL',
+          referenceId: member.id,
+        },
+        opts.actorId,
+      );
+    }
+
     return {
       success: true,
       message: 'Đăng ký khuôn mặt thành công',
@@ -244,6 +260,18 @@ export class FacesService {
       entityId: member.id,
       metadata: { memberCode: member.code, sampleCount: count, via: 'self' },
     });
+
+    await this.notificationsService.notifyAdmins(
+      {
+        type: 'SYSTEM',
+        title: 'Hội viên xóa Face ID 🗑️',
+        content: `Hội viên ${member.fullName} (${member.code}) đã xóa dữ liệu nhận diện khuôn mặt Face ID.`,
+        link: `/admin/members/${member.id}`,
+        referenceType: 'FACE_DELETE',
+        referenceId: member.id,
+      },
+      userId,
+    );
 
     return {
       success: true,
