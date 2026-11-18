@@ -771,7 +771,7 @@ export default function MemberDetailPage() {
           />
           <span className="text-xs text-chalk">
             Tôi xác nhận hội viên <strong className="text-neon">{member?.fullName ?? ''}</strong> đã
-            đồng ý cho GymShark xử lý dữ liệu sinh trắc học (khuôn mặt) theo Nghị định
+            đồng ý cho GymMaster xử lý dữ liệu sinh trắc học (khuôn mặt) theo Nghị định
             13/2023/NĐ-CP.
           </span>
         </label>

@@ -283,7 +283,7 @@ export default function FaceRegistrationPage() {
                 className="mt-0.5 size-4 shrink-0 accent-neon"
               />
               <span className="text-sm text-chalk">
-                Tôi đồng ý cho GymShark xử lý dữ liệu sinh trắc học (khuôn mặt) của tôi để phục vụ
+                Tôi đồng ý cho GymMaster xử lý dữ liệu sinh trắc học (khuôn mặt) của tôi để phục vụ
                 check-in.
               </span>
             </label>

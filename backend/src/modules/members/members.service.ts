@@ -464,7 +464,7 @@ export class MembersService {
 
     await this.notificationsService.create({
       memberId: member.id,
-      title: "Chào mừng đến với GymShark 🎉",
+      title: "Chào mừng đến với GymMaster 🎉",
       content:
         "Tài khoản hội viên của bạn đã được tạo tại quầy. Hãy đăng nhập để xem thẻ tập, lịch tập và đăng ký khuôn mặt nhận diện nhanh tại quầy.",
       type: "SYSTEM",
