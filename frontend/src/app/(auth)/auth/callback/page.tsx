@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { saveSession } from '@/services/auth.service';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dumbbell, AlertCircle, Loader2 } from 'lucide-react';
 import { isAdminRole } from '@/lib/auth';
@@ -15,6 +16,7 @@ import { isAdminRole } from '@/lib/auth';
  */
 export default function GoogleCallbackPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -30,6 +32,8 @@ export default function GoogleCallbackPage() {
       const data = JSON.parse(new TextDecoder().decode(bytes));
       if (!data?.accessToken || !data?.user) throw new Error('Dữ liệu đăng nhập không hợp lệ');
 
+      // Xoá toàn bộ cache của phiên trước (nếu có) để không lẫn dữ liệu tài khoản cũ
+      queryClient.clear();
       saveSession(data.accessToken, data.user);
       const role = data.user.role as string;
       router.push(role === 'TRAINER' ? '/trainer' : isAdminRole(role) ? '/admin' : '/member');
@@ -38,7 +42,7 @@ export default function GoogleCallbackPage() {
         'Đăng nhập bằng Google thất bại. Vui lòng thử lại hoặc đăng nhập bằng email.',
       );
     }
-  }, [router]);
+  }, [router, queryClient]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-ink p-4">

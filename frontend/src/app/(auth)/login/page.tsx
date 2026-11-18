@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -26,6 +27,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
@@ -55,6 +57,8 @@ export default function LoginPage() {
       const response = await authApi.login(values.email, values.password);
       const { accessToken, user } = response;
 
+      // Xoá toàn bộ cache của phiên trước (nếu có) để không lẫn dữ liệu tài khoản cũ
+      queryClient.clear();
       saveSession(accessToken, user);
       if (rememberMe) {
         localStorage.setItem('gym_remember_email', values.email);

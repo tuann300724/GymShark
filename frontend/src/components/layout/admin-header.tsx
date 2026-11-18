@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/axios';
 import { MobileNav } from './mobile-nav';
 import NotificationBell from '@/components/notifications/notification-bell';
@@ -19,6 +19,7 @@ import {
 
 export function AdminHeader() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<any>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -141,6 +142,7 @@ export function AdminHeader() {
   };
 
   const handleLogout = () => {
+    queryClient.clear(); // xoá cache phiên để tài khoản tiếp theo không thấy dữ liệu cũ
     localStorage.removeItem('gym_access_token');
     localStorage.removeItem('gym_user');
     router.push('/login');

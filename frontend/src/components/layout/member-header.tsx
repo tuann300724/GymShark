@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { memberApi } from '@/services/member.service';
 import { notificationApi } from '@/services/notification.service';
 import { chatApi } from '@/services/chat.service';
@@ -55,6 +55,7 @@ function navLinkClass(active: boolean) {
 export function MemberHeader() {
   const pathname = usePathname();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
@@ -84,6 +85,7 @@ export function MemberHeader() {
   }, [pathname]);
 
   const handleLogout = () => {
+    queryClient.clear(); // xoá cache phiên để tài khoản tiếp theo không thấy dữ liệu cũ
     authApi.clearSession();
     router.push('/');
   };
