@@ -299,7 +299,6 @@ Web gym/
 ├── README.md                     # Tài liệu này
 ├── AGENTS.md                     # Quy ước làm việc cho AI agent / developer
 ├── DESIGN_SYSTEM.md              # Chuẩn giao diện (bắt buộc đọc trước khi sửa UI)
-├── WORKLOG.md                    # Nhật ký phát triển từng giai đoạn
 ├── .github/workflows/ci.yml      # CI: typecheck · lint · format · build (FE + BE)
 │
 ├── backend/                      # ── NestJS REST API (:3001) ──
@@ -562,7 +561,6 @@ Commit theo **Conventional Commits**: `feat(frontend): …`, `fix(admin): …`, 
 | :----------------------------------- | :------------------------------------------------------ |
 | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) | Chuẩn giao diện — đọc trước khi sửa UI |
 | [AGENTS.md](AGENTS.md) | Quy ước làm việc, lệnh kiểm tra, bẫy môi trường dev |
-| [WORKLOG.md](WORKLOG.md) | Nhật ký phát triển & quyết định thiết kế từng giai đoạn |
 
 ---
 
