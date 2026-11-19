@@ -49,3 +49,17 @@ bundle-analyze/
 # Prisma generated & SQLite DBs (if any)
 prisma/*.db
 prisma/*.db-journal
+
+# Local-only files kept on disk, intentionally untracked (removed from GitHub)
+gym_db.sql
+SQLQuery3.sql
+add-columns.js
+fix-referral-sql.sql
+seed-exercises.js
+__test_exercise.json
+test-login.js
+start-backend.bat
+start-frontend.bat
+DE_XUAT_TINH_NANG.txt
+TONG_HOP_QUY_TRINH_THIET_BI_VA_NUOC_UONG.txt
+WORKLOG.md
