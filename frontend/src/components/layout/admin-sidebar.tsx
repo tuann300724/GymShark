@@ -15,7 +15,6 @@ import {
   UserCheck,
   CalendarDays,
   Receipt,
-  Tag,
   Dumbbell,
   Wrench,
   BarChart3,
@@ -62,12 +61,11 @@ export const navigationSections = [
     ],
   },
   {
-    title: 'Tài chính & Ưu đãi',
+    title: 'Tài chính',
     items: [
       { name: 'Hóa đơn & Thu phí', href: '/admin/payments', icon: Receipt },
       { name: 'Báo cáo doanh thu', href: '/admin/reports/revenue', icon: BarChart3 },
       { name: 'Báo cáo nước uống', href: '/admin/reports/beverages', icon: Droplets },
-      { name: 'Khuyến mãi & Voucher', href: '/admin/promotions', icon: Tag },
     ],
   },
   {

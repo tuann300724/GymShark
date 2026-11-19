@@ -70,7 +70,6 @@ const METADATA_LABELS: Record<string, string> = {
   memberCode: 'Mã hội viên',
   packageName: 'Gói tập',
   paymentCode: 'Mã hóa đơn',
-  promotionCode: 'Mã khuyến mãi',
   transactionRef: 'Mã giao dịch',
   newEndDate: 'Hạn mới',
   specialization: 'Chuyên môn',
@@ -204,7 +203,7 @@ export default function AuditLogsPage() {
         </h1>
         <p className="mt-1 text-xs text-muted">
           Mọi thao tác nhạy cảm (đăng nhập, hồ sơ hội viên, gói tập, thanh toán, check-in, lịch tập,
-          thiết bị, khuyến mãi) đều được ghi lại để tra cứu và kiểm toán.
+          ca làm) đều được ghi lại để tra cứu và kiểm toán.
         </p>
       </div>
 

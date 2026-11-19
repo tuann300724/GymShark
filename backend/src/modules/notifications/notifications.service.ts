@@ -19,7 +19,6 @@ export const NOTIFICATION_TYPES = [
   'CHECKIN',
   'TRAINING',
   'SCHEDULE',
-  'PROMOTION',
   'SYSTEM',
   'CHAT',
 ] as const;

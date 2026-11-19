@@ -17,7 +17,6 @@ import { FacesModule } from "./modules/faces/faces.module";
 import { PaymentsModule } from "./modules/payments/payments.module";
 import { InvoicesModule } from "./modules/invoices/invoices.module";
 import { SchedulesModule } from "./modules/schedules/schedules.module";
-import { PromotionsModule } from "./modules/promotions/promotions.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { ReportsModule } from "./modules/reports/reports.module";
 import { PublicModule } from "./modules/public/public.module";
@@ -70,7 +69,6 @@ import { RealtimeMutationInterceptor } from "./common/interceptors/realtime-muta
     PaymentsModule,
     InvoicesModule,
     SchedulesModule,
-    PromotionsModule,
     NotificationsModule,
     ReportsModule,
     PublicModule,

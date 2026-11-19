@@ -78,7 +78,6 @@ async function bootstrap() {
     .addTag('Face Recognition', 'Đăng ký & quét nhận diện khuôn mặt (sinh trắc học)')
     .addTag('Payments', 'Quản lý giao dịch thu tiền và hoá đơn')
     .addTag('Training Schedules', 'Quản lý lịch tập và lớp học PT')
-    .addTag('Promotions', 'Quản lý phiếu giảm giá và mã khuyến mãi')
     .addTag('Notifications', 'Quản lý thông báo hệ thống')
     .addTag('Reports', 'Báo cáo doanh thu & số liệu vận hành')
     .build();

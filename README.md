@@ -1,8 +1,8 @@
 # GymMaster Pro — Hệ thống Quản lý & Vận hành Phòng tập Gym (Full-Stack)
 
 > Đồ án tốt nghiệp — Website + REST API quản lý chuỗi phòng tập gym: hội viên, thẻ tập,
-> thanh toán & hóa đơn, check-in thời gian thực, huấn luyện viên, lịch tập, thiết bị,
-> khuyến mãi, báo cáo, thông báo và **nhật ký hệ thống (audit log)**.
+> thanh toán & hóa đơn, check-in thời gian thực, huấn luyện viên, lịch tập,
+> thiết bị, báo cáo, thông báo và **nhật ký hệ thống (audit log)**.
 >
 > Toàn bộ giao diện & thông báo API viết bằng **tiếng Việt**.
 
@@ -56,7 +56,7 @@
 ### Khu vực hội viên `/member` — vai trò `MEMBER`
 
 - Dashboard cá nhân: gói tập hiện tại, số buổi tập tháng này, PT phụ trách, thanh toán gần nhất
-- **Đăng ký / gia hạn gói tập** online (áp dụng mã khuyến mãi, chọn CASH / BANK_TRANSFER / MoMo / VNPay);
+- **Đăng ký / gia hạn gói tập** online (chọn CASH / BANK_TRANSFER / MoMo / VNPay);
   thấy ngay **gói đã gia hạn sắp kích hoạt** và tự **hủy yêu cầu đang chờ thanh toán** nếu chưa chuyển tiền
 - **Check-in / Check-out** tự phục vụ hoặc lễ tân hỗ trợ
 - Lịch sử check-in, lịch tập cá nhân, huấn luyện viên phụ trách
@@ -70,7 +70,7 @@
 | :------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Tổng quan | Dashboard KPI, biểu đồ lượt tập theo giờ |
 | Hội viên & vận hành | Lượt check-in (quét thẻ), hội viên (+ chi tiết/tab lịch sử), thẻ hội viên, gói tập, HLV, lịch tập & lớp học, **tài khoản nhân viên**, **ca làm & doanh thu theo ca** |
-| Tài chính | Hóa đơn & thu phí (+ xác nhận / từ chối / hoàn tiền), báo cáo doanh thu, khuyến mãi & voucher |
+| Tài chính | Hóa đơn & thu phí (+ xác nhận / từ chối / hoàn tiền), báo cáo doanh thu |
 | Cơ sở & thiết bị | Thiết bị máy móc (+ lịch sử bảo trì), phòng tập |
 | Hệ thống | Báo cáo thống kê (8 tab), thông báo, **nhật ký hệ thống**, cài đặt & phân quyền |
 
@@ -108,10 +108,10 @@
 
 ### Nhật ký hệ thống (Audit Log) — _tính năng STEP 9_
 
-- Ghi lại **47 loại hành động** trên 14 entity: đăng nhập, đổi mật khẩu, tạo/cập nhật hội viên,
+- Ghi lại **53 loại hành động**: đăng nhập, đổi mật khẩu, tạo/cập nhật hội viên,
   đăng ký hội viên kèm mã xác minh email (gửi / gửi lại / sai mã), đổi trạng thái & gia hạn thẻ,
   hội viên tự hủy yêu cầu thanh toán, xác nhận/từ chối/hoàn tiền, check-in/out, sinh trắc học
-  khuôn mặt, đối soát quota PT, thao tác HLV, tạo/sửa/hủy/hoàn thành lịch tập, khuyến mãi,
+  khuôn mặt, đối soát quota PT, thao tác HLV, tạo/sửa/hủy/hoàn thành lịch tập,
   hội thoại & kế hoạch dinh dưỡng
 - **Không bao giờ** ghi mật khẩu, `passwordHash` hay token
 - Trang `/admin/audit-logs`: lọc theo người dùng / hành động / entity / từ ngày / đến ngày /
@@ -256,8 +256,8 @@ Mật khẩu được đặt trong `backend/prisma/seed.ts`. Trang `/login` có 
 11 thẻ tập đa trạng thái (`ACTIVE` / `EXPIRED` / `PENDING` / `CANCELLED`) ·
 11 hóa đơn (mỗi thẻ đúng 1 đơn, tổng hoá đơn khớp số tiền thanh toán) + 1 giao dịch `FAILED` ·
 **68 lượt check-in** lịch sử · 14 buổi tập (PT & lớp nhóm) & tiến trình tập ·
-5 thiết bị kèm 3 lịch bảo trì · 5 mã khuyến mãi (đang chạy & đã hết hạn) · thông báo mẫu ·
-**41 dòng nhật ký hệ thống** phủ **34/40 loại hành động** để demo trang `/admin/audit-logs`
+5 thiết bị kèm 3 lịch bảo trì · thông báo mẫu ·
+**30 dòng nhật ký hệ thống** phủ **23 loại hành động** (khi `DEMO_MEMBERS = true`; đặt `false` chỉ còn 8 dòng cơ bản) để demo trang `/admin/audit-logs`
 (chưa có trong seed: `FACE_ENROLL`/`FACE_DELETE`/`MEMBER_CREATE` và 3 action đăng ký qua
 mã xác minh email — chỉ sinh ra khi dùng chức năng tương ứng).
 
@@ -277,7 +277,6 @@ và `AdminGuard` / `MemberGuard` / `TrainerGuard` ở frontend (điều hướng
 | Hội viên / thẻ tập / gói tập / lịch tập / HLV | ✅ | ✅ | ✅ (đọc) | — | — |
 | Check-in thủ công (lễ tân) | ✅ | ✅ | ✅ | — | — |
 | Xác nhận / từ chối / hoàn tiền | ✅ | ✅ | ✅¹ | — | — |
-| Khuyến mãi & voucher | ✅ | ✅ | (đọc) | — | — |
 | Phòng / thiết bị / bảo trì | ✅ | ✅ | ✅ (đọc)¹ | — | — |
 | Quản lý tài khoản & đổi vai trò | ✅ | — | — | — | — |
 | **Nhật ký hệ thống** | ✅ | ✅ | ❌ (403) | ❌ | ❌ |
@@ -329,7 +328,6 @@ Web gym/
 │           ├── checkins/         # Check-in / check-out
 │           ├── trainers/         # Huấn luyện viên
 │           ├── schedules/        # Lịch tập · lớp học · tiến trình
-│           ├── promotions/       # Khuyến mãi
 │           ├── notifications/    # Thông báo & ticker
 │           ├── reports/          # Báo cáo tổng hợp (8 nhóm)
 │           ├── public/           # API công khai cho website
@@ -363,13 +361,12 @@ Web gym/
 
 ## 🗄 Mô hình dữ liệu
 
-**26 model**, liên kết bằng khoá ngoại có chủ đích để không mất lịch sử:
+**35 model**, liên kết bằng khoá ngoại có chủ đích để không mất lịch sử:
 
 ```text
 User ─┬─ Trainer ─┬─ TrainingSchedule
       │           └─ TrainerMember ── TrainingProgress
-      └─ Member ─┬─ Membership ─┬─ Payment ── Invoice
-                 │              └─ Promotion (SetNull)
+      └─ Member ─┬─ Membership ── Payment ── Invoice
                  ├─ CheckIn
                  ├─ TrainingSchedule
                  └─ Notification
@@ -379,7 +376,7 @@ User ── AuditLog (SetNull)      # xoá user không mất nhật ký
 Quy ước quan hệ:
 
 - `Cascade` — dữ liệu con **phụ thuộc sống** (Trainer của User, Membership của Member)
-- `SetNull` — dữ liệu lịch sử **được giữ lại** (AuditLog.userId, Payment.promotionId, Payment.confirmedById)
+- `SetNull` — dữ liệu lịch sử **được giữ lại** (AuditLog.userId, Payment.confirmedById)
 - `Restrict` — dữ liệu tài chính / vận hành quan trọng (Payment.memberId, Membership.packageId)
 
 Index được đặt theo truy vấn thực tế (theo `status`, `memberId`, `createdAt`,
@@ -400,7 +397,7 @@ Index được đặt theo truy vấn thực tế (theo `status`, `memberId`, `c
 | Rate limit | `@nestjs/throttler`: toàn cục **300 req/phút**; `POST /auth/login` **10/60s**; `POST /auth/register` **5/300s**; đăng ký hội viên tự do: `member-register/send-code` & `resend-code` **5/300s**, `member-register/verify` **10/300s** |
 | CORS | Allowlist qua `CORS_ORIGIN` (danh sách phân tách dấu phẩy) |
 | Lỗi | `AllExceptionsFilter` chuẩn hoá `{ statusCode, message, error, path, timestamp }`, map lỗi Prisma, **luôn** log chi tiết ở server |
-| Nhật ký | `AuditService` (@Global) ghi 40 loại hành động; `log()` **không bao giờ throw** để không làm hỏng nghiệp vụ chính; không lưu mật khẩu/token |
+| Nhật ký | `AuditService` (@Global) ghi 53 loại hành động (xem `AUDIT_ACTION_META`); `log()` **không bao giờ throw** để không làm hỏng nghiệp vụ chính; không lưu mật khẩu/token |
 | Rò rỉ thông tin | `.env` nằm trong `.gitignore`; chỉ commit `.env.example` |
 
 Biến môi trường bắt buộc (xem `backend/.env.example`):
@@ -497,7 +494,7 @@ cd ../backend && npm run build
 
 **Smoke test API** (`smoke-step9.js`) kiểm tra: security header helmet · RBAC 401/403 ·
 E2E đăng ký hội viên → đăng ký gói → admin xác nhận thanh toán → check-in/out · ghi và truy vấn
-audit log (34 loại action) · lọc & phân trang · ràng buộc dữ liệu cá nhân · validation DTO ·
+audit log · lọc & phân trang · ràng buộc dữ liệu cá nhân · validation DTO ·
 rate limit 429.
 
 **QA giao diện** (`qa-step9-sweep.js`) quét **38 route × 6 viewport** với 3 vai trò đăng nhập,

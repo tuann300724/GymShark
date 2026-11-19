@@ -25,7 +25,6 @@ export interface CreateMemberResult {
 export interface RegisterCardPayload {
   packageId: string;
   paymentMethod?: 'CASH' | 'BANK_TRANSFER' | 'MOMO' | 'VNPAY';
-  promotionCode?: string;
   /** true = thu tiền ngay tại quầy và kích hoạt thẻ ngay (chỉ Tiền mặt / Chuyển khoản) */
   payNow?: boolean;
   transactionRef?: string;

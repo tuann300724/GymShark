@@ -80,20 +80,13 @@ export const ASSIGNMENT_STATUS_META: Record<string, { label: string; variant: Ba
   INACTIVE: { label: 'Đã kết thúc', variant: 'outline' },
 };
 
-// ============ STEP 8 — Khuyến mãi & Thông báo ============
-
-export const PROMOTION_STATUS_META: Record<string, { label: string; variant: BadgeVariant }> = {
-  ACTIVE: { label: 'Đang chạy', variant: 'success' },
-  INACTIVE: { label: 'Ngừng kích hoạt', variant: 'outline' },
-  EXPIRED: { label: 'Hết hạn', variant: 'info' },
-};
+// ============ Thông báo ============
 
 export const NOTIFICATION_TYPE_META: Record<string, { label: string; variant: BadgeVariant }> = {
   PAYMENT: { label: 'Thanh toán', variant: 'success' },
   MEMBERSHIP: { label: 'Gói tập', variant: 'info' },
   CHECKIN: { label: 'Check-in', variant: 'warning' },
   TRAINING: { label: 'Lịch tập', variant: 'warning' },
-  PROMOTION: { label: 'Khuyến mãi', variant: 'info' },
   SYSTEM: { label: 'Hệ thống', variant: 'default' },
 };
 
@@ -164,12 +157,6 @@ export const AUDIT_ACTION_META: Record<string, { label: string; variant: BadgeVa
   SCHEDULE_COMPLETE: { label: 'Hoàn thành buổi tập', variant: 'success' },
   SCHEDULE_DELETE: { label: 'Xóa buổi tập', variant: 'destructive' },
 
-  // Khuyến mãi
-  PROMOTION_CREATE: { label: 'Tạo mã khuyến mãi', variant: 'success' },
-  PROMOTION_UPDATE: { label: 'Cập nhật mã khuyến mãi', variant: 'default' },
-  PROMOTION_ACTIVATE: { label: 'Kích hoạt khuyến mãi', variant: 'success' },
-  PROMOTION_DEACTIVATE: { label: 'Ngừng khuyến mãi', variant: 'warning' },
-
   // Ca làm & chốt quỹ
   STAFF_SHIFT_CREATE: { label: 'Phân công ca làm', variant: 'success' },
   STAFF_SHIFT_UPDATE: { label: 'Cập nhật ca làm', variant: 'default' },
@@ -204,7 +191,6 @@ export const AUDIT_ENTITY_LABEL: Record<string, string> = {
   CheckIn: 'Check-in',
   Trainer: 'Huấn luyện viên',
   TrainingSchedule: 'Buổi tập',
-  Promotion: 'Khuyến mãi',
   Face: 'Sinh trắc học',
   StaffShift: 'Ca làm',
   BeverageProduct: 'Sản phẩm nước uống',

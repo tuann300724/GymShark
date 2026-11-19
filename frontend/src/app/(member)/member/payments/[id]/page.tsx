@@ -185,14 +185,6 @@ export default function MemberPaymentDetailPage() {
                 <span className="text-chalk">{payment.confirmedBy.fullName}</span>
               </div>
             )}
-            {payment.promotion && (
-              <div className="flex justify-between text-neon">
-                <span className="text-muted">Mã khuyến mãi</span>
-                <span className="font-semibold">
-                  {payment.promotion.code} — {payment.promotion.name}
-                </span>
-              </div>
-            )}
           </div>
 
           {/* Thành tiền */}

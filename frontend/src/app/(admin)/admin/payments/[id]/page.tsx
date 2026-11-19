@@ -33,7 +33,6 @@ import {
   Landmark,
   Copy,
   Building2,
-  Tag,
   FileText,
   ArrowRight,
 } from 'lucide-react';
@@ -255,14 +254,6 @@ export default function PaymentDetailPage() {
                 </span>
               </p>
             </div>
-            {payment.promotion && (
-              <p className="mt-3 flex items-center gap-1.5 rounded-lg border border-neon/20 bg-neon/5 px-3 py-2 text-[11px] text-neon">
-                <Tag className="size-3.5 shrink-0" />
-                <span>
-                  Mã giảm giá: <b>{payment.promotion.code}</b> ({payment.promotion.name})
-                </span>
-              </p>
-            )}
           </CardContent>
         </Card>
 

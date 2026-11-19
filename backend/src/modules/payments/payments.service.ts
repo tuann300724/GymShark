@@ -272,7 +272,6 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
           membership: {
             include: { package: { select: { id: true, name: true } } },
           },
-          promotion: { select: { id: true, code: true, name: true } },
           invoice: { select: { id: true, invoiceNumber: true, status: true } },
           confirmedBy: { select: { id: true, fullName: true } },
         },
@@ -351,7 +350,6 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
           },
         },
         membership: { include: { package: true } },
-        promotion: true,
         invoice: true,
         confirmedBy: { select: { id: true, fullName: true, role: true } },
       },
@@ -366,7 +364,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
    * - set paidAt + confirmedBy/confirmedAt
    * - Membership PENDING → ACTIVE
    * - Invoice ISSUED → PAID
-   * - tăng lượt dùng promotion, gửi thông báo
+   * - gửi thông báo
    * Toàn bộ trong transaction — lỗi 1 bước là rollback.
    */
   async confirm(id: string, actor: Actor | null, dto: ConfirmPaymentDto) {
@@ -511,13 +509,6 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       const updated = await tx.payment.findUnique({ where: { id } });
       if (!updated)
         throw new NotFoundException("Không tìm thấy giao dịch thanh toán");
-
-      if (payment.promotionId) {
-        await tx.promotion.update({
-          where: { id: payment.promotionId },
-          data: { usedCount: { increment: 1 } },
-        });
-      }
 
       let activatedMembership = null;
       if (payment.membership && payment.membership.status === "PENDING") {
@@ -1081,14 +1072,6 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
         await tx.invoice.updateMany({
           where: { paymentId: id, status: InvoiceStatus.PAID },
           data: { status: InvoiceStatus.CANCELLED },
-        });
-      }
-
-      // Legacy sync: hoàn tiền → giảm usedCount của promo (không bị âm)
-      if (fullyRefunded && payment.promotionId) {
-        await tx.promotion.updateMany({
-          where: { id: payment.promotionId, usedCount: { gt: 0 } },
-          data: { usedCount: { decrement: 1 } },
         });
       }
 

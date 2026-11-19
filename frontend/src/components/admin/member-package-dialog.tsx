@@ -50,7 +50,6 @@ export function MemberPackageDialog({ open, onClose, member, onSuccess }: Props)
   const [step, setStep] = useState<Step>(1);
   const [packageId, setPackageId] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('CASH');
-  const [promotionCode, setPromotionCode] = useState('');
   const [payNow, setPayNow] = useState(true);
   const [notes, setNotes] = useState('');
   const [registration, setRegistration] = useState<RegisterCardResult | null>(null);
@@ -107,7 +106,6 @@ export function MemberPackageDialog({ open, onClose, member, onSuccess }: Props)
     setStep(1);
     setPackageId('');
     setPaymentMethod('CASH');
-    setPromotionCode('');
     setPayNow(true);
     setNotes('');
     setRegistration(null);
@@ -204,7 +202,6 @@ export function MemberPackageDialog({ open, onClose, member, onSuccess }: Props)
       paymentMethod: method,
       payNow: shouldPayNow,
     };
-    if (promotionCode.trim()) payload.promotionCode = promotionCode.trim().toUpperCase();
     if (notes.trim()) payload.notes = notes.trim();
     mutation.mutate(payload);
   };
@@ -545,25 +542,16 @@ export function MemberPackageDialog({ open, onClose, member, onSuccess }: Props)
               disabled={mutation.isPending}
             />
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Input
-                label="Mã khuyến mãi (tuỳ chọn)"
-                placeholder="GYM10..."
-                value={promotionCode}
-                onChange={(e) => setPromotionCode(e.target.value)}
-                disabled={mutation.isPending}
-              />
-              <Select
-                label="Phương thức thanh toán"
-                value={paymentMethod}
-                options={PAYMENT_METHODS}
-                onChange={(e) => {
-                  setPaymentMethod(e.target.value);
-                  setPayNow(e.target.value !== 'BANK_TRANSFER');
-                }}
-                disabled={mutation.isPending}
-              />
-            </div>
+            <Select
+              label="Phương thức thanh toán"
+              value={paymentMethod}
+              options={PAYMENT_METHODS}
+              onChange={(e) => {
+                setPaymentMethod(e.target.value);
+                setPayNow(e.target.value !== 'BANK_TRANSFER');
+              }}
+              disabled={mutation.isPending}
+            />
 
             <div className="space-y-2">
               {paymentMethod !== 'BANK_TRANSFER' && (

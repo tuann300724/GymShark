@@ -19,22 +19,12 @@ export const membershipApi = {
     return res.data;
   },
 
-  register: async (payload: {
-    packageId: string;
-    paymentMethod?: string;
-    promotionCode?: string;
-    notes?: string;
-  }) => {
+  register: async (payload: { packageId: string; paymentMethod?: string; notes?: string }) => {
     const res = await apiClient.post('/member/memberships', payload);
     return res.data;
   },
 
-  renew: async (payload: {
-    packageId: string;
-    paymentMethod?: string;
-    promotionCode?: string;
-    notes?: string;
-  }) => {
+  renew: async (payload: { packageId: string; paymentMethod?: string; notes?: string }) => {
     const res = await apiClient.post('/member/memberships/renew', payload);
     return res.data;
   },

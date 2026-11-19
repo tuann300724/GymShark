@@ -9,7 +9,7 @@ export class NotificationListQueryDto {
   tab?: 'all' | 'unread' | 'read';
 
   @ApiPropertyOptional({
-    enum: ['PAYMENT', 'MEMBERSHIP', 'CHECKIN', 'TRAINING', 'PROMOTION', 'EQUIPMENT', 'SYSTEM'],
+    enum: ['PAYMENT', 'MEMBERSHIP', 'CHECKIN', 'TRAINING', 'EQUIPMENT', 'SYSTEM'],
     description: 'Lọc theo loại thông báo',
   })
   @IsOptional()

@@ -394,82 +394,6 @@ async function main() {
     });
   }
 
-  // 9. Promotion
-  await prisma.promotion.upsert({
-    where: { code: 'SUMMER2026' },
-    update: {},
-    create: {
-      code: 'SUMMER2026',
-      name: 'Chào Hè 2026 - Giảm 15% tất cả gói tập',
-      description: 'Áp dụng cho học viên đăng ký mới các gói từ 6 tháng trở lên',
-      discountType: 'PERCENTAGE',
-      discountValue: 15,
-      startDate: new Date('2026-05-01'),
-      endDate: new Date('2026-08-31'),
-      usageLimit: 100,
-      perMemberLimit: 2,
-      usedCount: 1,
-    },
-  });
-
-  // STEP 8 — thêm mã KM đang hiệu lực (chạy nhiều lần không trùng, không reset DB)
-  await prisma.promotion.upsert({
-    where: { code: 'WELCOME10' },
-    update: {},
-    create: {
-      code: 'WELCOME10',
-      name: 'Chào mừng hội viên mới - Giảm 10%',
-      description: 'Giảm 10% cho hội viên đăng ký gói tập lần đầu (mỗi người dùng 1 lần)',
-      discountType: 'PERCENTAGE',
-      discountValue: 10,
-      maxDiscount: 500000,
-      minOrderValue: 1000000,
-      startDate: new Date('2026-01-01'),
-      endDate: new Date('2026-12-31'),
-      usageLimit: 100,
-      perMemberLimit: 1,
-      status: 'ACTIVE',
-    },
-  });
-
-  await prisma.promotion.upsert({
-    where: { code: 'FIXED500' },
-    update: {},
-    create: {
-      code: 'FIXED500',
-      name: 'Ưu đãi Tết - Giảm 500.000đ',
-      description: 'Giảm cố định 500.000đ cho mọi đơn đăng ký gói từ 3 tháng',
-      discountType: 'FIXED_AMOUNT',
-      discountValue: 500000,
-      minOrderValue: 2000000,
-      startDate: new Date('2026-01-01'),
-      endDate: new Date('2026-12-31'),
-      usageLimit: 50,
-      perMemberLimit: 1,
-      status: 'ACTIVE',
-    },
-  });
-
-  // Mã sắp hết hạn (2 ngày) để ticker sinh thông báo PROMOTION_ENDING
-  const endSoonDate = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
-  await prisma.promotion.upsert({
-    where: { code: 'ENDSOON7' },
-    update: {},
-    create: {
-      code: 'ENDSOON7',
-      name: 'Flash Sale cuối tháng - Giảm 20%',
-      description: 'Chỉ còn 2 ngày cuối! Giảm 20% toàn bộ gói tập.',
-      discountType: 'PERCENTAGE',
-      discountValue: 20,
-      maxDiscount: 800000,
-      startDate: new Date('2026-01-01'),
-      endDate: endSoonDate,
-      usageLimit: 30,
-      perMemberLimit: 1,
-      status: 'ACTIVE',
-    },
-  });
-
   // 11. Lịch tập mẫu (cho member + lớp học công khai)
   const scheduleCount = await prisma.trainingSchedule.count();
   if (scheduleCount === 0) {
@@ -1148,25 +1072,6 @@ async function main() {
     console.log('✅ Created trainer assignments + schedules (STEP 9)');
   }
 
-  // 16.5 Mã khuyến mãi đã hết hạn (demo)
-  await prisma.promotion.upsert({
-    where: { code: 'LUNAR2025' },
-    update: {},
-    create: {
-      code: 'LUNAR2025',
-      name: 'Ưu đãi Tết Nguyên Đán 2025',
-      description: 'Chương trình khuyến mãi Tết 2025 đã kết thúc (hiển thị ở mục thống kê EXPIRED).',
-      discountType: 'PERCENTAGE',
-      discountValue: 10,
-      startDate: new Date('2025-01-01'),
-      endDate: new Date('2025-02-28'),
-      usageLimit: 200,
-      perMemberLimit: 1,
-      usedCount: 150,
-      status: 'EXPIRED',
-    },
-  });
-
   // 16.7 Thông báo mẫu cho hội viên demo (chỉ tạo khi DEMO_MEMBERS = true)
   const notifSeeds = DEMO_MEMBERS
     ? [
@@ -1212,8 +1117,8 @@ async function main() {
   }
   console.log(
     DEMO_MEMBERS
-      ? '✅ Created promotions expired + notifications (STEP 9)'
-      : '✅ Created promotions expired (STEP 9) — bỏ qua thông báo hội viên mẫu (DEMO_MEMBERS = false)',
+      ? '✅ Created demo notifications (STEP 9)'
+      : '✅ Bỏ qua thông báo hội viên mẫu (DEMO_MEMBERS = false)',
   );
 
   // 16.8 Nhật ký hệ thống (AuditLog) — để trang /admin/audit-logs có dữ liệu demo ngay sau khi seed.
@@ -1245,11 +1150,6 @@ async function main() {
       { userId: adminUser.id, action: 'TRAINER_UPDATE', entity: 'Trainer', entityId: trainer2Rec?.id, metadata: { fields: ['experienceYears'] }, ip: '127.0.0.1', at: daysAgo9(20) },
       { userId: adminUser.id, action: 'TRAINER_REMOVE', entity: 'Trainer', entityId: trainer3Rec?.id, metadata: { fullName: trainerUser3.fullName, reason: 'Nghỉ việc (chuyển công ty)' }, ip: '127.0.0.1', at: daysAgo9(15) },
 
-      // --- Khuyến mãi ---
-      { userId: adminUser.id, action: 'PROMOTION_CREATE', entity: 'Promotion', entityId: null, metadata: { code: 'LUNAR2025', name: 'Khuyến mãi đầu năm' }, ip: '127.0.0.1', at: daysAgo9(60) },
-      { userId: adminUser.id, action: 'PROMOTION_UPDATE', entity: 'Promotion', entityId: null, metadata: { code: 'LUNAR2025', fields: ['discountValue'] }, ip: '127.0.0.1', at: daysAgo9(50) },
-      { userId: adminUser.id, action: 'PROMOTION_ACTIVATE', entity: 'Promotion', entityId: null, metadata: { code: 'LUNAR2025' }, ip: '127.0.0.1', at: daysAgo9(45) },
-      { userId: adminUser.id, action: 'PROMOTION_DEACTIVATE', entity: 'Promotion', entityId: null, metadata: { code: 'LUNAR2025', reason: 'Đã hết hạn' }, ip: '127.0.0.1', at: daysAgo9(3) },
     ];
 
     // --- Dữ liệu audit gắn với hội viên mẫu (member*@gym.com, MEM-0002/0003 demo) ---

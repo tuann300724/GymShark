@@ -84,7 +84,6 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
   // Gói tập
   const [packageId, setPackageId] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('CASH');
-  const [promotionCode, setPromotionCode] = useState('');
   const [payNow, setPayNow] = useState(true);
   const [transactionRef, setTransactionRef] = useState('');
 
@@ -140,7 +139,6 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
     setErrors({});
     setPackageId('');
     setPaymentMethod('CASH');
-    setPromotionCode('');
     setPayNow(true);
     setTransactionRef('');
     setCreated(null);
@@ -272,7 +270,6 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
       paymentMethod: paymentMethod as RegisterCardPayload['paymentMethod'],
       payNow: paymentMethod === 'BANK_TRANSFER' ? false : payNow,
     };
-    if (promotionCode.trim()) payload.promotionCode = promotionCode.trim().toUpperCase();
     if (paymentMethod !== 'BANK_TRANSFER' && payNow && transactionRef.trim()) {
       payload.transactionRef = transactionRef.trim();
     }
@@ -449,20 +446,12 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Select
-              label="Phương thức thanh toán"
-              value={paymentMethod}
-              options={PAYMENT_METHODS}
-              onChange={(e) => setPaymentMethod(e.target.value)}
-            />
-            <Input
-              label="Mã khuyến mãi (tuỳ chọn)"
-              placeholder="GYM10..."
-              value={promotionCode}
-              onChange={(e) => setPromotionCode(e.target.value)}
-            />
-          </div>
+          <Select
+            label="Phương thức thanh toán"
+            value={paymentMethod}
+            options={PAYMENT_METHODS}
+            onChange={(e) => setPaymentMethod(e.target.value)}
+          />
 
           {/* Ô chọn trạng thái thẻ sau khi tạo */}
           <div className="space-y-2">

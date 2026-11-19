@@ -7,12 +7,9 @@ import { packageApi } from '@/services/package.service';
 import { membershipApi } from '@/services/membership.service';
 import { paymentApi } from '@/services/payment.service';
 import { memberApi } from '@/services/member.service';
-import { promotionApi } from '@/services/promotion.service';
-import type { PromotionValidateResult } from '@/services/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -28,12 +25,9 @@ import {
   ArrowLeft,
   ArrowRight,
   RefreshCw,
-  Tag,
   Sparkles,
   Copy,
   Receipt,
-  BadgePercent,
-  XCircle,
 } from 'lucide-react';
 import Link from 'next/link';
 import { formatCurrency } from '@/lib/utils';
@@ -72,9 +66,6 @@ export default function RegisterMembershipPage() {
   const queryClient = useQueryClient();
 
   const [method, setMethod] = useState('CASH');
-  const [promotionCode, setPromotionCode] = useState('');
-  const [promoResult, setPromoResult] = useState<PromotionValidateResult | null>(null);
-  const [promoError, setPromoError] = useState('');
   const [successPayment, setSuccessPayment] = useState<any>(null);
   const [copied, setCopied] = useState('');
 
@@ -117,7 +108,6 @@ export default function RegisterMembershipPage() {
       membershipApi.register({
         packageId,
         paymentMethod: method,
-        promotionCode: promotionCode.trim() || undefined,
         notes: 'Đăng ký từ trang gói tập',
       }),
     onSuccess: (res: any) => {
@@ -159,38 +149,6 @@ export default function RegisterMembershipPage() {
   const memberCode = me?.member?.code || '';
   const transferContent = `GYM ${memberCode} ${successPayment?.payment?.code || ''}`.trim();
 
-  // ---- Kiểm tra mã khuyến mãi trước khi đăng ký (backend tự tính giá) ----
-  const validateMutation = useMutation({
-    mutationFn: () => promotionApi.validate(promotionCode.trim(), packageId),
-    onSuccess: (res: PromotionValidateResult) => {
-      setPromoError('');
-      if (res.valid) {
-        setPromoResult(res);
-        toast.success('Áp dụng mã thành công!', `Giảm ngay ${formatCurrency(res.discount || 0)}.`);
-      } else {
-        setPromoResult(null);
-        setPromoError(res.message || 'Mã khuyến mãi không áp dụng được.');
-        toast.error('Không thể áp dụng mã', res.message || 'Mã khuyến mãi không hợp lệ.');
-      }
-    },
-    onError: (err: any) => {
-      const msg = err.response?.data?.message;
-      setPromoResult(null);
-      setPromoError(
-        Array.isArray(msg) ? msg.join(', ') : msg || 'Có lỗi khi kiểm tra mã khuyến mãi.',
-      );
-    },
-  });
-
-  const handleApplyPromo = () => {
-    const code = promotionCode.trim();
-    if (!code) {
-      toast.error('Chưa nhập mã', 'Vui lòng nhập mã khuyến mãi trước khi áp dụng.');
-      return;
-    }
-    validateMutation.mutate();
-  };
-
   if (pkgLoading) {
     return (
       <div className="mx-auto max-w-3xl space-y-4">
@@ -215,8 +173,7 @@ export default function RegisterMembershipPage() {
 
   const pkg = selectedPackage;
   const originalPrice = parseFloat(pkg.price) || 0;
-  const finalPrice =
-    promoResult?.valid && promoResult.total != null ? Number(promoResult.total) : originalPrice;
+  const finalPrice = originalPrice;
   const qrUrl =
     bankInfo && successPayment?.payment
       ? `https://img.vietqr.io/image/${encodeURIComponent(bankInfo.shortName)}-${encodeURIComponent(bankInfo.accountNumber)}-qr_only.svg?amount=${Math.round(Number(successPayment.payment.amount || finalPrice))}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent(bankInfo.accountName)}`
@@ -364,21 +321,9 @@ export default function RegisterMembershipPage() {
           <div className="flex items-center justify-between rounded-xl border border-neon/30 bg-neon/5 p-4">
             <div>
               <p className="text-xs text-muted">Tổng thanh toán (tạm tính)</p>
-              <div className="flex items-baseline gap-2">
-                {promoResult?.valid && (
-                  <span className="text-sm text-muted line-through">
-                    {formatCurrency(originalPrice)}
-                  </span>
-                )}
-                <p className="font-display text-2xl font-extrabold text-neon">
-                  {formatCurrency(finalPrice)}
-                </p>
-              </div>
-              {promoResult?.valid && (
-                <p className="text-[11px] font-semibold text-neon">
-                  Được giảm {formatCurrency(promoResult.discount || 0)}
-                </p>
-              )}
+              <p className="font-display text-2xl font-extrabold text-neon">
+                {formatCurrency(finalPrice)}
+              </p>
             </div>
             <div className="text-right text-xs text-muted">
               <p>Hội viên: quẹt thẻ tại quầy lễ tân</p>

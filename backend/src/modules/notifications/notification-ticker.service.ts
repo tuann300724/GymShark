@@ -7,7 +7,6 @@ import { MAIL_EVENTS } from '../mail/mail.events';
 /**
  * STEP 8 — quét định kỳ (không cần cron, dùng setInterval nội bộ) để sinh thông báo:
  * - Membership sắp hết hạn (7 ngày) / vừa hết hạn
- * - Promotion sắp kết thúc (3 ngày)
  * Dedupe bằng referenceType + referenceId → không gửi trùng (in-app lẫn email).
  * Email nhắc gia hạn chạy NỀN qua EventEmitter (Nhóm B) — không chặn job.
  */
@@ -39,7 +38,6 @@ export class NotificationTickerService implements OnModuleInit, OnModuleDestroy 
   async run() {
     try {
       await this.checkMembershipExpiry();
-      await this.checkPromotionEnding();
     } catch (err) {
       this.logger.error('Notification ticker error', (err as Error)?.stack || String(err));
     }
@@ -177,29 +175,4 @@ export class NotificationTickerService implements OnModuleInit, OnModuleDestroy 
       );
     }
   }
-
-  /** Promotion: ACTIVE sắp kết thúc trong 3 ngày → nhắc hội viên */
-  private async checkPromotionEnding() {
-    const now = new Date();
-    const soon = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
-
-    const ending = await this.prisma.promotion.findMany({
-      where: { status: 'ACTIVE', endDate: { gte: now, lte: soon } },
-      select: { id: true, code: true, name: true, endDate: true },
-    });
-    for (const p of ending) {
-      await this.notificationsService.broadcast(
-        {
-          type: 'PROMOTION' as NotificationType,
-          title: 'Khuyến mãi sắp kết thúc 🏃',
-          content: `Mã ${p.code} — ${p.name} chỉ còn đến ${p.endDate.toLocaleDateString('vi-VN')}. Đăng ký gói tập ngay để nhận ưu đãi!`,
-          link: '/packages',
-          referenceType: 'PROMOTION_ENDING',
-          referenceId: p.id,
-        },
-        'MEMBERS',
-      );
-    }
-  }
-
 }

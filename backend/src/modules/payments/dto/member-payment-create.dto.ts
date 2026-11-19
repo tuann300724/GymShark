@@ -17,11 +17,6 @@ export class MemberPaymentCreateDto {
   @IsEnum(PaymentMethod, { message: 'Phương thức thanh toán không hợp lệ' })
   paymentMethod?: PaymentMethod;
 
-  @ApiPropertyOptional({ description: 'Mã khuyến mãi (tuỳ chọn)' })
-  @IsOptional()
-  @IsString()
-  promotionCode?: string;
-
   @ApiPropertyOptional({ description: 'true = gia hạn gói đang chạy, false/mặc định = đăng ký mới' })
   @IsOptional()
   @IsBoolean()

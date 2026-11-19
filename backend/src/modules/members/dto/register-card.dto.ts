@@ -29,12 +29,6 @@ export class RegisterCardDto {
   @IsEnum(PaymentMethod, { message: 'Phương thức thanh toán không hợp lệ' })
   paymentMethod?: PaymentMethod;
 
-  @ApiPropertyOptional({ description: 'Mã khuyến mãi (tuỳ chọn)' })
-  @IsOptional()
-  @IsString()
-  @MaxLength(50)
-  promotionCode?: string;
-
   @ApiPropertyOptional({
     default: false,
     description: 'true = thu tiền ngay tại quầy và kích hoạt thẻ',

@@ -341,7 +341,6 @@ export interface Payment {
     status?: string | null;
     package?: { id: string; name: string; durationDays?: number } | null;
   } | null;
-  promotion?: { id: string; code: string; name: string } | null;
   invoice?: { id: string; invoiceNumber: string; status: string } | null;
 }
 
@@ -450,97 +449,6 @@ export interface RevenueReport {
   }[];
   totalTransactions: number;
   data: { amount: string; createdAt: string }[];
-}
-
-export interface PublicPromotion {
-  id: string;
-  code: string;
-  name: string;
-  description: string | null;
-  discountType: string;
-  discountValue: number | string;
-  maxDiscount: number | string | null;
-  minOrderAmount: number | string | null;
-  endAt: string | null;
-}
-
-export interface Promotion {
-  id: string;
-  code: string;
-  name: string;
-  description: string | null;
-  discountType: 'PERCENTAGE' | 'FIXED_AMOUNT' | string;
-  discountValue: number | string;
-  maxDiscount: number | string | null;
-  minOrderAmount: number | string | null;
-  startAt: string;
-  endAt: string | null;
-  usageLimit: number | null;
-  perMemberLimit: number | null;
-  status: 'ACTIVE' | 'INACTIVE' | 'EXPIRED' | string;
-  usage: number;
-  usagePaid: number;
-  remaining: number | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface PromotionStats {
-  activeCount: number;
-  expiringSoon: number;
-  expiredCount: number;
-  totalUsage: number;
-  totalDiscount: number | string;
-}
-
-export interface PromotionListResponse {
-  data: Promotion[];
-  total: number;
-  stats: PromotionStats;
-  active: number;
-  expiringSoon: number;
-  expired: number;
-  totalUsage: number;
-  totalDiscount: number | string;
-}
-
-export interface PromotionValidateResult {
-  valid: boolean;
-  message?: string;
-  promotion?: {
-    id: string;
-    code: string;
-    name: string;
-    discountType: string;
-    discountValue: number | string;
-  };
-  subtotal?: number | string;
-  discount?: number | string;
-  total?: number | string;
-}
-
-export interface PromotionUsageRecord {
-  id: string;
-  paymentCode: string;
-  status: string;
-  amount: number | string;
-  discountAmount: number | string | null;
-  paidAt: string | null;
-  createdAt: string;
-  method: string;
-  member: { id: string; code: string; fullName: string; phone: string | null };
-  packageName: string | null;
-}
-
-export interface PromotionUsageResponse {
-  promotion: { id: string; code: string; name: string };
-  stats: {
-    totalUsage: number;
-    paidUsage: number;
-    remaining: number | null;
-    discountTotal: number;
-  };
-  data: PromotionUsageRecord[];
 }
 
 export interface NotificationItem {

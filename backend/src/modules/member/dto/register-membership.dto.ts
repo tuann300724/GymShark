@@ -13,11 +13,6 @@ export class RegisterMembershipDto {
   @IsEnum(PaymentMethod, { message: 'Phương thức thanh toán không hợp lệ' })
   paymentMethod?: PaymentMethod;
 
-  @ApiPropertyOptional({ description: 'Mã khuyến mãi (tuỳ chọn)' })
-  @IsOptional()
-  @IsString()
-  promotionCode?: string;
-
   @ApiPropertyOptional({ description: 'Ghi chú thêm (tuỳ chọn)' })
   @IsOptional()
   @IsString()

@@ -35,7 +35,6 @@ export const paymentApi = {
   createPaymentRequest: async (payload: {
     packageId: string;
     paymentMethod?: string;
-    promotionCode?: string;
     renew?: boolean;
   }) => {
     const res = await apiClient.post('/payments/me', payload);

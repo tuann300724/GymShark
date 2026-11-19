@@ -326,79 +326,12 @@ export class MemberService {
    */
   private async calcPrice(
     pkg: { price: Prisma.Decimal },
-    promotionCode?: string,
-    memberId?: string,
   ) {
     const original = new Prisma.Decimal(pkg.price.toString());
-    let discount = new Prisma.Decimal(0);
-    let promotion: any = null;
-
-    if (promotionCode) {
-      promotion = await this.prisma.promotion.findUnique({
-        where: { code: promotionCode },
-      });
-      if (!promotion || promotion.status !== "ACTIVE") {
-        throw new BadRequestException("Mã khuyến mãi không hợp lệ");
-      }
-      const now = new Date();
-      if (now < promotion.startDate || now > promotion.endDate) {
-        throw new BadRequestException(
-          "Mã khuyến mãi đã hết hạn hoặc chưa có hiệu lực",
-        );
-      }
-      // Giới hạn tổng lượt: đếm Payment PENDING + PAID (giữ chỗ thật, không phụ thuộc usedCount)
-      const reserved = await this.prisma.payment.count({
-        where: {
-          promotionId: promotion.id,
-          status: { in: ["PENDING", "PAID"] },
-        },
-      });
-      if (promotion.usageLimit !== null && reserved >= promotion.usageLimit) {
-        throw new BadRequestException("Mã khuyến mãi đã hết lượt sử dụng");
-      }
-      // Giới hạn mỗi hội viên
-      if (
-        memberId &&
-        promotion.perMemberLimit !== null &&
-        promotion.perMemberLimit !== undefined
-      ) {
-        const memberUsed = await this.prisma.payment.count({
-          where: {
-            promotionId: promotion.id,
-            memberId,
-            status: { in: ["PENDING", "PAID"] },
-          },
-        });
-        if (memberUsed >= promotion.perMemberLimit) {
-          throw new BadRequestException("Bạn đã dùng hết lượt của mã này");
-        }
-      }
-      if (
-        promotion.minOrderValue !== null &&
-        original.lt(new Prisma.Decimal(promotion.minOrderValue.toString()))
-      ) {
-        throw new BadRequestException(
-          `Mã khuyến mãi chỉ áp dụng cho đơn từ ${Number(promotion.minOrderValue).toLocaleString("vi-VN")}đ`,
-        );
-      }
-
-      const dv = new Prisma.Decimal(promotion.discountValue.toString());
-      discount =
-        promotion.discountType === "PERCENTAGE"
-          ? original.mul(dv).div(100)
-          : dv;
-
-      if (promotion.maxDiscount !== null) {
-        const maxD = new Prisma.Decimal(promotion.maxDiscount.toString());
-        if (discount.gt(maxD)) discount = maxD;
-      }
-      discount = discount.toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
-    }
-
+    const discount = new Prisma.Decimal(0);
     let final = original.minus(discount);
     if (final.lt(0)) final = new Prisma.Decimal(0);
-
-    return { original, discount, final, promotion };
+    return { original, discount, final };
   }
 
   async getMemberships(userId: string) {
@@ -545,10 +478,8 @@ export class MemberService {
     );
     const paymentCode = await this.genPaymentCode();
 
-    const { original, discount, final, promotion } = await this.calcPrice(
+    const { original, discount, final } = await this.calcPrice(
       pkg,
-      dto.promotionCode,
-      member.id,
     );
 
     const result = await this.prisma.$transaction(async (tx) => {
@@ -590,7 +521,6 @@ export class MemberService {
           code: paymentCode,
           memberId: member.id,
           membershipId: created.id,
-          promotionId: promotion?.id || null,
           amount: final,
           discountAmount: discount.gt(0) ? discount : null,
           method: dto.paymentMethod || PaymentMethod.CASH,
@@ -641,7 +571,6 @@ export class MemberService {
         packageName: pkg.name,
         amount: final,
         paymentCode,
-        promotionCode: dto.promotionCode ?? null,
         memberCode: member.code,
         via: ctx.via,
       },
@@ -721,10 +650,8 @@ export class MemberService {
     );
     const paymentCode = await this.genPaymentCode();
 
-    const { original, discount, final, promotion } = await this.calcPrice(
+    const { original, discount, final } = await this.calcPrice(
       pkg,
-      dto.promotionCode,
-      member.id,
     );
 
     const result = await this.prisma.$transaction(async (tx) => {
@@ -749,7 +676,6 @@ export class MemberService {
           code: paymentCode,
           memberId: member.id,
           membershipId: created.id,
-          promotionId: promotion?.id || null,
           amount: final,
           discountAmount: discount.gt(0) ? discount : null,
           method: dto.paymentMethod || PaymentMethod.CASH,
@@ -800,7 +726,6 @@ export class MemberService {
         packageName: pkg.name,
         amount: final,
         paymentCode,
-        promotionCode: dto.promotionCode ?? null,
       },
     });
 
@@ -1024,7 +949,6 @@ export class MemberService {
             package: { select: { id: true, name: true, durationDays: true } },
           },
         },
-        promotion: { select: { id: true, code: true, name: true } },
         invoice: { select: { id: true, invoiceNumber: true, status: true } },
       },
       orderBy: { createdAt: "desc" },
@@ -1055,7 +979,6 @@ export class MemberService {
             },
           },
         },
-        promotion: { select: { id: true, code: true, name: true } },
         invoice: true,
         confirmedBy: { select: { id: true, fullName: true, role: true } },
       },

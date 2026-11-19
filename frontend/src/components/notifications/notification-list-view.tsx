@@ -22,7 +22,6 @@ import {
   Dumbbell,
   Flame,
   Mail,
-  Megaphone,
   Package,
   QrCode,
   Trash2,
@@ -36,7 +35,6 @@ const TYPE_ICON: Record<string, { icon: React.ReactNode; color: string }> = {
     icon: <CalendarDays className="size-4" />,
     color: 'bg-purple-500/10 text-purple-400',
   },
-  PROMOTION: { icon: <Megaphone className="size-4" />, color: 'bg-danger/10 text-danger' },
   EQUIPMENT: { icon: <Dumbbell className="size-4" />, color: 'bg-amber-500/10 text-amber-400' },
   SYSTEM: { icon: <Bell className="size-4" />, color: 'bg-sky-500/10 text-sky-400' },
 };
@@ -57,7 +55,6 @@ const TYPE_OPTIONS = [
   { value: 'MEMBERSHIP', label: 'Gói tập' },
   { value: 'CHECKIN', label: 'Check-in' },
   { value: 'TRAINING', label: 'Lịch tập' },
-  { value: 'PROMOTION', label: 'Khuyến mãi' },
   { value: 'EQUIPMENT', label: 'Thiết bị' },
   { value: 'SYSTEM', label: 'Hệ thống' },
 ];

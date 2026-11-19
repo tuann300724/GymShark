@@ -15,11 +15,11 @@
 # Architechture
 
 * Clean Architechture
-* Mô hình thực tế: **Module-based Monolith** (NestJS) — `AppModule` import 24 feature module: auth, health, users, members, trainers, rooms, packages, memberships, checkins, faces, payments, invoices, schedules, promotions, notifications, reports, public, member, audit-logs, mail, foods, meal-plans, chat, casso
+* Mô hình thực tế: **Module-based Monolith** (NestJS) — `AppModule` import 31 feature module: auth, health, users, members, trainers, rooms, packages, memberships, checkins, faces, payments, invoices, schedules, notifications, reports, public, member, audit-logs, mail, foods, meal-plans, chat, exercises, programs, class-bookings, body-metrics, casso, equipment, staff-shifts, beverages
 * Tầng `common/` dùng chung: `guards/` (JwtAuthGuard, RolesGuard), `decorators/` (@Roles, @Public, @CurrentUser), `filters/` (AllExceptionsFilter), `enums/`
 * Mỗi module theo cấu trúc: `controller` (HTTP + WebSocket gateway) → `service` (nghiệp vụ, gọi Prisma) → `dto` (class-validator) → `entity`; service gọi nhau qua `imports` của module
 * Lớp truy cập dữ liệu: `PrismaModule` / `PrismaService` (kế thừa `PrismaClient`, `onModuleInit` kết nối) — service không tự query DB trực tiếp ngoài PrismaService
-* Audit: `AuditLogsModule` là `@Global()` — `log()` không bao giờ throw, ghi 34 action / 12 entity
+* Audit: `AuditLogsModule` là `@Global()` — `log()` không bao giờ throw, ghi 53 loại hành động (nhãn `AUDIT_ACTION_META`)
 * Frontend: Next.js App Router chia theo route group — `(public)`, `(auth)`, `(member)`, `(trainer)`, `(admin)` — mỗi group có layout riêng + middleware phân quyền theo role
 * Luồng dữ liệu: Client (Next.js) → Axios (JWT interceptor) → REST `/api/\*` → Controller → Service → Prisma → SQL Server; realtime qua WebSocket (Socket.IO) broadcast từ Gateway về client
 * Triển khai: Backend `http://localhost:3001/api` (prefix toàn cục `/api`), Frontend `http://localhost:3000`, baseURL = `NEXT\_PUBLIC\_API\_URL`

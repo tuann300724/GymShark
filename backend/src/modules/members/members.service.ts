@@ -512,7 +512,7 @@ export class MembersService {
    * Lễ tân tạo thẻ tập cho hội viên tại quầy.
    * - payNow = false → Membership PENDING + Payment PENDING + hoá đơn ISSUED (xác nhận sau ở /admin/payments)
    * - payNow = true  → thu tiền ngay: xác nhận thanh toán + kích hoạt thẻ (ACTIVE / PAID) qua
-   *                    đúng luồng confirm chuẩn (hoá đơn PAID, notification, promotion usage, audit)
+   *                    đúng luồng confirm chuẩn (hoá đơn PAID, notification, audit)
    */
   async registerCard(
     memberId: string,
@@ -543,7 +543,6 @@ export class MembersService {
       {
         packageId: dto.packageId,
         paymentMethod: method,
-        promotionCode: dto.promotionCode,
         notes: dto.notes,
       },
       actor.id,

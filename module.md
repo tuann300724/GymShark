@@ -70,38 +70,32 @@ Dự án quản lý phòng tập gym (Next.js + NestJS + Prisma + SQL Server).
 - Công thức món ăn, danh mục thực phẩm
 - Kế hoạch bữa ăn cho hội viên
 
-## 12. Khuyến mãi (Promotions)
-- Mã giảm giá, % hoặc cố định
-- Tự động tính subtotal / discount / total
-- Hạn sử dụng + tự động hết hạn
-- Áp dụng trong register-membership
-
-## 13. Thông báo (Notifications / Ticker)
+## 12. Thông báo (Notifications / Ticker)
 - Bell (3 phía: admin/member/staff)
 - Ticker 6h + trigger từ check-in / equipment / payment
 - Announce theo role / chi nhánh cụ thể
 
-## 14. Báo cáo & Export (Reports)
+## 13. Báo cáo & Export (Reports)
 - 8 tab báo cáo (revenue, membership, attendance, trainers...)
 - Lọc chi nhánh + CSV export (BOM)
 - KPI dashboard member / admin
 
-## 15. Kiểm toán (Audit Logs)
-- 34 action / 12 entity,
+## 14. Kiểm toán (Audit Logs)
+- 53 action (nhãn `AUDIT_ACTION_META`),
 - Log không bao giờ throw (@Global)
-- Đăng nhập / check-in / payment / face / promotion...
+- Đăng nhập / check-in / payment / face / membership...
 
-## 16. Chat / Tin nhắn
+## 15. Chat / Tin nhắn
 - Conversation (member/member hoặc với staff)
 - Message list + unread count
 
-## 17. API & Tích hợp
+## 16. API & Tích hợp
 - REST (NestJS) + Swagger (+Swagger UI)
 - JWT auth + CORS allowlist + helmet + throttler
 - Health check (`/api/health`) → `database: "connected"`
 - Frontend: Next.js 14 App Router + Tailwind v3 + TypeScript
 
-## 18. Công nghệ nền tảng (SQL Server)
+## 17. Công nghệ nền tảng (SQL Server)
 - `provider = "sqlserver"` (Prisma)
 - SQL Server 2022 native hoặc Docker `mssql/server:2022`
 - Windows Auth / `integratedSecurity=true` hoặc SQL Auth

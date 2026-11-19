@@ -108,7 +108,7 @@ Nếu **browser tools disconnected** → dùng script Playwright ở `C:\Users\U
 `scan-opacity.js` (quét class opacity không có trong scale Tailwind, vd `via-ink/92`) ·
 `cleanup-demo-data.js` + `cleanup-demo-data2.js` + `cleanup-maint.js` (dọn dữ liệu demo chọn lọc).
 
-**Bẫy endpoint khi viết script QA:** `GET /promotions` **không nhận** `?limit=` → `forbidNonWhitelisted` trả **400**; các API list khác trả `{data, total, page, limit}` chứ không phải array (`/membership-packages` trả array). Luôn `await res.ok` + fallback bỏ query khi 400.
+**Bẫy endpoint khi viết script QA:** các API list trả `{data, total, page, limit}` chứ không phải array (`/membership-packages` trả array). DTO dùng `forbidNonWhitelisted` nên query lạ trả **400**. Luôn `await res.ok` + fallback bỏ query khi 400.
 
 **Bẫy đo trang (rất dễ báo FAIL giả):**
 - **Đừng dùng `waitForTimeout` cố định** để đo nội dung — Next stream sau `domcontentloaded` nên đo

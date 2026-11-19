@@ -779,12 +779,6 @@ export class MembershipChangesService {
             where: { paymentId: payment.id, status: "PAID" },
             data: { status: "CANCELLED" },
           });
-          if (payment.promotionId) {
-            await tx.promotion.updateMany({
-              where: { id: payment.promotionId, usedCount: { gt: 0 } },
-              data: { usedCount: { decrement: 1 } },
-            });
-          }
         }
         outstandingRefund -= refundPart;
       }

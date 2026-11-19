@@ -60,31 +60,6 @@ export class PublicService {
     });
   }
 
-  /** Mã khuyến mãi đang hiệu lực cho trang gói tập công khai (STEP 8) */
-  async getPromotions() {
-    const now = new Date();
-    const rows = await this.prisma.promotion.findMany({
-      where: {
-        status: 'ACTIVE',
-        startDate: { lte: now },
-        OR: [{ endDate: null }, { endDate: { gte: now } }],
-      },
-      orderBy: { endDate: 'asc' },
-      take: 20,
-    });
-    return rows.map((p) => ({
-      id: p.id,
-      code: p.code,
-      name: p.name,
-      description: p.description,
-      discountType: p.discountType,
-      discountValue: p.discountValue,
-      maxDiscount: p.maxDiscount,
-      minOrderAmount: p.minOrderValue,
-      endAt: p.endDate,
-    }));
-  }
-
   /** Thống kê nhanh cho hero / giới thiệu */
   async getHomeStats() {
     const [memberCount, trainerCount] = await Promise.all([
