@@ -21,7 +21,7 @@
 
 3. PDF mẫu (`Gym master.pdf`) là đề tài EMS; chỉ dùng KHUNG HÌNH THỨC, không sao chép TypeORM / SQL Server 2019 / 4 lớp Clean Architecture / EventRequests / Quotations.
 
-4. ⚠️ THANH TOÁN: web CHỈ hỗ trợ `CASH` (tiền mặt) và `BANK_TRANSFER` (chuyển khoản), do STAFF/ADMIN xác nhận thủ công. `module.md` còn nhắc MoMo/VNPay stub — đó là MÔ TẢ LỖI THỜI (README.md đã được sửa lại): enum `PaymentMethod` có MOMO/VNPAY, `MomoGateway` là stub `integrated: false`, VNPay không có gateway, option MoMo/VNPAY ở giao diện cũ bị `disabled`/chỉ là demo, seed là dữ liệu mẫu. Không viết báo cáo như thể web có thanh toán ví/cổng; chỉ được nêu như định hướng tương lai. Nguồn chuẩn: `frontend/src/app/(member)/member/register-membership/[packageId]/page.tsx`, `backend/src/modules/payments/gateway/cash.gateway.ts`, `bank-transfer.gateway.ts`, `momo.gateway.ts`, `payments.service.ts`.
+4. ⚠️ PHẠM VI BÁO CÁO (đã đối chiếu với README.md và module.md): chỉ mô tả **4 vai trò ADMIN / STAFF / TRAINER / MEMBER**; thanh toán có **tiền mặt (CASH)** và **chuyển khoản (BANK_TRANSFER)**, trong đó chuyển khoản đối soát qua **CASSO** (Google Sheet/Apps Script), tiền mặt xác nhận tại quầy. STAFF/ADMIN xác nhận thủ công khi cần. Các đoạn code/seed trong file này vẫn có dấu vết legacy (enum `MANAGER`, enum `MOMO`/`VNPAY`, stub, seed demo) — KHÔNG đưa vào báo cáo, kể cả ở phần định hướng tương lai. Nguồn mô tả nghiệp vụ chuẩn là README.md + module.md đã sửa.
 
 
 ## Mục lục nguồn
@@ -3756,7 +3756,7 @@ export class AppModule {}
 
 ### Realtime toàn hệ thống
 
-- Các vai trò `ADMIN`, `MANAGER`, `STAFF`, `TRAINER` và `MEMBER` dùng Socket.IO đã xác thực JWT.
+- Các vai trò `ADMIN`, `STAFF`, `TRAINER` và `MEMBER` dùng Socket.IO đã xác thực JWT.
 - Sau mỗi thao tác ghi HTTP thành công, backend chỉ phát metadata của route; frontend làm mới các
   truy vấn React Query đang hoạt động qua REST API và quyền hiện có, không gửi dữ liệu nghiệp vụ
   trong socket event và không cần tải lại trang.
@@ -3766,16 +3766,16 @@ export class AppModule {}
 ### Khu vực hội viên `/member` — vai trò `MEMBER`
 
 - Dashboard cá nhân: gói tập hiện tại, số buổi tập tháng này, PT phụ trách, thanh toán gần nhất
-- **Đăng ký / gia hạn gói tập** online (chỉ **CASH / BANK_TRANSFER**, xác nhận thủ công tại quầy;
-  web không có thanh toán MoMo/VNPay — option cũ chỉ là demo/bị vô hiệu); thấy ngay **gói đã gia
-  hạn sắp kích hoạt** và tự **hủy yêu cầu đang chờ thanh toán** nếu chưa chuyển tiền
+- **Đăng ký / gia hạn gói tập** online (chọn **tiền mặt (CASH)** hoặc **chuyển khoản (BANK_TRANSFER)**;
+  chuyển khoản được đối soát qua CASSO); thấy ngay **gói đã gia hạn sắp kích hoạt** và tự **hủy yêu
+  cầu đang chờ thanh toán** nếu chưa đóng tiền/chuyển khoản
 - **Check-in / Check-out** tự phục vụ hoặc lễ tân hỗ trợ
 - Lịch sử check-in, lịch tập cá nhân, huấn luyện viên phụ trách
-- Khi ADMIN/MANAGER/STAFF phân công HLV phụ trách, hội viên nhận thông báo realtime và thấy thông tin HLV tại trang Gói tập của tôi. Phân công HLV không tự tạo quota buổi PT trong gói.
+- Khi ADMIN/STAFF phân công HLV phụ trách, hội viên nhận thông báo realtime và thấy thông tin HLV tại trang Gói tập của tôi. Phân công HLV không tự tạo quota buổi PT trong gói.
 - Hóa đơn: danh sách + chi tiết + **in biên lao**
 - Hồ sơ cá nhân, chuỗi thông báo, cập nhật mật khẩu
 
-### Khu vực quản trị `/admin` — vai trò `ADMIN` / `MANAGER` / `STAFF`
+### Khu vực quản trị `/admin` — vai trò `ADMIN` / `STAFF`
 
 | Nhóm | Màn hình |
 | :------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -3785,28 +3785,28 @@ export class AppModule {}
 | Cơ sở & thiết bị | Thiết bị máy móc (+ lịch sử bảo trì), phòng tập |
 | Hệ thống | Báo cáo thống kê (8 tab), thông báo, **nhật ký hệ thống**, cài đặt & phân quyền |
 
-- Với hợp đồng cũ thiếu snapshot quota PT, ADMIN/MANAGER phải đối chiếu hồ sơ và lịch PT, xác nhận
+- Với hợp đồng cũ thiếu snapshot quota PT, ADMIN phải đối chiếu hồ sơ và lịch PT, xác nhận
   tổng quota, số buổi đã dùng và giá trị mỗi buổi; hệ thống lưu kết quả kèm ghi chú audit trước khi
   mở bước đề xuất hoàn tiền. Lịch đã gắn hợp đồng là mức đã dùng tối thiểu; lịch chưa liên kết chỉ
   hiển thị tham khảo để tránh tự động tính nhầm cho hợp đồng khác.
 
 ### Ca làm & doanh thu — `/admin/shifts`
 
-- ADMIN/MANAGER tạo tài khoản STAFF và gửi email thông tin đăng nhập kèm mật khẩu tạm thời; nhân viên cần đổi mật khẩu sau lần đăng nhập đầu tiên. Có thể lưu mẫu ca theo thứ trong tuần và sinh lịch cho tối đa 31 ngày. Mẫu không tự tạo ca đến khi quản lý chọn sinh lịch. Vẫn có thể phân công, sửa, xóa ca chưa bắt đầu hoặc hủy ca; không cho phân công trùng giờ cho cùng nhân viên.
-- STAFF xem ca được phân, tự chấm công vào và chấm công ra. Khi kết thúc ca, nhập tiền mặt thực đếm để chốt quỹ. Hệ thống đối chiếu cả giao dịch CASH hội viên và bán nước đã thanh toán; nếu thiếu/thừa thì bắt buộc ghi lý do. Còn giao dịch tiền mặt POS hội viên chờ xác nhận thì chưa cho chốt. Giao dịch tạo tại quầy được gắn với đúng nhân viên và ca tại thời điểm tạo; CASSO có thể hoàn tất giao dịch chuyển khoản đến muộn vào chính ca đó, nhưng không gán sang ca mới hoặc ca đã hủy. Thanh toán hội viên tự thực hiện online không bị gán nhầm vào ca quầy.
-- Khi nhân viên vào ca hoặc chốt ca, trang ca làm của nhân viên và quản lý cập nhật ngay qua Socket.IO; ADMIN/MANAGER đang trực tuyến nhận thông báo tức thì, không cần tải lại trang.
+- ADMIN tạo tài khoản STAFF và gửi email thông tin đăng nhập kèm mật khẩu tạm thời; nhân viên cần đổi mật khẩu sau lần đăng nhập đầu tiên. Có thể lưu mẫu ca theo thứ trong tuần và sinh lịch cho tối đa 31 ngày. Mẫu không tự tạo ca đến khi ADMIN chọn sinh lịch. Vẫn có thể phân công, sửa, xóa ca chưa bắt đầu hoặc hủy ca; không cho phân công trùng giờ cho cùng nhân viên.
+- STAFF xem ca được phân, tự chấm công vào và chấm công ra. Khi kết thúc ca, nhập tiền mặt thực đếm để chốt quỹ. Hệ thống đối chiếu giao dịch tiền mặt (CASH) và giao dịch chuyển khoản đã xác nhận qua CASSO (gói tập và bán nước); nếu thiếu/thừa thì bắt buộc ghi lý do. Còn giao dịch tiền mặt/chuyển khoản chờ xác nhận thì chưa cho chốt. Giao dịch tạo tại quầy được gắn với đúng nhân viên và ca tại thời điểm tạo; CASSO có thể hoàn tất giao dịch chuyển khoản đến muộn vào chính ca đó, nhưng không gán sang ca mới hoặc ca đã hủy. Thanh toán hội viên tự thực hiện online không bị gán nhầm vào ca quầy.
+- Khi nhân viên vào ca hoặc chốt ca, trang ca làm của nhân viên cập nhật ngay qua Socket.IO; ADMIN đang trực tuyến nhận thông báo tức thì, không cần tải lại trang.
 - Báo cáo lọc theo ngày, nhân viên và trạng thái; chỉ tính Payment `PAID`, tổng hợp doanh thu, số giao dịch và hội viên duy nhất theo ca/ngày/nhân viên.
 - Ca dùng các trạng thái `SCHEDULED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`. Chỉ hoàn tất trạng thái `COMPLETED` sau khi lưu chốt quỹ; ca đã chốt/hủy không thể ghi nhận thanh toán mới. Backend tự chạy các script SQL idempotent trước `npm run start`, `start:dev`, `start:debug` và `start:prod`: `sqlserver-add-staff-shift-settlement.sql` bổ sung cột chốt quỹ/đóng ca; `sqlserver-add-weekly-staff-shifts.sql` bổ sung thời điểm chấm công và bảng mẫu tuần. Các script không xóa dữ liệu hiện có.
 
 ### Tài khoản nhân viên — `/admin/staff`
 
-- ADMIN/MANAGER tìm kiếm tài khoản STAFF theo tên, email hoặc số điện thoại; lọc trạng thái và khóa/kích hoạt lại tài khoản đăng nhập.
+- ADMIN tìm kiếm tài khoản STAFF theo tên, email hoặc số điện thoại; lọc trạng thái và khóa/kích hoạt lại tài khoản đăng nhập.
 - Tạo tài khoản mới tại trang này; mật khẩu tạm thời được gửi tới email nhân viên.
 
 ### Kinh doanh nước uống — `/admin/beverages`
 
 - Dashboard doanh số, tồn kho, cảnh báo sắp hết/hết hàng, lợi nhuận gộp ước tính và sản phẩm bán chạy; quản lý sản phẩm, phiếu nhập nhiều dòng, POS tại quầy, tồn kho/điều chỉnh và báo cáo theo ngày/tuần/tháng/năm (xuất CSV mở bằng Excel).
-- ADMIN/MANAGER quản lý sản phẩm, nhập kho, điều chỉnh và báo cáo tại một địa điểm. STAFF có thể xem sản phẩm/tồn kho kể cả trước ca, chỉ bán trong ca `IN_PROGRESS` được phân công, và chỉ xem hóa đơn do chính mình bán. Chuyển khoản POS tạo QR VietQR giống luồng đăng ký hội viên, kèm mã hội viên/mã đơn riêng; CASSO tự đối soát mỗi 5 giây và backend chỉ ghi nhận hóa đơn, trừ kho khi xác nhận đúng mã và số tiền, đồng thời ngăn dùng lại mã giao dịch. Doanh thu bán nước được cộng vào doanh thu ca, báo cáo theo nhân viên và tiền dự kiến khi chốt quỹ. MEMBER chỉ xem các hóa đơn đã thanh toán gắn với hồ sơ của mình tại `/member/beverages`.
+- ADMIN quản lý sản phẩm, nhập kho, điều chỉnh và báo cáo tại một địa điểm. STAFF có thể xem sản phẩm/tồn kho kể cả trước ca, chỉ bán trong ca `IN_PROGRESS` được phân công, và chỉ xem hóa đơn do chính mình bán. Chuyển khoản POS tạo QR VietQR giống luồng đăng ký hội viên, kèm mã hội viên/mã đơn riêng; CASSO tự đối soát mỗi 5 giây và backend chỉ ghi nhận hóa đơn, trừ kho khi xác nhận đúng mã và số tiền, đồng thời ngăn dùng lại mã giao dịch. Doanh thu bán nước được cộng vào doanh thu ca, báo cáo theo nhân viên và tiền dự kiến khi chốt quỹ. MEMBER chỉ xem các hóa đơn đã thanh toán gắn với hồ sơ của mình tại `/member/beverages`.
 - Dùng trực tiếp sáu bảng SQL Server `BeverageProduct`, `BeverageImport`, `BeverageImportItem`, `BeverageSale`, `BeverageSaleItem`, `BeverageStockMovement`; không thêm Prisma model/bảng. Truy vấn tồn kho và thống kê qua các view `vw_BeverageStock`, `vw_BeverageImportStatistics`, `vw_BeverageSalesStatistics`, `vw_BeverageProductSalesStatistics`.
 - `BeverageLocation` là model nội bộ bị ẩn khỏi Prisma Client, ánh xạ bảng `Branch` cũ để giữ liên kết lịch sử kho. Không còn API hay giao diện quản lý/chọn chi nhánh. Backend tự chạy migration `sqlserver-remove-branch-management.sql` khi khởi động để gộp tồn kho/phiếu nhập/hóa đơn về một địa điểm, lưu liên kết chi nhánh cũ của hội viên/ca làm vào bảng archive rồi bỏ các cột đó. Có thể chạy lại thủ công bằng `cd backend && npm run db:sync-single-location` để sửa dữ liệu cũ; migration được thiết kế chạy lặp an toàn.
 - Các bảng lookup cũ chỉ chứa danh sách giá trị enum (`CheckInMethod`, `Gender`, `PaymentStatusTbl`, v.v.) không được ứng dụng truy vấn; các giá trị được quản lý trong mã nguồn. Sau khi sao lưu database, có thể xóa các bảng này một lần bằng `cd backend && npm run db:remove-legacy-lookups`. Script chỉ chạy trên `gym_db`, kiểm tra schema và từ chối xóa nếu có khóa ngoại, trigger hoặc đối tượng SQL phụ thuộc; không tự chạy khi khởi động backend.
@@ -3826,7 +3826,7 @@ export class AppModule {}
   hội thoại & kế hoạch dinh dưỡng
 - **Không bao giờ** ghi mật khẩu, `passwordHash` hay token
 - Trang `/admin/audit-logs`: lọc theo người dùng / hành động / entity / từ ngày / đến ngày /
-  tìm kiếm nội dung, phân trang, xem metadata dạng JSON — chỉ `ADMIN` & `MANAGER`
+  tìm kiếm nội dung, phân trang, xem metadata dạng JSON — chỉ `ADMIN`
 
 ---
 
@@ -3956,7 +3956,6 @@ Mật khẩu được đặt trong `backend/prisma/seed.ts`. Trang `/login` có 
 | Vai trò | Email | Mật khẩu | Khu vực |
 | :---------- | :------------------------------------- | :--------------- | :----------------------------------------------------------------- |
 | **ADMIN** | `admin@gym.com` | `Admin@123456` | `/admin` — toàn quyền, kể cả phân quyền & cài đặt |
-| **MANAGER** | `manager@gym.com` | `Manager@123456` | `/admin` — vận hành + xem nhật ký hệ thống |
 | **STAFF** | `staff@gym.com` | `Staff@123456` | `/admin` — lễ tân: check-in, hội viên, thu phí (không xem nhật ký) |
 | **TRAINER** | `trainer@gym.com` | `Trainer@123456` | `/trainer` — lịch dạy, học viên, tiến trình |
 | **MEMBER** | `member@gym.com` | `Member@123456` | `/member` — hội viên chính (`MEM-0001`, thẻ `MEM-0001`) |
@@ -3982,21 +3981,20 @@ mã xác minh email — chỉ sinh ra khi dùng chức năng tương ứng).
 Phân quyền được kiểm soát **hai lớp**: `JwtAuthGuard` → `RolesGuard` ở backend (thứ tự route),
 và `AdminGuard` / `MemberGuard` / `TrainerGuard` ở frontend (điều hướng + ẩn menu).
 
-| Nhóm chức năng | ADMIN | MANAGER | STAFF | TRAINER | MEMBER |
-| :-------------------------------------------- | :---: | :-----: | :-------: | :-----: | :-----------------: |
-| Dashboard tổng quan, báo cáo thống kê | ✅ | ✅ | ✅ | — | — |
-| Hội viên / thẻ tập / gói tập / lịch tập / HLV | ✅ | ✅ | ✅ (đọc) | — | — |
-| Check-in thủ công (lễ tân) | ✅ | ✅ | ✅ | — | — |
-| Xác nhận / từ chối / hoàn tiền | ✅ | ✅ | ✅¹ | — | — |
-| Phòng / thiết bị / bảo trì | ✅ | ✅ | ✅ (đọc)¹ | — | — |
-| Quản lý tài khoản & đổi vai trò | ✅ | — | — | — | — |
-| **Nhật ký hệ thống** | ✅ | ✅ | ❌ (403) | ❌ | ❌ |
-| Giao diện huấn luyện viên | — | — | — | ✅ | — |
-| Đăng ký/gia hạn gói, hóa đơn, lịch tập, hồ sơ | — | — | — | — | ✅ (của chính mình) |
+| Nhóm chức năng | ADMIN | STAFF | TRAINER | MEMBER |
+| :-------------------------------------------- | :---: | :-----: | :-------: | :-----------------: |
+| Dashboard tổng quan, báo cáo thống kê | ✅ | ✅ | — | — |
+| Hội viên / thẻ tập / gói tập / lịch tập / HLV | ✅ | ✅ (đọc) | — | — |
+| Check-in thủ công (lễ tân) | ✅ | ✅ | — | — |
+| Xác nhận / từ chối / hoàn tiền | ✅ | ✅¹ | — | — |
+| Phòng / thiết bị / bảo trì | ✅ | ✅ (đọc)¹ | — | — |
+| Quản lý tài khoản & đổi vai trò | ✅ | — | — | — |
+| **Nhật ký hệ thống** | ✅ | ❌ (403) | ❌ | ❌ |
+| Giao diện huấn luyện viên | — | — | ✅ | — |
+| Đăng ký/gia hạn gói, hóa đơn, lịch tập, hồ sơ | — | — | — | ✅ (của chính mình) |
 
-¹ `STAFF` / `ADMIN` / `MANAGER` xác nhận được **CASH / BANK_TRANSFER** (xác nhận thủ công).
-`MoMo` / `VNPay` chỉ là enum + stub trong code (`MomoGateway.integrated = false`, VNPay không có
-gateway), không phải phương thức thanh toán đang dùng trên web.
+¹ Thanh toán dùng **tiền mặt (CASH)** hoặc **chuyển khoản (BANK_TRANSFER, đối soát CASSO)**;
+`STAFF` / `ADMIN` xác nhận thủ công, kể cả khi CASSO chưa khớp.
 
 Dữ liệu cá nhân của hội viên **luôn** lấy từ `sub` trong JWT — không nhận `memberId` từ
 request body, nên không thể đọc dữ liệu của người khác.
@@ -4034,7 +4032,7 @@ Web gym/
 │           ├── member/           # Cổng API riêng cho hội viên
 │           ├── memberships/      # Thẻ hội viên
 │           ├── packages/         # Gói tập
-│           ├── payments/         # Thanh toán (chỉ CASH/BANK; MOMO/VNPAY là enum/stub)
+│           ├── payments/         # Thanh toán tiền mặt + chuyển khoản/CASSO
 │           ├── invoices/         # Hóa đơn INV-YYYY-NNNNNN
 │           ├── checkins/         # Check-in / check-out
 │           ├── trainers/         # Huấn luyện viên
@@ -4254,10 +4252,9 @@ Frontend `typecheck → lint → format:check → build` và Backend `prisma val
 
 - **Bài tập tập luyện** đang là dữ liệu tĩnh trong `frontend/src/lib/programs.ts` — chưa có
   model `Exercise` + CRUD quản trị.
-- **Web chưa có cổng thanh toán điện tử** `MoMo` / `VNPay`: code chỉ có enum `PaymentMethod` và
-  `MomoGateway` stub (`integrated = false`); VNPay không có gateway, option giao diện cũ chỉ là
-  demo/bị vô hiệu, giao dịch ví trong seed là dữ liệu mẫu. `CASH` và `BANK_TRANSFER` là hai
-  phương thức duy nhất hoạt động đầy đủ (xác nhận thủ công).
+- **Phương thức thanh toán hiện có tiền mặt (CASH) + chuyển khoản (BANK_TRANSFER)**; chuyển khoản
+  được đối soát qua CASSO (quét Google Sheet định kỳ, khớp nội dung `GYM <MÃ> <MÃ Payment>`), còn
+  tiền mặt do `STAFF` / `ADMIN` xác nhận tại quầy. Chưa hỗ trợ cổng thanh toán khác.
 - **Gửi email / tin nhắn** chưa tích hợp — thông báo chỉ lưu trong database và hiển thị
   qua chuông + ticker.
 - **Chưa có test tự động** (unit/e2e test runner) — kiểm thử hiện dùng smoke test script
@@ -4301,7 +4298,7 @@ Dự án quản lý phòng tập gym (Next.js + NestJS + Prisma + SQL Server).
 - Đăng nhập / Đăng ký (JWT)
 - Quên mật khẩu / Đặt lại / Đổi mật khẩu
 - Google OAuth
-- Phân quyền: ADMIN / MANAGER / STAFF / TRAINER / MEMBER
+- Phân quyền: ADMIN / STAFF / TRAINER / MEMBER
 
 ## 2. Hội viên & Thẻ thành viên
 - Đăng ký hội viên / Cấp lại thẻ
@@ -4319,13 +4316,13 @@ Dự án quản lý phòng tập gym (Next.js + NestJS + Prisma + SQL Server).
 - Đăng ký mới / Gia hạn
 - Trạng thái: PENDING → ACTIVE / EXPIRED / CANCELLED
 - Liên kết Member → Package
-- Yêu cầu chấm dứt hợp đồng: quản lý đề xuất hoàn tiền theo thời gian và quota PT còn lại → hội viên xác nhận → ADMIN/MANAGER duyệt → ADMIN ghi nhận khoản chi thực tế
-- Bảo lưu một lần, tối đa 30 ngày; ADMIN/MANAGER duyệt và gia hạn hợp đồng tương ứng
+- Yêu cầu chấm dứt hợp đồng: ADMIN đề xuất hoàn tiền theo thời gian và quota PT còn lại → hội viên xác nhận → ADMIN duyệt → ADMIN ghi nhận khoản chi thực tế
+- Bảo lưu một lần, tối đa 30 ngày; ADMIN duyệt và gia hạn hợp đồng tương ứng
 
 ## 5. Thanh toán & Hóa đơn (Payment + Invoice)
-- Gateway: chỉ CASH / BANK_TRANSFER hoạt động ; MOMO / VNPAY chỉ là enum + stub trong code, web KHÔNG cho thanh toán bằng ví/cổng
+- Thanh toán: tiền mặt (CASH) + chuyển khoản (BANK_TRANSFER, đối soát qua CASSO)
 - Tạo hóa đơn (INV-... unique), trạng thái DRAFT / ISSUED / PAID / CANCELLED
-- Xác nhận thanh toán (STAFF confirm CASH/BANK)
+- Xác nhận thanh toán: tiền mặt do STAFF/ADMIN xác nhận tại quầy; chuyển khoản khớp qua CASSO hoặc xác nhận thủ công khi chưa khớp
 - Hoàn tiền thanh toán độc lập có transaction; khoản gắn hợp đồng phải qua quy trình chấm dứt, xác nhận và phê duyệt
 - Hoàn một phần ghi nhận số tiền thực chi, doanh thu báo cáo được trừ khoản hoàn
 - In biên lai / in PDF
@@ -4414,7 +4411,7 @@ Dự án quản lý phòng tập gym (Next.js + NestJS + Prisma + SQL Server).
 * Css: Tailwind CSS v3 (design system 1 palette: nền tối #0B0D0F / sáng #F2F4F0, accent neon #B7FF00; token màu là CSS variables, không dùng class `dark:` thủ công) — font Barlow Condensed (tiêu đề) + Be Vietnam Pro (nội dung), icon `lucide-react`
 * Frontend: Next.js 14 (App Router) + TypeScript + React 18 + TanStack Query v5 + Socket.IO client + Axios (interceptor tự gắn JWT)
 * Realtime: Socket.IO 4 (`@nestjs/platform-socket.io`) cho chat HLV ↔ hội viên + thông báo
-* Xác thực: JWT (Passport) + RBAC theo `UserRole` (ADMIN / MANAGER / STAFF / TRAINER / MEMBER), `bcryptjs` mã hoá mật khẩu
+* Xác thực: JWT (Passport) + RBAC theo `UserRole` (ADMIN / STAFF / TRAINER / MEMBER), `bcryptjs` mã hoá mật khẩu
 * Bảo mật: `helmet`, `@nestjs/throttler` (global 300 req/60s; login 10/60s; register 5/300s), CORS allowlist, `ValidationPipe` (whitelist + forbidNonWhitelisted), `AllExceptionsFilter` chuẩn hoá lỗi
 * Nhận diện khuôn mặt: `@vladmandic/human` 3.3.6 (chạy 100% client-side, trích vector 1024 chiều, cosine similarity, anti-spoof)
 * Thư viện UI: shadcn-style component tự viết (`components/ui`) — button, card, input, tabs, dialog, badge, skeleton, empty-state…

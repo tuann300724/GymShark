@@ -6,7 +6,7 @@ Dự án quản lý phòng tập gym (Next.js + NestJS + Prisma + SQL Server).
 - Đăng nhập / Đăng ký (JWT)
 - Quên mật khẩu / Đặt lại / Đổi mật khẩu
 - Google OAuth
-- Phân quyền: ADMIN / MANAGER / STAFF / TRAINER / MEMBER
+- Phân quyền: ADMIN / STAFF / TRAINER / MEMBER
 
 ## 2. Hội viên & Thẻ thành viên
 - Đăng ký hội viên / Cấp lại thẻ
@@ -24,13 +24,13 @@ Dự án quản lý phòng tập gym (Next.js + NestJS + Prisma + SQL Server).
 - Đăng ký mới / Gia hạn
 - Trạng thái: PENDING → ACTIVE / EXPIRED / CANCELLED
 - Liên kết Member → Package
-- Yêu cầu chấm dứt hợp đồng: quản lý đề xuất hoàn tiền theo thời gian và quota PT còn lại → hội viên xác nhận → ADMIN/MANAGER duyệt → ADMIN ghi nhận khoản chi thực tế
-- Bảo lưu một lần, tối đa 30 ngày; ADMIN/MANAGER duyệt và gia hạn hợp đồng tương ứng
+- Yêu cầu chấm dứt hợp đồng: ADMIN đề xuất hoàn tiền theo thời gian và quota PT còn lại → hội viên xác nhận → ADMIN duyệt → ADMIN ghi nhận khoản chi thực tế
+- Bảo lưu một lần, tối đa 30 ngày; ADMIN duyệt và gia hạn hợp đồng tương ứng
 
 ## 5. Thanh toán & Hóa đơn (Payment + Invoice)
-- Gateway: CASH / BANK_TRANSFER (thật) ; MOMO / VNPAY (stub)
+- Thanh toán: tiền mặt (CASH) + chuyển khoản (BANK_TRANSFER, đối soát qua CASSO)
 - Tạo hóa đơn (INV-... unique), trạng thái DRAFT / ISSUED / PAID / CANCELLED
-- Xác nhận thanh toán (STAFF confirm CASH/BANK)
+- Xác nhận thanh toán: tiền mặt do STAFF/ADMIN xác nhận tại quầy; chuyển khoản khớp qua CASSO hoặc xác nhận thủ công khi chưa khớp
 - Hoàn tiền thanh toán độc lập có transaction; khoản gắn hợp đồng phải qua quy trình chấm dứt, xác nhận và phê duyệt
 - Hoàn một phần ghi nhận số tiền thực chi, doanh thu báo cáo được trừ khoản hoàn
 - In biên lai / in PDF
