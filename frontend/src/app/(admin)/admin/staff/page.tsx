@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import { Search, UserCog, UserPlus, UserRound, UserRoundX, UserRoundCheck } from 'lucide-react';
@@ -11,6 +12,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Spinner } from '@/components/ui/spinner';
 import { CreateStaffAccountDialog } from '@/components/admin/create-staff-account-dialog';
 import { useToast } from '@/components/ui/toast';
 import { useConfirm } from '@/components/ui/confirm-dialog';
@@ -38,14 +40,24 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : 'Vui lòng thử lại.';
 }
 
-export default function StaffAccountsPage() {
+function StaffAccountsPageContent() {
   const toast = useToast();
   const { confirm } = useConfirm();
   const queryClient = useQueryClient();
-  const [searchInput, setSearchInput] = useState('');
-  const [search, setSearch] = useState('');
+  const searchParams = useSearchParams();
+  const [searchInput, setSearchInput] = useState(() => searchParams.get('search') ?? '');
+  const [search, setSearch] = useState(() => searchParams.get('search') ?? '');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [createOpen, setCreateOpen] = useState(false);
+
+  // Đồng bộ khi điều hướng từ ô tìm kiếm nhanh ở header (?search=...)
+  useEffect(() => {
+    const q = searchParams.get('search');
+    if (q !== null) {
+      setSearchInput(q);
+      setSearch(q);
+    }
+  }, [searchParams]);
 
   const staffQuery = useQuery({
     queryKey: ['staff-accounts', search],
@@ -264,5 +276,13 @@ export default function StaffAccountsPage() {
 
       <CreateStaffAccountDialog open={createOpen} onClose={() => setCreateOpen(false)} />
     </div>
+  );
+}
+
+export default function StaffAccountsPage() {
+  return (
+    <Suspense fallback={<Spinner />}>
+      <StaffAccountsPageContent />
+    </Suspense>
   );
 }

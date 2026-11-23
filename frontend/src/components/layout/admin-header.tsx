@@ -1,12 +1,15 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/axios';
 import { MobileNav } from './mobile-nav';
 import NotificationBell from '@/components/notifications/notification-bell';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { navigationSections } from './admin-sidebar';
+import { cn, formatCurrency } from '@/lib/utils';
+import { PAYMENT_STATUS_META, PAYMENT_METHOD_LABEL, TRAINER_STATUS_META } from '@/lib/status';
 import {
   Search,
   ShieldCheck,
@@ -15,7 +18,74 @@ import {
   ArrowRight,
   Loader2,
   X,
+  Compass,
+  Users,
+  UserCheck,
+  Receipt,
+  UserCog,
+  ChevronRight,
 } from 'lucide-react';
+
+// ---------------------------------------------------------------------------
+// Tìm nhanh trong khu vực quản trị — kết quả gom nhóm + lọc theo nhóm
+// ---------------------------------------------------------------------------
+
+type SearchFilter = 'all' | 'nav' | 'members' | 'trainers' | 'payments' | 'staff';
+
+const FILTERS: { key: SearchFilter; label: string }[] = [
+  { key: 'all', label: 'Tất cả' },
+  { key: 'nav', label: 'Điều hướng' },
+  { key: 'members', label: 'Hội viên' },
+  { key: 'trainers', label: 'HLV' },
+  { key: 'payments', label: 'Thanh toán' },
+  { key: 'staff', label: 'Nhân viên' },
+];
+
+/** Các trang ẩn với vai trò STAFF — đồng bộ với AdminSidebar */
+const STAFF_HIDDEN_HREFS = [
+  '/admin/staff',
+  '/admin/beverages',
+  '/admin/beverages/imports',
+  '/admin/reports/beverages',
+];
+
+/** Trang danh sách tương ứng mỗi nhóm (đọc ?search= ở trang đích) */
+const LIST_HREFS: Record<string, string> = {
+  members: '/admin/members',
+  trainers: '/admin/trainers',
+  payments: '/admin/payments',
+  staff: '/admin/staff',
+};
+
+const KBD_CLASS =
+  'inline-flex h-5 min-w-[20px] items-center justify-center rounded border border-line bg-ink px-1 text-[10px] font-semibold text-muted';
+
+type SearchItem = {
+  key: string;
+  href: string;
+  title: string;
+  badge?: string;
+  meta: string;
+  tag?: string;
+  icon?: React.ElementType;
+  initial?: string;
+};
+
+type SearchSection = {
+  key: Exclude<SearchFilter, 'all'>;
+  label: string;
+  icon: React.ElementType;
+  count: number;
+  items: SearchItem[];
+};
+
+/** Bỏ dấu + lowercase để tìm không phân biệt hoa/thường/dấu */
+const normalize = (value: string) =>
+  value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd');
 
 export function AdminHeader() {
   const router = useRouter();
@@ -24,10 +94,11 @@ export function AdminHeader() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Tìm nhanh hội viên
+  // Tìm nhanh trong admin
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
+  const [filter, setFilter] = useState<SearchFilter>('all');
   const [activeIndex, setActiveIndex] = useState(-1);
   const searchRef = useRef<HTMLDivElement>(null);
 
@@ -74,6 +145,18 @@ export function AdminHeader() {
     return () => document.removeEventListener('mousedown', onClick);
   }, [searchOpen]);
 
+  // Đổi nhóm lọc → bỏ chọn dòng đang highlight
+  useEffect(() => {
+    setActiveIndex(-1);
+  }, [filter]);
+
+  // Cuộn tới dòng đang chọn bằng phím
+  useEffect(() => {
+    if (!searchOpen || activeIndex < 0) return;
+    const el = searchRef.current?.querySelector('[data-active="true"]');
+    el?.scrollIntoView({ block: 'nearest' });
+  }, [activeIndex, searchOpen]);
+
   // Health check query to backend
   const {
     data: health,
@@ -89,32 +172,214 @@ export function AdminHeader() {
     retry: 1,
   });
 
-  // Tìm nhanh hội viên theo tên / SĐT / mã (backend không phân biệt hoa thường và dấu)
+  const role: string = user?.role || '';
+  const canSeeStaff = role === 'ADMIN' || role === 'MANAGER';
+
+  // Danh mục điều hướng (đồng bộ sidebar; ẩn mục STAFF không được xem)
+  const navItems = useMemo(
+    () =>
+      navigationSections
+        .flatMap((section) =>
+          section.items.map((item) => ({
+            name: item.name,
+            href: item.href,
+            icon: item.icon,
+            section: section.title,
+          })),
+        )
+        .filter((item) => role !== 'STAFF' || !STAFF_HIDDEN_HREFS.includes(item.href)),
+    [role],
+  );
+
   const trimmed = debounced.trim();
-  const { data: searchData, isFetching: searchFetching } = useQuery({
-    queryKey: ['admin-header-member-search', trimmed],
+  const ready = trimmed.length >= 2;
+  const wants = (key: SearchFilter) => filter === 'all' || filter === key;
+
+  // 4 nhóm dữ liệu tìm từ backend — chỉ gọi nhóm đang được chọn
+  const { data: memberData, isFetching: memberFetching } = useQuery({
+    queryKey: ['admin-header-search-members', trimmed],
     queryFn: async () => {
       const res = await apiClient.get('/members', {
-        params: { search: trimmed, limit: 6 },
+        params: { search: trimmed, limit: 5 },
       });
       return res.data as { data: any[]; total: number };
     },
-    enabled: trimmed.length >= 2,
+    enabled: ready && wants('members'),
     staleTime: 30_000,
     retry: 0,
   });
-  const results: any[] = trimmed.length >= 2 ? (searchData?.data ?? []) : [];
 
-  const selectMember = (member: any) => {
+  const { data: trainerData, isFetching: trainerFetching } = useQuery({
+    queryKey: ['admin-header-search-trainers', trimmed],
+    queryFn: async () => {
+      const res = await apiClient.get('/trainers', {
+        params: { search: trimmed, limit: 4 },
+      });
+      return res.data as { data: any[]; total: number };
+    },
+    enabled: ready && wants('trainers'),
+    staleTime: 30_000,
+    retry: 0,
+  });
+
+  const { data: paymentData, isFetching: paymentFetching } = useQuery({
+    queryKey: ['admin-header-search-payments', trimmed],
+    queryFn: async () => {
+      const res = await apiClient.get('/payments', {
+        params: { search: trimmed, limit: 4 },
+      });
+      return res.data as { data: any[]; total: number };
+    },
+    enabled: ready && wants('payments'),
+    staleTime: 30_000,
+    retry: 0,
+  });
+
+  // /users/staff chỉ trả về mảng và yêu cầu vai trò ADMIN/MANAGER
+  const { data: staffData, isFetching: staffFetching } = useQuery({
+    queryKey: ['admin-header-search-staff', trimmed],
+    queryFn: async () => {
+      const res = await apiClient.get('/users/staff', {
+        params: { search: trimmed },
+      });
+      return res.data as any[];
+    },
+    enabled: ready && wants('staff') && canSeeStaff,
+    staleTime: 30_000,
+    retry: 0,
+  });
+
+  // Gom kết quả thành các nhóm (thứ tự hiển thị)
+  const q = normalize(trimmed);
+  const sections: SearchSection[] = [];
+
+  if (ready && wants('nav')) {
+    const matched = navItems.filter((item) =>
+      normalize(`${item.name} ${item.section}`).includes(q),
+    );
+    if (matched.length > 0) {
+      // Trang khớp trực tiếp theo tên xếp trước trang chỉ khớp qua tên nhóm
+      const ranked = [...matched].sort(
+        (a, b) => Number(normalize(b.name).includes(q)) - Number(normalize(a.name).includes(q)),
+      );
+      const shown = ranked.slice(0, filter === 'nav' ? 10 : 6);
+      sections.push({
+        key: 'nav',
+        label: 'Điều hướng nhanh',
+        icon: Compass,
+        count: matched.length,
+        items: shown.map((item) => ({
+          key: `nav:${item.href}`,
+          href: item.href,
+          title: item.name,
+          meta: item.section,
+          icon: item.icon,
+        })),
+      });
+    }
+  }
+
+  if (ready && wants('members') && (memberData?.data?.length ?? 0) > 0) {
+    sections.push({
+      key: 'members',
+      label: 'Hội viên',
+      icon: Users,
+      count: memberData?.total ?? 0,
+      items: (memberData?.data ?? []).map((m: any) => ({
+        key: `member:${m.id}`,
+        href: `/admin/members/${m.id}`,
+        title: m.fullName || 'Hội viên chưa đặt tên',
+        badge: m.code,
+        meta: [m.phone || 'Chưa có SĐT', m.email].filter(Boolean).join(' · '),
+        tag: m.memberships?.[0]?.package?.name,
+        initial: (m.fullName || '?').charAt(0).toUpperCase(),
+      })),
+    });
+  }
+
+  if (ready && wants('trainers') && (trainerData?.data?.length ?? 0) > 0) {
+    sections.push({
+      key: 'trainers',
+      label: 'Huấn luyện viên',
+      icon: UserCheck,
+      count: trainerData?.total ?? 0,
+      items: (trainerData?.data ?? []).map((t: any) => ({
+        key: `trainer:${t.id}`,
+        href: `/admin/trainers/${t.id}`,
+        title: t.user?.fullName || 'Huấn luyện viên',
+        badge: t.specialization || undefined,
+        meta: [t.user?.phone, t.user?.email].filter(Boolean).join(' · ') || 'Chưa có liên hệ',
+        tag: TRAINER_STATUS_META[t.status]?.label,
+        initial: (t.user?.fullName || 'H').charAt(0).toUpperCase(),
+      })),
+    });
+  }
+
+  if (ready && wants('payments') && (paymentData?.data?.length ?? 0) > 0) {
+    sections.push({
+      key: 'payments',
+      label: 'Thanh toán',
+      icon: Receipt,
+      count: paymentData?.total ?? 0,
+      items: (paymentData?.data ?? []).map((p: any) => ({
+        key: `payment:${p.id}`,
+        href: `/admin/payments/${p.id}`,
+        title: p.member?.fullName || p.code,
+        badge: p.code,
+        meta: `${formatCurrency(p.amount)} · ${PAYMENT_STATUS_META[p.status]?.label || p.status}`,
+        tag: PAYMENT_METHOD_LABEL[p.method] || p.method,
+        icon: Receipt,
+      })),
+    });
+  }
+
+  if (ready && canSeeStaff && wants('staff') && (staffData?.length ?? 0) > 0) {
+    sections.push({
+      key: 'staff',
+      label: 'Nhân viên',
+      icon: UserCog,
+      count: staffData?.length ?? 0,
+      items: (staffData ?? []).slice(0, 5).map((s: any) => ({
+        key: `staff:${s.id}`,
+        href: `/admin/staff?search=${encodeURIComponent(s.email)}`,
+        title: s.fullName || 'Nhân viên',
+        badge: s.phone || undefined,
+        meta: s.email,
+        tag: s.status === 'ACTIVE' ? 'Đang hoạt động' : 'Đã khóa',
+        initial: (s.fullName || 'N').charAt(0).toUpperCase(),
+      })),
+    });
+  }
+
+  // Danh sách phẳng để điều hướng bằng phím ↑ ↓
+  const flatItems: SearchItem[] = [];
+  const startIndexes: Record<string, number> = {};
+  for (const section of sections) {
+    startIndexes[section.key] = flatItems.length;
+    flatItems.push(...section.items);
+  }
+  const totalResults = sections.reduce((sum, section) => sum + section.count, 0);
+  const anyFetching = memberFetching || trainerFetching || paymentFetching || staffFetching;
+
+  // Nút "Xem tất cả" → trang danh sách tương ứng nhóm đang lọc (?search=)
+  const listKey = filter === 'all' ? 'members' : filter;
+  const listHref = LIST_HREFS[listKey];
+  const viewAll =
+    ready && listHref && sections.some((s) => s.key === listKey)
+      ? {
+          href: `${listHref}?search=${encodeURIComponent(trimmed)}`,
+          label:
+            listKey === 'members'
+              ? `Xem tất cả kết quả hội viên cho “${trimmed}”`
+              : `Xem tất cả kết quả cho “${trimmed}”`,
+        }
+      : null;
+
+  const goTo = (href: string) => {
     setSearchOpen(false);
     setQuery('');
     setActiveIndex(-1);
-    router.push(`/admin/members/${member.id}`);
-  };
-
-  const goToList = () => {
-    setSearchOpen(false);
-    router.push(`/admin/members?search=${encodeURIComponent(trimmed)}`);
+    router.push(href);
   };
 
   const onSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -126,19 +391,77 @@ export function AdminHeader() {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setSearchOpen(true);
-      setActiveIndex((i) => (results.length ? (i + 1) % results.length : -1));
+      setActiveIndex((i) => (flatItems.length ? (i + 1) % flatItems.length : -1));
       return;
     }
     if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setActiveIndex((i) => (results.length ? (i <= 0 ? results.length - 1 : i - 1) : -1));
+      setActiveIndex((i) => (flatItems.length ? (i <= 0 ? flatItems.length - 1 : i - 1) : -1));
       return;
     }
     if (e.key === 'Enter') {
-      if (activeIndex >= 0 && results[activeIndex]) selectMember(results[activeIndex]);
-      else if (trimmed.length >= 1) goToList();
+      if (activeIndex >= 0 && flatItems[activeIndex]) goTo(flatItems[activeIndex].href);
+      else if (viewAll) goTo(viewAll.href);
+      else if (flatItems.length) goTo(flatItems[0].href);
       return;
     }
+  };
+
+  const renderItem = (item: SearchItem, index: number) => {
+    const active = index === activeIndex;
+    const ItemIcon = item.icon;
+    return (
+      <button
+        key={item.key}
+        type="button"
+        role="option"
+        aria-selected={active}
+        data-active={active}
+        onMouseEnter={() => setActiveIndex(index)}
+        onClick={() => goTo(item.href)}
+        className={cn(
+          'group flex w-full items-center gap-2.5 rounded-[10px] border px-2 py-1.5 text-left transition-colors',
+          active ? 'border-neon/40 bg-neon/10' : 'border-transparent hover:bg-ink/60',
+        )}
+      >
+        {ItemIcon ? (
+          <span
+            className={cn(
+              'flex size-8 shrink-0 items-center justify-center rounded-[10px] border bg-ink transition-colors',
+              active ? 'border-neon/40 text-neon' : 'border-line text-muted group-hover:text-chalk',
+            )}
+          >
+            <ItemIcon className="size-4" aria-hidden />
+          </span>
+        ) : (
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-line bg-ink text-xs font-bold uppercase text-neon">
+            {item.initial || '?'}
+          </span>
+        )}
+
+        <span className="min-w-0 flex-1">
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate text-xs font-semibold text-chalk">{item.title}</span>
+            {item.badge && (
+              <span className="max-w-28 shrink-0 truncate rounded border border-line bg-ink px-1.5 py-px text-[10px] font-semibold text-neon/90">
+                {item.badge}
+              </span>
+            )}
+          </span>
+          <span className="mt-0.5 block truncate text-[10px] text-muted">{item.meta}</span>
+        </span>
+
+        {item.tag && (
+          <span className="hidden max-w-28 shrink-0 truncate rounded-full border border-line px-2 py-0.5 text-[10px] text-muted sm:block">
+            {item.tag}
+          </span>
+        )}
+        <ChevronRight
+          className={cn('size-3.5 shrink-0 transition-colors', active ? 'text-neon' : 'text-muted')}
+          aria-hidden
+        />
+      </button>
+    );
   };
 
   const handleLogout = () => {
@@ -155,6 +478,8 @@ export function AdminHeader() {
       ? 'Mất kết nối API'
       : 'Đang kiểm tra kết nối...';
 
+  const visibleFilters = FILTERS.filter((f) => f.key !== 'staff' || canSeeStaff);
+
   return (
     <header className="h-16 px-4 md:px-6 border-b border-line bg-ink/85 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between">
       {/* Left: Mobile Toggle & Quick Search */}
@@ -169,8 +494,8 @@ export function AdminHeader() {
               role="combobox"
               aria-expanded={searchOpen}
               aria-controls="admin-quick-search-listbox"
-              aria-label="Tìm nhanh hội viên"
-              placeholder="Tìm nhanh hội viên, số điện thoại, thẻ tập..."
+              aria-label="Tìm nhanh trong khu vực quản trị"
+              placeholder="Tìm hội viên, HLV, giao dịch, trang..."
               onChange={(e) => {
                 setQuery(e.target.value);
                 setSearchOpen(true);
@@ -192,66 +517,116 @@ export function AdminHeader() {
           </div>
 
           {searchOpen && (
-            <div
-              id="admin-quick-search-listbox"
-              role="listbox"
-              aria-label="Kết quả tìm kiếm hội viên"
-              className="absolute left-0 top-full z-50 mt-2 w-full overflow-hidden rounded-xl border border-line bg-surface shadow-xl"
-            >
-              {trimmed.length < 2 ? (
-                <p className="px-4 py-3 text-xs text-muted">
-                  Nhập ít nhất 2 ký tự để tìm theo tên, SĐT hoặc mã hội viên…
-                </p>
-              ) : searchFetching && results.length === 0 ? (
-                <p className="flex items-center gap-2 px-4 py-3 text-xs text-muted">
-                  <Loader2 className="size-3.5 animate-spin" /> Đang tìm…
-                </p>
-              ) : results.length === 0 ? (
-                <p className="px-4 py-3 text-xs text-muted">
-                  Không tìm thấy hội viên khớp &ldquo;{trimmed}&rdquo;.
-                </p>
-              ) : (
-                <>
-                  <ul className="max-h-80 overflow-y-auto py-1.5">
-                    {results.map((m, i) => (
-                      <li key={m.id} role="option" aria-selected={i === activeIndex}>
-                        <button
-                          type="button"
-                          onMouseEnter={() => setActiveIndex(i)}
-                          onClick={() => selectMember(m)}
-                          className={`flex w-full items-center gap-3 px-3 py-2 text-left transition-colors ${
-                            i === activeIndex ? 'bg-ink' : ''
-                          }`}
-                        >
-                          <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-line bg-ink text-xs font-bold uppercase text-neon">
-                            {m.fullName?.charAt(0) || '?'}
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-semibold text-chalk">
-                              {m.fullName}
-                            </span>
-                            <span className="block truncate text-[11px] text-muted">
-                              {m.code} · {m.phone || 'Chưa có SĐT'}
-                            </span>
-                          </span>
-                          {m.memberships?.[0]?.package?.name && (
-                            <span className="max-w-28 shrink-0 truncate rounded-full border border-line px-2 py-0.5 text-[10px] text-muted">
-                              {m.memberships[0].package.name}
-                            </span>
-                          )}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+            <div className="absolute left-0 top-full z-50 mt-2 w-[22rem] md:w-[34rem] overflow-hidden rounded-xl border border-line bg-surface shadow-xl animate-fade-in">
+              {/* Lọc theo nhóm */}
+              <div className="flex items-center gap-1.5 overflow-x-auto border-b border-line px-3 py-2">
+                <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.14em] text-muted">
+                  Lọc:
+                </span>
+                {visibleFilters.map((f) => (
                   <button
+                    key={f.key}
                     type="button"
-                    onClick={goToList}
-                    className="flex w-full items-center justify-between gap-2 border-t border-line px-4 py-2.5 text-xs font-medium text-muted transition-colors hover:bg-ink hover:text-chalk"
+                    aria-pressed={filter === f.key}
+                    onClick={() => setFilter(f.key)}
+                    className={cn(
+                      'shrink-0 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors',
+                      filter === f.key
+                        ? 'border-neon/50 bg-neon/10 text-neon'
+                        : 'border-line text-muted hover:border-neon/30 hover:text-chalk',
+                    )}
                   >
-                    Xem tất cả kết quả cho &ldquo;{trimmed}&rdquo;
-                    <ArrowRight className="size-3.5 shrink-0" />
+                    {f.label}
                   </button>
-                </>
+                ))}
+              </div>
+
+              {/* Kết quả gom nhóm */}
+              <div
+                id="admin-quick-search-listbox"
+                role="listbox"
+                aria-label="Kết quả tìm kiếm"
+                className="max-h-80 overflow-y-auto py-1.5"
+              >
+                {!ready ? (
+                  <p className="px-4 py-3 text-xs text-muted">
+                    Nhập ít nhất 2 ký tự để tìm hội viên, huấn luyện viên, giao dịch hoặc trang quản
+                    trị…
+                  </p>
+                ) : sections.length === 0 ? (
+                  <p className="flex items-center gap-2 px-4 py-3 text-xs text-muted">
+                    {anyFetching ? (
+                      <>
+                        <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                        Đang tìm…
+                      </>
+                    ) : (
+                      <>Không tìm thấy kết quả nào cho &ldquo;{trimmed}&rdquo;.</>
+                    )}
+                  </p>
+                ) : (
+                  sections.map((section) => {
+                    const SectionIcon = section.icon;
+                    return (
+                      <div key={section.key} className="mb-1 last:mb-0">
+                        <div className="flex items-center justify-between gap-2 px-3 pb-1 pt-1.5">
+                          <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted">
+                            <SectionIcon className="size-3.5 text-neon" aria-hidden />
+                            {section.label}
+                          </span>
+                          <span className="shrink-0 rounded-full border border-line px-1.5 py-px text-[10px] font-bold text-muted">
+                            {section.count}
+                          </span>
+                        </div>
+                        {section.key === 'nav' ? (
+                          <div className="grid grid-cols-1 gap-1 px-2 md:grid-cols-2">
+                            {section.items.map((item, i) =>
+                              renderItem(item, startIndexes[section.key] + i),
+                            )}
+                          </div>
+                        ) : (
+                          <ul className="px-1.5">
+                            {section.items.map((item, i) => (
+                              <li key={item.key} role="none">
+                                {renderItem(item, startIndexes[section.key] + i)}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Xem tất cả kết quả ở trang danh sách */}
+              {viewAll && (
+                <button
+                  type="button"
+                  onClick={() => goTo(viewAll.href)}
+                  className="flex w-full items-center justify-between gap-2 border-t border-line px-4 py-2.5 text-xs font-medium text-muted transition-colors hover:bg-ink hover:text-chalk"
+                >
+                  <span className="truncate">{viewAll.label}</span>
+                  <ArrowRight className="size-3.5 shrink-0" />
+                </button>
+              )}
+
+              {/* Footer: phím tắt + tổng số kết quả */}
+              {ready && (
+                <div className="flex items-center justify-between gap-2 border-t border-line bg-ink/40 px-3 py-2 text-[10px] text-muted">
+                  <span className="flex items-center gap-2">
+                    <span className="flex items-center gap-1">
+                      <kbd className={KBD_CLASS}>↑↓</kbd> Chọn
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <kbd className={KBD_CLASS}>Enter</kbd> Mở
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <kbd className={KBD_CLASS}>Esc</kbd> Đóng
+                    </span>
+                  </span>
+                  <span className="shrink-0 font-semibold text-chalk">{totalResults} kết quả</span>
+                </div>
               )}
             </div>
           )}

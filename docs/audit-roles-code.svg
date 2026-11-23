@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1520" height="780" viewBox="0 0 1520 780" font-family="Segoe UI, Be Vietnam Pro, Arial, sans-serif">
+  <defs>
+    <filter id="sh" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#0B0D0F" flood-opacity="0.18"/>
+    </filter>
+    <style>
+      .code { font-family: Consolas, 'Courier New', monospace; font-size: 16px; }
+      .lnum { font-family: Consolas, 'Courier New', monospace; font-size: 13px; fill: #647A58; text-anchor: end; }
+      .c-kw { fill: #B7FF00; font-weight: 700; }
+      .c-id { fill: #D7E2CC; }
+      .c-str { fill: #E4F2C4; }
+      .c-cmt { fill: #8FA47E; font-style: italic; }
+      .badge { fill: #1C2919; stroke: #B7FF00; stroke-width: 1.4; }
+    </style>
+  </defs>
+
+  <rect width="1520" height="780" fill="#F7F8F5"/>
+  <text x="60" y="48" font-size="19" font-weight="700" fill="#1F2A18" letter-spacing="0.4">KIỂM SOÁT PHÂN QUYỀN THEO VAI TRÒ — API NHẬT KÝ KIỂM TOÁN</text>
+  <text x="60" y="70" font-size="11" fill="#7A8476">JwtAuthGuard → RolesGuard → @Roles(Role.ADMIN) → @CurrentUser()</text>
+
+  <!-- Cửa sổ mã nguồn -->
+  <rect x="60" y="108" width="1400" height="550" rx="12" fill="#121A12" stroke="#3F5A2A" stroke-width="1.5" filter="url(#sh)"/>
+  <rect x="60" y="108" width="1400" height="48" rx="12" fill="#1C2919"/>
+  <rect x="60" y="144" width="1400" height="12" fill="#1C2919"/>
+  <circle cx="88" cy="132" r="6" fill="#7A8B5A"/>
+  <circle cx="110" cy="132" r="6" fill="#9BAE7A"/>
+  <circle cx="132" cy="132" r="6" fill="#B7FF00"/>
+  <text x="160" y="138" font-size="12.5" fill="#A8B694" font-family="Consolas, monospace">audit-logs.controller.ts</text>
+  <text x="1430" y="138" text-anchor="end" font-size="11" fill="#7A8B5A">NestJS 10 · TypeScript</text>
+
+  <!-- Đường kẻ số dòng -->
+  <path d="M124,172 L124,638" stroke="#2E4226" stroke-width="1"/>
+
+  <!-- Số dòng -->
+  <g class="lnum">
+    <text x="112" y="205">1</text><text x="112" y="239">2</text><text x="112" y="273">3</text>
+    <text x="112" y="307">4</text><text x="112" y="341">5</text><text x="112" y="375">6</text>
+    <text x="112" y="409">7</text><text x="112" y="443">8</text><text x="112" y="477">9</text>
+    <text x="112" y="511">10</text><text x="112" y="545">11</text><text x="112" y="579">12</text>
+  </g>
+
+  <!-- Nội dung mã nguồn -->
+  <g class="code">
+    <text x="140" y="205"><tspan class="c-cmt">// Minh họa kiểm soát phân quyền qua @Roles và @CurrentUser</tspan></text>
+    <text x="140" y="239"><tspan class="c-kw">@Controller</tspan><tspan class="c-str">('audit-logs')</tspan></text>
+    <text x="140" y="273"><tspan class="c-kw">@UseGuards</tspan><tspan class="c-id">(JwtAuthGuard, RolesGuard)</tspan></text>
+    <text x="140" y="307"><tspan class="c-kw">@Roles</tspan><tspan class="c-str">(Role.ADMIN)</tspan><tspan class="c-cmt"> // Chỉ duy nhất Quản trị viên ADMIN mới có quyền truy cập</tspan></text>
+    <text x="140" y="341"><tspan class="c-kw">export class</tspan><tspan class="c-id"> AuditLogsController {</tspan></text>
+    <text x="140" y="375"><tspan class="c-id">  constructor(</tspan><tspan class="c-kw">private readonly</tspan><tspan class="c-id"> auditLogsService: AuditLogsService) {}</tspan></text>
+    <text x="140" y="443"><tspan class="c-kw">  @Get()</tspan></text>
+    <text x="140" y="477"><tspan class="c-kw">  async</tspan><tspan class="c-id"> getAuditLogs(</tspan><tspan class="c-kw">@Query()</tspan><tspan class="c-id"> query: GetAuditLogsDto, </tspan><tspan class="c-kw">@CurrentUser()</tspan><tspan class="c-id"> user: JwtPayload) {</tspan></text>
+    <text x="140" y="511"><tspan class="c-kw">    return</tspan><tspan class="c-id"> this.auditLogsService.findAll(query);</tspan></text>
+    <text x="140" y="545"><tspan class="c-id">  }</tspan></text>
+    <text x="140" y="579"><tspan class="c-id">}</tspan></text>
+  </g>
+
+  <!-- Nhấn mạnh điều kiện ADMIN -->
+  <rect class="badge" x="1150" y="286" width="270" height="42" rx="21"/>
+  <circle cx="1174" cy="307" r="7" fill="none" stroke="#B7FF00" stroke-width="1.8"/>
+  <path d="M1174,303 L1174,311 M1170,307 L1178,307" stroke="#B7FF00" stroke-width="1.6" stroke-linecap="round"/>
+  <text x="1192" y="312" font-size="12.5" font-weight="700" fill="#B7FF00">CHỈ ADMIN</text>
+
+  <!-- Chú thích -->
+  <text x="760" y="705" text-anchor="middle" font-size="15" font-style="italic" fill="#3C4738">Trích đoạn mã nguồn: Phân quyền API kiểm toán bằng @Roles(Role.ADMIN)</text>
+  <text x="760" y="735" text-anchor="middle" font-size="11" fill="#7A8476">@UseGuards.apply cho toàn controller · @Roles giới hạn ADMIN · @CurrentUser truyền ngữ cảnh người dùng vào handler</text>
+</svg>

@@ -32,7 +32,10 @@ export default function FaceRegistrationPage() {
   const [scanKey, setScanKey] = useState(0);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const errMsg = (err: any, fallback: string) => err?.response?.data?.message || fallback;
+  const errMsg = (err: any, fallback: string) => {
+    const m = err?.response?.data?.message;
+    return Array.isArray(m) ? m.join(', ') : m || fallback;
+  };
 
   const enrollMutation = useMutation({
     mutationFn: ({ vecs, image }: { vecs: number[][]; image: string | null }) =>

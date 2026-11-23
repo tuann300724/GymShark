@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/axios';
 import { paymentApi } from '@/services/payment.service';
@@ -12,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Dialog } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Spinner } from '@/components/ui/spinner';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/components/ui/toast';
@@ -53,22 +55,26 @@ const METHOD_OPTIONS = [
   { value: 'CREDIT_CARD', label: 'Thẻ ngân hàng' },
 ];
 
-export default function PaymentsPage() {
+function PaymentsPageContent() {
   const toast = useToast();
   const queryClient = useQueryClient();
   const user = getStoredUser();
   const canReject = user?.role === 'ADMIN' || user?.role === 'MANAGER';
   const canRefund = user?.role === 'ADMIN';
+  const searchParams = useSearchParams();
+
+  // Đồng bộ khi điều hướng từ ô tìm kiếm nhanh ở header (?search=...)
+  const initialSearch = searchParams.get('search') ?? '';
 
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialSearch);
   const [status, setStatus] = useState('');
   const [method, setMethod] = useState('');
   const [packageId, setPackageId] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [applied, setApplied] = useState({
-    search: '',
+    search: initialSearch,
     status: '',
     method: '',
     packageId: '',
@@ -76,6 +82,14 @@ export default function PaymentsPage() {
     to: '',
     reset: false,
   });
+
+  useEffect(() => {
+    const q = searchParams.get('search');
+    if (q !== null) {
+      setSearch(q);
+      setApplied((prev) => (prev.search === q ? prev : { ...prev, search: q }));
+    }
+  }, [searchParams]);
 
   const [confirmTarget, setConfirmTarget] = useState<any>(null);
   const [rejectTarget, setRejectTarget] = useState<any>(null);
@@ -791,5 +805,13 @@ export default function PaymentsPage() {
         )}
       </Dialog>
     </div>
+  );
+}
+
+export default function PaymentsPage() {
+  return (
+    <Suspense fallback={<Spinner />}>
+      <PaymentsPageContent />
+    </Suspense>
   );
 }

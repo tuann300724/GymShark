@@ -1,0 +1,176 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1370" viewBox="0 0 1800 1370" font-family="Segoe UI, Be Vietnam Pro, Arial, sans-serif">
+  <defs>
+    <g id="folder">
+      <path d="M0,0 h8 l3,3 h11 v12 h-22 z" fill="#E4EDD2" stroke="#6E8F00" stroke-width="1.2" stroke-linejoin="round"/>
+    </g>
+    <g id="file">
+      <rect x="0" y="0" width="14" height="17" rx="2" fill="#FFFFFF" stroke="#9BAE7A" stroke-width="1.2"/>
+      <path d="M3,5 h8 M3,9 h8 M3,13 h5" stroke="#C2CFB0" stroke-width="1.2" stroke-linecap="round"/>
+    </g>
+    <style>
+      .panel { fill: #FBFCFA; stroke: #D5DCCB; stroke-width: 1.3; }
+      .panel-alt { fill: #F4F6F1; stroke: #D5DCCB; stroke-width: 1.3; }
+      .head { fill: #E9EDE4; }
+      .ptitle { font-size: 13px; font-weight: 700; fill: #27321E; letter-spacing: 0.3px; }
+      .psub { font-size: 10.5px; fill: #7A8476; }
+      .dir { font-size: 13px; font-weight: 700; fill: #2F3D24; }
+      .fil { font-size: 12.5px; fill: #3C4738; }
+      .cmt { font-size: 10.5px; fill: #8A957F; font-style: italic; }
+      .spine { fill: none; stroke: #C2CFB0; stroke-width: 1.3; }
+      .card { fill: #F1F6E4; stroke: #BFD3A0; stroke-width: 1.2; }
+      .card-t { font-size: 11px; font-weight: 700; fill: #46543A; letter-spacing: 0.3px; }
+      .card-l { font-size: 10.5px; fill: #5B665C; }
+    </style>
+  </defs>
+
+  <rect width="1800" height="1370" fill="#F7F8F5"/>
+  <text x="60" y="48" font-size="19" font-weight="700" fill="#1F2A18" letter-spacing="0.4">CẤU TRÚC TỔ CHỨC MÃ NGUỒN — GYMSHARK</text>
+  <text x="60" y="70" font-size="11" fill="#7A8476">Backend NestJS 10 + Prisma 5 (:3001/api) · Frontend Next.js 14 (:3000) · SQL Server 2022 (:1433)</text>
+
+  <!-- ============ 3 PANEL ============ -->
+  <rect class="panel" x="60" y="110" width="460" height="1105" rx="14"/>
+  <rect class="panel-alt" x="540" y="110" width="610" height="1105" rx="14"/>
+  <rect class="panel" x="1170" y="110" width="570" height="1105" rx="14"/>
+
+  <g class="head">
+    <rect x="60" y="110" width="460" height="42" rx="14"/><rect x="60" y="140" width="460" height="12"/>
+    <rect x="540" y="110" width="610" height="42" rx="14"/><rect x="540" y="140" width="610" height="12"/>
+    <rect x="1170" y="110" width="570" height="42" rx="14"/><rect x="1170" y="140" width="570" height="12"/>
+  </g>
+  <g>
+    <rect x="78" y="124" width="13" height="13" rx="3" fill="#B7FF00" stroke="#6E8F00"/>
+    <rect x="558" y="124" width="13" height="13" rx="3" fill="#B7FF00" stroke="#6E8F00"/>
+    <rect x="1188" y="124" width="13" height="13" rx="3" fill="#B7FF00" stroke="#6E8F00"/>
+  </g>
+  <g class="ptitle">
+    <text x="101" y="137">GỐC DỰ ÁN</text>
+    <text x="581" y="137">BACKEND · NestJS 10 + Prisma 5</text>
+    <text x="1211" y="137">FRONTEND · Next.js 14 App Router</text>
+  </g>
+  <g class="psub" text-anchor="end">
+    <text x="500" y="137">root</text>
+    <text x="1130" y="137">:3001/api</text>
+    <text x="1720" y="137">:3000</text>
+  </g>
+
+  <!-- ================= PANEL GỐC ================= -->
+  <g class="spine">
+    <path d="M94,208 L94,328"/>
+    <path d="M94,208 L96,208 M94,238 L96,238 M94,268 L96,268 M94,298 L96,298 M94,328 L96,328"/>
+  </g>
+  <use href="#folder" x="60" y="166"/>
+  <text x="84" y="182" class="dir">GymShark/</text>
+
+  <use href="#file" x="96" y="196"/><text x="120" y="208" class="fil">docker-compose.yml</text><text x="310" y="208" class="cmt">SQL Server 2022</text>
+  <use href="#file" x="96" y="226"/><text x="120" y="238" class="fil">README.md</text><text x="310" y="238" class="cmt">cài đặt &amp; nghiệp vụ</text>
+  <use href="#file" x="96" y="256"/><text x="120" y="268" class="fil">AGENTS.md</text><text x="310" y="268" class="cmt">quy chuẩn AI Agent</text>
+  <use href="#file" x="96" y="286"/><text x="120" y="298" class="fil">DESIGN_SYSTEM.md</text><text x="310" y="298" class="cmt">màu · font · UI</text>
+  <use href="#file" x="96" y="316"/><text x="120" y="328" class="fil">.github/workflows/ci.yml</text><text x="310" y="328" class="cmt">CI tự động</text>
+
+  <rect class="card" x="84" y="390" width="412" height="150" rx="10"/>
+  <text x="102" y="416" class="card-t">LUỒNG CHẠY HỆ THỐNG</text>
+  <text x="102" y="443" class="card-l">FE :3000 → REST API :3001/api → SQL Server :1433</text>
+  <text x="102" y="467" class="card-l">WebSocket :3001 · Swagger UI : /api/docs</text>
+  <text x="102" y="491" class="card-l">Docker Compose khởi tạo SQL Server 2022</text>
+  <text x="102" y="519" class="card-l">JWT gắn tự động qua src/lib/axios.ts</text>
+
+  <rect class="card" x="84" y="562" width="412" height="110" rx="10"/>
+  <text x="102" y="588" class="card-t">TÀI LIỆU THAM KHẢO</text>
+  <text x="102" y="615" class="card-l">README.md — hướng dẫn cài đặt &amp; nghiệp vụ</text>
+  <text x="102" y="639" class="card-l">DESIGN_SYSTEM.md — bảng màu, phông chữ, UI</text>
+  <text x="102" y="663" class="card-l">AGENTS.md — quy chuẩn phát triển</text>
+
+  <!-- ================= PANEL BACKEND ================= -->
+  <g class="spine">
+    <path d="M578,208 L578,328"/>
+    <path d="M578,208 L582,208 M578,328 L582,328"/>
+    <path d="M614,238 L614,298"/>
+    <path d="M614,238 L618,238 M614,268 L618,268 M614,298 L618,298"/>
+    <path d="M614,358 L614,658"/>
+    <path d="M614,358 L618,358 M614,388 L618,388 M614,418 L618,418 M614,658 L618,658"/>
+    <path d="M650,448 L650,598"/>
+    <path d="M650,448 L654,448 M650,478 L654,478 M650,508 L654,508 M650,538 L654,538 M650,568 L654,568 M650,598 L654,598"/>
+    <path d="M650,688 L650,1168"/>
+    <path d="M650,688 L654,688 M650,718 L654,718 M650,748 L654,748 M650,778 L654,778 M650,808 L654,808 M650,838 L654,838 M650,868 L654,868 M650,898 L654,898 M650,928 L654,928 M650,958 L654,958 M650,988 L654,988 M650,1018 L654,1018 M650,1048 L654,1048 M650,1078 L654,1078 M650,1108 L654,1108 M650,1138 L654,1138 M650,1168 L654,1168"/>
+  </g>
+
+  <use href="#folder" x="546" y="166"/><text x="570" y="182" class="dir">backend/</text>
+
+  <use href="#folder" x="582" y="196"/><text x="606" y="208" class="dir">prisma/</text>
+  <use href="#file" x="618" y="226"/><text x="642" y="238" class="fil">schema.prisma</text><text x="850" y="238" class="cmt">36 models quan hệ</text>
+  <use href="#file" x="618" y="256"/><text x="642" y="268" class="fil">seed.ts</text><text x="850" y="268" class="cmt">dữ liệu mẫu thử nghiệm</text>
+  <use href="#folder" x="618" y="286"/><text x="642" y="298" class="dir">migrations/</text><text x="850" y="298" class="cmt">T-SQL bảo toàn DB</text>
+
+  <use href="#folder" x="582" y="316"/><text x="606" y="328" class="dir">src/</text>
+  <use href="#file" x="618" y="346"/><text x="642" y="358" class="fil">main.ts</text><text x="850" y="358" class="cmt">Helmet, Throttler, Swagger</text>
+  <use href="#file" x="618" y="376"/><text x="642" y="388" class="fil">app.module.ts</text><text x="850" y="388" class="cmt">31 feature modules</text>
+
+  <use href="#folder" x="618" y="406"/><text x="642" y="418" class="dir">common/</text>
+  <use href="#folder" x="654" y="436"/><text x="678" y="448" class="fil">guards/</text><text x="850" y="448" class="cmt">JwtAuthGuard, RolesGuard</text>
+  <use href="#folder" x="654" y="466"/><text x="678" y="478" class="fil">decorators/</text><text x="850" y="478" class="cmt">@Roles(), @Public(), @CurrentUser()</text>
+  <use href="#folder" x="654" y="496"/><text x="678" y="508" class="fil">filters/</text><text x="850" y="508" class="cmt">AllExceptionsFilter</text>
+  <use href="#folder" x="654" y="526"/><text x="678" y="538" class="fil">interceptors/</text><text x="850" y="538" class="cmt">Logging, Transformation</text>
+  <use href="#folder" x="654" y="556"/><text x="678" y="568" class="fil">constants/</text><text x="850" y="568" class="cmt">db-enums.ts, audit-metadata.ts</text>
+  <use href="#folder" x="654" y="586"/><text x="678" y="598" class="fil">enums/</text><text x="850" y="598" class="cmt">role.enum.ts (4 vai trò)</text>
+
+  <use href="#folder" x="618" y="646"/><text x="642" y="658" class="dir">modules/</text><text x="850" y="658" class="cmt">31 feature modules nghiệp vụ</text>
+  <use href="#folder" x="654" y="676"/><text x="678" y="688" class="fil">auth/</text><text x="850" y="688" class="cmt">Đăng nhập, Google OAuth, Email OTP</text>
+  <use href="#folder" x="654" y="706"/><text x="678" y="718" class="fil">users/</text><text x="850" y="718" class="cmt">Tài khoản &amp; phân quyền</text>
+  <use href="#folder" x="654" y="736"/><text x="678" y="748" class="fil">members/</text><text x="850" y="748" class="cmt">Hồ sơ hội viên, liên kết giới thiệu</text>
+  <use href="#folder" x="654" y="766"/><text x="678" y="778" class="fil">packages/</text><text x="850" y="778" class="cmt">Gói tập &amp; quyền lợi</text>
+  <use href="#folder" x="654" y="796"/><text x="678" y="808" class="fil">memberships/</text><text x="850" y="808" class="cmt">Hợp đồng &amp; MembershipChangeRequest</text>
+  <use href="#folder" x="654" y="826"/><text x="678" y="838" class="fil">payments/</text><text x="850" y="838" class="cmt">Tiền mặt, VietQR + CASSO</text>
+  <use href="#folder" x="654" y="856"/><text x="678" y="868" class="fil">invoices/</text><text x="850" y="868" class="cmt">Hóa đơn &amp; biên lai PDF</text>
+  <use href="#folder" x="654" y="886"/><text x="678" y="898" class="fil">checkins/</text><text x="850" y="898" class="cmt">Lượt ra vào phòng tập</text>
+  <use href="#folder" x="654" y="916"/><text x="678" y="928" class="fil">faces/</text><text x="850" y="928" class="cmt">Vector khuôn mặt &amp; đồng thuận</text>
+  <use href="#folder" x="654" y="946"/><text x="678" y="958" class="fil">trainers/</text><text x="850" y="958" class="cmt">Hồ sơ HLV, phân công học viên</text>
+  <use href="#folder" x="654" y="976"/><text x="678" y="988" class="fil">schedules/</text><text x="850" y="988" class="cmt">Lịch 1-1, lớp nhóm, đặt chỗ</text>
+  <use href="#folder" x="654" y="1006"/><text x="678" y="1018" class="fil">programs/</text><text x="850" y="1018" class="cmt">Giáo án &amp; bài tập</text>
+  <use href="#folder" x="654" y="1036"/><text x="678" y="1048" class="fil">meal-plans/</text><text x="850" y="1048" class="cmt">Thực đơn, định lượng món ăn</text>
+  <use href="#folder" x="654" y="1066"/><text x="678" y="1078" class="fil">chat/</text><text x="850" y="1078" class="cmt">Tin nhắn realtime Socket.IO</text>
+  <use href="#folder" x="654" y="1096"/><text x="678" y="1108" class="fil">staff-shifts/</text><text x="850" y="1108" class="cmt">Ca làm, chấm công, chốt quỹ</text>
+  <use href="#folder" x="654" y="1126"/><text x="678" y="1138" class="fil">beverages/</text><text x="850" y="1138" class="cmt">Kho đồ uống &amp; POS</text>
+  <use href="#folder" x="654" y="1156"/><text x="678" y="1168" class="fil">reports/</text><text x="850" y="1168" class="cmt">8 phân hệ báo cáo</text>
+  <text x="678" y="1192" class="fil">audit-logs/</text><text x="850" y="1192" class="cmt">Nhật ký kiểm toán (@Global)</text>
+
+  <!-- ================= PANEL FRONTEND ================= -->
+  <g class="spine">
+    <path d="M1198,208 L1198,208"/>
+    <path d="M1198,208 L1202,208"/>
+    <path d="M1234,238 L1234,478"/>
+    <path d="M1234,238 L1238,238 M1234,268 L1238,268 M1234,418 L1238,418 M1234,448 L1238,448 M1234,478 L1238,478"/>
+    <path d="M1270,298 L1270,388"/>
+    <path d="M1270,298 L1274,298 M1270,328 L1274,328 M1270,358 L1274,358 M1270,388 L1274,388"/>
+  </g>
+
+  <use href="#folder" x="1176" y="166"/><text x="1190" y="182" class="dir">frontend/</text>
+  <use href="#folder" x="1202" y="196"/><text x="1226" y="208" class="dir">src/</text>
+
+  <use href="#folder" x="1238" y="226"/><text x="1262" y="238" class="dir">app/</text><text x="1490" y="238" class="cmt">5 route groups</text>
+  <use href="#folder" x="1274" y="256"/><text x="1298" y="268" class="fil">(public)/</text><text x="1490" y="268" class="cmt">Landing, giá gói, tin tức</text>
+  <use href="#folder" x="1274" y="286"/><text x="1298" y="298" class="fil">(auth)/</text><text x="1490" y="298" class="cmt">/login, /register, OTP</text>
+  <use href="#folder" x="1274" y="316"/><text x="1298" y="328" class="fil">(member)/</text><text x="1490" y="328" class="cmt">/member/checkin, membership</text>
+  <use href="#folder" x="1274" y="346"/><text x="1298" y="358" class="fil">(trainer)/</text><text x="1490" y="358" class="cmt">/trainer/schedule, members</text>
+  <use href="#folder" x="1274" y="376"/><text x="1298" y="388" class="fil">(admin)/</text><text x="1490" y="388" class="cmt">/admin/members, payments</text>
+
+  <use href="#folder" x="1238" y="406"/><text x="1262" y="418" class="dir">components/</text><text x="1490" y="418" class="cmt">Button, Card, Tabs tự viết</text>
+  <use href="#folder" x="1238" y="436"/><text x="1262" y="448" class="dir">lib/</text><text x="1490" y="448" class="cmt">axios.ts, face.ts, utils.ts</text>
+  <use href="#folder" x="1238" y="466"/><text x="1262" y="478" class="dir">services/</text><text x="1490" y="478" class="cmt">Hàm gọi API theo module</text>
+  <use href="#folder" x="1238" y="496"/><text x="1262" y="508" class="dir">providers/</text><text x="1490" y="508" class="cmt">TanStack Query, Theme</text>
+
+  <rect class="card" x="1194" y="570" width="522" height="130" rx="10"/>
+  <text x="1212" y="596" class="card-t">QUY ƯỚC GIAO DIỆN</text>
+  <text x="1212" y="623" class="card-l">Font: Barlow Condensed (tiêu đề) + Be Vietnam Pro</text>
+  <text x="1212" y="647" class="card-l">Tailwind CSS v3 · token màu theo CSS variables</text>
+  <text x="1212" y="671" class="card-l">Dark / light theme · lưu gym_theme ở localStorage</text>
+
+  <rect class="card" x="1194" y="722" width="522" height="110" rx="10"/>
+  <text x="1212" y="748" class="card-t">CẤU TRÚC ROUTE</text>
+  <text x="1212" y="775" class="card-l">public · auth · member · trainer · admin</text>
+  <text x="1212" y="799" class="card-l">Giao diện tiếng Việt · Icon lucide-react</text>
+  <text x="1212" y="823" class="card-l">Animation dùng component Reveal</text>
+
+  <!-- Chú thích -->
+  <text x="900" y="1290" text-anchor="middle" font-size="15" font-style="italic" fill="#3C4738">Hình 4.1 — Cấu trúc tổ chức cây thư mục mã nguồn Backend và Frontend</text>
+  <text x="900" y="1320" text-anchor="middle" font-size="11" fill="#7A8476">Biểu tượng folder màu lime: thư mục · Biểu tượng trang: tệp nguồn · Chú thích nghiêng: vai trò của từng thành phần</text>
+</svg>

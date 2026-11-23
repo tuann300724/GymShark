@@ -37,6 +37,8 @@ export class FacesService {
   private readonly thresholdSelf: number;
   /** Ngưỡng cho lễ tân quét 1:N — CHẶT hơn vì chọn nhầm hội viên = ghi sai lượt tập */
   private readonly thresholdGlobal: number;
+  /** Ngưỡng phát hiện trùng lặp khuôn mặt khi đăng ký */
+  private readonly thresholdDuplicate: number;
 
   constructor(
     private prisma: PrismaService,
@@ -46,6 +48,7 @@ export class FacesService {
   ) {
     this.thresholdSelf = this.readThreshold('FACE_MATCH_THRESHOLD', 0.6);
     this.thresholdGlobal = this.readThreshold('FACE_MATCH_THRESHOLD_1N', 0.7);
+    this.thresholdDuplicate = this.readThreshold('FACE_DUPLICATE_THRESHOLD', 0.65);
   }
 
   private readThreshold(key: string, fallback: number): number {
@@ -182,7 +185,7 @@ export class FacesService {
 
   /** Validate mẫu + ghi đè toàn bộ dữ liệu khuôn mặt của hội viên trong 1 transaction */
   private async saveEnrollment(
-    member: { id: string; code: string },
+    member: { id: string; code: string; fullName?: string },
     dto: EnrollFaceDto,
     opts: { actorId?: string; via: 'self' | 'staff' },
   ) {
@@ -191,6 +194,32 @@ export class FacesService {
     const dim = samples[0].length;
     if (samples.some((s) => s.length !== dim)) {
       throw new BadRequestException('Tất cả mẫu khuôn mặt phải cùng độ dài vector.');
+    }
+
+    // ── Kiểm tra trùng lặp sinh trắc học: một khuôn mặt không được đăng ký cho 2 hội viên khác nhau ──
+    const otherEmbeddings = await this.prisma.faceEmbedding.findMany({
+      where: { memberId: { not: member.id } },
+      select: {
+        memberId: true,
+        embedding: true,
+        member: { select: { code: true, fullName: true } },
+      },
+    });
+
+    if (otherEmbeddings.length > 0) {
+      for (const sample of samples) {
+        for (const other of otherEmbeddings) {
+          const storedVec = this.parseStoredEmbedding(other.embedding);
+          const sim = this.cosine(sample, storedVec);
+          if (sim >= this.thresholdDuplicate) {
+            const otherName = other.member?.fullName || 'Hội viên khác';
+            const otherCode = other.member?.code || other.memberId;
+            throw new BadRequestException(
+              `Khuôn mặt này đã được đăng ký cho hội viên ${otherName} (${otherCode}) (độ tương đồng: ${(sim * 100).toFixed(1)}%). Mỗi khuôn mặt chỉ được liên kết với một tài khoản duy nhất.`,
+            );
+          }
+        }
+      }
     }
 
     const imageData = this.sanitizeImage(dto.imageData);
@@ -355,30 +384,73 @@ export class FacesService {
   /**
    * 1:N — quét toàn bộ mẫu của các hội viên đang ACTIVE, trả về người khớp nhất
    * nếu vượt ngưỡng chặt (FACE_MATCH_THRESHOLD_1N); null nếu không ai đạt.
-   * Quy mô phòng gym (vài nghìn hội viên × vài mẫu) nên so mạng phẳng là đủ.
+   * Nếu phát hiện nhiều hơn 1 hội viên cùng khớp vượt ngưỡng, ném lỗi cảnh báo trùng lặp.
    */
   async matchGlobal(embedding: unknown): Promise<FaceMatchResult | null> {
     const probe = this.assertValidEmbedding(embedding);
     const rows = await this.prisma.faceEmbedding.findMany({
       where: { member: { status: 'ACTIVE' } },
-      select: { memberId: true, embedding: true, member: { select: { code: true } } },
+      select: {
+        memberId: true,
+        embedding: true,
+        member: { select: { code: true, fullName: true } },
+      },
     });
     if (rows.length === 0) return null;
 
-    let best: { memberId: string; memberCode: string; similarity: number } | null = null;
+    // Tìm độ khớp cao nhất cho từng hội viên
+    const memberMatches = new Map<
+      string,
+      { memberId: string; memberCode: string; fullName: string; similarity: number }
+    >();
+
     for (const row of rows) {
       const sim = this.cosine(probe, this.parseStoredEmbedding(row.embedding));
-      if (sim >= this.thresholdGlobal && (!best || sim > best.similarity)) {
-        best = { memberId: row.memberId, memberCode: row.member.code, similarity: sim };
+      if (sim >= this.thresholdGlobal) {
+        const existing = memberMatches.get(row.memberId);
+        if (!existing || sim > existing.similarity) {
+          memberMatches.set(row.memberId, {
+            memberId: row.memberId,
+            memberCode: row.member?.code || '',
+            fullName: row.member?.fullName || '',
+            similarity: sim,
+          });
+        }
       }
     }
-    if (!best) return null;
+
+    if (memberMatches.size === 0) return null;
+
+    const matchedList = Array.from(memberMatches.values()).sort(
+      (a, b) => b.similarity - a.similarity,
+    );
+
+    // Nếu có từ 2 hội viên khác nhau cùng khớp vượt ngưỡng 1:N
+    if (matchedList.length > 1) {
+      const top2 = matchedList[1];
+      if (top2.similarity >= this.thresholdGlobal) {
+        const conflictNames = matchedList
+          .slice(0, 3)
+          .map((m) => `${m.fullName} (${m.memberCode})`)
+          .join(', ');
+        throw new BadRequestException(
+          `Phát hiện khuôn mặt trùng khớp với nhiều hội viên: ${conflictNames}. Vui lòng kiểm tra và chuẩn hóa lại dữ liệu khuôn mặt tại quầy.`,
+        );
+      }
+    }
+
+    const best = matchedList[0];
 
     // Ảnh tham chiếu của người khớp nhất (nếu lúc đăng ký có chụp) — cho lễ tân đối chiếu
     const photo = await this.prisma.faceEmbedding.findFirst({
       where: { memberId: best.memberId, imageData: { not: null } },
       select: { imageData: true },
     });
-    return { ...best, imageData: photo?.imageData ?? null };
+    return {
+      memberId: best.memberId,
+      memberCode: best.memberCode,
+      similarity: best.similarity,
+      imageData: photo?.imageData ?? null,
+    };
   }
 }

@@ -1,0 +1,192 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1590" viewBox="0 0 1800 1590" font-family="Segoe UI, Be Vietnam Pro, Arial, sans-serif">
+  <defs>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#1B2A12" flood-opacity="0.08"/>
+    </filter>
+    <style>
+      .zone { fill: #F4F6F1; stroke: #D5DCCB; stroke-width: 1.2; }
+      .zone-alt { fill: #FBFCFA; stroke: #D5DCCB; stroke-width: 1.2; }
+      .zone-title { font-size: 12px; font-weight: 700; fill: #46543A; letter-spacing: 0.3px; }
+      .box { fill: #FFFFFF; stroke: #6E8F00; stroke-width: 1.5; }
+      .box-alt { fill: #FFFFFF; stroke: #A8B694; stroke-width: 1.3; }
+      .bar { fill: #B7FF00; }
+      .bar-alt { fill: #DDE7C8; }
+      .ename { font-size: 14px; font-weight: 700; fill: #1D2717; text-anchor: middle; }
+      .rel { fill: none; stroke: #9BAA83; stroke-width: 1.5; }
+      .rlabel { font-size: 9.5px; fill: #4B5A40; paint-order: stroke; stroke: #F7F8F5; stroke-width: 5; stroke-linejoin: round; }
+    </style>
+  </defs>
+
+  <rect width="1800" height="1590" fill="#F7F8F5"/>
+  <text x="60" y="48" font-size="19" font-weight="700" fill="#1F2A18" letter-spacing="0.4">MÔ HÌNH THỰC THỂ LIÊN KẾT (ERD) — HỆ THỐNG GYMSHARK</text>
+  <text x="60" y="70" font-size="11" fill="#7A8476">27 thực thể · 26 quan hệ · Nhãn trên đường thể hiện dạng cardinality (1 : 0..* = một – nhiều)</text>
+
+  <!-- ============ CỤM ============ -->
+  <rect class="zone-alt" x="60" y="110" width="370" height="510" rx="14"/>
+  <rect class="zone" x="450" y="110" width="450" height="790" rx="14"/>
+  <rect class="zone-alt" x="920" y="110" width="330" height="450" rx="14"/>
+  <rect class="zone" x="1270" y="110" width="470" height="590" rx="14"/>
+  <rect class="zone-alt" x="60" y="650" width="460" height="410" rx="14"/>
+  <rect class="zone" x="540" y="930" width="440" height="460" rx="14"/>
+  <rect class="zone-alt" x="1000" y="730" width="380" height="300" rx="14"/>
+
+  <g class="zone-title">
+    <text x="80" y="134">TÀI KHOẢN &amp; KIỂM TOÁN</text>
+    <text x="470" y="134">HỘI VIÊN &amp; TÀI CHÍNH</text>
+    <text x="940" y="134">ĐIỂM DANH &amp; SINH TRẮC HỌC</text>
+    <text x="1290" y="134">ĐÀO TẠO &amp; LỊCH TẬP</text>
+    <text x="80" y="674">CHƯƠNG TRÌNH &amp; BÀI TẬP</text>
+    <text x="560" y="954">DINH DƯỠNG</text>
+    <text x="1020" y="754">THIẾT BỊ &amp; BẢO TRÌ</text>
+  </g>
+
+  <!-- ============ THỰC THỂ ============ -->
+  <g filter="url(#sh)">
+    <!-- Cụm A -->
+    <rect class="box" x="85" y="175" width="320" height="58" rx="8"/><rect class="bar" x="85" y="175" width="320" height="4" rx="2"/>
+    <rect class="box" x="85" y="295" width="320" height="58" rx="8"/><rect class="bar" x="85" y="295" width="320" height="4" rx="2"/>
+    <rect class="box" x="85" y="415" width="320" height="58" rx="8"/><rect class="bar" x="85" y="415" width="320" height="4" rx="2"/>
+    <rect class="box-alt" x="85" y="535" width="320" height="58" rx="8"/><rect class="bar-alt" x="85" y="535" width="320" height="4" rx="2"/>
+    <!-- Cụm B -->
+    <rect class="box-alt" x="475" y="175" width="400" height="58" rx="8"/><rect class="bar-alt" x="475" y="175" width="400" height="4" rx="2"/>
+    <rect class="box" x="475" y="285" width="400" height="58" rx="8"/><rect class="bar" x="475" y="285" width="400" height="4" rx="2"/>
+    <rect class="box-alt" x="475" y="395" width="400" height="58" rx="8"/><rect class="bar-alt" x="475" y="395" width="400" height="4" rx="2"/>
+    <rect class="box" x="475" y="505" width="400" height="58" rx="8"/><rect class="bar" x="475" y="505" width="400" height="4" rx="2"/>
+    <rect class="box-alt" x="475" y="615" width="400" height="58" rx="8"/><rect class="bar-alt" x="475" y="615" width="400" height="4" rx="2"/>
+    <rect class="box-alt" x="475" y="725" width="400" height="58" rx="8"/><rect class="bar-alt" x="475" y="725" width="400" height="4" rx="2"/>
+    <!-- Cụm C -->
+    <rect class="box-alt" x="945" y="175" width="280" height="58" rx="8"/><rect class="bar-alt" x="945" y="175" width="280" height="4" rx="2"/>
+    <rect class="box" x="945" y="285" width="280" height="58" rx="8"/><rect class="bar" x="945" y="285" width="280" height="4" rx="2"/>
+    <rect class="box-alt" x="945" y="395" width="280" height="58" rx="8"/><rect class="bar-alt" x="945" y="395" width="280" height="4" rx="2"/>
+    <!-- Cụm D -->
+    <rect class="box" x="1295" y="175" width="420" height="58" rx="8"/><rect class="bar" x="1295" y="175" width="420" height="4" rx="2"/>
+    <rect class="box-alt" x="1295" y="285" width="420" height="58" rx="8"/><rect class="bar-alt" x="1295" y="285" width="420" height="4" rx="2"/>
+    <rect class="box-alt" x="1295" y="395" width="420" height="58" rx="8"/><rect class="bar-alt" x="1295" y="395" width="420" height="4" rx="2"/>
+    <rect class="box-alt" x="1295" y="505" width="420" height="58" rx="8"/><rect class="bar-alt" x="1295" y="505" width="420" height="4" rx="2"/>
+    <rect class="box-alt" x="1295" y="615" width="420" height="58" rx="8"/><rect class="bar-alt" x="1295" y="615" width="420" height="4" rx="2"/>
+    <!-- Cụm E -->
+    <rect class="box" x="85" y="715" width="410" height="58" rx="8"/><rect class="bar" x="85" y="715" width="410" height="4" rx="2"/>
+    <rect class="box-alt" x="85" y="825" width="410" height="58" rx="8"/><rect class="bar-alt" x="85" y="825" width="410" height="4" rx="2"/>
+    <rect class="box-alt" x="85" y="935" width="410" height="58" rx="8"/><rect class="bar-alt" x="85" y="935" width="410" height="4" rx="2"/>
+    <!-- Cụm F -->
+    <rect class="box" x="565" y="990" width="390" height="58" rx="8"/><rect class="bar" x="565" y="990" width="390" height="4" rx="2"/>
+    <rect class="box-alt" x="565" y="1100" width="390" height="58" rx="8"/><rect class="bar-alt" x="565" y="1100" width="390" height="4" rx="2"/>
+    <rect class="box-alt" x="565" y="1210" width="390" height="58" rx="8"/><rect class="bar-alt" x="565" y="1210" width="390" height="4" rx="2"/>
+    <rect class="box-alt" x="565" y="1320" width="390" height="58" rx="8"/><rect class="bar-alt" x="565" y="1320" width="390" height="4" rx="2"/>
+    <!-- Cụm G -->
+    <rect class="box-alt" x="1025" y="795" width="330" height="58" rx="8"/><rect class="bar-alt" x="1025" y="795" width="330" height="4" rx="2"/>
+    <rect class="box-alt" x="1025" y="905" width="330" height="58" rx="8"/><rect class="bar-alt" x="1025" y="905" width="330" height="4" rx="2"/>
+  </g>
+
+  <g class="ename">
+    <text x="245" y="211">User</text>
+    <text x="245" y="331">Member</text>
+    <text x="245" y="451">Trainer</text>
+    <text x="245" y="571">AuditLog</text>
+
+    <text x="675" y="211">MembershipPackage</text>
+    <text x="675" y="321">Membership</text>
+    <text x="675" y="431">MembershipChangeRequest</text>
+    <text x="675" y="541">Payment</text>
+    <text x="675" y="651">Invoice</text>
+    <text x="675" y="761">StaffShift</text>
+
+    <text x="1085" y="211">CheckIn</text>
+    <text x="1085" y="321">FaceEmbedding</text>
+    <text x="1085" y="431">BodyMetric</text>
+
+    <text x="1505" y="211">TrainerMember</text>
+    <text x="1505" y="321">TrainingSchedule</text>
+    <text x="1505" y="431">TrainingProgress</text>
+    <text x="1505" y="541">ClassBooking</text>
+    <text x="1505" y="651">Room</text>
+
+    <text x="290" y="751">Program</text>
+    <text x="290" y="861">ProgramExercise</text>
+    <text x="290" y="971">Exercise</text>
+
+    <text x="760" y="1026">MealPlan</text>
+    <text x="760" y="1136">Meal</text>
+    <text x="760" y="1246">MealItem</text>
+    <text x="760" y="1356">Food</text>
+
+    <text x="1190" y="831">Equipment</text>
+    <text x="1190" y="941">EquipmentMaintenance</text>
+  </g>
+
+  <!-- ============ QUAN HỆ ============ -->
+  <g class="rel">
+    <path d="M245,233 L245,295"/>
+    <path d="M405,190 L440,190 L440,444 L405,444"/>
+    <path d="M85,215 L70,215 L70,564 L85,564"/>
+
+    <path d="M405,324 C430,324 450,314 475,314"/>
+    <path d="M405,334 C435,334 445,534 475,534"/>
+    <path d="M405,300 L420,300 L420,158 L945,158 L945,175"/>
+    <path d="M245,353 L245,375 L935,375 L935,424 L945,424"/>
+    <path d="M300,353 L300,360 L930,360 L930,314 L945,314"/>
+
+    <path d="M675,233 L675,285"/>
+    <path d="M675,343 L675,395"/>
+    <path d="M700,343 L885,343 L885,534 L875,534"/>
+    <path d="M675,563 L675,615"/>
+    <path d="M875,754 L892,754 L892,534 L875,534"/>
+
+    <path d="M405,438 L440,438 L440,152 L1278,152 L1278,204 L1295,204"/>
+    <path d="M350,353 L350,385 L1265,385 L1265,214 L1295,214"/>
+    <path d="M405,450 L445,450 L445,148 L1282,148 L1282,314 L1295,314"/>
+    <path d="M1505,343 L1505,395"/>
+    <path d="M1600,343 L1722,343 L1722,534 L1715,534"/>
+    <path d="M1505,673 L1288,673 L1288,314 L1295,314"/>
+
+    <path d="M290,773 L290,825"/>
+    <path d="M495,964 L510,964 L510,854 L495,854"/>
+
+    <path d="M85,460 L76,460 L76,1019 L565,1019"/>
+    <path d="M760,1048 L760,1100"/>
+    <path d="M760,1158 L760,1210"/>
+    <path d="M955,1349 L970,1349 L970,1239 L955,1239"/>
+
+    <path d="M1190,853 L1190,905"/>
+  </g>
+
+  <!-- Nhãn quan hệ: "cardinality · động từ" -->
+  <g class="rlabel">
+    <text x="255" y="270">1 : 0..1 · sở hữu hồ sơ</text>
+    <text x="418" y="330">1 : 0..1 · sở hữu hồ sơ</text>
+    <text x="76" y="400">1 : 0..* · thực hiện hành động</text>
+
+    <text x="440" y="308">1 : 0..* · ký kết hợp đồng</text>
+    <text x="430" y="450">1 : 0..* · thanh toán</text>
+    <text x="600" y="152">1 : 0..* · điểm danh</text>
+    <text x="620" y="369">1 : 0..* · đo chỉ số</text>
+    <text x="600" y="354">1 : 0..* · vector mẫu</text>
+
+    <text x="685" y="266">1 : 0..* · áp dụng gói</text>
+    <text x="685" y="376">1 : 0..* · yêu cầu thay đổi</text>
+    <text x="885" y="440">1 : 0..* · phát sinh giao dịch</text>
+    <text x="685" y="596">1 : 1 · xuất hóa đơn</text>
+    <text x="892" y="650">1 : 0..* · thu tiền ca</text>
+
+    <text x="820" y="146">1 : 0..* · phụ trách học viên</text>
+    <text x="770" y="379">1 : 0..* · được hướng dẫn</text>
+    <text x="830" y="142">1 : 0..* · dạy theo lịch</text>
+    <text x="1515" y="374">1 : 0..* · ghi nhận kết quả</text>
+    <text x="1722" y="445">1 : 0..* · đặt chỗ</text>
+    <text x="1288" y="520">1 : 0..* · diễn ra tại</text>
+
+    <text x="300" y="803">1 : 0..* · chứa bài tập</text>
+    <text x="510" y="908">1 : 0..* · được chọn vào</text>
+
+    <text x="300" y="1013">1 : 0..* · soạn thực đơn</text>
+    <text x="770" y="1076">1 : 0..* · chứa các bữa</text>
+    <text x="770" y="1186">1 : 0..* · gồm các món</text>
+    <text x="970" y="1294">1 : 0..* · tham chiếu dinh dưỡng</text>
+
+    <text x="1200" y="882">1 : 0..* · lịch sử bảo dưỡng</text>
+  </g>
+
+  <!-- Chú thích -->
+  <text x="900" y="1505" text-anchor="middle" font-size="15" font-style="italic" fill="#3C4738">Hình 3.4 — Mô hình thực thể liên kết (ERD) hoàn chỉnh gồm 36 thực thể dữ liệu</text>
+  <text x="900" y="1535" text-anchor="middle" font-size="11" fill="#7A8476">Viền xanh lime: thực thể chính · Viền xám: thực thể phụ · 1 : 0..* = một – nhiều · 1 : 0..1 = một – không hoặc một</text>
+</svg>

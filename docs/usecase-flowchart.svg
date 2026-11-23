@@ -1,0 +1,147 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1520" height="1200" viewBox="0 0 1520 1200" font-family="Segoe UI, Be Vietnam Pro, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 12 8" refX="11" refY="4" markerWidth="11" markerHeight="7" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M0,0 L12,4 L0,8 Z" fill="#8FA470"/>
+    </marker>
+    <marker id="arrow-dash" viewBox="0 0 12 8" refX="11" refY="4" markerWidth="11" markerHeight="7" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M0,0 L12,4 L0,8 Z" fill="#7A8B5A"/>
+    </marker>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#1B2A12" flood-opacity="0.09"/>
+    </filter>
+    <style>
+      .trunk { fill: none; stroke: #A8B694; stroke-width: 1.6; }
+      .link { fill: none; stroke: #A8B694; stroke-width: 1.6; marker-end: url(#arrow); }
+      .link-smtp { fill: none; stroke: #7A8B5A; stroke-width: 1.8; stroke-dasharray: 8 6; marker-end: url(#arrow-dash); }
+      .band-title { font-size: 14px; font-weight: 700; fill: #27321E; letter-spacing: 0.3px; }
+      .band-count { font-size: 11px; fill: #7A8476; }
+      .actor { font-size: 13px; font-weight: 700; fill: #2C3822; }
+      .actor-role { font-size: 11px; fill: #7A8476; }
+      .uc { font-size: 15px; font-weight: 600; fill: #1D2717; }
+      .uc-id { font-size: 11px; font-weight: 700; fill: #3F5210; }
+      .elabel { font-size: 11px; fill: #46543A; paint-order: stroke; stroke: #F7F8F5; stroke-width: 5; stroke-linejoin: round; }
+    </style>
+  </defs>
+
+  <!-- Nền -->
+  <rect width="1520" height="1200" fill="#F7F8F5"/>
+
+  <!-- Tiêu đề -->
+  <text x="60" y="48" font-size="19" font-weight="700" fill="#1F2A18" letter-spacing="0.4">BIỂU ĐỒ USE CASE CẤP 0 — TỔNG QUAN HỆ THỐNG GYMSHARK</text>
+  <text x="60" y="70" font-size="11" fill="#7A8476">5 tác nhân · 7 ca sử dụng · Phạm vi: quản lý phòng tập &amp; cổng hội viên</text>
+
+  <!-- ============ RANH GIỚI TÁC NHÂN ============ -->
+  <rect x="60" y="110" width="360" height="960" rx="14" fill="#FBFCFA" stroke="#D5DCCB"/>
+  <rect x="60" y="110" width="360" height="38" rx="14" fill="#E9EDE4"/>
+  <rect x="60" y="134" width="360" height="14" fill="#E9EDE4"/>
+  <rect x="80" y="120" width="15" height="15" rx="3" fill="#B7FF00" stroke="#6E8F00"/>
+  <text x="105" y="133" class="band-title">TÁC NHÂN · Actors</text>
+
+  <!-- ============ RANH GIỚI HỆ THỐNG ============ -->
+  <rect x="450" y="110" width="1010" height="960" rx="18" fill="#F4F6F1" stroke="#8CA463" stroke-width="1.8" stroke-dasharray="10 6"/>
+  <rect x="450" y="110" width="1010" height="38" rx="14" fill="#E9EDE4"/>
+  <rect x="450" y="134" width="1010" height="14" fill="#E9EDE4"/>
+  <rect x="470" y="120" width="15" height="15" rx="3" fill="#B7FF00" stroke="#6E8F00"/>
+  <text x="495" y="133" class="band-title">HỆ THỐNG QUẢN LÝ PHÒNG TẬP GYM (GYMSHARK)</text>
+  <text x="1440" y="133" text-anchor="end" class="band-count">7 use cases</text>
+
+  <!-- ============ CÁC CA SỬ DỤNG ============ -->
+  <g filter="url(#sh)">
+    <ellipse cx="970" cy="226" rx="280" ry="46" fill="#FFFFFF" stroke="#6E8F00" stroke-width="1.6"/>
+    <ellipse cx="970" cy="346" rx="280" ry="46" fill="#FFFFFF" stroke="#6E8F00" stroke-width="1.6"/>
+    <ellipse cx="970" cy="466" rx="280" ry="46" fill="#FFFFFF" stroke="#6E8F00" stroke-width="1.6"/>
+    <ellipse cx="970" cy="586" rx="280" ry="46" fill="#FFFFFF" stroke="#6E8F00" stroke-width="1.6"/>
+    <ellipse cx="970" cy="706" rx="280" ry="46" fill="#FFFFFF" stroke="#6E8F00" stroke-width="1.6"/>
+    <ellipse cx="970" cy="826" rx="280" ry="46" fill="#FFFFFF" stroke="#6E8F00" stroke-width="1.6"/>
+    <ellipse cx="970" cy="946" rx="280" ry="46" fill="#FFFFFF" stroke="#6E8F00" stroke-width="1.6"/>
+  </g>
+
+  <g>
+    <circle cx="742" cy="226" r="17" fill="#F1F6E4" stroke="#6E8F00"/><text x="742" y="231" text-anchor="middle" class="uc-id">01</text>
+    <circle cx="742" cy="346" r="17" fill="#F1F6E4" stroke="#6E8F00"/><text x="742" y="351" text-anchor="middle" class="uc-id">02</text>
+    <circle cx="742" cy="466" r="17" fill="#F1F6E4" stroke="#6E8F00"/><text x="742" y="471" text-anchor="middle" class="uc-id">03</text>
+    <circle cx="742" cy="586" r="17" fill="#F1F6E4" stroke="#6E8F00"/><text x="742" y="591" text-anchor="middle" class="uc-id">04</text>
+    <circle cx="742" cy="706" r="17" fill="#F1F6E4" stroke="#6E8F00"/><text x="742" y="711" text-anchor="middle" class="uc-id">05</text>
+    <circle cx="742" cy="826" r="17" fill="#F1F6E4" stroke="#6E8F00"/><text x="742" y="831" text-anchor="middle" class="uc-id">06</text>
+    <circle cx="742" cy="946" r="17" fill="#F1F6E4" stroke="#6E8F00"/><text x="742" y="951" text-anchor="middle" class="uc-id">07</text>
+  </g>
+
+  <g class="uc">
+    <text x="778" y="232">Xác thực &amp; Quản trị tài khoản</text>
+    <text x="778" y="352">Quản lý Hội viên &amp; Thẻ tập</text>
+    <text x="778" y="472">Quản lý Thanh toán &amp; Hóa đơn</text>
+    <text x="778" y="592">Điểm danh &amp; Nhận diện khuôn mặt</text>
+    <text x="778" y="712">Lịch tập, Tiến trình &amp; Dinh dưỡng</text>
+    <text x="778" y="832">Quản lý Ca làm việc &amp; Kho đồ uống</text>
+    <text x="778" y="952">Báo cáo thống kê &amp; Nhật ký kiểm toán</text>
+  </g>
+
+  <!-- ============ TÁC NHÂN: SMTP (dịch vụ ngoài) ============ -->
+  <rect x="160" y="176" width="40" height="28" rx="3" fill="#F1F6E4" stroke="#6E8F00" stroke-width="2"/>
+  <path d="M160,178 L180,195 L200,178" fill="none" stroke="#6E8F00" stroke-width="2" stroke-linejoin="round"/>
+  <text x="180" y="224" text-anchor="middle" class="actor" font-size="12">Dịch vụ Email</text>
+  <text x="180" y="240" text-anchor="middle" class="actor-role">SMTP (external)</text>
+
+  <!-- ============ TÁC NHÂN: ADMIN ============ -->
+  <circle cx="180" cy="356" r="9" fill="#FFFFFF" stroke="#6E8F00" stroke-width="2"/>
+  <path d="M180,366 L180,386 M158,374 L202,374 M180,386 L164,402 M180,386 L196,402" fill="none" stroke="#6E8F00" stroke-width="2" stroke-linecap="round"/>
+  <text x="180" y="422" text-anchor="middle" class="actor">Quản trị viên</text>
+  <text x="180" y="438" text-anchor="middle" class="actor-role">ADMIN</text>
+
+  <!-- ============ TÁC NHÂN: STAFF ============ -->
+  <circle cx="180" cy="546" r="9" fill="#FFFFFF" stroke="#6E8F00" stroke-width="2"/>
+  <path d="M180,556 L180,576 M158,564 L202,564 M180,576 L164,592 M180,576 L196,592" fill="none" stroke="#6E8F00" stroke-width="2" stroke-linecap="round"/>
+  <text x="180" y="612" text-anchor="middle" class="actor">Nhân viên Lễ tân</text>
+  <text x="180" y="628" text-anchor="middle" class="actor-role">STAFF</text>
+
+  <!-- ============ TÁC NHÂN: TRAINER ============ -->
+  <circle cx="180" cy="696" r="9" fill="#FFFFFF" stroke="#6E8F00" stroke-width="2"/>
+  <path d="M180,706 L180,726 M158,714 L202,714 M180,726 L164,742 M180,726 L196,742" fill="none" stroke="#6E8F00" stroke-width="2" stroke-linecap="round"/>
+  <text x="180" y="762" text-anchor="middle" class="actor">Huấn luyện viên</text>
+  <text x="180" y="778" text-anchor="middle" class="actor-role">TRAINER</text>
+
+  <!-- ============ TÁC NHÂN: MEMBER ============ -->
+  <circle cx="180" cy="856" r="9" fill="#FFFFFF" stroke="#6E8F00" stroke-width="2"/>
+  <path d="M180,866 L180,886 M158,874 L202,874 M180,886 L164,902 M180,886 L196,902" fill="none" stroke="#6E8F00" stroke-width="2" stroke-linecap="round"/>
+  <text x="180" y="922" text-anchor="middle" class="actor">Hội viên</text>
+  <text x="180" y="938" text-anchor="middle" class="actor-role">MEMBER</text>
+
+  <!-- ============ LIÊN KẾT: SMTP -> UC_AUTH (OTP) ============ -->
+  <path class="link-smtp" d="M200,190 L240,190 L240,226 L690,226"/>
+  <text x="452" y="212" class="elabel">Cung cấp OTP</text>
+
+  <!-- ============ LIÊN KẾT: ADMIN ============ -->
+  <path class="trunk" d="M202,374 L275,374"/>
+  <path class="trunk" d="M275,217 L275,937"/>
+  <path class="link" d="M275,217 L690,217"/>
+  <path class="link" d="M275,337 L690,337"/>
+  <path class="link" d="M275,457 L690,457"/>
+  <path class="link" d="M275,817 L690,817"/>
+  <path class="link" d="M275,937 L690,937"/>
+
+  <!-- ============ LIÊN KẾT: STAFF ============ -->
+  <path class="trunk" d="M202,564 L310,564"/>
+  <path class="trunk" d="M310,346 L310,826"/>
+  <path class="link" d="M310,346 L690,346"/>
+  <path class="link" d="M310,466 L690,466"/>
+  <path class="link" d="M310,586 L690,586"/>
+  <path class="link" d="M310,826 L690,826"/>
+
+  <!-- ============ LIÊN KẾT: TRAINER ============ -->
+  <path class="trunk" d="M202,714 L345,714"/>
+  <path class="trunk" d="M345,714 L345,715"/>
+  <path class="link" d="M345,715 L690,715"/>
+
+  <!-- ============ LIÊN KẾT: MEMBER ============ -->
+  <path class="trunk" d="M202,874 L380,874"/>
+  <path class="trunk" d="M380,244 L380,724"/>
+  <path class="link" d="M380,244 L690,244"/>
+  <path class="link" d="M380,364 L690,364"/>
+  <path class="link" d="M380,484 L690,484"/>
+  <path class="link" d="M380,604 L690,604"/>
+  <path class="link" d="M380,724 L690,724"/>
+
+  <!-- Chú thích -->
+  <text x="760" y="1148" text-anchor="middle" font-size="15" font-style="italic" fill="#3C4738">Hình 3.1 — Biểu đồ Use Case cấp 0 tổng quát hệ thống GymShark</text>
+  <text x="760" y="1175" text-anchor="middle" font-size="11" fill="#7A8476">Đường liền: tác nhân ↔ ca sử dụng · Đường đứt nét: dịch vụ ngoài (SMTP) cung cấp OTP · Khung đứt nét: ranh giới hệ thống</text>
+</svg>

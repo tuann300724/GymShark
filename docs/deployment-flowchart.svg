@@ -1,0 +1,152 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1520" height="1200" viewBox="0 0 1520 1200" font-family="Segoe UI, Be Vietnam Pro, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 12 8" refX="11" refY="4" markerWidth="12" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M0,0 L12,4 L0,8 Z" fill="#5F7A12"/>
+    </marker>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#1B2A12" flood-opacity="0.10"/>
+    </filter>
+    <style>
+      .edge { fill: none; stroke: #5F7A12; stroke-width: 2; marker-end: url(#arrow); }
+      .bus { fill: none; stroke: #5F7A12; stroke-width: 2; }
+      .edge-dash { fill: none; stroke: #7A8B5A; stroke-width: 2; stroke-dasharray: 9 7; marker-end: url(#arrow); }
+      .elabel { font-size: 12px; fill: #46543A; paint-order: stroke; stroke: #F7F8F5; stroke-width: 5; stroke-linejoin: round; }
+      .band-title { font-size: 14px; font-weight: 700; fill: #27321E; letter-spacing: 0.3px; }
+      .band-count { font-size: 11px; fill: #7A8476; }
+      .node-title { font-size: 16px; font-weight: 700; fill: #1D2717; }
+      .node-sub { font-size: 12px; fill: #6B7568; }
+      .accent { fill: #B7FF00; stroke: #6E8F00; stroke-width: 1; }
+    </style>
+  </defs>
+
+  <!-- Nền -->
+  <rect width="1520" height="1200" fill="#F7F8F5"/>
+
+  <!-- Tiêu đề -->
+  <text x="60" y="48" font-size="19" font-weight="700" fill="#1F2A18" letter-spacing="0.4">MÔ HÌNH TRIỂN KHAI VẬT LÝ VÀ LOGIC — GYMSHARK</text>
+  <text x="60" y="70" font-size="11" fill="#7A8476">HTTPS :443 · Reverse Proxy · Node.js (Next.js + NestJS) · SQL Server 2022</text>
+
+  <!-- ============ BAND 1: CLIENT DEVICES ============ -->
+  <rect x="60" y="110" width="1400" height="140" rx="14" fill="#FBFCFA" stroke="#D5DCCB"/>
+  <rect x="60" y="110" width="1400" height="38" rx="14" fill="#E9EDE4"/>
+  <rect x="60" y="134" width="1400" height="14" fill="#E9EDE4"/>
+  <rect x="80" y="120" width="15" height="15" rx="3" class="accent"/>
+  <text x="105" y="133" class="band-title">NGƯỜI DÙNG CUỐI · Client Devices</text>
+  <text x="1440" y="133" text-anchor="end" class="band-count">Đa thiết bị</text>
+
+  <!-- ============ BAND 2: REVERSE PROXY ============ -->
+  <rect x="60" y="280" width="1400" height="140" rx="14" fill="#F4F6F1" stroke="#9BAE7A" stroke-width="1.5" stroke-dasharray="8 5"/>
+  <rect x="60" y="280" width="1400" height="38" rx="14" fill="#E9EDE4"/>
+  <rect x="60" y="304" width="1400" height="14" fill="#E9EDE4"/>
+  <rect x="80" y="290" width="15" height="15" rx="3" class="accent"/>
+  <text x="105" y="303" class="band-title">TẦNG CỔNG KẾT NỐI &amp; BẢO MẬT · Khuyến nghị Deploy</text>
+  <text x="1440" y="303" text-anchor="end" class="band-count">SSL/TLS · WAF</text>
+
+  <!-- ============ BAND 3: APP SERVER ============ -->
+  <rect x="60" y="450" width="1400" height="280" rx="14" fill="#FBFCFA" stroke="#D5DCCB"/>
+  <rect x="60" y="450" width="1400" height="38" rx="14" fill="#E9EDE4"/>
+  <rect x="60" y="474" width="1400" height="14" fill="#E9EDE4"/>
+  <rect x="80" y="460" width="15" height="15" rx="3" class="accent"/>
+  <text x="105" y="473" class="band-title">TẦNG MÁY CHỦ ỨNG DỤNG · Node.js Environment</text>
+  <text x="1440" y="473" text-anchor="end" class="band-count">4 thành phần</text>
+
+  <!-- ============ BAND 4: DATABASE ============ -->
+  <rect x="60" y="760" width="1400" height="250" rx="14" fill="#F4F6F1" stroke="#D5DCCB"/>
+  <rect x="60" y="760" width="1400" height="38" rx="14" fill="#E9EDE4"/>
+  <rect x="60" y="784" width="1400" height="14" fill="#E9EDE4"/>
+  <rect x="80" y="770" width="15" height="15" rx="3" class="accent"/>
+  <text x="105" y="783" class="band-title">TẦNG MÁY CHỦ DỮ LIỆU · Database Tier</text>
+  <text x="1440" y="783" text-anchor="end" class="band-count">2 thành phần</text>
+
+  <!-- ============ NODE: CLIENT ============ -->
+  <rect x="490" y="170" width="540" height="60" rx="10" fill="#FFFFFF" stroke="#C7CEC0" filter="url(#sh)"/>
+  <rect x="490" y="180" width="4" height="40" rx="2" class="accent"/>
+  <!-- icon: monitor + phone -->
+  <rect x="516" y="187" width="27" height="19" rx="2" fill="none" stroke="#6E8F00" stroke-width="2"/>
+  <path d="M529.5,206 L529.5,211 M522,212 L537,212" fill="none" stroke="#6E8F00" stroke-width="2" stroke-linecap="round"/>
+  <rect x="551" y="184" width="12" height="25" rx="2" fill="none" stroke="#6E8F00" stroke-width="2"/>
+  <path d="M555,205 L559,205" stroke="#6E8F00" stroke-width="2" stroke-linecap="round"/>
+  <text x="580" y="196" class="node-title">Trình duyệt Web</text>
+  <text x="580" y="216" class="node-sub">Desktop / Laptop / Mobile / Kiosk</text>
+
+  <!-- ============ NODE: PROXY ============ -->
+  <rect x="430" y="340" width="660" height="60" rx="10" fill="#FFFFFF" stroke="#8CA463" stroke-width="1.5" filter="url(#sh)"/>
+  <rect x="430" y="350" width="4" height="40" rx="2" class="accent"/>
+  <!-- icon: shield -->
+  <path d="M464,350 L480,356 L480,367 C480,375 472,380 464,383 C456,380 448,375 448,367 L448,356 Z" fill="#F1F6E4" stroke="#6E8F00" stroke-width="2"/>
+  <path d="M458,368 L462,372 L471,363" fill="none" stroke="#6E8F00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="500" y="366" class="node-title">Reverse Proxy (Nginx / Cloudflare)</text>
+  <text x="500" y="386" class="node-sub">Kết thúc SSL/TLS :443 · chuyển tiếp HTTP/WSS · WAF</text>
+
+  <!-- ============ NODES: APP SERVER ============ -->
+  <rect x="80" y="520" width="380" height="100" rx="10" fill="#FFFFFF" stroke="#C7CEC0" filter="url(#sh)"/>
+  <rect x="80" y="532" width="4" height="76" rx="2" class="accent"/>
+  <text x="102" y="562" class="node-title">Frontend Server</text>
+  <text x="102" y="586" class="node-sub">Next.js 14 · SSR / CSR</text>
+  <text x="102" y="606" class="node-sub">Port :3000</text>
+
+  <rect x="580" y="520" width="420" height="100" rx="10" fill="#FFFFFF" stroke="#6E8F00" stroke-width="1.5" filter="url(#sh)"/>
+  <rect x="580" y="532" width="4" height="76" rx="2" class="accent"/>
+  <text x="602" y="562" class="node-title">Backend API Server</text>
+  <text x="602" y="586" class="node-sub">NestJS 10 · Modules + Guards + DTO</text>
+  <text x="602" y="606" class="node-sub">Port :3001/api</text>
+
+  <rect x="1060" y="520" width="380" height="100" rx="10" fill="#FFFFFF" stroke="#C7CEC0" filter="url(#sh)"/>
+  <rect x="1060" y="532" width="4" height="76" rx="2" class="accent"/>
+  <text x="1082" y="562" class="node-title">Socket.IO Gateway</text>
+  <text x="1082" y="586" class="node-sub">WebSocket · realtime event</text>
+  <text x="1082" y="606" class="node-sub">Port :3001</text>
+
+  <rect x="580" y="650" width="420" height="56" rx="10" fill="#F8FAF4" stroke="#C7CEC0" filter="url(#sh)"/>
+  <text x="602" y="674" class="node-title" font-size="14">Tài liệu Swagger Docs</text>
+  <text x="602" y="694" class="node-sub">:3001/api/docs</text>
+
+  <!-- ============ NODES: DATABASE ============ -->
+  <path d="M440,850 A260,20 0 0 1 960,850 L960,960 A260,20 0 0 1 440,960 Z" fill="#FFFFFF" stroke="#C7CEC0" stroke-width="1.5" filter="url(#sh)"/>
+  <ellipse cx="700" cy="850" rx="260" ry="20" fill="#F1F4EC" stroke="#C7CEC0" stroke-width="1.5"/>
+  <text x="700" y="898" text-anchor="middle" class="node-title">Microsoft SQL Server 2022</text>
+  <text x="700" y="922" text-anchor="middle" class="node-sub">Port :1433 · Database: gym_db</text>
+
+  <rect x="1060" y="870" width="360" height="72" rx="10" fill="#FFFFFF" stroke="#C7CEC0" filter="url(#sh)"/>
+  <rect x="1060" y="880" width="4" height="52" rx="2" class="accent"/>
+  <text x="1082" y="901" class="node-title" font-size="14">T-SQL Idempotent Scripts</text>
+  <text x="1082" y="922" class="node-sub">Migration · chạy trước khởi động</text>
+
+  <!-- ============ LUỒNG DỮ LIỆU ============ -->
+  <!-- Browser -> Proxy -->
+  <path class="edge" d="M760,230 L760,340"/>
+  <text x="774" y="292" class="elabel">HTTPS :443</text>
+
+  <!-- Proxy -> bus -> 3 dịch vụ -->
+  <path class="bus" d="M760,380 L760,460"/>
+  <path class="bus" d="M270,460 L1250,460"/>
+  <path class="edge" d="M270,460 L270,520"/>
+  <path class="edge" d="M790,460 L790,520"/>
+  <path class="edge" d="M1250,460 L1250,520"/>
+  <text x="270" y="491" text-anchor="middle" class="elabel" font-size="11">HTTP Proxy :3000</text>
+  <text x="790" y="491" text-anchor="middle" class="elabel" font-size="11">HTTP Proxy :3001/api</text>
+  <text x="1250" y="491" text-anchor="middle" class="elabel" font-size="11">WSS Proxy :3001</text>
+
+  <!-- FE -> BE (REST/JWT) -->
+  <path class="edge-dash" d="M460,570 L580,570"/>
+  <text x="520" y="545" text-anchor="middle" class="elabel" font-size="10.5">REST API</text>
+  <text x="520" y="558" text-anchor="middle" class="elabel" font-size="10.5">/ JWT</text>
+
+  <!-- BE -> Swagger -->
+  <path class="edge" d="M790,620 L790,650"/>
+  <text x="803" y="640" class="elabel" font-size="11">Swagger UI</text>
+
+  <!-- BE -> SQL Server (Prisma) -->
+  <path class="edge" d="M1000,600 L1020,600 L1020,830 L880,830 L880,850"/>
+  <text x="1034" y="752" class="elabel" font-size="11">Prisma ORM</text>
+  <text x="1034" y="766" class="elabel" font-size="11">Client</text>
+
+  <!-- Scripts -> SQL Server -->
+  <path class="edge-dash" d="M1060,906 L960,906"/>
+  <text x="1010" y="886" text-anchor="middle" class="elabel" font-size="10.5">Đồng bộ trước</text>
+  <text x="1010" y="899" text-anchor="middle" class="elabel" font-size="10.5">khởi động</text>
+
+  <!-- Chú thích -->
+  <text x="760" y="1148" text-anchor="middle" font-size="15" font-style="italic" fill="#3C4738">Hình 2.2 — Mô hình triển khai vật lý và logic của hệ thống (Deployment Architecture)</text>
+  <text x="760" y="1175" text-anchor="middle" font-size="11" fill="#7A8476">Đường liền: luồng chính · Đường đứt nét: gọi nội bộ / script khởi tạo · Khung đứt nét: lớp triển khai khuyến nghị</text>
+</svg>

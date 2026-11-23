@@ -41,7 +41,7 @@ const NAV_ITEMS = [
 ];
 
 const NAV_LINK_CLASSES =
-  'relative flex items-center gap-1.5 px-3 py-2 text-[13px] font-medium transition-colors after:absolute after:inset-x-3 after:-bottom-0.5 after:h-[2px] after:origin-center after:rounded-full after:bg-neon after:transition-transform after:duration-300';
+  'relative flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-[13px] font-medium transition-colors after:absolute after:inset-x-3 after:-bottom-0.5 after:h-[2px] after:origin-center after:rounded-full after:bg-neon after:transition-transform after:duration-300';
 
 function navLinkClass(active: boolean) {
   return cn(
@@ -115,7 +115,7 @@ export function MemberHeader() {
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden items-center gap-0.5 xl:flex">
+          <nav className="hidden items-center justify-between gap-1 xl:flex">
             {NAV_ITEMS.slice(0, 5).map((item) => (
               <Link
                 key={item.href}

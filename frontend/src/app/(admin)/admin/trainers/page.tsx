@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,23 +29,35 @@ import {
 } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
+import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/lib/utils';
 
 const PAGE_SIZE = 10;
 
-export default function TrainersPage() {
+function TrainersPageContent() {
   const toast = useToast();
   const { confirm } = useConfirm();
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
 
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState(() => searchParams.get('search') ?? '');
+  const [searchInput, setSearchInput] = useState(() => searchParams.get('search') ?? '');
   const [status, setStatus] = useState('ALL');
   const [specialization, setSpecialization] = useState('');
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<TrainerListItem | null>(null);
+
+  // Đồng bộ khi điều hướng từ ô tìm kiếm nhanh ở header (?search=...)
+  useEffect(() => {
+    const q = searchParams.get('search');
+    if (q !== null) {
+      setSearchInput(q);
+      setSearch(q);
+      setPage(1);
+    }
+  }, [searchParams]);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['trainers', { page, search, status, specialization }],
@@ -331,5 +344,13 @@ export default function TrainersPage() {
         editing={editing}
       />
     </div>
+  );
+}
+
+export default function TrainersPage() {
+  return (
+    <Suspense fallback={<Spinner />}>
+      <TrainersPageContent />
+    </Suspense>
   );
 }
