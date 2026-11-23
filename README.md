@@ -56,8 +56,9 @@
 ### Khu vực hội viên `/member` — vai trò `MEMBER`
 
 - Dashboard cá nhân: gói tập hiện tại, số buổi tập tháng này, PT phụ trách, thanh toán gần nhất
-- **Đăng ký / gia hạn gói tập** online (chọn CASH / BANK_TRANSFER / MoMo / VNPay);
-  thấy ngay **gói đã gia hạn sắp kích hoạt** và tự **hủy yêu cầu đang chờ thanh toán** nếu chưa chuyển tiền
+- **Đăng ký / gia hạn gói tập** online (chỉ **CASH / BANK_TRANSFER**, xác nhận thủ công tại quầy;
+  web không có thanh toán MoMo/VNPay — option cũ chỉ là demo/bị vô hiệu); thấy ngay **gói đã gia
+  hạn sắp kích hoạt** và tự **hủy yêu cầu đang chờ thanh toán** nếu chưa chuyển tiền
 - **Check-in / Check-out** tự phục vụ hoặc lễ tân hỗ trợ
 - Lịch sử check-in, lịch tập cá nhân, huấn luyện viên phụ trách
 - Khi ADMIN/MANAGER/STAFF phân công HLV phụ trách, hội viên nhận thông báo realtime và thấy thông tin HLV tại trang Gói tập của tôi. Phân công HLV không tự tạo quota buổi PT trong gói.
@@ -283,8 +284,9 @@ và `AdminGuard` / `MemberGuard` / `TrainerGuard` ở frontend (điều hướng
 | Giao diện huấn luyện viên | — | — | — | ✅ | — |
 | Đăng ký/gia hạn gói, hóa đơn, lịch tập, hồ sơ | — | — | — | — | ✅ (của chính mình) |
 
-¹ `STAFF` chỉ xác nhận được thanh toán **CASH / BANK_TRANSFER**; `MoMo` & `VNPay` (cổng
-ngoài) chỉ `ADMIN` / `MANAGER` mới đối soát được.
+¹ `STAFF` / `ADMIN` / `MANAGER` xác nhận được **CASH / BANK_TRANSFER** (xác nhận thủ công).
+`MoMo` / `VNPay` chỉ là enum + stub trong code (`MomoGateway.integrated = false`, VNPay không có
+gateway), không phải phương thức thanh toán đang dùng trên web.
 
 Dữ liệu cá nhân của hội viên **luôn** lấy từ `sub` trong JWT — không nhận `memberId` từ
 request body, nên không thể đọc dữ liệu của người khác.
@@ -322,7 +324,7 @@ Web gym/
 │           ├── member/           # Cổng API riêng cho hội viên
 │           ├── memberships/      # Thẻ hội viên
 │           ├── packages/         # Gói tập
-│           ├── payments/         # Thanh toán (CASH/BANK/MoMo/VNPay)
+│           ├── payments/         # Thanh toán (chỉ CASH/BANK; MOMO/VNPAY là enum/stub)
 │           ├── invoices/         # Hóa đơn INV-YYYY-NNNNNN
 │           ├── checkins/         # Check-in / check-out
 │           ├── trainers/         # Huấn luyện viên
@@ -542,8 +544,10 @@ Frontend `typecheck → lint → format:check → build` và Backend `prisma val
 
 - **Bài tập tập luyện** đang là dữ liệu tĩnh trong `frontend/src/lib/programs.ts` — chưa có
   model `Exercise` + CRUD quản trị.
-- **Cổng thanh toán** `MoMo` / `VNPay` mới ở mức _stub_ (ghi nhận mã giao dịch, chưa gọi API
-  thật). `CASH` và `BANK_TRANSFER` đã hoạt động đầy đủ.
+- **Web chưa có cổng thanh toán điện tử** `MoMo` / `VNPay`: code chỉ có enum `PaymentMethod` và
+  `MomoGateway` stub (`integrated = false`); VNPay không có gateway, option giao diện cũ chỉ là
+  demo/bị vô hiệu, giao dịch ví trong seed là dữ liệu mẫu. `CASH` và `BANK_TRANSFER` là hai
+  phương thức duy nhất hoạt động đầy đủ (xác nhận thủ công).
 - **Gửi email / tin nhắn** chưa tích hợp — thông báo chỉ lưu trong database và hiển thị
   qua chuông + ticker.
 - **Chưa có test tự động** (unit/e2e test runner) — kiểm thử hiện dùng smoke test script
