@@ -34,8 +34,6 @@ interface Actor {
   id: string;
   role: string;
   fullName?: string;
-  shiftId?: string;
-  cassoSettlement?: boolean;
 }
 
 @Injectable()
@@ -93,49 +91,6 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     if (this.cassoPollTimer) clearInterval(this.cassoPollTimer);
   }
 
-  async assertOpenShiftForStaff(staffId: string): Promise<string> {
-    const shifts = await this.prisma.$queryRaw<{ id: string }[]>(Prisma.sql`
-      SELECT TOP (2) CONVERT(nvarchar(36), id) AS id
-      FROM dbo.StaffShift
-      WHERE staffId = CONVERT(uniqueidentifier, ${staffId})
-        AND UPPER(status) = N'IN_PROGRESS'
-        AND startTime <= SYSUTCDATETIME()
-        AND endTime > SYSUTCDATETIME()
-    `);
-    if (shifts.length === 0) {
-      throw new ForbiddenException(
-        "Bạn cần bắt đầu ca làm đang được phân công trước khi phục vụ hội viên",
-      );
-    }
-    if (shifts.length > 1) {
-      throw new ConflictException(
-        "Bạn có nhiều ca đang mở cùng lúc. Hãy nhờ quản lý xử lý trước khi thu tiền.",
-      );
-    }
-    return shifts[0].id;
-  }
-
-  async assertShiftActiveInTransaction(
-    tx: Prisma.TransactionClient,
-    staffId: string,
-    shiftId: string,
-  ) {
-    const shifts = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
-      SELECT TOP (1) CONVERT(nvarchar(36), id) AS id
-      FROM dbo.StaffShift WITH (UPDLOCK, HOLDLOCK)
-      WHERE id = CONVERT(uniqueidentifier, ${shiftId})
-        AND staffId = CONVERT(uniqueidentifier, ${staffId})
-        AND UPPER(status) = N'IN_PROGRESS'
-        AND startTime <= SYSUTCDATETIME()
-        AND endTime > SYSUTCDATETIME()
-    `);
-    if (shifts.length !== 1) {
-      throw new ForbiddenException(
-        "Ca làm đã kết thúc hoặc không còn hợp lệ; không thể tạo giao dịch tại quầy",
-      );
-    }
-  }
-
   private async reconcilePendingCassoPayments() {
     if (this.cassoReconcileRunning) return;
     this.cassoReconcileRunning = true;
@@ -152,29 +107,15 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       for (const payment of pendingPayments) {
         try {
           const staffPosMatch = payment.notes?.match(
-            /\[STAFF_POS:([0-9a-f-]{36}):([0-9a-f-]{36})\]/i,
+            /\[STAFF_POS:([0-9a-f-]{36})(?::[0-9a-f-]{36})?\]/i,
           );
           const legacyStaffPosPayment =
             payment.notes?.includes("[STAFF_POS") ?? false;
           let actor: Actor | null = null;
           if (staffPosMatch) {
-            const activeShifts = await this.prisma.$queryRaw<
-              { id: string }[]
-            >(Prisma.sql`
-              SELECT TOP (2) CONVERT(nvarchar(36), id) AS id
-              FROM dbo.StaffShift
-              WHERE staffId = CONVERT(uniqueidentifier, ${staffPosMatch[1]})
-              AND id = CONVERT(uniqueidentifier, ${staffPosMatch[2]})
-              AND UPPER(status) IN (N'IN_PROGRESS', N'COMPLETED')
-              AND startTime <= ${payment.createdAt}
-              AND endTime > ${payment.createdAt}
-            `);
-            if (activeShifts.length !== 1) continue;
             actor = {
               id: staffPosMatch[1],
               role: Role.STAFF,
-              shiftId: staffPosMatch[2],
-              cassoSettlement: true,
             };
           } else if (legacyStaffPosPayment) {
             continue;
@@ -394,11 +335,11 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       );
     }
     const staffPosMatch = payment.notes?.match(
-      /\[STAFF_POS:([0-9a-f-]{36}):([0-9a-f-]{36})\]/i,
+      /\[STAFF_POS:([0-9a-f-]{36})(?::[0-9a-f-]{36})?\]/i,
     );
     if (payment.notes?.includes("[STAFF_POS") && !staffPosMatch) {
       throw new ConflictException(
-        "Giao dịch tại quầy chưa được gắn với ca cụ thể; cần quản lý xử lý",
+        "Thông tin nhân viên tạo giao dịch tại quầy không hợp lệ",
       );
     }
     if (actor?.role === Role.STAFF && staffPosMatch) {
@@ -407,15 +348,6 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
           "Chỉ nhân viên đã tạo giao dịch tại quầy mới có thể xác nhận giao dịch này",
         );
       }
-      if (
-        actor.shiftId &&
-        staffPosMatch[2].toLowerCase() !== actor.shiftId.toLowerCase()
-      ) {
-        throw new ConflictException(
-          "Giao dịch này thuộc ca khác, không thể ghi nhận vào ca hiện tại",
-        );
-      }
-      actor = { ...actor, shiftId: staffPosMatch[2] };
     }
 
     // STAFF chỉ xác nhận được phương thức xác nhận thủ công (CASH / BANK_TRANSFER)
@@ -444,49 +376,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
 
     const now = new Date();
     const packageChange = payment.notes?.match(/^\[PACKAGE_CHANGE:([^\]]+)\]/);
-    let staffShiftId: string | null = null;
     const result = await this.prisma.$transaction(async (tx) => {
-      if (actor?.role === Role.STAFF || staffPosMatch) {
-        const shiftStaffId = staffPosMatch?.[1] ?? actor?.id;
-        if (!shiftStaffId) {
-          throw new ForbiddenException(
-            "Không xác định được nhân viên phụ trách ca",
-          );
-        }
-        const shiftId = staffPosMatch?.[2] ?? actor?.shiftId;
-        const shifts = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
-          SELECT TOP (1) CONVERT(nvarchar(36), id) AS id
-          FROM dbo.StaffShift WITH (UPDLOCK, HOLDLOCK)
-          WHERE staffId = CONVERT(uniqueidentifier, ${shiftStaffId})
-            ${shiftId ? Prisma.sql`AND id = CONVERT(uniqueidentifier, ${shiftId})` : Prisma.empty}
-            ${
-              actor.cassoSettlement
-                ? Prisma.sql`
-                  AND UPPER(status) IN (N'IN_PROGRESS', N'COMPLETED')
-                  AND startTime <= ${payment.createdAt}
-                  AND endTime > ${payment.createdAt}
-                `
-                : Prisma.sql`
-                  AND UPPER(status) = N'IN_PROGRESS'
-                  AND startTime <= ${now}
-                  AND endTime > ${now}
-                `
-            }
-          ORDER BY startTime DESC
-        `);
-        if (shifts.length === 0) {
-          throw new ForbiddenException(
-            "Bạn cần bắt đầu ca làm đang được phân công trước khi xác nhận thanh toán",
-          );
-        }
-        if (shifts.length > 1) {
-          throw new ConflictException(
-            "Bạn có nhiều ca đang mở cùng lúc. Hãy nhờ quản lý xử lý trước khi thu tiền.",
-          );
-        }
-        staffShiftId = shifts[0].id;
-      }
-
       const updateCount = await tx.payment.updateMany({
         where: { id, status: PaymentStatus.PENDING },
         data: {
@@ -494,7 +384,6 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
           paidAt: now,
           confirmedById: actor?.id ?? null,
           confirmedAt: now,
-          ...(staffShiftId ? { staffShiftId } : {}),
           ...(transactionRef ? { transactionRef } : {}),
           ...(dto.note
             ? { notes: [payment.notes, dto.note].filter(Boolean).join(" | ") }
@@ -629,7 +518,6 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
         method: payment.method,
         memberName: payment.member.fullName,
         transactionRef: transactionRef ?? null,
-        staffShiftId,
         source: actor ? "MANUAL" : "CASSO_AUTO",
       },
     });
@@ -766,7 +654,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     if (!payment)
       throw new NotFoundException("Không tìm thấy giao dịch thanh toán");
     const staffPosMatch = payment.notes?.match(
-      /\[STAFF_POS:([0-9a-f-]{36}):([0-9a-f-]{36})\]/i,
+      /\[STAFF_POS:([0-9a-f-]{36})(?::[0-9a-f-]{36})?\]/i,
     );
     const isStaffPosPayment =
       payment.notes?.includes("[STAFF_POS") ||
@@ -775,12 +663,12 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       );
     if (isStaffPosPayment && (actor === null || actor.role === Role.MEMBER)) {
       throw new ForbiddenException(
-        "Giao dịch tại quầy cần nhân viên xác nhận CASSO khi đang trong ca làm",
+        "Giao dịch tại quầy cần nhân viên phụ trách xác nhận qua CASSO",
       );
     }
     if (isStaffPosPayment && !staffPosMatch) {
       throw new ConflictException(
-        "Giao dịch tại quầy chưa được gắn với một ca cụ thể; cần quản lý xử lý",
+        "Thông tin nhân viên tạo giao dịch tại quầy không hợp lệ",
       );
     }
     if (staffPosMatch) {
@@ -792,27 +680,9 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
           "Chỉ nhân viên đã tạo giao dịch tại quầy mới có thể đối soát giao dịch này",
         );
       }
-      const activeShift = await this.prisma.$queryRaw<
-        { id: string }[]
-      >(Prisma.sql`
-        SELECT TOP (1) CONVERT(nvarchar(36), id) AS id
-        FROM dbo.StaffShift
-        WHERE staffId = CONVERT(uniqueidentifier, ${staffPosMatch[1]})
-          AND id = CONVERT(uniqueidentifier, ${staffPosMatch[2]})
-          AND UPPER(status) IN (N'IN_PROGRESS', N'COMPLETED')
-          AND startTime <= ${payment.createdAt}
-          AND endTime > ${payment.createdAt}
-      `);
-      if (activeShift.length !== 1) {
-        throw new ConflictException(
-          "Không tìm thấy ca hợp lệ lúc tạo giao dịch; không thể tự đối soát vào ca khác",
-        );
-      }
       actor = {
         id: staffPosMatch[1],
         role: Role.STAFF,
-        shiftId: staffPosMatch[2],
-        cassoSettlement: true,
       };
     }
 

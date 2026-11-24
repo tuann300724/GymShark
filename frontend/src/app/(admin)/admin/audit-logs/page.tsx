@@ -202,8 +202,8 @@ export default function AuditLogsPage() {
           <ScrollText className="size-6 text-neon" /> Nhật ký hệ thống
         </h1>
         <p className="mt-1 text-xs text-muted">
-          Mọi thao tác nhạy cảm (đăng nhập, hồ sơ hội viên, gói tập, thanh toán, check-in, lịch tập,
-          ca làm) đều được ghi lại để tra cứu và kiểm toán.
+          Mọi thao tác nhạy cảm như đăng nhập, hồ sơ hội viên, gói tập, thanh toán, check-in và lịch
+          tập đều được ghi lại để tra cứu và kiểm toán.
         </p>
       </div>
 

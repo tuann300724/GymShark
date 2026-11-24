@@ -6,6 +6,7 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { MemberRegisterDto } from './dto/member-register.dto';
+import { PartnerRegisterDto } from './dto/partner-register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ResendMemberVerifyCodeDto } from './dto/resend-member-verify-code.dto';
@@ -42,6 +43,18 @@ export class AuthController {
   @ApiResponse({ status: 409, description: 'Email đã tồn tại' })
   async register(@Body() registerDto: RegisterDto) {
     return this.authService.register(registerDto);
+  }
+
+  @Public()
+  @Post('partner-register')
+  @Throttle({ default: { limit: 5, ttl: 300_000 } })
+  @ApiOperation({
+    summary: 'Đăng ký đối tác phòng gym — tạo tài khoản PARTNER + hồ sơ chờ duyệt',
+  })
+  @ApiResponse({ status: 201, description: 'Đã gửi yêu cầu đăng ký đối tác' })
+  @ApiResponse({ status: 409, description: 'Email đã tồn tại' })
+  async partnerRegister(@Body() dto: PartnerRegisterDto, @Req() req: Request) {
+    return this.authService.registerPartner(dto, req.ip);
   }
 
   @Public()

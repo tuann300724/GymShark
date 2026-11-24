@@ -32,8 +32,8 @@ import { ClassBookingsModule } from "./modules/class-bookings/class-bookings.mod
 import { BodyMetricsModule } from "./modules/body-metrics/body-metrics.module";
 import { CassoModule } from "./modules/casso/casso.module";
 import { EquipmentModule } from "./modules/equipment/equipment.module";
-import { StaffShiftsModule } from "./modules/staff-shifts/staff-shifts.module";
 import { BeveragesModule } from "./modules/beverages/beverages.module";
+import { PartnersModule } from "./modules/partners/partners.module";
 import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
 import { RealtimeMutationInterceptor } from "./common/interceptors/realtime-mutation.interceptor";
 
@@ -82,8 +82,8 @@ import { RealtimeMutationInterceptor } from "./common/interceptors/realtime-muta
     ProgramsModule,
     ClassBookingsModule,
     BodyMetricsModule,
-    StaffShiftsModule,
     BeveragesModule,
+    PartnersModule,
   ],
   providers: [
     // Rate limiting: áp dụng cho mọi request

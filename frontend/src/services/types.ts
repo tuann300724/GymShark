@@ -829,3 +829,103 @@ export interface AuditLogsListResponse {
   /** Danh sách action duy nhất phục vụ bộ lọc */
   actions: string[];
 }
+
+// ============ Đối tác phòng gym (Partner) ============
+
+/** Trạng thái hồ sơ đối tác (inline để tránh export type chỉ dùng nội bộ). */
+type PartnerStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
+
+type PartnerUser = {
+  id: string;
+  email: string;
+  fullName: string;
+  phone?: string | null;
+  role: string;
+  status: string;
+  createdAt: string;
+};
+
+type PartnerBranch = {
+  id: string;
+  partnerId: string;
+  name: string;
+  address?: string | null;
+  phone?: string | null;
+  status: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type PartnerBase = {
+  id: string;
+  userId: string;
+  businessName: string;
+  taxCode?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  address?: string | null;
+  status: PartnerStatus;
+  /** Tỷ lệ hoa hồng lưu dạng 0..1 (0.3 = 30%). */
+  commissionRate?: number | string;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  user?: PartnerUser;
+  stats?: {
+    branches?: number;
+    paidPayments?: number;
+    paidAmount?: string;
+    pendingAmount?: string;
+  };
+};
+
+export interface PartnerSummary extends PartnerBase {
+  _count?: { branches: number };
+  branches?: PartnerBranch[];
+  payments?: unknown[];
+}
+
+export interface PartnerDetail extends PartnerBase {
+  branches: PartnerBranch[];
+  payments: Array<{
+    id: string;
+    code: string;
+    amount: string;
+    status: string;
+    method: string;
+    paidAt?: string | null;
+    createdAt: string;
+    member?: { id: string; code: string; fullName: string } | null;
+  }>;
+}
+
+export interface PartnerCommissionSummary {
+  commissionRate: number;
+  visitCount: number;
+  totalRevenue: string;
+  totalCommission: string;
+  monthly: Array<{ month: string; amount: string }>;
+}
+
+export interface PartnerCommissionDetail extends PartnerCommissionSummary {
+  partnerId: string;
+  visits: Array<{
+    id: string;
+    checkInTime: string;
+    checkOutTime?: string | null;
+    method: string;
+    unitPrice?: string | null;
+    commissionRate?: number | string | null;
+    commissionAmount?: string | null;
+    member: { id: string; code: string; fullName: string };
+  }>;
+}
+
+export interface PartnerRegisterResponse {
+  message: string;
+  partner: { id: string; businessName: string; status: PartnerStatus };
+  user: { id: string; email: string; role: string };
+}

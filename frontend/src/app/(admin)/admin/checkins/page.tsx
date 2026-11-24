@@ -3,7 +3,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { checkinApi, searchMembersForCheckIn } from '@/services/checkin.service';
+import {
+  checkinApi,
+  searchFacilityMembersForCheckIn,
+  searchMembersForCheckIn,
+} from '@/services/checkin.service';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +19,7 @@ import { FaceScanner } from '@/components/ui/face-scanner';
 import { StatCard } from '@/components/ui/stat-card';
 import { useToast } from '@/components/ui/toast';
 import { formatDate, formatTime, formatDuration, formatDateTime } from '@/lib/utils';
+import { getStoredUser, isPartnerRole } from '@/lib/auth';
 import {
   Users,
   QrCode,
@@ -52,6 +57,8 @@ export default function AdminCheckinsPage() {
   const queryClient = useQueryClient();
   const toast = useToast();
   const today = todayKey();
+  // Đối tác: check-in tay chỉ tìm được hội viên đã từng check-in vào cơ sở này
+  const isPartner = isPartnerRole(getStoredUser()?.role);
 
   // ------------------ Stats ------------------
   const { data: daily } = useQuery({
@@ -147,7 +154,9 @@ export default function AdminCheckinsPage() {
     }
     setSearching(true);
     try {
-      const res = await searchMembersForCheckIn(term);
+      const res = isPartner
+        ? await searchFacilityMembersForCheckIn(term)
+        : await searchMembersForCheckIn(term);
       setMemberResults(res.data || []);
     } catch {
       setMemberResults([]);
@@ -582,7 +591,11 @@ export default function AdminCheckinsPage() {
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         title="Check-in cho hội viên"
-        description="Tìm hội viên theo tên, mã thẻ hoặc số điện thoại rồi xác nhận check-in."
+        description={
+          isPartner
+            ? 'Chỉ liệt kê hội viên đã từng check-in vào cơ sở này. Khách mới chưa từng tới cơ sở → dùng "Quét khuôn mặt".'
+            : 'Tìm hội viên theo tên, mã thẻ hoặc số điện thoại rồi xác nhận check-in.'
+        }
       >
         <div className="space-y-4">
           <div className="flex gap-2">
@@ -634,7 +647,11 @@ export default function AdminCheckinsPage() {
           )}
 
           {memberSearch.trim() && !searching && memberResults.length === 0 && (
-            <p className="py-4 text-center text-xs text-muted">Không tìm thấy hội viên phù hợp.</p>
+            <p className="py-4 text-center text-xs text-muted">
+              {isPartner
+                ? 'Chưa hội viên nào trong cơ sở khớp tìm kiếm — khách mới hãy dùng "Quét khuôn mặt".'
+                : 'Không tìm thấy hội viên phù hợp.'}
+            </p>
           )}
         </div>
       </Dialog>

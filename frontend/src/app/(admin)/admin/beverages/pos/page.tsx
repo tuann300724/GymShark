@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   beverageApi,
@@ -20,7 +19,6 @@ import { ErrorState } from '@/components/ui/error-state';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useToast } from '@/components/ui/toast';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
-import { getStoredUser } from '@/lib/auth';
 import { paymentApi } from '@/services/payment.service';
 import type { BankInfo } from '@/services/types';
 import { Minus, Plus, Printer, Copy, Search, ShoppingCart, UserRound, X } from 'lucide-react';
@@ -56,7 +54,6 @@ export default function BeveragePosPage() {
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'BANK_TRANSFER'>('CASH');
   const [receipt, setReceipt] = useState<BeverageSale | null>(null);
   const [historyOpen, setHistoryOpen] = useState(true);
-  const [isStaff, setIsStaff] = useState(false);
   const [paymentIntent, setPaymentIntent] = useState<{
     fingerprint: string;
     requestId: string;
@@ -64,17 +61,6 @@ export default function BeveragePosPage() {
   } | null>(null);
   const handledCassoRequestRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    setIsStaff(getStoredUser()?.role === 'STAFF');
-  }, []);
-
-  const { data: options } = useQuery({
-    queryKey: ['beverage-options'],
-    queryFn: beverageApi.options,
-    refetchInterval: 5000,
-    refetchOnWindowFocus: true,
-    retry: 0,
-  });
   const bankInfoQuery = useQuery<BankInfo>({
     queryKey: ['payment-bank-info'],
     queryFn: paymentApi.getBankInfo,
@@ -179,11 +165,7 @@ export default function BeveragePosPage() {
   const transferCheckQuery = useQuery({
     queryKey: ['beverage-casso-check', activePaymentIntent?.requestId],
     queryFn: () => beverageApi.verifySaleTransfer(salePayload!),
-    enabled:
-      paymentMethod === 'BANK_TRANSFER' &&
-      !!salePayload &&
-      !!bankInfo &&
-      (!isStaff || !!options?.activeShift),
+    enabled: paymentMethod === 'BANK_TRANSFER' && !!salePayload && !!bankInfo,
     retry: 0,
     refetchInterval: (query) => (query.state.data?.matched ? false : 5000),
     refetchIntervalInBackground: true,
@@ -329,20 +311,6 @@ export default function BeveragePosPage() {
                   >
                     <X className="size-4" />
                   </Button>
-                </div>
-              )}
-              {options?.activeShift && (
-                <p className="text-xs text-muted sm:col-span-2">
-                  Ca làm hiện tại đã được ghi tự động vào hóa đơn.
-                </p>
-              )}
-              {isStaff && options && !options.activeShift && (
-                <div className="text-xs text-muted sm:col-span-2">
-                  Nhân viên có thể xem sản phẩm; cần bắt đầu ca được phân công trước khi thanh toán.{' '}
-                  <Link href="/admin/shifts" className="font-semibold text-neon hover:underline">
-                    Đi đến ca làm
-                  </Link>
-                  .
                 </div>
               )}
             </CardContent>
@@ -563,26 +531,20 @@ export default function BeveragePosPage() {
                             ? 'Casso đã nhận tiền, đang hoàn tất hóa đơn...'
                             : saleMutation.isError && transferCheckQuery.data?.matched
                               ? 'Casso đã xác nhận tiền nhưng hóa đơn chưa hoàn tất. Hãy thử lại thao tác tạo hóa đơn; không yêu cầu hội viên chuyển khoản lần nữa.'
-                              : isStaff && !options?.activeShift
-                                ? 'Cần bắt đầu ca làm được phân công để nhận thanh toán.'
-                                : transferCheckQuery.isError
-                                  ? 'Chưa kiểm tra được Casso; hệ thống sẽ thử lại sau 5 giây.'
-                                  : transferCheckQuery.data?.matched
-                                    ? 'Đã nhận giao dịch, đang tạo hóa đơn...'
-                                    : transferCheckQuery.isFetching
-                                      ? 'Đang tự động kiểm tra Casso mỗi 5 giây...'
-                                      : transferCheckQuery.data?.message ||
-                                        'Đang chờ giao dịch chuyển khoản; Casso sẽ tự kiểm tra mỗi 5 giây.'}
+                              : transferCheckQuery.isError
+                                ? 'Chưa kiểm tra được Casso; hệ thống sẽ thử lại sau 5 giây.'
+                                : transferCheckQuery.data?.matched
+                                  ? 'Đã nhận giao dịch, đang tạo hóa đơn...'
+                                  : transferCheckQuery.isFetching
+                                    ? 'Đang tự động kiểm tra Casso mỗi 5 giây...'
+                                    : transferCheckQuery.data?.message ||
+                                      'Đang chờ giao dịch chuyển khoản; Casso sẽ tự kiểm tra mỗi 5 giây.'}
                         </p>
                       )}
                       {qrUrl && saleMutation.isError && transferCheckQuery.data?.matched && (
                         <Button
                           className="w-full"
-                          disabled={
-                            saleMutation.isPending ||
-                            !salePayload ||
-                            (isStaff && !options?.activeShift)
-                          }
+                          disabled={saleMutation.isPending || !salePayload}
                           onClick={checkout}
                         >
                           Thử hoàn tất hóa đơn
@@ -599,12 +561,7 @@ export default function BeveragePosPage() {
               {paymentMethod === 'CASH' && (
                 <Button
                   className="w-full"
-                  disabled={
-                    saleMutation.isPending ||
-                    !cart.length ||
-                    !member ||
-                    (isStaff && !options?.activeShift)
-                  }
+                  disabled={saleMutation.isPending || !cart.length || !member}
                   onClick={checkout}
                 >
                   {saleMutation.isPending ? 'Đang xác nhận...' : 'Xác nhận thanh toán'}
@@ -707,9 +664,6 @@ export default function BeveragePosPage() {
                 </p>
                 <p className="text-muted">
                   Nhân viên: <b className="text-chalk">{receipt.staffName}</b>
-                </p>
-                <p className="text-muted">
-                  Ca làm: <b className="text-chalk">{receipt.shiftTitle || 'Không gán ca'}</b>
                 </p>
                 <p className="text-muted">
                   Thanh toán:{' '}

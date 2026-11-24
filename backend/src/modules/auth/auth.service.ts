@@ -22,9 +22,10 @@ import { LoginDto } from "./dto/login.dto";
 import { RegisterDto } from "./dto/register.dto";
 import { MemberRegisterDto } from "./dto/member-register.dto";
 import { VerifyMemberRegisterDto } from "./dto/verify-member-register.dto";
+import { PartnerRegisterDto } from "./dto/partner-register.dto";
 import { uniqueReferralCode } from "../../common/utils/referral-code";
 import type { GoogleProfile } from "./google.strategy";
-import { UserRole } from "../../common/constants/db-enums";
+import { UserRole, UserStatus } from "../../common/constants/db-enums";
 import { CreateStaffAccountDto } from "../users/dto/create-staff-account.dto";
 
 /** Thời hạn của mã xác minh email (phút) */
@@ -971,6 +972,74 @@ export class AuthService {
     return {
       message: "Tạo tài khoản thành công",
       user,
+    };
+  }
+
+  /**
+   * Đăng ký đối tác phòng gym: tạo tài khoản User (role PARTNER) + hồ sơ Partner (PENDING).
+   * Chủ phòng gym điền thông tin doanh nghiệp và tài khoản để đăng ký hợp tác; sau đó admin
+   * duyệt trong /admin/partners. Tài khoản mới có status ACTIVE để có thể đăng nhập trước
+   * khi được phê duyệt; Partner profile mang trạng thái PENDING.
+   */
+  async registerPartner(dto: PartnerRegisterDto, ip?: string) {
+    const email = this.normalizeEmail(dto.email);
+    const existing = await this.prisma.user.findUnique({
+      where: { email },
+    });
+    if (existing) {
+      throw new ConflictException("Email này đã được sử dụng");
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(dto.password, salt);
+    const user = await this.prisma.user.create({
+      data: {
+        email,
+        passwordHash,
+        fullName: dto.ownerName,
+        phone: dto.phone,
+        role: UserRole.PARTNER,
+        status: UserStatus.ACTIVE,
+      },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        role: true,
+        status: true,
+        createdAt: true,
+      },
+    });
+
+    const partner = await this.prisma.partner.create({
+      data: {
+        userId: user.id,
+        businessName: dto.businessName,
+        taxCode: dto.taxCode?.trim() || null,
+        phone: dto.phone?.trim() || null,
+        email: email,
+        address: dto.address?.trim() || null,
+        status: "PENDING",
+      },
+    });
+
+    await this.auditService.log({
+      userId: user.id,
+      action: "PARTNER_REGISTER",
+      entity: "Partner",
+      entityId: partner.id,
+      metadata: { email, businessName: dto.businessName },
+      ip,
+    });
+
+    return {
+      message: "Đã gửi yêu cầu đăng ký đối tác phòng gym, chờ admin duyệt",
+      partner: {
+        id: partner.id,
+        businessName: partner.businessName,
+        status: partner.status,
+      },
+      user: { id: user.id, email: user.email, role: user.role },
     };
   }
 

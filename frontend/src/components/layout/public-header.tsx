@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { name: 'Huấn luyện viên', href: '/trainers' },
   { name: 'Lịch tập', href: '/schedule' },
   { name: 'Blog', href: '/blog' },
+  { name: 'Đối tác', href: '/partner/register' },
   { name: 'Liên hệ', href: '/contact' },
 ];
 
@@ -31,6 +32,7 @@ const SEARCH_INDEX = [
   { title: 'Liên hệ', href: '/contact', desc: 'Địa chỉ, hotline, giờ mở cửa' },
   { title: 'Đăng nhập', href: '/login', desc: 'Đăng nhập tài khoản' },
   { title: 'Đăng ký hội viên', href: '/register', desc: 'Tạo tài khoản mới' },
+  { title: 'Đăng ký đối tác', href: '/partner/register', desc: 'Chủ phòng gym đăng ký hợp tác' },
 ];
 
 export function PublicHeader() {

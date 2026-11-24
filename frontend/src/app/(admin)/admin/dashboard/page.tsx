@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs } from '@/components/ui/tabs';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Spinner } from '@/components/ui/spinner';
+import { StatCard } from '@/components/ui/stat-card';
 import { AnimatedNumber, StaggerGroup, StaggerItem, RevealFx } from '@/components/ui/motion';
 import { formatCurrency, formatDateTime, formatDate, formatTime, cn } from '@/lib/utils';
 import { MEMBERSHIP_STATUS_META, PAYMENT_STATUS_META } from '@/lib/status';
@@ -38,10 +39,127 @@ import {
   Activity,
   ChevronRight,
   Flame,
+  Wallet,
+  Building2,
 } from 'lucide-react';
 import Link from 'next/link';
+import { getStoredUser, isPartnerRole } from '@/lib/auth';
 
-export default function DashboardPage() {
+function FacilityDashboardPage() {
+  const today = new Date();
+  const dateKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const dailyQuery = useQuery({
+    queryKey: ['facility-dashboard-daily', dateKey],
+    queryFn: () =>
+      import('@/services/checkin.service').then(({ checkinApi }) =>
+        checkinApi.getDailyReport(dateKey, dateKey),
+      ),
+    retry: 0,
+  });
+  const insideQuery = useQuery({
+    queryKey: ['facility-dashboard-inside'],
+    queryFn: () =>
+      import('@/services/checkin.service').then(({ checkinApi }) =>
+        checkinApi.getCurrentlyInside(),
+      ),
+    retry: 0,
+  });
+  const commissionQuery = useQuery({
+    queryKey: ['partner-my-commission'],
+    queryFn: () =>
+      import('@/services/partner.service').then(({ partnerApi }) => partnerApi.getMyCommission()),
+    retry: 0,
+  });
+
+  const links = [
+    {
+      href: '/admin/checkins',
+      title: 'Vận hành check-in',
+      description: 'Ghi nhận lượt đến, xem lịch sử và hội viên đang tập.',
+      icon: QrCode,
+    },
+    {
+      href: '/admin/facility-members',
+      title: 'Hội viên tại cơ sở',
+      description: 'Tra cứu hội viên từng check-in vào cơ sở này.',
+      icon: Users,
+    },
+    {
+      href: '/admin/branches',
+      title: 'Cơ sở / Chi nhánh',
+      description: 'Quản lý địa chỉ, thông tin liên hệ và danh sách cơ sở của doanh nghiệp.',
+      icon: Building2,
+    },
+    {
+      href: '/admin/finance',
+      title: 'Tài chính cơ sở',
+      description: 'Theo dõi hoa hồng lượt tập và doanh thu quầy.',
+      icon: Wallet,
+    },
+    {
+      href: '/admin/beverages',
+      title: 'Quầy nước',
+      description: 'Quản lý mặt hàng, tồn kho và bán hàng.',
+      icon: PackagePlus,
+    },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <header>
+        <p className="meta-label">Khu vực doanh nghiệp</p>
+        <h1 className="mt-1 font-display text-3xl font-bold uppercase tracking-tight text-chalk">
+          Vận hành cơ sở
+        </h1>
+        <p className="mt-1 text-sm text-muted">
+          Tổng quan lượt tập và các nghiệp vụ tại cơ sở của bạn.
+        </p>
+      </header>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard
+          title="Check-in hôm nay"
+          value={dailyQuery.data?.summary?.totalCheckIns ?? '—'}
+          subtitle="Lượt ghi nhận tại cơ sở"
+          icon={QrCode}
+          colorScheme="neon"
+        />
+        <StatCard
+          title="Đang có mặt"
+          value={insideQuery.data?.length ?? '—'}
+          subtitle="Hội viên chưa check-out"
+          icon={Users}
+          colorScheme="blue"
+        />
+        <StatCard
+          title="Hoa hồng cộng dồn"
+          value={commissionQuery.data ? formatCurrency(commissionQuery.data.totalCommission) : '—'}
+          subtitle={`${commissionQuery.data?.visitCount ?? 0} lượt trong 12 tháng`}
+          icon={Wallet}
+          colorScheme="purple"
+        />
+      </div>
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {links.map(({ href, title, description, icon: Icon }) => (
+          <Link
+            key={href}
+            href={href}
+            className="group rounded-2xl border border-line bg-surface p-5 transition-colors hover:border-neon/40"
+          >
+            <span className="flex size-10 items-center justify-center rounded-xl border border-line bg-ink text-neon">
+              <Icon className="size-5" />
+            </span>
+            <h2 className="mt-4 font-display text-xl font-bold uppercase text-chalk group-hover:text-neon">
+              {title}
+            </h2>
+            <p className="mt-1 text-sm leading-relaxed text-muted">{description}</p>
+          </Link>
+        ))}
+      </section>
+    </div>
+  );
+}
+
+function AdminDashboardPage() {
   const queryClient = useQueryClient();
   const [memberCodeInput, setMemberCodeInput] = useState('');
   const [activeActionTab, setActiveActionTab] = useState<'pending' | 'registrations'>('pending');
@@ -998,6 +1116,14 @@ export default function DashboardPage() {
       </div>
     </div>
   );
+}
+
+export default function DashboardPage() {
+  const [partner, setPartner] = useState<boolean | null>(null);
+  useEffect(() => setPartner(isPartnerRole(getStoredUser()?.role)), []);
+  if (partner === null)
+    return <div className="min-h-48 animate-pulse rounded-2xl border border-line bg-surface" />;
+  return partner ? <FacilityDashboardPage /> : <AdminDashboardPage />;
 }
 
 // =============================================================================

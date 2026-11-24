@@ -7,7 +7,8 @@ import apiClient from '@/lib/axios';
 import { MobileNav } from './mobile-nav';
 import NotificationBell from '@/components/notifications/notification-bell';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
-import { navigationSections } from './admin-sidebar';
+import { getVisibleAdminItems, navigationSections } from './admin-sidebar';
+import { isPartnerRole } from '@/lib/auth';
 import { cn, formatCurrency } from '@/lib/utils';
 import { PAYMENT_STATUS_META, PAYMENT_METHOD_LABEL, TRAINER_STATUS_META } from '@/lib/status';
 import {
@@ -39,14 +40,6 @@ const FILTERS: { key: SearchFilter; label: string }[] = [
   { key: 'trainers', label: 'HLV' },
   { key: 'payments', label: 'Thanh toán' },
   { key: 'staff', label: 'Nhân viên' },
-];
-
-/** Các trang ẩn với vai trò STAFF — đồng bộ với AdminSidebar */
-const STAFF_HIDDEN_HREFS = [
-  '/admin/staff',
-  '/admin/beverages',
-  '/admin/beverages/imports',
-  '/admin/reports/beverages',
 ];
 
 /** Trang danh sách tương ứng mỗi nhóm (đọc ?search= ở trang đích) */
@@ -173,27 +166,27 @@ export function AdminHeader() {
   });
 
   const role: string = user?.role || '';
-  const canSeeStaff = role === 'ADMIN' || role === 'MANAGER';
+  const isPartner = isPartnerRole(role);
+  const canSeeStaff = !isPartner && (role === 'ADMIN' || role === 'MANAGER');
 
   // Danh mục điều hướng (đồng bộ sidebar; ẩn mục STAFF không được xem)
   const navItems = useMemo(
     () =>
-      navigationSections
-        .flatMap((section) =>
-          section.items.map((item) => ({
-            name: item.name,
-            href: item.href,
-            icon: item.icon,
-            section: section.title,
-          })),
-        )
-        .filter((item) => role !== 'STAFF' || !STAFF_HIDDEN_HREFS.includes(item.href)),
+      navigationSections.flatMap((section) =>
+        getVisibleAdminItems(section, role).map((item) => ({
+          name: item.name,
+          href: item.href,
+          icon: item.icon,
+          section: section.title,
+        })),
+      ),
     [role],
   );
 
   const trimmed = debounced.trim();
   const ready = trimmed.length >= 2;
-  const wants = (key: SearchFilter) => filter === 'all' || filter === key;
+  const wants = (key: SearchFilter) =>
+    (key === 'nav' || !isPartner) && (filter === 'all' || filter === key);
 
   // 4 nhóm dữ liệu tìm từ backend — chỉ gọi nhóm đang được chọn
   const { data: memberData, isFetching: memberFetching } = useQuery({
@@ -478,7 +471,9 @@ export function AdminHeader() {
       ? 'Mất kết nối API'
       : 'Đang kiểm tra kết nối...';
 
-  const visibleFilters = FILTERS.filter((f) => f.key !== 'staff' || canSeeStaff);
+  const visibleFilters = isPartner
+    ? FILTERS.filter((f) => f.key === 'all' || f.key === 'nav')
+    : FILTERS.filter((f) => f.key !== 'staff' || canSeeStaff);
 
   return (
     <header className="h-16 px-4 md:px-6 border-b border-line bg-ink/85 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between">

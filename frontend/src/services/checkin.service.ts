@@ -127,3 +127,37 @@ export const searchMembersForCheckIn = async (search: string) => {
   });
   return res.data as { data: any[]; total: number };
 };
+
+/**
+ * Đối tác: tìm hội viên để check-in tay — CHỈ những người đã từng check-in vào
+ * cơ sở của đối tác. Khách mới chưa từng tới dùng quét khuôn mặt 1:N.
+ */
+export const searchFacilityMembersForCheckIn = async (search: string) => {
+  const res = await apiClient.get('/checkins/facility-members', {
+    params: { search },
+  });
+  return res.data as { data: any[]; total: number };
+};
+
+/** Danh sách hội viên đã từng check-in vào cơ sở của đối tác hiện tại. */
+export const getFacilityMembers = async (params: {
+  search?: string;
+  page?: number;
+  limit?: number;
+}) => {
+  const res = await apiClient.get<{
+    data: Array<{
+      id: string;
+      code: string;
+      fullName: string;
+      phone?: string | null;
+      avatarUrl?: string | null;
+      visitCount: number;
+      lastVisit: string | null;
+    }>;
+    total: number;
+    page: number;
+    limit: number;
+  }>('/checkins/facility-members', { params });
+  return res.data;
+};

@@ -9,7 +9,7 @@ import { isAdminRole } from '@/lib/auth';
 /**
  * Bảo vệ khu vực /member/*
  * - Chưa đăng nhập  → /login
- * - ADMIN/MANAGER/STAFF → /admin
+ * - ADMIN/MANAGER/STAFF/PARTNER → /admin
  * - MEMBER/TRAINER → ở lại member portal
  * (Backend vẫn tự kiểm tra authorization ở mọi API - guard này chỉ là UX)
  */

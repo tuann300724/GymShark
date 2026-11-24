@@ -1,11 +1,25 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
+import { Role } from "../../common/enums/role.enum";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RevenueReportQueryDto } from "./dto/revenue-report-query.dto";
 
 @Injectable()
 export class ReportsService {
   constructor(private prisma: PrismaService) {}
+
+  /**
+   * Đối tác: KPI check-in gói theo cơ sở của mình.
+   * Không có hồ sơ → chuỗi không khớp id nào (KHÔNG trả null — tránh rò rỉ check-in hệ thống).
+   */
+  private async partnerFacilityId(role?: string, userId?: string): Promise<string | null> {
+    if (role !== Role.PARTNER || !userId) return null;
+    const partner = await this.prisma.partner.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+    return partner?.id ?? "__NO_FACILITY__";
+  }
 
   async getSummary() {
     const now = new Date();
@@ -411,17 +425,24 @@ export class ReportsService {
   }
 
   /** GET /reports/checkins/daily — số lượt check-in / check-out theo từng ngày */
-  async getCheckInsDaily(from?: string, to?: string) {
+  async getCheckInsDaily(
+    from?: string,
+    to?: string,
+    actorRole?: string,
+    actorId?: string,
+  ) {
     const toDate = to ? this.endOfDay(new Date(to)) : new Date();
     const fromDate = from ? this.startOfDay(new Date(from)) : this.daysAgo(30);
+    const facilityId = await this.partnerFacilityId(actorRole, actorId);
+    const facilityFilter = facilityId ? { partnerId: facilityId } : {};
 
     const [checkIns, checkOuts] = await Promise.all([
       this.prisma.checkIn.findMany({
-        where: { checkInTime: { gte: fromDate, lte: toDate } },
+        where: { ...facilityFilter, checkInTime: { gte: fromDate, lte: toDate } },
         select: { checkInTime: true },
       }),
       this.prisma.checkIn.findMany({
-        where: { checkOutTime: { gte: fromDate, lte: toDate } },
+        where: { ...facilityFilter, checkOutTime: { gte: fromDate, lte: toDate } },
         select: { checkOutTime: true },
       }),
     ]);
@@ -441,7 +462,7 @@ export class ReportsService {
       .map(([date, counts]) => ({ date, ...counts }));
 
     const currentlyInside = await this.prisma.checkIn.count({
-      where: { status: "CHECKED_IN" },
+      where: { status: "CHECKED_IN", ...facilityFilter },
     });
 
     return {
@@ -455,13 +476,17 @@ export class ReportsService {
   }
 
   /** GET /reports/checkins/hourly — lượt check-in theo giờ trong ngày (biểu đồ) */
-  async getCheckInsHourly(date?: string) {
+  async getCheckInsHourly(date?: string, actorRole?: string, actorId?: string) {
     const day = date ? new Date(date) : new Date();
     const start = this.startOfDay(day);
     const end = this.endOfDay(day);
+    const facilityId = await this.partnerFacilityId(actorRole, actorId);
 
     const rows = await this.prisma.checkIn.findMany({
-      where: { checkInTime: { gte: start, lte: end } },
+      where: {
+        ...(facilityId ? { partnerId: facilityId } : {}),
+        checkInTime: { gte: start, lte: end },
+      },
       select: { checkInTime: true },
     });
 

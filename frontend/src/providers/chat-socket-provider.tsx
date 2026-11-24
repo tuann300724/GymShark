@@ -23,16 +23,6 @@ interface IncomingMessagePayload {
   content?: string | null;
 }
 
-interface StaffShiftUpdatePayload {
-  id: string;
-  staffId: string;
-  staffName: string;
-  title: string;
-  status: string;
-  action: 'STARTED' | 'COMPLETED';
-  actorId: string;
-}
-
 interface RealtimeNotificationPayload {
   id?: string;
   type?: string;
@@ -152,21 +142,6 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
       queryClient.invalidateQueries({ queryKey: ['chat-messages'] });
     };
 
-    const onStaffShiftUpdated = (payload?: StaffShiftUpdatePayload) => {
-      queryClient.invalidateQueries({ queryKey: ['staff-shifts'] });
-      queryClient.invalidateQueries({ queryKey: ['staff-shift-settlement-preview'] });
-
-      const myId = getStoredUser()?.id;
-      if (!payload || (myId && payload.actorId === myId)) return;
-
-      const started = payload.action === 'STARTED';
-      toast({
-        type: 'info',
-        title: started ? 'Nhân viên đã vào ca' : 'Nhân viên đã kết ca',
-        description: `${payload.staffName} · ${payload.title}`,
-      });
-    };
-
     const onRealtimeNotification = (payload?: RealtimeNotificationPayload) => {
       if (!payload) return;
 
@@ -258,7 +233,6 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
     socket.on('conversation:updated', onConversationUpdated);
     socket.on('messages:read', onMessagesRead);
     socket.on('messages:delivered', onMessagesDelivered);
-    socket.on('staff-shift:updated', onStaffShiftUpdated);
     socket.on('notification:new', onRealtimeNotification);
     socket.on('admin:event', onRealtimeNotification);
     socket.on('realtime:event', onRealtimeNotification);
@@ -272,7 +246,6 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
       socket.off('conversation:updated', onConversationUpdated);
       socket.off('messages:read', onMessagesRead);
       socket.off('messages:delivered', onMessagesDelivered);
-      socket.off('staff-shift:updated', onStaffShiftUpdated);
       socket.off('notification:new', onRealtimeNotification);
       socket.off('admin:event', onRealtimeNotification);
       socket.off('realtime:event', onRealtimeNotification);

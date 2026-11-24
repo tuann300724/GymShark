@@ -18,16 +18,6 @@ interface WsUser {
   role: string;
 }
 
-interface StaffShiftUpdatePayload {
-  id: string;
-  staffId: string;
-  staffName: string;
-  title: string;
-  status: string;
-  action: "STARTED" | "COMPLETED";
-  actorId: string;
-}
-
 interface NotificationPayload {
   id?: string;
   userId?: string | null;
@@ -150,7 +140,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       await client.join(`role:${user.role}`);
       if (["ADMIN", "MANAGER", "STAFF"].includes(user.role)) {
         await client.join("admins");
-        await client.join("staff-shift:admins");
       }
       client.emit("ws:ready", { userId: user.id });
       // Receipt "đã nhận": thiết bị của user đang online sẽ nhận mọi tin chưa delivered.
@@ -198,13 +187,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   emitToAll(event: string, payload: unknown) {
     if (!this.server) return;
     this.server.emit(event, payload);
-  }
-
-  emitStaffShiftUpdated(payload: StaffShiftUpdatePayload) {
-    if (!this.server) return;
-    this.server
-      .to(["staff-shift:admins", `user:${payload.staffId}`])
-      .emit("staff-shift:updated", payload);
   }
 
   // ---------------------------------------------------------------------------

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getStoredUser } from '@/services/auth.service';
 import { Skeleton } from '@/components/ui/skeleton';
+import { isAdminRole } from '@/lib/auth';
 
 /**
  * Bảo vệ khu vực /trainer/*
@@ -32,9 +33,7 @@ export function TrainerGuard({ children }: { children: React.ReactNode }) {
     if (state === 'guest') router.replace('/login');
     if (state === 'other') {
       const user = getStoredUser();
-      router.replace(
-        user && ['ADMIN', 'MANAGER', 'STAFF'].includes(user.role) ? '/admin' : '/member',
-      );
+      router.replace(user && isAdminRole(user.role) ? '/admin' : '/member');
     }
   }, [state, router]);
 

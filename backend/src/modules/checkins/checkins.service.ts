@@ -7,6 +7,7 @@ import {
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { CheckInMethod } from "../../common/constants/db-enums";
+import { Role } from "../../common/enums/role.enum";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AuditService } from "../audit-logs/audit-logs.service";
 import { NotificationsService } from "../notifications/notifications.service";
@@ -169,6 +170,20 @@ export class CheckinsService {
       );
     }
     return member;
+  }
+
+  /**
+   * Đối tác chỉ được xem lượt tập của chính cơ sở mình.
+   * Trả về id đối tác để thêm vào where; không có hồ sơ → chuỗi không khớp id nào
+   * (KHÔNG được trả null vì `partnerId = null` sẽ làm lộ toàn bộ check-in hệ thống).
+   */
+  private async partnerFacilityId(role?: string, userId?: string): Promise<string | null> {
+    if (role !== Role.PARTNER || !userId) return null;
+    const partner = await this.prisma.partner.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+    return partner?.id ?? "__NO_FACILITY__";
   }
 
   private computeDurationMinutes(
@@ -596,6 +611,30 @@ export class CheckinsService {
 
     const membership = await this.validateMemberForCheckIn(member);
 
+    // Người thao tác là đối tác → ghi nhận lượt tập tại phòng gym của họ và chốt hoa hồng.
+    // Admin/staff check-in cho hệ thống chung thì không gắn đối tác.
+    const partner = actorId
+      ? await this.prisma.partner.findUnique({
+          where: { userId: actorId },
+          select: { id: true, status: true, commissionRate: true },
+        })
+      : null;
+    const attributed = partner?.status === "APPROVED";
+    const rate = attributed ? Number(partner!.commissionRate) : 0;
+    const total =
+      attributed && membership ? Number(membership.finalAmount ?? membership.price ?? 0) : 0;
+    const days =
+      attributed && membership
+        ? Math.max(
+            1,
+            Math.ceil((membership.endDate.getTime() - membership.startDate.getTime()) / 86400000),
+          )
+        : 1;
+    // Giá 1 lượt = giá trị hợp đồng / số ngày hiệu lực (không dùng quota buổi PT).
+    const unitPrice = attributed && membership ? Math.round((total / days) * 100) / 100 : null;
+    const commissionAmount =
+      unitPrice !== null ? Math.round(unitPrice * rate * 100) / 100 : null;
+
     const checkIn = await this.prisma.checkIn.create({
       data: {
         memberId: member.id,
@@ -603,6 +642,10 @@ export class CheckinsService {
         status: "CHECKED_IN",
         method: dto.method ?? CheckInMethod.STAFF,
         notes: dto.note ?? null,
+        partnerId: attributed ? partner!.id : null,
+        unitPrice,
+        commissionRate: attributed ? partner!.commissionRate : null,
+        commissionAmount,
       },
     });
 
@@ -637,7 +680,9 @@ export class CheckinsService {
       metadata: {
         method: checkIn.method,
         memberCode: member.code,
-        via: "staff",
+        via: attributed ? "partner" : "staff",
+        partnerId: checkIn.partnerId,
+        commissionAmount: commissionAmount ?? undefined,
       },
     });
 
@@ -657,6 +702,9 @@ export class CheckinsService {
         },
         membership: membership
           ? { id: membership.id, packageName: membership.package?.name ?? null }
+          : null,
+        commission: attributed
+          ? { unitPrice, rate, amount: commissionAmount, partnerId: partner!.id }
           : null,
       },
     };
@@ -740,12 +788,20 @@ export class CheckinsService {
   // ---------------------------------------------------------------------------
 
   /** GET /checkins — lịch sử toàn hệ thống (search / filter / sort / pagination) */
-  async findAll(query: GetCheckinsQuery = {}) {
+  async findAll(
+    query: GetCheckinsQuery = {},
+    actorRole?: string,
+    actorId?: string,
+  ) {
     const page = Math.max(1, Number(query.page) || 1);
     const limit = Math.max(1, Number(query.limit) || 20);
     const skip = (page - 1) * limit;
 
     const where: Prisma.CheckInWhereInput = {};
+
+    // Đối tác: chỉ lịch sử check-in của chính cơ sở mình
+    const facilityId = await this.partnerFacilityId(actorRole, actorId);
+    if (facilityId) where.partnerId = facilityId;
 
     if (query.status) where.status = query.status as any;
 
@@ -827,9 +883,13 @@ export class CheckinsService {
   }
 
   /** GET /checkins/currently-inside — danh sách hội viên đang có mặt trong phòng */
-  async currentlyInside() {
+  async currentlyInside(actorRole?: string, actorId?: string) {
+    const facilityId = await this.partnerFacilityId(actorRole, actorId);
     const rows = await this.prisma.checkIn.findMany({
-      where: { status: "CHECKED_IN" },
+      where: {
+        status: "CHECKED_IN",
+        ...(facilityId ? { partnerId: facilityId } : {}),
+      },
       orderBy: { checkInTime: "asc" },
     });
     const memberIds = [...new Set(rows.map((checkIn) => checkIn.memberId))];
@@ -862,6 +922,55 @@ export class CheckinsService {
         method: c.method,
       };
     });
+  }
+
+  /**
+   * GET /checkins/facility-members — tìm hội viên đã từng check-in vào cơ sở của
+   * đối tác (phục vụ check-in tay). Không lộ danh bạ toàn hệ thống: hội viên chưa
+   * từng tới cơ sở này phải dùng quét khuôn mặt 1:N.
+   */
+  async facilityMembers(search: string, actorId: string, pageInput?: number | string, limitInput?: number | string) {
+    const facilityId = (await this.partnerFacilityId(Role.PARTNER, actorId)) ?? "__NO_FACILITY__";
+    const term = (search ?? "").trim();
+    const page = Math.max(1, Number(pageInput) || 1);
+    const limit = Math.min(100, Math.max(1, Number(limitInput) || 20));
+    const where: Prisma.MemberWhereInput = {
+      checkIns: { some: { partnerId: facilityId } },
+      ...(term
+        ? { OR: [{ fullName: { contains: term } }, { code: { contains: term } }, { phone: { contains: term } }] }
+        : {}),
+    };
+
+    const [members, total] = await Promise.all([
+      this.prisma.member.findMany({
+        where,
+        select: {
+          ...CheckinsService.memberSelect,
+          checkIns: {
+            where: { partnerId: facilityId },
+            select: { checkInTime: true },
+            orderBy: { checkInTime: "desc" },
+            take: 1,
+          },
+          _count: { select: { checkIns: { where: { partnerId: facilityId } } } },
+        },
+        orderBy: { fullName: "asc" },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.member.count({ where }),
+    ]);
+
+    return {
+      data: members.map(({ checkIns, _count, ...member }) => ({
+        ...member,
+        visitCount: _count.checkIns,
+        lastVisit: checkIns[0]?.checkInTime ?? null,
+      })),
+      total,
+      page,
+      limit,
+    };
   }
 
   // ---------------------------------------------------------------------------

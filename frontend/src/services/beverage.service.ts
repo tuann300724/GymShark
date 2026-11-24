@@ -1,10 +1,5 @@
 import apiClient from '@/lib/axios';
 
-export interface BeverageOptions {
-  categories: string[];
-  activeShift: { id: string } | null;
-}
-
 export interface BeverageProduct {
   id: string;
   code: string;
@@ -94,7 +89,6 @@ export interface BeverageSale {
   memberName: string;
   memberPhone?: string;
   staffName: string;
-  shiftTitle?: string | null;
   saleDate: string;
   status: string;
   paymentMethod: 'CASH' | 'BANK_TRANSFER';
@@ -131,7 +125,6 @@ export interface BeverageSaleSummary {
   memberName: string;
   staffId: string;
   staffName: string | null;
-  staffShiftId: string | null;
   saleDate: string;
   status: string;
   paymentMethod: 'CASH' | 'BANK_TRANSFER';
@@ -141,6 +134,10 @@ export interface BeverageSaleSummary {
   recognizedRevenue: number;
   totalSoldQuantity: number;
   productLineCount: number;
+}
+
+export interface BeverageOptions {
+  categories: string[];
 }
 
 export interface BeverageReport {
@@ -170,7 +167,6 @@ export interface BeverageReport {
     salesRevenue: number;
   }[];
   byStaff: { id: string; label: string; revenue: number; saleCount: number }[];
-  byShift: { id: string | null; label: string; revenue: number; saleCount: number }[];
 }
 
 export interface BeverageFilters {
@@ -190,7 +186,6 @@ export const beverageApi = {
     const res = await apiClient.get<BeverageOptions>('/beverages/options');
     return res.data;
   },
-
   dashboard: async (params: BeverageFilters = {}) => {
     const res = await apiClient.get('/beverages/dashboard', { params });
     return res.data;

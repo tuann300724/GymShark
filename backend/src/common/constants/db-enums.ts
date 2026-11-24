@@ -4,6 +4,7 @@ export const UserRole = {
   STAFF: "STAFF",
   TRAINER: "TRAINER",
   MEMBER: "MEMBER",
+  PARTNER: "PARTNER",
 } as const;
 export type UserRole = (typeof UserRole)[keyof typeof UserRole];
 
@@ -13,6 +14,14 @@ export const UserStatus = {
   SUSPENDED: "SUSPENDED",
 } as const;
 export type UserStatus = (typeof UserStatus)[keyof typeof UserStatus];
+
+export const PartnerStatus = {
+  PENDING: "PENDING",
+  APPROVED: "APPROVED",
+  REJECTED: "REJECTED",
+  SUSPENDED: "SUSPENDED",
+} as const;
+export type PartnerStatus = (typeof PartnerStatus)[keyof typeof PartnerStatus];
 
 export const Gender = {
   MALE: "MALE",

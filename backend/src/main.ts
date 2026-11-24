@@ -80,6 +80,8 @@ async function bootstrap() {
     .addTag('Training Schedules', 'Quản lý lịch tập và lớp học PT')
     .addTag('Notifications', 'Quản lý thông báo hệ thống')
     .addTag('Reports', 'Báo cáo doanh thu & số liệu vận hành')
+    .addTag('Partners', 'Hồ sơ đối tác phòng gym & chi nhánh thuộc quyền')
+    .addTag('Admin — Partners', 'Duyệt hồ sơ đối tác & gán doanh thu riêng')
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);

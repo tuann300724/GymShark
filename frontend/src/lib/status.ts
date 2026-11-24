@@ -26,6 +26,14 @@ export const MEMBER_STATUS_META: Record<string, { label: string; variant: BadgeV
   EXPIRED: { label: 'Hết hạn', variant: 'warning' },
 };
 
+/** Trạng thái hồ sơ đối tác phòng gym */
+export const PARTNER_STATUS_META: Record<string, { label: string; variant: BadgeVariant }> = {
+  PENDING: { label: 'Chờ duyệt', variant: 'warning' },
+  APPROVED: { label: 'Đã duyệt', variant: 'success' },
+  REJECTED: { label: 'Từ chối', variant: 'destructive' },
+  SUSPENDED: { label: 'Tạm khóa', variant: 'outline' },
+};
+
 export const PAYMENT_METHOD_LABEL: Record<string, string> = {
   CASH: 'Tiền mặt',
   BANK_TRANSFER: 'Chuyển khoản',
@@ -157,14 +165,6 @@ export const AUDIT_ACTION_META: Record<string, { label: string; variant: BadgeVa
   SCHEDULE_COMPLETE: { label: 'Hoàn thành buổi tập', variant: 'success' },
   SCHEDULE_DELETE: { label: 'Xóa buổi tập', variant: 'destructive' },
 
-  // Ca làm & chốt quỹ
-  STAFF_SHIFT_CREATE: { label: 'Phân công ca làm', variant: 'success' },
-  STAFF_SHIFT_UPDATE: { label: 'Cập nhật ca làm', variant: 'default' },
-  STAFF_SHIFT_DELETE: { label: 'Xóa ca làm', variant: 'destructive' },
-  STAFF_SHIFT_CANCEL: { label: 'Hủy ca làm', variant: 'destructive' },
-  STAFF_SHIFT_START: { label: 'Bắt đầu ca làm', variant: 'info' },
-  STAFF_SHIFT_SETTLE: { label: 'Kiểm quỹ và chốt ca', variant: 'success' },
-
   // Kinh doanh nước uống
   BEVERAGE_PRODUCT_CREATE: { label: 'Tạo sản phẩm nước uống', variant: 'success' },
   BEVERAGE_PRODUCT_UPDATE: { label: 'Cập nhật sản phẩm nước uống', variant: 'default' },
@@ -179,12 +179,26 @@ export const AUDIT_ACTION_META: Record<string, { label: string; variant: BadgeVa
   FOOD_UPDATE: { label: 'Cập nhật thực phẩm', variant: 'default' },
   FOOD_DELETE: { label: 'Ẩn thực phẩm', variant: 'warning' },
   FOOD_RESTORE: { label: 'Bỏ ẩn thực phẩm', variant: 'info' },
+
+  // Đối tác phòng gym
+  PARTNER_REGISTER: { label: 'Đăng ký đối tác', variant: 'info' },
+  PARTNER_PROFILE_UPDATE: { label: 'Cập nhật hồ sơ đối tác', variant: 'default' },
+  PARTNER_BRANCH_CREATE: { label: 'Thêm chi nhánh đối tác', variant: 'success' },
+  PARTNER_BRANCH_UPDATE: { label: 'Sửa chi nhánh đối tác', variant: 'default' },
+  PARTNER_BRANCH_DELETE: { label: 'Xóa chi nhánh đối tác', variant: 'destructive' },
+  PARTNER_APPROVE: { label: 'Duyệt đối tác', variant: 'success' },
+  PARTNER_REJECT: { label: 'Từ chối đối tác', variant: 'destructive' },
+  PARTNER_SUSPEND: { label: 'Tạm khóa đối tác', variant: 'warning' },
+  PARTNER_PAYMENT_ASSIGN: { label: 'Gán doanh thu cho đối tác', variant: 'info' },
+  PARTNER_PAYMENT_UNASSIGN: { label: 'Bỏ gán doanh thu đối tác', variant: 'warning' },
 };
 
 /** Nhãn cho loại đối tượng bị tác động */
 export const AUDIT_ENTITY_LABEL: Record<string, string> = {
   Auth: 'Bảo mật',
   User: 'Tài khoản',
+  Partner: 'Đối tác phòng gym',
+  PartnerBranch: 'Chi nhánh đối tác',
   Member: 'Hội viên',
   Membership: 'Gói tập',
   Payment: 'Thanh toán',
@@ -192,7 +206,6 @@ export const AUDIT_ENTITY_LABEL: Record<string, string> = {
   Trainer: 'Huấn luyện viên',
   TrainingSchedule: 'Buổi tập',
   Face: 'Sinh trắc học',
-  StaffShift: 'Ca làm',
   BeverageProduct: 'Sản phẩm nước uống',
   BeverageImport: 'Phiếu nhập nước uống',
   BeverageSale: 'Hóa đơn nước uống',
@@ -207,4 +220,5 @@ export const AUDIT_ROLE_LABEL: Record<string, string> = {
   STAFF: 'Lễ tân',
   TRAINER: 'Huấn luyện viên',
   MEMBER: 'Hội viên',
+  PARTNER: 'Đối tác phòng gym',
 };

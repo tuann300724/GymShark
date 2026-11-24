@@ -26,10 +26,6 @@ export interface BeverageActor {
   fullName?: string;
 }
 
-export interface ActiveShift {
-  id: string;
-}
-
 type StockRow = {
   stockQuantity: Prisma.Decimal | number;
 };
@@ -42,6 +38,16 @@ export class BeveragesService {
     private readonly cassoService: CassoService,
     private readonly notificationsService: NotificationsService,
   ) {}
+
+  async options() {
+    const categories = await this.prisma.$queryRaw<{ category: string }[]>(Prisma.sql`
+      SELECT DISTINCT category
+      FROM dbo.BeverageProduct
+      WHERE category IS NOT NULL AND LTRIM(RTRIM(category)) <> N''
+      ORDER BY category
+    `);
+    return { categories: categories.map((item) => item.category) };
+  }
 
   private async defaultLocationId(tx?: Prisma.TransactionClient) {
     const query = Prisma.sql`
@@ -194,54 +200,6 @@ export class BeveragesService {
       );
     }
     return filters;
-  }
-
-  private async activeShift(
-    actor: BeverageActor,
-    required: boolean,
-  ): Promise<ActiveShift | null> {
-    const rows = await this.prisma.$queryRaw<ActiveShift[]>(Prisma.sql`
-      SELECT TOP (2)
-        CONVERT(nvarchar(36), id) AS id
-      FROM dbo.StaffShift
-      WHERE staffId = CONVERT(uniqueidentifier, ${actor.id})
-        AND UPPER(status) = N'IN_PROGRESS'
-        AND startTime <= SYSUTCDATETIME()
-        AND endTime > SYSUTCDATETIME()
-      ORDER BY startTime DESC
-    `);
-    if (rows.length > 1) {
-      throw new ConflictException(
-        "Bạn có nhiều ca đang mở cùng lúc. Hãy nhờ quản lý xử lý trước.",
-      );
-    }
-    if (!rows.length) {
-      if (required) {
-        throw new ForbiddenException(
-          "Bạn cần bắt đầu ca làm được phân công trước khi bán nước.",
-        );
-      }
-      return null;
-    }
-    return rows[0];
-  }
-
-  async options(actor: BeverageActor) {
-    let activeShift: ActiveShift | null = null;
-    if (actor.role === "STAFF")
-      activeShift = await this.activeShift(actor, false);
-    const categories = await this.prisma.$queryRaw<
-      { category: string }[]
-    >(Prisma.sql`
-        SELECT DISTINCT category
-        FROM dbo.BeverageProduct
-        WHERE category IS NOT NULL AND LTRIM(RTRIM(category)) <> N''
-        ORDER BY category
-      `);
-    return {
-      categories: categories.map((item) => item.category),
-      activeShift,
-    };
   }
 
   /**
@@ -804,30 +762,6 @@ export class BeveragesService {
             }
           }
 
-          let shift: ActiveShift | null = null;
-          if (actor.role === "STAFF") {
-            const activeShifts = await tx.$queryRaw<ActiveShift[]>(Prisma.sql`
-              SELECT TOP (2) CONVERT(nvarchar(36), id) AS id
-              FROM dbo.StaffShift WITH (UPDLOCK, HOLDLOCK)
-              WHERE staffId = CONVERT(uniqueidentifier, ${actor.id})
-                AND UPPER(status) = N'IN_PROGRESS'
-                AND startTime <= SYSUTCDATETIME()
-                AND endTime > SYSUTCDATETIME()
-              ORDER BY startTime DESC
-            `);
-            if (activeShifts.length > 1) {
-              throw new ConflictException(
-                "Bạn có nhiều ca đang mở cùng lúc. Hãy nhờ quản lý xử lý trước.",
-              );
-            }
-            if (!activeShifts.length) {
-              throw new ForbiddenException(
-                "Bạn cần bắt đầu ca làm được phân công trước khi bán nước.",
-              );
-            }
-            shift = activeShifts[0];
-          }
-
           const member = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
             SELECT id FROM dbo.Member WITH (UPDLOCK, HOLDLOCK)
             WHERE id = CONVERT(uniqueidentifier, ${dto.memberId}) AND status = N'ACTIVE'
@@ -841,14 +775,13 @@ export class BeveragesService {
 
           await tx.$executeRaw(Prisma.sql`
             INSERT INTO dbo.BeverageSale
-              (id, code, branchId, memberId, staffId, staffShiftId, saleDate,
+              (id, code, branchId, memberId, staffId, saleDate,
                status, paymentMethod, subtotal, discountAmount, totalAmount,
                notes, createdAt, updatedAt)
             VALUES
               (CONVERT(uniqueidentifier, ${saleId}), ${code}, ${locationId},
                CONVERT(uniqueidentifier, ${dto.memberId}),
                CONVERT(uniqueidentifier, ${actor.id}),
-               ${shift ? Prisma.sql`CONVERT(uniqueidentifier, ${shift.id})` : Prisma.sql`NULL`},
                SYSDATETIME(), N'DRAFT', ${dto.paymentMethod}, ${discount}, ${discount}, 0,
                ${`${dto.notes?.trim() || ""}${dto.notes?.trim() ? " " : ""}[BEVERAGE_REQUEST_ID:${dto.requestId}]`},
                SYSDATETIME(), SYSDATETIME())
@@ -1042,12 +975,10 @@ export class BeveragesService {
         : Prisma.empty;
     const rows = await this.prisma.$queryRaw<any[]>(Prisma.sql`
       SELECT s.*, m.code AS memberCode,
-        m.fullName AS memberName, m.phone AS memberPhone, u.fullName AS staffName,
-        ss.title AS shiftTitle
+        m.fullName AS memberName, m.phone AS memberPhone, u.fullName AS staffName
       FROM dbo.BeverageSale AS s
       INNER JOIN dbo.Member AS m ON m.id = s.memberId
       INNER JOIN dbo.[User] AS u ON u.id = s.staffId
-      LEFT JOIN dbo.StaffShift AS ss ON ss.id = s.staffShiftId
       WHERE s.id = CONVERT(uniqueidentifier, ${id}) ${staffFilter}
     `);
     if (!rows.length)
@@ -1293,7 +1224,7 @@ export class BeveragesService {
       month: Prisma.sql`DATEFROMPARTS(YEAR(v.saleDate), MONTH(v.saleDate), 1)`,
       year: Prisma.sql`DATEFROMPARTS(YEAR(v.saleDate), 1, 1)`,
     }[query.groupBy ?? "day"];
-    const [sales, imports, profit, chart, top, slow, byStaff, byShift] =
+    const [sales, imports, profit, chart, top, slow, byStaff] =
       await Promise.all([
         this.prisma.$queryRaw<any[]>(Prisma.sql`
           SELECT COALESCE(SUM(v.recognizedRevenue), 0) AS salesRevenue,
@@ -1361,14 +1292,6 @@ export class BeveragesService {
           FROM dbo.vw_BeverageSalesStatistics AS v ${saleWhere}
           GROUP BY v.staffId, v.staffName ORDER BY revenue DESC
         `),
-        this.prisma.$queryRaw<any[]>(Prisma.sql`
-          SELECT v.staffShiftId AS id, COALESCE(ss.title, N'Không gán ca') AS label,
-            SUM(v.recognizedRevenue) AS revenue, COUNT(*) AS saleCount
-          FROM dbo.vw_BeverageSalesStatistics AS v
-          LEFT JOIN dbo.StaffShift AS ss ON ss.id = v.staffShiftId
-          ${saleWhere}
-          GROUP BY v.staffShiftId, ss.title ORDER BY revenue DESC
-        `),
       ]);
     const saleSummary = sales[0] ?? {};
     const importSummary = imports[0] ?? {};
@@ -1400,7 +1323,6 @@ export class BeveragesService {
       ]),
       slowProducts: asNumber(slow, ["soldQuantity", "salesRevenue"]),
       byStaff: asNumber(byStaff, ["revenue", "saleCount"]),
-      byShift: asNumber(byShift, ["revenue", "saleCount"]),
     };
   }
 

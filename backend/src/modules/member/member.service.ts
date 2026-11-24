@@ -416,7 +416,6 @@ export class MemberService {
     dto: RegisterMembershipDto,
     actorUserId: string,
     actorRole?: string,
-    staffShiftId?: string,
   ) {
     const member = await this.prisma.member.findUnique({
       where: { id: memberId },
@@ -427,7 +426,6 @@ export class MemberService {
       actorUserId,
       via: "staff",
       staffUserId: actorRole === "STAFF" ? actorUserId : null,
-      staffShiftId: actorRole === "STAFF" ? staffShiftId : null,
     });
   }
 
@@ -439,7 +437,6 @@ export class MemberService {
       actorUserId: string;
       via: "self" | "staff";
       staffUserId?: string | null;
-      staffShiftId?: string | null;
     },
   ) {
     const pkg = await this.prisma.membershipPackage.findUnique({
@@ -483,23 +480,6 @@ export class MemberService {
     );
 
     const result = await this.prisma.$transaction(async (tx) => {
-      if (ctx.staffUserId && ctx.staffShiftId) {
-        const activeShift = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
-          SELECT TOP (1) CONVERT(nvarchar(36), id) AS id
-          FROM dbo.StaffShift WITH (UPDLOCK, HOLDLOCK)
-          WHERE id = CONVERT(uniqueidentifier, ${ctx.staffShiftId})
-            AND staffId = CONVERT(uniqueidentifier, ${ctx.staffUserId})
-            AND UPPER(status) = N'IN_PROGRESS'
-            AND startTime <= SYSUTCDATETIME()
-            AND endTime > SYSUTCDATETIME()
-        `);
-        if (activeShift.length !== 1) {
-          throw new ForbiddenException(
-            "Ca làm đã kết thúc hoặc không còn hợp lệ; không thể tạo giao dịch tại quầy",
-          );
-        }
-      }
-
       const created = await tx.membership.create({
         data: {
           memberId: member.id,
@@ -525,7 +505,7 @@ export class MemberService {
           discountAmount: discount.gt(0) ? discount : null,
           method: dto.paymentMethod || PaymentMethod.CASH,
           status: PaymentStatus.PENDING,
-          notes: `Thanh toán gói ${pkg.name}${ctx.staffUserId && ctx.staffShiftId ? ` [STAFF_POS:${ctx.staffUserId}:${ctx.staffShiftId}]` : ""}`,
+          notes: `Thanh toán gói ${pkg.name}${ctx.staffUserId ? ` [STAFF_POS:${ctx.staffUserId}]` : ""}`,
         },
       });
 

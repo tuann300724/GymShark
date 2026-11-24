@@ -5,7 +5,7 @@
  */
 
 /** Toạ độ một điểm [x, y] trong khung minh hoạ */
-export type Pt = [number, number];
+type Pt = [number, number];
 
 /** Dụng cụ / máy tập vẽ kèm theo hình người */
 export type Gear =

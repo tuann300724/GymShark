@@ -79,7 +79,6 @@ function StaffAccountsPageContent() {
         variables.status === 'ACTIVE' ? 'Đã mở tài khoản nhân viên' : 'Đã khóa tài khoản nhân viên',
       );
       queryClient.invalidateQueries({ queryKey: ['staff-accounts'] });
-      queryClient.invalidateQueries({ queryKey: ['staff-shift-options'] });
     },
     onError: (error) => toast.error('Cập nhật trạng thái thất bại', getErrorMessage(error)),
   });

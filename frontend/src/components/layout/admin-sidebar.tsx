@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { getStoredUser } from '@/lib/auth';
+import { canAccessAdminPath, getStoredUser, isPartnerRole } from '@/lib/auth';
 import {
   LayoutDashboard,
   Users,
@@ -23,15 +23,53 @@ import {
   ClipboardCheck,
   ScrollText,
   UtensilsCrossed,
-  Clock3,
   Droplets,
+  Building2,
   ClipboardList,
   ShoppingCart,
   Boxes,
+  Wallet,
   ChevronDown,
 } from 'lucide-react';
 
-export const navigationSections = [
+type NavItem = {
+  name: string;
+  href: string;
+  icon: React.ElementType;
+  badge?: string;
+};
+
+type NavSection = {
+  title: string;
+  items: NavItem[];
+};
+
+const STAFF_HIDDEN_HREFS = [
+  '/admin/staff',
+  '/admin/partners',
+  '/admin/beverages',
+  '/admin/beverages/imports',
+  '/admin/reports/beverages',
+];
+
+/** Mục chỉ riêng đối tác dùng (admin/manager/staff không có dữ liệu của nó). */
+const PARTNER_ONLY_HREFS = ['/admin/finance'];
+
+/**
+ * Menu chung: đối tác chỉ thấy trang quản lý cơ sở của mình —
+ * Check-in, hội viên từng đến, cơ sở/chi nhánh, bán nước và tài chính.
+ * Chỉ xem hội viên từng check-in tại đây; không có danh bạ hệ thống.
+ */
+export function getVisibleAdminItems(section: NavSection, role: string): NavItem[] {
+  const isPartner = isPartnerRole(role);
+  return section.items.filter((item) => {
+    if (isPartner) return canAccessAdminPath(role, item.href);
+    if (PARTNER_ONLY_HREFS.includes(item.href)) return false;
+    return role !== 'STAFF' || !STAFF_HIDDEN_HREFS.includes(item.href);
+  });
+}
+
+export const navigationSections: NavSection[] = [
   {
     title: 'Tổng quan',
     items: [{ name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard }],
@@ -40,13 +78,14 @@ export const navigationSections = [
     title: 'Hội viên & Vận hành',
     items: [
       { name: 'Lượt Check-in', href: '/admin/checkins', icon: QrCode, badge: 'Live' },
+      { name: 'Hội viên tại cơ sở', href: '/admin/facility-members', icon: Users },
+      { name: 'Cơ sở / Chi nhánh', href: '/admin/branches', icon: Building2 },
       { name: 'Báo cáo chuyên cần', href: '/admin/reports/attendance', icon: ClipboardCheck },
       { name: 'Hội viên', href: '/admin/members', icon: Users },
       { name: 'Thẻ hội viên', href: '/admin/memberships', icon: CreditCard },
       { name: 'Gói tập Gym', href: '/admin/membership-packages', icon: Package },
       { name: 'Huấn luyện viên (PT)', href: '/admin/trainers', icon: UserCheck },
       { name: 'Lịch tập & Lớp học', href: '/admin/schedules', icon: CalendarDays },
-      { name: 'Ca làm & doanh thu', href: '/admin/shifts', icon: Clock3 },
       { name: 'Tài khoản nhân viên', href: '/admin/staff', icon: UserCog },
     ],
   },
@@ -63,6 +102,7 @@ export const navigationSections = [
   {
     title: 'Tài chính',
     items: [
+      { name: 'Tài chính cơ sở', href: '/admin/finance', icon: Wallet },
       { name: 'Hóa đơn & Thu phí', href: '/admin/payments', icon: Receipt },
       { name: 'Báo cáo doanh thu', href: '/admin/reports/revenue', icon: BarChart3 },
       { name: 'Báo cáo nước uống', href: '/admin/reports/beverages', icon: Droplets },
@@ -71,6 +111,7 @@ export const navigationSections = [
   {
     title: 'Hệ thống',
     items: [
+      { name: 'Đối tác phòng gym', href: '/admin/partners', icon: Building2 },
       { name: 'Báo cáo thống kê', href: '/admin/reports', icon: BarChart3 },
       { name: 'Thiết bị', href: '/admin/reports/equipment', icon: Wrench },
       { name: 'Thông báo', href: '/admin/notifications', icon: Bell },
@@ -93,8 +134,8 @@ export function AdminSidebar() {
   useEffect(() => {
     const activeSection = navigationSections.find(
       (section) =>
-        section.items.length > 1 &&
-        section.items.some(
+        getVisibleAdminItems(section, role).length > 1 &&
+        getVisibleAdminItems(section, role).some(
           (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
         ),
     );
@@ -102,7 +143,7 @@ export function AdminSidebar() {
     if (activeSection) {
       setOpenSections((current) => ({ ...current, [activeSection.title]: true }));
     }
-  }, [pathname]);
+  }, [pathname, role]);
 
   return (
     <aside className="w-64 border-r border-line bg-surface/95 backdrop-blur-md flex flex-col h-screen sticky top-0 z-30 transition-all select-none">
@@ -124,16 +165,7 @@ export function AdminSidebar() {
       {/* Navigation Links */}
       <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
         {navigationSections.map((section) => {
-          const visibleItems = section.items.filter(
-            (item) =>
-              role !== 'STAFF' ||
-              ![
-                '/admin/staff',
-                '/admin/beverages',
-                '/admin/beverages/imports',
-                '/admin/reports/beverages',
-              ].includes(item.href),
-          );
+          const visibleItems = getVisibleAdminItems(section, role);
           if (!visibleItems.length) return null;
 
           const isCollapsible = visibleItems.length > 1;
@@ -174,9 +206,15 @@ export function AdminSidebar() {
               {isOpen || !isCollapsible ? (
                 <div className="space-y-0.5 pt-1">
                   {visibleItems.map((item) => {
+                    const hasMoreSpecificMatch = visibleItems.some(
+                      (candidate) =>
+                        candidate.href !== item.href &&
+                        candidate.href.startsWith(`${item.href}/`) &&
+                        (pathname === candidate.href || pathname.startsWith(`${candidate.href}/`)),
+                    );
                     const isActive =
                       pathname === item.href ||
-                      (item.href !== '/admin/dashboard' && pathname.startsWith(item.href));
+                      (pathname.startsWith(`${item.href}/`) && !hasMoreSpecificMatch);
                     const Icon = item.icon;
                     return (
                       <Link

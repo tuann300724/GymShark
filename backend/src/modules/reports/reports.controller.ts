@@ -11,6 +11,7 @@ import { ReportsService } from './reports.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Role } from '../../common/enums/role.enum';
 import {
   DailyReportQueryDto,
@@ -132,14 +133,22 @@ export class ReportsController {
 
   @Get('checkins/daily')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
-  getCheckInsDaily(@Query() query: DailyReportQueryDto) {
-    return this.reportsService.getCheckInsDaily(query.from, query.to);
+  getCheckInsDaily(
+    @Query() query: DailyReportQueryDto,
+    @CurrentUser('role') role: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.reportsService.getCheckInsDaily(query.from, query.to, role, userId);
   }
 
   @Get('checkins/hourly')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
-  getCheckInsHourly(@Query() query: HourlyReportQueryDto) {
-    return this.reportsService.getCheckInsHourly(query.date);
+  getCheckInsHourly(
+    @Query() query: HourlyReportQueryDto,
+    @CurrentUser('role') role: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.reportsService.getCheckInsHourly(query.date, role, userId);
   }
 
   @Get('checkins/members')

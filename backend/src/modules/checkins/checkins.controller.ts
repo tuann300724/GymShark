@@ -37,21 +37,43 @@ export class CheckinsController {
   @Get()
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
   @ApiOperation({
-    summary: 'Lịch sử check-in toàn hệ thống (tìm kiếm, lọc, sắp xếp, phân trang)',
+    summary: 'Lịch sử check-in (toàn hệ thống với admin/staff — đối tác chỉ xem cơ sở của mình)',
   })
-  findAll(@Query() query: GetCheckinsQueryDto) {
-    return this.checkinsService.findAll(query);
+  findAll(
+    @Query() query: GetCheckinsQueryDto,
+    @CurrentUser('role') role: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.checkinsService.findAll(query, role, userId);
   }
 
   @Get('currently-inside')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
   @ApiOperation({ summary: 'Danh sách hội viên đang có mặt trong phòng gym' })
-  currentlyInside() {
-    return this.checkinsService.currentlyInside();
+  currentlyInside(
+    @CurrentUser('role') role: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.checkinsService.currentlyInside(role, userId);
+  }
+
+  @Get('facility-members')
+  @Roles(Role.PARTNER)
+  @ApiOperation({
+    summary:
+      'Tìm hội viên ĐÃ TỪNG check-in vào cơ sở của đối tác (dùng cho check-in tay — không lộ danh bạ toàn hệ thống)',
+  })
+  facilityMembers(
+    @Query('search') search: string,
+    @Query('page') page: string,
+    @Query('limit') limit: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.checkinsService.facilityMembers(search, userId, page, limit);
   }
 
   @Post('staff')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.PARTNER)
   @ApiOperation({
     summary:
       'Lễ tân check-in giúp hội viên (theo memberId, không tin client)',
@@ -65,7 +87,7 @@ export class CheckinsController {
   }
 
   @Post('face-scan')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.PARTNER)
   @ApiOperation({
     summary:
       'Lễ tân quét khuôn mặt 1:N tại quầy — server tự nhận diện hội viên (vector) rồi check-in',
@@ -89,7 +111,7 @@ export class CheckinsController {
   }
 
   @Post(':id/checkout')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.PARTNER)
   @ApiOperation({ summary: 'Admin/Staff chủ động check-out cho một phiên tập đang mở' })
   checkoutById(@Param('id') id: string, @CurrentUser('id') actorId: string) {
     return this.checkinsService.checkoutById(id, actorId);
@@ -130,7 +152,7 @@ export class CheckinsController {
   }
 
   @Post('face-checkout')
-  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.PARTNER)
   @ApiOperation({
     summary:
       'Lễ tân quét khuôn mặt để check-out (1:N — server tự nhận diện rồi check-out nếu đang mở)',

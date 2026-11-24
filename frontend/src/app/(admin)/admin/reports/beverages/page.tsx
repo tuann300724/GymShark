@@ -75,10 +75,6 @@ export default function BeverageReportPage() {
       ['DOANH THU THEO NHÂN VIÊN'],
       ['Nhân viên', 'Số hóa đơn', 'Doanh thu'],
       ...data.byStaff.map((item: any) => [item.label, item.saleCount, item.revenue]),
-      [],
-      ['DOANH THU THEO CA'],
-      ['Ca làm', 'Số hóa đơn', 'Doanh thu'],
-      ...data.byShift.map((item: any) => [item.label, item.saleCount, item.revenue]),
     ];
     const csv = `\uFEFF${rows.map((row) => row.map(csvCell).join(',')).join('\r\n')}`;
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
@@ -296,11 +292,6 @@ export default function BeverageReportPage() {
         ])}
         {table('Doanh thu theo nhân viên', data?.byStaff ?? [], [
           { key: 'label', label: 'Nhân viên' },
-          { key: 'saleCount', label: 'Hóa đơn' },
-          { key: 'revenue', label: 'Doanh thu', currency: true },
-        ])}
-        {table('Doanh thu theo ca làm', data?.byShift ?? [], [
-          { key: 'label', label: 'Ca làm' },
           { key: 'saleCount', label: 'Hóa đơn' },
           { key: 'revenue', label: 'Doanh thu', currency: true },
         ])}

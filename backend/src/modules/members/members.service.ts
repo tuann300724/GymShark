@@ -533,11 +533,6 @@ export class MembersService {
         'Thu tiền tại quầy chỉ áp dụng cho Tiền mặt hoặc Chuyển khoản. Với ví điện tử, hãy chọn "Chờ xác nhận thanh toán".',
       );
     }
-    const staffShiftId =
-      actor.role === "STAFF"
-        ? await this.paymentsService.assertOpenShiftForStaff(actor.id)
-        : undefined;
-
     const created = await this.memberService.registerMembershipForMember(
       memberId,
       {
@@ -547,7 +542,6 @@ export class MembersService {
       },
       actor.id,
       actor.role,
-      staffShiftId,
     );
 
     if (!dto.payNow) {
@@ -562,7 +556,7 @@ export class MembersService {
 
     const confirmed = await this.paymentsService.confirm(
       created.payment.id,
-      { id: actor.id, role: actor.role, shiftId: staffShiftId },
+      { id: actor.id, role: actor.role },
       { transactionRef: dto.transactionRef },
     );
 
@@ -636,11 +630,6 @@ export class MembersService {
     if (pkg.durationDays <= 0) {
       throw new BadRequestException("Thời hạn gói tập không hợp lệ");
     }
-    const staffShiftId =
-      actor.role === "STAFF"
-        ? await this.paymentsService.assertOpenShiftForStaff(actor.id)
-        : undefined;
-
     const dayMs = 86400000;
     const totalDays = Math.max(
       1,
@@ -670,14 +659,6 @@ export class MembersService {
 
     const result = await this.prisma.$transaction(
       async (tx) => {
-        if (staffShiftId) {
-          await this.paymentsService.assertShiftActiveInTransaction(
-            tx,
-            actor.id,
-            staffShiftId,
-          );
-        }
-
         const stillActive = await tx.membership.findFirst({
           where: { id: current.id, memberId, status: "ACTIVE" },
           select: { id: true },
@@ -735,7 +716,7 @@ export class MembersService {
                   amount: priceToPay,
                   method: dto.paymentMethod ?? PaymentMethod.CASH,
                   status: "PENDING",
-                  notes: `[PACKAGE_CHANGE:${current.id}] Đổi gói ${current.package.name} sang ${pkg.name}; giá trị còn lại ${creditAmount} VND${staffShiftId ? ` [STAFF_POS:${actor.id}:${staffShiftId}]` : ""}`,
+                  notes: `[PACKAGE_CHANGE:${current.id}] Đổi gói ${current.package.name} sang ${pkg.name}; giá trị còn lại ${creditAmount} VND${actor.role === "STAFF" ? ` [STAFF_POS:${actor.id}]` : ""}`,
                 },
               })
             : null;
@@ -800,7 +781,7 @@ export class MembersService {
     if (payment?.method === PaymentMethod.CASH) {
       const confirmed = await this.paymentsService.confirm(
         payment.id,
-        { id: actor.id, role: actor.role, shiftId: staffShiftId },
+        { id: actor.id, role: actor.role },
         {},
       );
       activated = true;

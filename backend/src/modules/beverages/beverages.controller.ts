@@ -35,8 +35,8 @@ export class BeveragesController {
 
   @Get("options")
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
-  options(@CurrentUser() actor: BeverageActor) {
-    return this.beveragesService.options(actor);
+  options() {
+    return this.beveragesService.options();
   }
 
   @Get("dashboard")

@@ -44,7 +44,6 @@ export function CreateStaffAccountDialog({ open, onClose }: Props) {
       toast.success('Đã tạo tài khoản nhân viên', res.message);
       setForm(EMPTY_FORM);
       onClose();
-      queryClient.invalidateQueries({ queryKey: ['staff-shift-options'] });
       queryClient.invalidateQueries({ queryKey: ['staff-accounts'] });
     },
     onError: (error) => toast.error('Tạo tài khoản thất bại', getErrorMessage(error)),
