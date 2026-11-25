@@ -146,7 +146,9 @@ BEGIN TRY
     IF COL_LENGTH(N'dbo.StaffShift', N'branchId') IS NOT NULL
         EXEC sys.sp_executesql N'ALTER TABLE dbo.StaffShift DROP COLUMN branchId;';
 
-    EXEC sys.sp_executesql N'
+    IF OBJECT_ID(N'dbo.StaffShift', N'U') IS NOT NULL
+    BEGIN
+        EXEC sys.sp_executesql N'
         CREATE OR ALTER VIEW dbo.vw_StaffShiftRevenue
         AS
         SELECT
@@ -171,6 +173,11 @@ BEGIN TRY
         GROUP BY
             ss.id, ss.title, ss.staffId, u.fullName,
             ss.startTime, ss.endTime, ss.status;';
+    END
+    ELSE IF OBJECT_ID(N'dbo.vw_StaffShiftRevenue', N'V') IS NOT NULL
+    BEGIN
+        DROP VIEW dbo.vw_StaffShiftRevenue;
+    END;
 
     COMMIT TRANSACTION;
 END TRY
