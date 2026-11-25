@@ -231,9 +231,20 @@ model MembershipPackage {
   features       String?  @db.NVarChar(Max)
   durationDays   Int
   price          Decimal  @db.Decimal(12, 2)
+  /// Di sản gói theo buổi cũ (đã ngừng bán) — GIỮ LẠI để luồng hoàn tiền lịch sử chạy đúng.
+  /// Gói tạo mới KHÔNG ghi 2 trường này.
   sessions       Int?
   ptSessionValue Decimal? @db.Decimal(12, 2)
+  /// Loại hình gói: FIXED_TERM (theo thời hạn) | CREDIT_BASED (theo số lượt) |
+  /// SESSION_BASED (gói theo buổi cũ, đã ngừng bán)
   type           String   @default("FIXED_TERM") @db.NVarChar(400)
+  /// Giới hạn số lượt tập. Gói CREDIT_BASED: tổng số lượt của gói (bắt buộc > 0).
+  /// Gói FIXED_TERM: số lượt tối đa/tháng (NULL = không giới hạn).
+  visitLimit     Int?
+  /// Tối suất check-in mỗi ngày (chống gian lận) — mặc định 1 lượt/ngày
+  dailyVisitLimit Int     @default(1)
+  /// Hạng phòng gym đối tác được phép tập — JSON mảng ["TIER_1","TIER_2","TIER_3"]
+  gymTierAccess  String?  @db.NVarChar(Max)
   status         String   @default("ACTIVE") @db.NVarChar(400)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

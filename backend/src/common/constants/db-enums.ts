@@ -46,10 +46,27 @@ export const TrainerStatus = {
 export type TrainerStatus = (typeof TrainerStatus)[keyof typeof TrainerStatus];
 
 export const PackageType = {
+  /// Gói theo thời hạn — hội viên tập trong khoảng ngày quy định
   FIXED_TERM: "FIXED_TERM",
+  /// Gói theo số lượt (credit/pass) — trừ dần số lượt mỗi lần check-in
+  CREDIT_BASED: "CREDIT_BASED",
+  /// Gói theo buổi cũ — đã ngừng bán, chỉ giữ lịch sử
   SESSION_BASED: "SESSION_BASED",
 } as const;
 export type PackageType = (typeof PackageType)[keyof typeof PackageType];
+
+/// Hạng phòng gym đối tác — gói càng cao thì mở khóa thêm hạng cao hơn
+export const GymTier = {
+  TIER_1: "TIER_1",
+  TIER_2: "TIER_2",
+  TIER_3: "TIER_3",
+} as const;
+export type GymTier = (typeof GymTier)[keyof typeof GymTier];
+export const GYM_TIER_VALUES: string[] = [
+  GymTier.TIER_1,
+  GymTier.TIER_2,
+  GymTier.TIER_3,
+];
 
 export const MembershipStatus = {
   PENDING: "PENDING",

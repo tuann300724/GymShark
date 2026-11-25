@@ -529,7 +529,6 @@ export function MemberPackageDialog({ open, onClose, member, onSuccess }: Props)
                 </p>
                 <p className="mt-1 text-[11px] text-muted">
                   Thời hạn {selectedPackage.durationDays} ngày
-                  {selectedPackage.sessions ? ` · ${selectedPackage.sessions} buổi PT` : ''}
                 </p>
               </div>
             )}

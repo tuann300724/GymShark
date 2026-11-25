@@ -207,82 +207,119 @@ async function main() {
   });
   console.log('✅ Created users and trainer profiles');
 
-  // 5. Membership Packages
+  // 5. Gói tập đa đối tác: seed có thể chạy lại và đồng bộ các mã mẫu này.
   await prisma.membershipPackage.updateMany({
     where: { type: PackageType.SESSION_BASED, status: 'ACTIVE' },
     data: { status: 'INACTIVE' },
   });
 
-  const pkg1M = await prisma.membershipPackage.upsert({
-    where: { code: 'PKG-1M' },
-    update: {
-    features: JSON.stringify({
-        title: 'Gói Cơ Bản 1 Tháng (Basic)',
-        items: ['Tập luyện không giới hạn thời gian', 'Phòng Gym + Cardio', 'Tủ đồ cá nhân', 'Hướng dẫn sử dụng máy cơ bản'],
-    }),
-    },
-    create: {
+  const packageSamples = [
+    {
       code: 'PKG-1M',
-      name: 'Gói Cơ Bản 1 Tháng (Basic)',
-      description: 'Tập luyện không giới hạn thời gian tại phòng tập',
-      features: JSON.stringify({
-        title: 'Gói Cơ Bản 1 Tháng (Basic)',
-        items: ['Tập luyện không giới hạn thời gian', 'Phòng Gym + Cardio', 'Tủ đồ cá nhân', 'Hướng dẫn sử dụng máy cơ bản'],
-      }),
+      name: 'Gói Standard 1 Tháng',
+      description: 'Tập tại các phòng gym đối tác hạng Standard trong 30 ngày.',
       durationDays: 30,
       price: 450000,
       type: PackageType.FIXED_TERM,
+      visitLimit: 16,
+      gymTierAccess: ['TIER_1'],
+      features: ['Tập tại phòng gym hạng Standard', 'Tối đa 16 lượt mỗi tháng', 'Tối đa 1 lượt check-in mỗi ngày'],
     },
-  });
-
-  const pkg6M = await prisma.membershipPackage.upsert({
-    where: { code: 'PKG-6M-VIP' },
-    update: {
-      sessions: 3,
-      features: JSON.stringify({
-        title: 'Gói VIP 6 Tháng',
-        items: ['Toàn quyền sử dụng dịch vụ gym', 'Khu xông hơi & massage', 'Tặng 3 buổi tập cùng HLV', 'Ưu đãi 10% dịch vụ bổ sung'],
-      }),
+    {
+      code: 'PKG-3M-PLUS',
+      name: 'Gói Plus 3 Tháng',
+      description: 'Tập tại mạng lưới phòng gym Standard và Plus trong 90 ngày.',
+      durationDays: 90,
+      price: 1290000,
+      type: PackageType.FIXED_TERM,
+      visitLimit: 20,
+      gymTierAccess: ['TIER_1', 'TIER_2'],
+      features: ['Tập tại phòng gym hạng Standard & Plus', 'Tối đa 20 lượt mỗi tháng', 'Tối đa 1 lượt check-in mỗi ngày'],
     },
-    create: {
+    {
       code: 'PKG-6M-VIP',
       name: 'Gói VIP 6 Tháng',
-      description: 'Toàn quyền sử dụng dịch vụ gym, xông hơi và tặng 3 buổi cùng HLV',
-      features: JSON.stringify({
-        title: 'Gói VIP 6 Tháng',
-        items: ['Toàn quyền sử dụng dịch vụ gym', 'Khu xông hơi & massage', 'Tặng 3 buổi tập cùng HLV', 'Ưu đãi 10% dịch vụ bổ sung'],
-      }),
+      description: 'Mở quyền tập tại các phòng gym đối tác hạng Standard và Plus.',
       durationDays: 180,
       price: 2400000,
-      sessions: 3,
       type: PackageType.FIXED_TERM,
+      visitLimit: 24,
+      gymTierAccess: ['TIER_1', 'TIER_2'],
+      features: ['Tập tại phòng gym hạng Standard & Plus', 'Tối đa 24 lượt mỗi tháng', 'Tối đa 1 lượt check-in mỗi ngày'],
     },
-  });
-
-  const pkg12M = await prisma.membershipPackage.upsert({
-    where: { code: 'PKG-12M-DIAMOND' },
-    update: {
-      sessions: 6,
-      features: JSON.stringify({
-        title: 'Gói Kim Cương 12 Tháng',
-        items: ['Trọn gói cao cấp', 'Tặng khăn tập & tủ đồ VIP', 'Tặng 6 buổi PT trị giá 2.100.000đ', 'Ưu tiên đặt phòng & lớp học'],
-      }),
-    },
-    create: {
+    {
       code: 'PKG-12M-DIAMOND',
-      name: 'Gói Kim Cương 12 Tháng',
-      description: 'Trọn gói cao cấp, tặng khăn tập và tủ đồ VIP',
-      features: JSON.stringify({
-        title: 'Gói Kim Cương 12 Tháng',
-        items: ['Trọn gói cao cấp', 'Tặng khăn tập & tủ đồ VIP', 'Tặng 6 buổi PT trị giá 2.100.000đ', 'Ưu tiên đặt phòng & lớp học'],
-      }),
+      name: 'Gói VIP Toàn Hệ Thống',
+      description: 'Tập tại tất cả phòng gym đối tác thuộc ba hạng trong 365 ngày.',
       durationDays: 365,
       price: 4200000,
-      sessions: 6,
       type: PackageType.FIXED_TERM,
+      visitLimit: null,
+      gymTierAccess: ['TIER_1', 'TIER_2', 'TIER_3'],
+      features: ['Tập tại tất cả phòng gym Standard, Plus & Premium', 'Không giới hạn lượt theo tháng', 'Tối đa 1 lượt check-in mỗi ngày'],
     },
+    {
+      code: 'PKG-PASS-15',
+      name: 'Gói Pass 15 Lượt',
+      description: '15 lượt check-in tại phòng gym hạng Standard và Plus, dùng trong 60 ngày.',
+      durationDays: 60,
+      price: 750000,
+      type: PackageType.CREDIT_BASED,
+      visitLimit: 15,
+      gymTierAccess: ['TIER_1', 'TIER_2'],
+      features: ['15 lượt check-in trong 60 ngày', 'Tập tại phòng gym hạng Standard & Plus', 'Tối đa 1 lượt check-in mỗi ngày'],
+    },
+    {
+      code: 'PKG-PASS-30',
+      name: 'Gói Pass 30 Lượt Premium',
+      description: '30 lượt tại toàn hệ thống phòng gym đối tác, dùng trong 90 ngày.',
+      durationDays: 90,
+      price: 1650000,
+      type: PackageType.CREDIT_BASED,
+      visitLimit: 30,
+      gymTierAccess: ['TIER_1', 'TIER_2', 'TIER_3'],
+      features: ['30 lượt check-in trong 90 ngày', 'Tập tại phòng gym cả ba hạng', 'Tối đa 1 lượt check-in mỗi ngày'],
+    },
+  ];
+
+  const sampleCodes = packageSamples.map((sample) => sample.code);
+  const olderPackages = await prisma.membershipPackage.findMany({
+    where: { code: { notIn: sampleCodes } },
+    select: { id: true, _count: { select: { memberships: true } } },
   });
-  console.log('✅ Created membership packages');
+  for (const older of olderPackages) {
+    if (older._count.memberships > 0) {
+      await prisma.membershipPackage.update({
+        where: { id: older.id },
+        data: { status: 'INACTIVE' },
+      });
+    } else {
+      await prisma.membershipPackage.delete({ where: { id: older.id } });
+    }
+  }
+
+  for (const sample of packageSamples) {
+    const { features, gymTierAccess, ...fields } = sample;
+    const values = {
+      ...fields,
+      features: JSON.stringify({ title: sample.name, items: features }),
+      gymTierAccess: JSON.stringify(gymTierAccess),
+      dailyVisitLimit: 1,
+      status: 'ACTIVE',
+      sessions: null,
+      ptSessionValue: null,
+    };
+    await prisma.membershipPackage.upsert({
+      where: { code: sample.code },
+      update: values,
+      create: values,
+    });
+  }
+
+  const pkg1M = await prisma.membershipPackage.findUniqueOrThrow({ where: { code: 'PKG-1M' } });
+  const pkg6M = await prisma.membershipPackage.findUniqueOrThrow({ where: { code: 'PKG-6M-VIP' } });
+  const pkg12M = await prisma.membershipPackage.findUniqueOrThrow({ where: { code: 'PKG-12M-DIAMOND' } });
+  console.log('✅ Created or updated six membership package samples');
 
   // 6. Sample Member (+ tài khoản đăng nhập MEMBER để test member portal)
   // CỜ DỮ LIỆU MẪU: đặt lại `true` nếu muốn seed khôi phục hội viên mẫu

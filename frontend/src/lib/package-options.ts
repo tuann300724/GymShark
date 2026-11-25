@@ -1,0 +1,104 @@
+import type { GymTier, MembershipPackage, MembershipPackageInput, PackageBillingType } from '@/services/types';
+
+/** Hằng số hạng phòng gym đối tác — khớp `GymTier` ở backend */
+export const GYM_TIERS: { value: GymTier; label: string; shortLabel: string; hint: string }[] = [
+  {
+    value: 'TIER_1',
+    label: 'Tier 1 — Standard',
+    shortLabel: 'Standard',
+    hint: 'Phòng gym tiêu chuẩn',
+  },
+  { value: 'TIER_2', label: 'Tier 2 — Plus', shortLabel: 'Plus', hint: 'Phòng gym nâng cao' },
+  { value: 'TIER_3', label: 'Tier 3 — Premium', shortLabel: 'Premium', hint: 'Phòng gym cao cấp' },
+];
+
+/** Loại hình gói có thể tạo/sửa — khớp `CREATABLE_PACKAGE_TYPES` ở backend */
+export type CreatablePackageType = 'FIXED_TERM' | 'CREDIT_BASED';
+
+export const PACKAGE_TYPE_OPTIONS: { value: CreatablePackageType; label: string; hint: string }[] =
+  [
+    {
+      value: 'FIXED_TERM',
+      label: 'Theo thời hạn (Tháng/Ngày)',
+      hint: 'Người dùng tập trong khoảng thời gian quy định',
+    },
+    {
+      value: 'CREDIT_BASED',
+      label: 'Theo số lượt (Credit/Pass)',
+      hint: 'Trừ dần số lượt mỗi lần check-in tại phòng gym',
+    },
+  ];
+
+/** Badge loại gói hiển thị cạnh mã gói */
+export function packageTypeBadge(type: PackageBillingType): string {
+  if (type === 'CREDIT_BASED') return 'Gói Lượt';
+  if (type === 'FIXED_TERM') return 'Gói Tháng';
+  return 'Gói cũ theo buổi';
+}
+
+/** Hạng tier đã chọn, đã sắp xếp theo thứ tự hạng tăng dần */
+export function normalizeTiers(tiers: unknown): GymTier[] {
+  if (!Array.isArray(tiers)) return [];
+  const order: GymTier[] = ['TIER_1', 'TIER_2', 'TIER_3'];
+  return order.filter((tier) => tiers.includes(tier));
+}
+
+/** Danh sách hạng dạng "Standard · Plus" (rỗng thì trả về chuỗi trống) */
+export function formatTierList(tiers: unknown): string {
+  const valid = normalizeTiers(tiers);
+  if (valid.length === 0) return '';
+  return GYM_TIERS.filter((tier) => valid.includes(tier.value))
+    .map((tier) => tier.shortLabel)
+    .join(' · ');
+}
+
+/**
+ * Hạn mức lượt tập:
+ * - Gói Lượt: "20 lượt / 60 ngày"
+ * - Gói Tháng có giới hạn: "16 lượt/tháng"
+ * - Gói Tháng không giới hạn: "Không giới hạn lượt"
+ */
+export function formatVisitLimit(
+  pkg: Pick<MembershipPackage, 'type' | 'visitLimit' | 'durationDays'>,
+): string {
+  if (pkg.type === 'SESSION_BASED') return 'Gói cũ theo buổi';
+  if (pkg.visitLimit == null || pkg.visitLimit <= 0) {
+    return pkg.type === 'CREDIT_BASED' ? '—' : 'Không giới hạn lượt';
+  }
+  if (pkg.type === 'CREDIT_BASED') return `${pkg.visitLimit} lượt / ${pkg.durationDays} ngày`;
+  return `${pkg.visitLimit} lượt/tháng`;
+}
+
+/** Nhãn giải thích hạn mức (dùng cho aria-label / title) */
+export function visitLimitLabel(pkg: Pick<MembershipPackage, 'type' | 'visitLimit'>): string {
+  return pkg.type === 'CREDIT_BASED' ? 'Tổng số lượt của gói' : 'Số lượt tối đa mỗi tháng';
+}
+
+
+/** JSON mẫu để tích hợp API gói thời hạn và gói lượt. */
+export const SAMPLE_MEMBERSHIP_PACKAGES: MembershipPackageInput[] = [
+  {
+    name: 'Gói Standard 1 Tháng',
+    type: 'FIXED_TERM',
+    durationDays: 30,
+    visitLimit: 16,
+    dailyVisitLimit: 1,
+    gymTierAccess: ['TIER_1'],
+    price: 450000,
+    status: 'ACTIVE',
+    description: 'Tập luyện linh hoạt tại mạng lưới phòng gym đối tác.',
+    features: { items: ['Tập tại phòng gym hạng Standard', 'Tối đa 16 lượt/tháng', 'Tối đa 1 lượt check-in/ngày'] },
+  },
+  {
+    name: 'Gói Pass 15 Lượt',
+    type: 'CREDIT_BASED',
+    durationDays: 60,
+    visitLimit: 15,
+    dailyVisitLimit: 1,
+    gymTierAccess: ['TIER_1', 'TIER_2'],
+    price: 750000,
+    status: 'ACTIVE',
+    description: '15 lượt tập tại các phòng gym hạng Standard và Plus trong 60 ngày.',
+    features: { items: ['15 lượt check-in', 'Tập tại phòng gym hạng Standard & Plus', 'Tối đa 1 lượt check-in/ngày'] },
+  },
+];

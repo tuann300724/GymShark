@@ -13,26 +13,16 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Dialog } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { Spinner } from '@/components/ui/spinner';
+import { PackageFormDialog } from '@/components/admin/package-form-dialog';
 import { formatCurrency } from '@/lib/utils';
-import { Package, Plus, Check, Pencil, Trash2, Power, Ban, X } from 'lucide-react';
-
-const EMPTY_FORM = {
-  name: '',
-  description: '',
-  durationDays: '30',
-  price: '',
-  sessions: '',
-  ptSessionValue: '',
-  status: 'ACTIVE',
-};
+import { formatTierList, formatVisitLimit, packageTypeBadge } from '@/lib/package-options';
+import { Package, Plus, Check, Pencil, Trash2, Power, Ban, Dumbbell } from 'lucide-react';
+import type { MembershipPackage } from '@/services/types';
 
 export default function MembershipPackagesPage() {
   const toast = useToast();
@@ -40,19 +30,14 @@ export default function MembershipPackagesPage() {
   const queryClient = useQueryClient();
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ ...EMPTY_FORM });
-  const [featureItems, setFeatureItems] = useState<string[]>([
-    'Tập luyện không giới hạn khung giờ',
-    'Sử dụng tủ đồ và phòng tắm nóng lạnh',
-  ]);
+  const [editingPkg, setEditingPkg] = useState<MembershipPackage | null>(null);
 
   const {
     data: packages,
     isLoading,
     isError,
     refetch,
-  } = useQuery({
+  } = useQuery<MembershipPackage[]>({
     queryKey: ['membership-packages'],
     queryFn: async () => {
       const res = await apiClient.get('/membership-packages');
@@ -64,46 +49,6 @@ export default function MembershipPackagesPage() {
     queryClient.invalidateQueries({ queryKey: ['membership-packages'] });
     queryClient.invalidateQueries({ queryKey: ['public-packages'] });
   };
-
-  const saveMutation = useMutation({
-    mutationFn: async (payload: any) => {
-      const body: any = {
-        name: payload.name,
-        description: payload.description || undefined,
-        durationDays: parseInt(payload.durationDays, 10),
-        price: parseFloat(payload.price),
-        sessions: payload.sessions ? parseInt(payload.sessions, 10) : null,
-        ptSessionValue:
-          payload.sessions && payload.ptSessionValue !== ''
-            ? Number(payload.ptSessionValue)
-            : payload.sessions
-              ? undefined
-              : null,
-        status: payload.status,
-        features: { title: payload.name, items: featureItems },
-      };
-      if (editingId) {
-        const res = await apiClient.patch(`/membership-packages/${editingId}`, body);
-        return res.data;
-      }
-      const res = await apiClient.post('/membership-packages', body);
-      return res.data;
-    },
-    onSuccess: () => {
-      toast.success(
-        editingId ? 'Cập nhật thành công' : 'Tạo gói thành công',
-        `Gói tập ${form.name} đã được lưu.`,
-      );
-      setDialogOpen(false);
-      setEditingId(null);
-      setForm({ ...EMPTY_FORM });
-      invalidate();
-    },
-    onError: (err: any) => {
-      const msg = err.response?.data?.message || 'Thao tác thất bại';
-      toast.error('Thất bại', Array.isArray(msg) ? msg.join(', ') : msg[0]);
-    },
-  });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -120,7 +65,7 @@ export default function MembershipPackagesPage() {
     },
   });
 
-  const toggleStatus = (pkg: any) => {
+  const toggleStatus = (pkg: MembershipPackage) => {
     const next = pkg.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     apiClient
       .patch(`/membership-packages/${pkg.id}`, { status: next })
@@ -138,31 +83,16 @@ export default function MembershipPackagesPage() {
   };
 
   const openCreate = () => {
-    setEditingId(null);
-    setForm({ ...EMPTY_FORM });
-    setFeatureItems(['Tập luyện không giới hạn khung giờ', 'Sử dụng tủ đồ và phòng tắm nóng lạnh']);
+    setEditingPkg(null);
     setDialogOpen(true);
   };
 
-  const openEdit = (pkg: any) => {
-    setEditingId(pkg.id);
-    setForm({
-      name: pkg.name || '',
-      description: pkg.description || '',
-      durationDays: String(pkg.durationDays || 30),
-      price: String(pkg.price ?? ''),
-      sessions: pkg.sessions ? String(pkg.sessions) : '',
-      ptSessionValue:
-        pkg.ptSessionValue !== null && pkg.ptSessionValue !== undefined
-          ? String(pkg.ptSessionValue)
-          : '',
-      status: pkg.status || 'ACTIVE',
-    });
-    setFeatureItems(pkg.features?.items || []);
+  const openEdit = (pkg: MembershipPackage) => {
+    setEditingPkg(pkg);
     setDialogOpen(true);
   };
 
-  const confirmDelete = async (pkg: any) => {
+  const confirmDelete = async (pkg: MembershipPackage) => {
     const ok = await confirm({
       title: 'Xác nhận xóa',
       description: `Xóa gói tập "${pkg.name}" khỏi hệ thống?`,
@@ -173,6 +103,8 @@ export default function MembershipPackagesPage() {
     }
   };
 
+  const tierList = (pkg: MembershipPackage) => formatTierList(pkg.gymTierAccess);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -182,7 +114,7 @@ export default function MembershipPackagesPage() {
             Gói Tập Gym (Membership Packages)
           </h1>
           <p className="text-xs text-muted mt-1">
-            Thiết lập danh mục các gói tập, thời hạn sử dụng và biểu phí dịch vụ phòng tập
+            Thiết lập loại hình gói, hạn mức lượt tập, hạng phòng gym đối tác và biểu phí dịch vụ
           </p>
         </div>
         <Button variant="primary" size="md" className="font-semibold text-xs" onClick={openCreate}>
@@ -203,100 +135,118 @@ export default function MembershipPackagesPage() {
         />
       ) : packages && packages.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {packages.map((pkg: any) => (
-            <Card
-              key={pkg.id}
-              className={`relative flex flex-col justify-between transition-all ${
-                pkg.status === 'ACTIVE' ? 'hover:border-neon/40' : 'opacity-75'
-              }`}
-            >
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <Badge variant="outline" className="font-mono text-[10px]">
-                    {pkg.code}
-                  </Badge>
-                  <Badge variant={pkg.status === 'ACTIVE' ? 'success' : 'warning'}>
-                    {pkg.status === 'ACTIVE' ? 'Đang bán' : 'Ngừng bán'}
-                  </Badge>
-                </div>
-                <CardTitle className="text-lg mt-3 text-chalk">{pkg.name}</CardTitle>
-                <CardDescription className="text-xs line-clamp-2 mt-1">
-                  {pkg.description || 'Không có mô tả chi tiết'}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="p-4 rounded-xl bg-ink border border-line">
-                  <span className="text-3xl font-extrabold text-neon font-display">
-                    {formatCurrency(pkg.price)}
-                  </span>
-                  <span className="text-xs text-muted block mt-1">
-                    Thời hạn: <strong className="text-chalk">{pkg.durationDays} ngày</strong>
-                    {pkg.sessions && pkg.type !== 'SESSION_BASED'
-                      ? ` · ${pkg.sessions} buổi PT · ${
-                          pkg.ptSessionValue == null
-                            ? 'chưa cấu hình giá trị'
-                            : `${formatCurrency(pkg.ptSessionValue)}/buổi`
-                        }`
-                      : pkg.type === 'SESSION_BASED'
-                        ? ' · Gói cũ theo buổi, không còn mở bán'
-                        : ''}
-                  </span>
-                  {pkg._count?.memberships > 0 && (
-                    <span className="text-[11px] text-muted block mt-1">
-                      Đã bán {pkg._count.memberships} thẻ
+          {packages.map((pkg) => {
+            const isLegacy = pkg.type === 'SESSION_BASED';
+            const tiers = tierList(pkg);
+            return (
+              <Card
+                key={pkg.id}
+                className={`relative flex flex-col justify-between transition-all ${
+                  pkg.status === 'ACTIVE' && !isLegacy ? 'hover:border-neon/40' : 'opacity-75'
+                }`}
+              >
+                <CardHeader>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Badge variant="outline" className="font-mono text-[10px]">
+                        {pkg.code}
+                      </Badge>
+                      <Badge variant={pkg.type === 'CREDIT_BASED' ? 'info' : 'default'}>
+                        {packageTypeBadge(pkg.type)}
+                      </Badge>
+                    </div>
+                    <Badge variant={pkg.status === 'ACTIVE' ? 'success' : 'warning'}>
+                      {pkg.status === 'ACTIVE' ? 'Đang bán' : 'Ngừng bán'}
+                    </Badge>
+                  </div>
+                  <CardTitle className="text-lg mt-3 text-chalk">{pkg.name}</CardTitle>
+                  <CardDescription className="text-xs line-clamp-2 mt-1">
+                    {pkg.description || 'Không có mô tả chi tiết'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="p-4 rounded-xl bg-ink border border-line">
+                    <span className="text-3xl font-extrabold text-neon font-display">
+                      {formatCurrency(pkg.price)}
                     </span>
-                  )}
-                </div>
-                <ul className="text-xs space-y-2 text-muted">
-                  {(pkg.features?.items || []).slice(0, 4).map((item: string) => (
-                    <li key={item} className="flex items-center gap-2">
-                      <Check className="size-4 text-neon shrink-0" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-              <CardFooter className="pt-2">
-                <div className="grid w-full grid-cols-3 gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-xs font-semibold"
-                    onClick={() => openEdit(pkg)}
-                    disabled={pkg.type === 'SESSION_BASED'}
-                  >
-                    <Pencil className="size-3.5 mr-1" /> Sửa
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-xs font-semibold"
-                    onClick={() => toggleStatus(pkg)}
-                    disabled={pkg.type === 'SESSION_BASED'}
-                  >
-                    {pkg.status === 'ACTIVE' ? (
-                      <>
-                        <Ban className="size-3.5 mr-1" /> Ngừng bán
-                      </>
-                    ) : (
-                      <>
-                        <Power className="size-3.5 mr-1 text-neon" /> Mở bán
-                      </>
+                    <span className="text-xs text-muted block mt-1">
+                      Thời hạn: <strong className="text-chalk">{pkg.durationDays} ngày</strong>
+                    </span>
+                    <span className="text-xs text-muted block mt-1">
+                      Hạn mức lượt: <strong className="text-chalk">{formatVisitLimit(pkg)}</strong>
+                    </span>
+                    <span className="text-xs text-muted mt-1 flex items-start gap-1.5">
+                      <Dumbbell className="size-3.5 mt-0.5 shrink-0 text-neon" />
+                      <span>
+                        Hạng phòng gym:{' '}
+                        {tiers ? (
+                          <span className="flex flex-wrap gap-1.5">
+                            {tiers.split(' · ').map((tier) => (
+                              <Badge key={tier} variant="outline" className="text-[10px]">{tier}</Badge>
+                            ))}
+                          </span>
+                        ) : (
+                          <strong className="text-chalk">Chưa chọn hạng</strong>
+                        )}
+                      </span>
+                    </span>
+                    {(pkg._count?.memberships ?? 0) > 0 && (
+                      <span className="text-[11px] text-muted block mt-1">
+                        Đã bán {pkg._count?.memberships} thẻ
+                      </span>
                     )}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-xs font-semibold text-danger"
-                    isLoading={deleteMutation.isPending}
-                    onClick={() => confirmDelete(pkg)}
-                  >
-                    <Trash2 className="size-3.5 mr-1" /> Xóa
-                  </Button>
-                </div>
-              </CardFooter>
-            </Card>
-          ))}
+                  </div>
+                  <ul className="text-xs space-y-2 text-muted">
+                    {(pkg.features?.items || []).slice(0, 4).map((item) => (
+                      <li key={item} className="flex items-center gap-2">
+                        <Check className="size-4 text-neon shrink-0" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+                <CardFooter className="pt-2">
+                  <div className="grid w-full grid-cols-3 gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs font-semibold"
+                      onClick={() => openEdit(pkg)}
+                      disabled={isLegacy}
+                    >
+                      <Pencil className="size-3.5 mr-1" /> Sửa
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs font-semibold"
+                      onClick={() => toggleStatus(pkg)}
+                      disabled={isLegacy}
+                    >
+                      {pkg.status === 'ACTIVE' ? (
+                        <>
+                          <Ban className="size-3.5 mr-1" /> Ngừng bán
+                        </>
+                      ) : (
+                        <>
+                          <Power className="size-3.5 mr-1 text-neon" /> Mở bán
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs font-semibold text-danger"
+                      isLoading={deleteMutation.isPending}
+                      onClick={() => confirmDelete(pkg)}
+                    >
+                      <Trash2 className="size-3.5 mr-1" /> Xóa
+                    </Button>
+                  </div>
+                </CardFooter>
+              </Card>
+            );
+          })}
         </div>
       ) : (
         <EmptyState
@@ -307,123 +257,12 @@ export default function MembershipPackagesPage() {
       )}
 
       {/* Create/Edit dialog */}
-      <Dialog
+      <PackageFormDialog
         open={dialogOpen}
+        pkg={editingPkg}
         onClose={() => setDialogOpen(false)}
-        title={editingId ? 'Chỉnh sửa gói tập' : 'Tạo gói tập mới'}
-        description="Mã gói được hệ thống tự sinh"
-        className="max-w-2xl"
-      >
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Input
-              label="Tên gói tập *"
-              value={form.name}
-              placeholder="Ví dụ: Gói Cao Cấp 6 Tháng"
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-            <Input
-              label="Thời hạn (ngày) *"
-              type="number"
-              min={1}
-              value={form.durationDays}
-              onChange={(e) => setForm({ ...form, durationDays: e.target.value })}
-            />
-            <Input
-              label="Giá bán (VND) *"
-              type="number"
-              min={0}
-              value={form.price}
-              placeholder="450000"
-              onChange={(e) => setForm({ ...form, price: e.target.value })}
-            />
-            <Input
-              label="Số buổi PT kèm trong gói (không bắt buộc)"
-              type="number"
-              min={1}
-              value={form.sessions}
-              placeholder="Để trống nếu không kèm PT"
-              onChange={(e) => setForm({ ...form, sessions: e.target.value })}
-            />
-            <Input
-              label="Giá trị mỗi buổi PT (VND)"
-              type="number"
-              min={0}
-              step="0.01"
-              value={form.ptSessionValue}
-              placeholder="Bắt buộc nếu gói có buổi PT"
-              disabled={!form.sessions}
-              onChange={(e) => setForm({ ...form, ptSessionValue: e.target.value })}
-            />
-            <Select
-              label="Trạng thái"
-              value={form.status}
-              options={[
-                { value: 'ACTIVE', label: 'Đang bán' },
-                { value: 'INACTIVE', label: 'Ngừng bán' },
-              ]}
-              onChange={(e) => setForm({ ...form, status: e.target.value })}
-            />
-            <Input
-              label="Mô tả ngắn"
-              className="sm:col-span-2"
-              value={form.description}
-              placeholder="Tập luyện không giới hạn"
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-            />
-          </div>
-
-          <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
-              Tính năng của gói
-            </p>
-            <div className="space-y-2">
-              {featureItems.map((item, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <Input
-                    value={item}
-                    placeholder="Mô tả tính năng..."
-                    onChange={(e) => {
-                      const next = [...featureItems];
-                      next[idx] = e.target.value;
-                      setFeatureItems(next);
-                    }}
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Xóa tính năng này"
-                    onClick={() => setFeatureItems(featureItems.filter((_, i) => i !== idx))}
-                  >
-                    <X className="size-4" />
-                  </Button>
-                </div>
-              ))}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setFeatureItems([...featureItems, ''])}
-              >
-                <Plus className="size-3.5 mr-1" /> Thêm tính năng
-              </Button>
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" onClick={() => setDialogOpen(false)}>
-              Hủy
-            </Button>
-            <Button
-              isLoading={saveMutation.isPending}
-              disabled={!form.name || !form.price}
-              onClick={() => saveMutation.mutate(form)}
-            >
-              <Check className="size-4" />
-              {editingId ? 'Lưu thay đổi' : 'Tạo gói tập'}
-            </Button>
-          </div>
-        </div>
-      </Dialog>
+        onSaved={invalidate}
+      />
     </div>
   );
 }

@@ -64,6 +64,12 @@ export interface MemberRegisterVerifyResponse {
   };
 }
 
+/** Loại hình gói tập — FIXED_TERM: theo thời hạn; CREDIT_BASED: theo số lượt; SESSION_BASED: gói cũ đã ngừng bán */
+export type PackageBillingType = 'FIXED_TERM' | 'CREDIT_BASED' | 'SESSION_BASED';
+
+/** Hạng phòng gym đối tác — gói càng cao mở khóa thêm hạng cao hơn */
+export type GymTier = 'TIER_1' | 'TIER_2' | 'TIER_3';
+
 export interface MembershipPackage {
   id: string;
   code: string;
@@ -72,11 +78,34 @@ export interface MembershipPackage {
   features?: { title?: string; items: string[] } | null;
   durationDays: number;
   price: string;
+  /** Giới hạn số lượt: CREDIT_BASED = tổng số lượt; FIXED_TERM = lượt tối đa/tháng (null = không giới hạn) */
+  visitLimit?: number | null;
+  /** Tối đa số lượt check-in mỗi ngày (chống gian lận), mặc định 1 */
+  dailyVisitLimit?: number;
+  /** Hạng phòng gym đối tác được phép tập */
+  gymTierAccess?: GymTier[] | null;
+  type: PackageBillingType;
+  status: string;
+  /** Di sản gói theo buổi cũ — chỉ gói cũ mới có, gói mới không dùng nữa */
   sessions?: number | null;
   ptSessionValue?: string | null;
-  type: 'FIXED_TERM' | 'SESSION_BASED';
-  status: string;
   _count?: { memberships: number };
+}
+
+/** Payload tạo/cập nhật gói đa đối tác; mã gói do backend tự sinh. */
+export interface MembershipPackageInput {
+  name: string;
+  type: Exclude<PackageBillingType, 'SESSION_BASED'>;
+  durationDays: number;
+  /** CREDIT_BASED: tổng lượt bắt buộc; FIXED_TERM: lượt tối đa/tháng hoặc null không giới hạn. */
+  visitLimit: number | null;
+  /** Giới hạn chống gian lận, mặc định 1 lượt check-in/ngày. */
+  dailyVisitLimit: number;
+  gymTierAccess: GymTier[];
+  price: number;
+  status: 'ACTIVE' | 'INACTIVE';
+  description?: string;
+  features: { title?: string; items: string[] };
 }
 
 export interface PublicTrainer {

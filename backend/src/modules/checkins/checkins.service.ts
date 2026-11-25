@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
-import { CheckInMethod } from "../../common/constants/db-enums";
+import { CheckInMethod, PackageType } from "../../common/constants/db-enums";
 import { Role } from "../../common/enums/role.enum";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AuditService } from "../audit-logs/audit-logs.service";
@@ -71,7 +71,15 @@ export class CheckinsService {
         endDate: { gte: now },
       },
       include: {
-        package: { select: { id: true, name: true } },
+        package: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            visitLimit: true,
+            dailyVisitLimit: true,
+          },
+        },
       },
       orderBy: { endDate: "desc" },
     });
@@ -151,6 +159,114 @@ export class CheckinsService {
     return membership;
   }
 
+  /** Validate and record quota usage atomically across all partner gyms. */
+  private async createQuotaCheckedIn(
+    memberId: string,
+    membershipId: string,
+    data: Prisma.CheckInUncheckedCreateInput,
+  ) {
+    return this.prisma.$transaction(
+      async (tx) => {
+        const now =
+          data.checkInTime instanceof Date
+            ? data.checkInTime
+            : data.checkInTime
+              ? new Date(data.checkInTime)
+              : new Date();
+        const membership = await tx.membership.findFirst({
+          where: {
+            id: membershipId,
+            memberId,
+            status: "ACTIVE",
+            startDate: { lte: now },
+            endDate: { gte: now },
+          },
+          include: {
+            package: {
+              select: { type: true, visitLimit: true, dailyVisitLimit: true },
+            },
+          },
+        });
+        if (!membership) {
+          throw new BadRequestException("Gói tập không còn hiệu lực để check-in.");
+        }
+        if (
+          membership.freezeStartedAt &&
+          membership.freezeStartedAt <= now &&
+          membership.freezeEndsAt &&
+          membership.freezeEndsAt >= now
+        ) {
+          throw new BadRequestException("Gói tập đang trong thời gian bảo lưu.");
+        }
+
+        const activeCheckIn = await tx.checkIn.findFirst({
+          where: { memberId, status: "CHECKED_IN" },
+          select: { id: true },
+        });
+        if (activeCheckIn) {
+          throw new BadRequestException("Hội viên đang có phiên tập chưa check-out.");
+        }
+
+        // A business day is based on Vietnam time (UTC+7), across all partners.
+        const vietnamNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+        const year = vietnamNow.getUTCFullYear();
+        const month = vietnamNow.getUTCMonth();
+        const day = vietnamNow.getUTCDate();
+        const dayStart = new Date(Date.UTC(year, month, day) - 7 * 60 * 60 * 1000);
+        const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+        const monthStart = new Date(Date.UTC(year, month, 1) - 7 * 60 * 60 * 1000);
+        const usageStart = new Date(
+          Math.max(monthStart.getTime(), membership.startDate.getTime()),
+        );
+
+        const dailyLimit = Math.max(1, membership.package.dailyVisitLimit ?? 1);
+        const todayVisits = await tx.checkIn.count({
+          where: { memberId, checkInTime: { gte: dayStart, lt: dayEnd } },
+        });
+        if (todayVisits >= dailyLimit) {
+          throw new BadRequestException(
+            `Gói tập chỉ cho phép tối đa ${dailyLimit} lượt check-in mỗi ngày.`,
+          );
+        }
+
+        if (membership.package.type === PackageType.CREDIT_BASED) {
+          const totalLimit = membership.package.visitLimit;
+          if (totalLimit == null || totalLimit < 1) {
+            throw new BadRequestException("Gói lượt chưa được cấu hình tổng số lượt hợp lệ.");
+          }
+          const usedVisits = await tx.checkIn.count({
+            where: {
+              memberId,
+              checkInTime: { gte: membership.startDate, lt: now },
+            },
+          });
+          if (usedVisits >= totalLimit) {
+            throw new BadRequestException("Gói tập đã sử dụng hết số lượt check-in.");
+          }
+        } else if (
+          membership.package.type === PackageType.FIXED_TERM &&
+          membership.package.visitLimit != null &&
+          membership.package.visitLimit > 0
+        ) {
+          const monthVisits = await tx.checkIn.count({
+            where: {
+              memberId,
+              checkInTime: { gte: usageStart, lt: now },
+            },
+          });
+          if (monthVisits >= membership.package.visitLimit) {
+            throw new BadRequestException(
+              `Gói tập đã đạt giới hạn ${membership.package.visitLimit} lượt trong tháng này.`,
+            );
+          }
+        }
+
+        return tx.checkIn.create({ data });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+  }
+
   private static memberSelect = {
     id: true,
     code: true,
@@ -206,13 +322,11 @@ export class CheckinsService {
     const member = await this.resolveMemberByUserId(userId);
     const membership = await this.validateMemberForCheckIn(member);
 
-    const checkIn = await this.prisma.checkIn.create({
-      data: {
-        memberId: member.id,
-        checkInTime: new Date(),
-        status: "CHECKED_IN",
-        method: method ?? CheckInMethod.MANUAL,
-      },
+    const checkIn = await this.createQuotaCheckedIn(member.id, membership.id, {
+      memberId: member.id,
+      checkInTime: new Date(),
+      status: "CHECKED_IN",
+      method: method ?? CheckInMethod.MANUAL,
     });
 
     // Thông báo check-in thành công (STEP 8 + Realtime)
@@ -635,18 +749,16 @@ export class CheckinsService {
     const commissionAmount =
       unitPrice !== null ? Math.round(unitPrice * rate * 100) / 100 : null;
 
-    const checkIn = await this.prisma.checkIn.create({
-      data: {
-        memberId: member.id,
-        checkInTime: new Date(),
-        status: "CHECKED_IN",
-        method: dto.method ?? CheckInMethod.STAFF,
-        notes: dto.note ?? null,
-        partnerId: attributed ? partner!.id : null,
-        unitPrice,
-        commissionRate: attributed ? partner!.commissionRate : null,
-        commissionAmount,
-      },
+    const checkIn = await this.createQuotaCheckedIn(member.id, membership.id, {
+      memberId: member.id,
+      checkInTime: new Date(),
+      status: "CHECKED_IN",
+      method: dto.method ?? CheckInMethod.STAFF,
+      notes: dto.note ?? null,
+      partnerId: attributed ? partner!.id : null,
+      unitPrice,
+      commissionRate: attributed ? partner!.commissionRate : null,
+      commissionAmount,
     });
 
     // Thông báo check-in bởi lễ tân (STEP 8 + Realtime)

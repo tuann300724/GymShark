@@ -150,12 +150,6 @@ export default function PublicPackagesPage() {
                       <div className="mt-4 flex items-center gap-2 text-xs text-muted">
                         <CalendarDays className="size-3.5 shrink-0" />
                         <span>Thời hạn: {pkg.durationDays} ngày</span>
-                        {pkg.sessions ? (
-                          <>
-                            <span aria-hidden>•</span>
-                            <span>{pkg.sessions} buổi tập với PT</span>
-                          </>
-                        ) : null}
                       </div>
 
                       <ul className="mt-5 flex-1 space-y-2.5 border-t border-line pt-5">
