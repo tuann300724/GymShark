@@ -100,9 +100,21 @@ export class MessageQueryDto {
 }
 
 export class StartConversationDto {
-  @ApiProperty({ description: 'ID hội viên (phải đang được phân công cho HLV này)' })
+  @ApiPropertyOptional({
+    description:
+      'ID hội viên — dùng khi HLV chủ động mở hội thoại (phải đang được phân công)',
+  })
+  @IsOptional()
   @IsString()
-  memberId!: string;
+  memberId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'ID HLV — dùng khi hội viên chủ động nhắn HLV (không cần phân công)',
+  })
+  @IsOptional()
+  @IsString()
+  trainerId?: string;
 }
 
 export class ConversationQueryDto {

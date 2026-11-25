@@ -163,48 +163,156 @@ async function main() {
     },
   });
 
+  const extraTrainerSeed = [
+    {
+      key: 'trainerUser4',
+      email: 'trainer4@gym.com',
+      fullName: 'HLV Nguyễn Thị Thanh',
+      phone: '0907567890',
+      gender: Gender.FEMALE,
+      specialization: 'Sức mạnh & Thể hình nữ',
+      certification: 'ISSA Women’s Fitness Specialist',
+      experienceYears: 7,
+      bio: 'Đồng hành cùng hội viên nữ xây dựng nền tảng sức mạnh, cải thiện vóc dáng và giữ vững động lực dài hạn.',
+      rating: 4.8,
+      hourlyRate: 360000,
+    },
+    {
+      key: 'trainerUser5',
+      email: 'trainer5@gym.com',
+      fullName: 'HLV Phạm Đức Anh',
+      phone: '0908567890',
+      gender: Gender.MALE,
+      specialization: 'Functional Training & Mobility',
+      certification: 'FMS Level 2 · ACE-CPT',
+      experienceYears: 5,
+      bio: 'Tập trung vào chuyển động chức năng, khớp nối và khả năng vận động — giúp tập khỏe hơn mà vẫn an toàn.',
+      rating: 4.7,
+      hourlyRate: 340000,
+    },
+    {
+      key: 'trainerUser6',
+      email: 'trainer6@gym.com',
+      fullName: 'HLV Vũ Hoàng Nam',
+      phone: '0909567890',
+      gender: Gender.MALE,
+      specialization: 'Boxing & Cardio',
+      certification: 'ACE Group Fitness · Boxing Coach',
+      experienceYears: 4,
+      bio: 'Những buổi boxing và cardio cường độ cao, được thiết kế để đốt năng lượng, tăng phản xạ và cải thiện thể lực tổng hợp.',
+      rating: 4.6,
+      hourlyRate: 290000,
+    },
+  ] as const;
+
+  const extraTrainerUsers: Record<string, { id: string }> = {};
+  for (const item of extraTrainerSeed) {
+    extraTrainerUsers[item.key] = await prisma.user.upsert({
+      where: { email: item.email },
+      update: {},
+      create: {
+        email: item.email,
+        passwordHash: trainerPassword,
+        fullName: item.fullName,
+        phone: item.phone,
+        role: UserRole.TRAINER,
+      },
+    });
+  }
+
   // 4. Trainer Profile
   await prisma.trainer.upsert({
     where: { userId: trainerUser.id },
-    update: { certification: 'ISSA Certified Personal Trainer, WFF-Asia' },
+    update: {
+      specialization: 'Cardio & Giảm mỡ',
+      certification: 'ACE-CPT · Functional Movement Screen',
+      experienceYears: 4,
+      bio: 'Chuyên huấn luyện cardio và giảm mỡ bền vững. Lập kế hoạch tập cá nhân hóa theo thể trạng từng hội viên, ưu tiên kỹ thuật đúng và nhịp độ phù hợp.',
+      gender: Gender.MALE,
+      hourlyRate: 280000,
+    },
     create: {
       userId: trainerUser.id,
-      specialization: 'Tăng cơ giảm mỡ, Thể hình chuyên nghiệp (Bodybuilding)',
-      certification: 'ISSA Certified Personal Trainer, WFF-Asia',
-      experienceYears: 5,
-      bio: 'Chứng chỉ HLV Thể hình Quốc tế, cựu vận động viên thể hình Đông Nam Á. Chuyên gia thiết kế giáo án tăng cơ, giảm mỡ cho hơn 500 học viên.',
-      rating: 4.9,
-      hourlyRate: 350000,
+      specialization: 'Cardio & Giảm mỡ',
+      certification: 'ACE-CPT · Functional Movement Screen',
+      experienceYears: 4,
+      bio: 'Chuyên huấn luyện cardio và giảm mỡ bền vững. Lập kế hoạch tập cá nhân hóa theo thể trạng từng hội viên, ưu tiên kỹ thuật đúng và nhịp độ phù hợp.',
+      gender: Gender.MALE,
+      rating: 5,
+      hourlyRate: 280000,
     },
   });
 
   await prisma.trainer.upsert({
     where: { userId: trainerUser2.id },
-    update: {},
-    create: {
-      userId: trainerUser2.id,
-      specialization: 'Yoga, Pilates & Giãn cơ phục hồi',
-      certification: 'RYT-500 Yoga Alliance, ACE Group Fitness',
+    update: {
+      specialization: 'Yoga, Pilates & Phục hồi',
+      certification: 'RYT-500 Yoga Alliance · ACE Group Fitness',
       experienceYears: 4,
       bio: 'HLV Yoga & Pilates chứng nhận quốc tế. Chuyên cải thiện sự linh hoạt, tư thế và phục hồi sau chấn thương cho học viên mọi lứa tuổi.',
-      rating: 4.8,
+      gender: Gender.FEMALE,
+      rating: 4.9,
+      hourlyRate: 300000,
+    },
+    create: {
+      userId: trainerUser2.id,
+      specialization: 'Yoga, Pilates & Phục hồi',
+      certification: 'RYT-500 Yoga Alliance · ACE Group Fitness',
+      experienceYears: 4,
+      bio: 'HLV Yoga & Pilates chứng nhận quốc tế. Chuyên cải thiện sự linh hoạt, tư thế và phục hồi sau chấn thương cho học viên mọi lứa tuổi.',
+      gender: Gender.FEMALE,
+      rating: 4.9,
       hourlyRate: 300000,
     },
   });
 
   await prisma.trainer.upsert({
     where: { userId: trainerUser3.id },
-    update: {},
-    create: {
-      userId: trainerUser3.id,
-      specialization: 'HIIT, CrossFit & Rèn luyện sức bền',
-      certification: 'CrossFit L2 Trainer, NSCA-CPT',
+    update: {
+      specialization: 'HIIT, CrossFit & Sức bền',
+      certification: 'CrossFit L2 · NSCA-CPT',
       experienceYears: 6,
       bio: 'Cựu vận động viên điền kinh quốc gia. Chuyên các lớp HIIT, CrossFit, rèn thể lực tổng hợp và tinh thần thép.',
-      rating: 4.7,
+      gender: Gender.MALE,
+      rating: 4.8,
+      hourlyRate: 320000,
+    },
+    create: {
+      userId: trainerUser3.id,
+      specialization: 'HIIT, CrossFit & Sức bền',
+      certification: 'CrossFit L2 · NSCA-CPT',
+      experienceYears: 6,
+      bio: 'Cựu vận động viên điền kinh quốc gia. Chuyên các lớp HIIT, CrossFit, rèn thể lực tổng hợp và tinh thần thép.',
+      gender: Gender.MALE,
+      rating: 4.8,
       hourlyRate: 320000,
     },
   });
+  for (const item of extraTrainerSeed) {
+    await prisma.trainer.upsert({
+      where: { userId: extraTrainerUsers[item.key].id },
+      update: {
+        specialization: item.specialization,
+        certification: item.certification,
+        experienceYears: item.experienceYears,
+        bio: item.bio,
+        gender: item.gender,
+        rating: item.rating,
+        hourlyRate: item.hourlyRate,
+      },
+      create: {
+        userId: extraTrainerUsers[item.key].id,
+        specialization: item.specialization,
+        certification: item.certification,
+        experienceYears: item.experienceYears,
+        bio: item.bio,
+        gender: item.gender,
+        rating: item.rating,
+        hourlyRate: item.hourlyRate,
+      },
+    });
+  }
+
   console.log('✅ Created users and trainer profiles');
 
   // 5. Gói tập đa đối tác: seed có thể chạy lại và đồng bộ các mã mẫu này.

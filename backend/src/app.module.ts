@@ -34,6 +34,7 @@ import { CassoModule } from "./modules/casso/casso.module";
 import { EquipmentModule } from "./modules/equipment/equipment.module";
 import { BeveragesModule } from "./modules/beverages/beverages.module";
 import { PartnersModule } from "./modules/partners/partners.module";
+import { TrainerReviewsModule } from "./modules/trainer-reviews/trainer-reviews.module";
 import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
 import { RealtimeMutationInterceptor } from "./common/interceptors/realtime-mutation.interceptor";
 
@@ -84,6 +85,7 @@ import { RealtimeMutationInterceptor } from "./common/interceptors/realtime-muta
     BodyMetricsModule,
     BeveragesModule,
     PartnersModule,
+    TrainerReviewsModule,
   ],
   providers: [
     // Rate limiting: áp dụng cho mọi request

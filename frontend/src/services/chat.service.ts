@@ -78,8 +78,11 @@ export const chatApi = {
     return res.data;
   },
 
-  startConversation: async (memberId: string): Promise<ConversationItem> => {
-    const res = await apiClient.post<ConversationItem>('/chat/conversations', { memberId });
+  startConversation: async (payload: {
+    memberId?: string;
+    trainerId?: string;
+  }): Promise<ConversationItem> => {
+    const res = await apiClient.post<ConversationItem>('/chat/conversations', payload);
     return res.data;
   },
 

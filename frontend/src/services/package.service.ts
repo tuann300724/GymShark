@@ -1,5 +1,11 @@
 import apiClient from '@/lib/axios';
-import type { MembershipPackage, PublicSchedule, PublicTrainer } from './types';
+import type {
+  MembershipPackage,
+  PublicSchedule,
+  PublicTrainer,
+  PublicTrainerDetail,
+  PublicTrainerReviewList,
+} from './types';
 
 /** API công khai (public website) - không cần đăng nhập */
 export const packageApi = {
@@ -14,6 +20,21 @@ export const publicApi = {
 
   getTrainers: async (): Promise<PublicTrainer[]> => {
     const res = await apiClient.get<PublicTrainer[]>('/public/trainers');
+    return res.data;
+  },
+
+  getTrainer: async (id: string): Promise<PublicTrainerDetail> => {
+    const res = await apiClient.get<PublicTrainerDetail>(`/public/trainers/${id}`);
+    return res.data;
+  },
+
+  getTrainerReviews: async (
+    id: string,
+    params?: { page?: number; limit?: number },
+  ): Promise<PublicTrainerReviewList> => {
+    const res = await apiClient.get<PublicTrainerReviewList>(`/public/trainers/${id}/reviews`, {
+      params,
+    });
     return res.data;
   },
 

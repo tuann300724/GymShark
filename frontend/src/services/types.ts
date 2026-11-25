@@ -114,10 +114,43 @@ export interface PublicTrainer {
   certification?: string | null;
   experienceYears: number;
   bio?: string | null;
+  gender?: string | null;
   rating: number;
   hourlyRate?: string | null;
   status: string;
-  user: { id: string; fullName: string; phone?: string | null; avatarUrl?: string | null };
+  user: { id: string; fullName: string; avatarUrl?: string | null };
+}
+
+export interface PublicTrainerDetail extends PublicTrainer {
+  createdAt?: string;
+  reviewCount?: number;
+  stats: {
+    upcomingSessions: number;
+    activeMembers: number;
+  };
+}
+
+/** Đánh giá HLV hiển thị công khai trên trang hồ sơ */
+export interface PublicTrainerReview {
+  id: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+  member: { fullName: string; avatarUrl?: string | null };
+}
+
+export interface PublicTrainerReviewList {
+  data: PublicTrainerReview[];
+  total: number;
+  page: number;
+  limit: number;
+  averageRating: number | null;
+}
+
+/** Đánh giá của chính hội viên đang đăng nhập */
+export interface MyTrainerReview {
+  eligible: boolean;
+  review: (PublicTrainerReview & { trainerId?: string; memberId?: string }) | null;
 }
 
 export interface PublicSchedule {

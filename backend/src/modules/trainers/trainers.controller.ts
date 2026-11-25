@@ -11,7 +11,12 @@
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { TrainersService } from './trainers.service';
-import { CreateTrainerDto, TrainerQueryDto, UpdateTrainerDto } from './dto/trainer.dto';
+import {
+  CreateTrainerDto,
+  TrainerQueryDto,
+  UpdateMyTrainerProfileDto,
+  UpdateTrainerDto,
+} from './dto/trainer.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -48,6 +53,16 @@ export class TrainersController {
   @ApiOperation({ summary: 'Hồ sơ + thống kê của HLV đang đăng nhập (trang hồ sơ)' })
   getMyProfile(@CurrentUser('id') userId: string) {
     return this.trainersService.getMyProfile(userId);
+  }
+
+  @Patch('me/profile')
+  @Roles(Role.TRAINER)
+  @ApiOperation({ summary: 'HLV tự chỉnh hồ sơ công khai + phí kèm riêng (VND/buổi)' })
+  updateMyProfile(
+    @CurrentUser('id') userId: string,
+    @Body() dto: UpdateMyTrainerProfileDto,
+  ) {
+    return this.trainersService.updateMyProfile(userId, dto);
   }
 
   // ---------------------------------------------------------------------------

@@ -16,6 +16,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import {
   CreateTrainerDto,
   TrainerQueryDto,
+  UpdateMyTrainerProfileDto,
   UpdateTrainerDto,
 } from "./dto/trainer.dto";
 import { AuditService } from "../audit-logs/audit-logs.service";
@@ -582,6 +583,66 @@ export class TrainersService {
         upcomingSessions,
         completedSessions,
       },
+    };
+  }
+
+  /** HLV tự chỉnh hồ sơ công khai + giá kèm riêng theo buổi */
+  async updateMyProfile(userId: string, dto: UpdateMyTrainerProfileDto) {
+    const trainer = await this.resolveTrainerByUserId(userId);
+
+    const trainerData: any = {};
+    if (dto.specialization !== undefined)
+      trainerData.specialization = dto.specialization;
+    if (dto.certification !== undefined)
+      trainerData.certification = dto.certification.trim() || null;
+    if (dto.experienceYears !== undefined)
+      trainerData.experienceYears = dto.experienceYears;
+    if (dto.bio !== undefined) trainerData.bio = dto.bio.trim() || null;
+    if (dto.gender !== undefined) trainerData.gender = dto.gender;
+    if (dto.dateOfBirth !== undefined)
+      trainerData.dateOfBirth = dto.dateOfBirth
+        ? new Date(dto.dateOfBirth)
+        : null;
+    if (dto.hourlyRate !== undefined) trainerData.hourlyRate = dto.hourlyRate;
+
+    const userData: any = {};
+    if (dto.avatarUrl !== undefined)
+      userData.avatarUrl = dto.avatarUrl.trim() || null;
+
+    const [, updated] = await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id: trainer.userId }, data: userData }),
+      this.prisma.trainer.update({
+        where: { id: trainer.id },
+        data: trainerData,
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              fullName: true,
+              phone: true,
+              avatarUrl: true,
+              status: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    await this.auditService.log({
+      userId,
+      action: "TRAINER_UPDATE",
+      entity: "Trainer",
+      entityId: trainer.id,
+      metadata: {
+        fields: Object.keys({ ...trainerData, ...userData }),
+        source: "SELF",
+      },
+    });
+
+    return {
+      message: "Đã cập nhật hồ sơ huấn luyện viên.",
+      trainer: updated,
     };
   }
 

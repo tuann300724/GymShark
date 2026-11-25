@@ -20,9 +20,11 @@ type Role = 'TRAINER' | 'MEMBER';
 interface ChatClientProps {
   myRole: Role;
   emptyHint: string;
+  /** Khi vào từ trang công khai: tự mở hội thoại với HLV này. */
+  trainerId?: string | null;
 }
 
-export default function ChatClient({ myRole, emptyHint }: ChatClientProps) {
+export default function ChatClient({ myRole, emptyHint, trainerId }: ChatClientProps) {
   const qc = useQueryClient();
   const toast = useToast();
   const { confirm } = useConfirm();
@@ -35,6 +37,7 @@ export default function ChatClient({ myRole, emptyHint }: ChatClientProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const textRef = useRef('');
   const sendingRef = useRef(false);
+  const autoStartedRef = useRef(false);
 
   useEffect(() => {
     ensure();
@@ -69,6 +72,33 @@ export default function ChatClient({ myRole, emptyHint }: ChatClientProps) {
       setActiveConv(conversationList[0].id);
     }
   }, [conversationList, activeConv]);
+
+  // Vào từ "/trainers/:id" → mở (hoặc tạo) hội thoại với đúng HLV đó.
+  // Chạy 1 lần cho mỗi trainerId; ref chặn tạo trùng khi React Query refetch.
+  useEffect(() => {
+    if (myRole !== 'MEMBER' || !trainerId || loadingConvs || autoStartedRef.current) return;
+    const target = conversationList.find(
+      (c) => c.partner.type === 'TRAINER' && c.partner.id === trainerId,
+    );
+    if (target) {
+      autoStartedRef.current = true;
+      setActiveConv(target.id);
+      return;
+    }
+    autoStartedRef.current = true;
+    chatApi
+      .startConversation({ trainerId })
+      .then((conv) => {
+        void qc.invalidateQueries({ queryKey: ['chat-conversations'] });
+        setActiveConv(conv.id);
+      })
+      .catch((e: any) => {
+        toast.error(
+          'Không thể mở hội thoại với huấn luyện viên',
+          e?.response?.data?.message || e?.message,
+        );
+      });
+  }, [myRole, trainerId, loadingConvs, conversationList, qc, toast]);
 
   // Mark read khi mở hội thoại
   useEffect(() => {

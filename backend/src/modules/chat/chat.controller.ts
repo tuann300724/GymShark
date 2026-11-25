@@ -43,7 +43,8 @@ export class ChatController {
 
   @Post("conversations")
   @ApiOperation({
-    summary: "HLV mở một cuộc trò chuyện với hội viên được phân công",
+    summary:
+      "Mở hội thoại: HLV → hội viên được phân công; hội viên → bất kỳ HLV đang hoạt động",
   })
   startConversation(
     @CurrentUser() user: { id: string; role: string },

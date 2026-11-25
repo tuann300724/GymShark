@@ -10,6 +10,7 @@ import {
   IsOptional,
   IsString,
   Matches,
+  Max,
   MaxLength,
   Min,
   MinLength,
@@ -83,6 +84,64 @@ export class CreateTrainerDto {
 }
 
 export class UpdateTrainerDto extends PartialType(CreateTrainerDto) {}
+
+/**
+ * HLV tự chỉnh hồ sơ công khai của mình — KHÔNG cho đổi email, SĐT,
+ * trạng thái hay rating (những field này do quản trị viên quản lý).
+ * `hourlyRate` là phí kèm riêng tính theo BUỔI, thanh toán riêng qua chat.
+ */
+export class UpdateMyTrainerProfileDto {
+  @ApiPropertyOptional({ description: 'Chuyên môn chính' })
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(400)
+  specialization?: string;
+
+  @ApiPropertyOptional({ description: 'Chứng chỉ (để trống để xoá)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(400)
+  certification?: string;
+
+  @ApiPropertyOptional({ description: 'Số năm kinh nghiệm' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(60)
+  experienceYears?: number;
+
+  @ApiPropertyOptional({ description: 'Giới thiệu bản thân' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  bio?: string;
+
+  @ApiPropertyOptional({ description: 'URL ảnh đại diện (để trống để xoá)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(400)
+  avatarUrl?: string;
+
+  @ApiPropertyOptional({ enum: Gender })
+  @IsOptional()
+  @IsEnum(Gender)
+  gender?: Gender;
+
+  @ApiPropertyOptional({ description: 'Ngày sinh (ISO 8601)' })
+  @IsOptional()
+  @IsDateString()
+  dateOfBirth?: string;
+
+  @ApiPropertyOptional({ example: 350000, description: 'Phí kèm riêng (VND/buổi)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  @Max(1000000000)
+  hourlyRate?: number;
+}
 
 export class TrainerQueryDto {
   @ApiPropertyOptional({ default: 1 })

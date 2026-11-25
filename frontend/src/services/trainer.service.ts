@@ -93,6 +93,21 @@ export const trainerApi = {
     return res.data;
   },
 
+  /** HLV tự chỉnh hồ sơ công khai + phí kèm riêng (VND/buổi) */
+  updateMyProfile: async (payload: {
+    specialization?: string;
+    certification?: string | null;
+    experienceYears?: number;
+    bio?: string | null;
+    avatarUrl?: string | null;
+    gender?: 'MALE' | 'FEMALE' | 'OTHER';
+    dateOfBirth?: string | null;
+    hourlyRate?: number | null;
+  }): Promise<{ message: string; trainer: TrainerDetail }> => {
+    const res = await apiClient.patch('/trainers/me/profile', payload);
+    return res.data;
+  },
+
   myTrainer: async (): Promise<{
     trainer: TrainerPublic | null;
     assignment: TrainerAssignment | null;

@@ -157,6 +157,9 @@ export const AUDIT_ACTION_META: Record<string, { label: string; variant: BadgeVa
   TRAINER_CREATE: { label: 'Tạo huấn luyện viên', variant: 'success' },
   TRAINER_UPDATE: { label: 'Cập nhật huấn luyện viên', variant: 'default' },
   TRAINER_REMOVE: { label: 'Ngừng hoạt động HLV', variant: 'warning' },
+  TRAINER_REVIEW_CREATE: { label: 'Đánh giá huấn luyện viên', variant: 'success' },
+  TRAINER_REVIEW_UPDATE: { label: 'Sửa đánh giá HLV', variant: 'default' },
+  TRAINER_REVIEW_DELETE: { label: 'Xoá đánh giá HLV', variant: 'destructive' },
 
   // Lịch tập
   SCHEDULE_CREATE: { label: 'Tạo buổi tập', variant: 'success' },

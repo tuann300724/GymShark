@@ -1,17 +1,20 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { memberApi } from '@/services/member.service';
 import { trainerApi } from '@/services/trainer.service';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/components/ui/toast';
-import { formatDate } from '@/lib/utils';
+import { formatCurrency, formatDate } from '@/lib/utils';
 import { TRAINER_STATUS_META } from '@/lib/status';
 import {
   User,
@@ -23,6 +26,8 @@ import {
   Star,
   KeyRound,
   ShieldCheck,
+  Wallet,
+  Pencil,
 } from 'lucide-react';
 
 export default function TrainerProfilePage() {
@@ -70,6 +75,73 @@ export default function TrainerProfilePage() {
       return;
     }
     changePw.mutate();
+  };
+
+  // Hồ sơ công khai + phí kèm riêng do chính HLV chỉnh sửa
+  const qc = useQueryClient();
+  const [editOpen, setEditOpen] = useState(false);
+  const [form, setForm] = useState({
+    specialization: '',
+    certification: '',
+    experienceYears: '0',
+    bio: '',
+    avatarUrl: '',
+    gender: 'MALE',
+    dateOfBirth: '',
+    hourlyRate: '',
+  });
+
+  const openEdit = () => {
+    if (!profile) return;
+    setForm({
+      specialization: profile.specialization ?? '',
+      certification: profile.certification ?? '',
+      experienceYears: String(profile.experienceYears ?? 0),
+      bio: profile.bio ?? '',
+      avatarUrl: profile.user?.avatarUrl ?? '',
+      gender: profile.gender ?? 'MALE',
+      dateOfBirth: profile.dateOfBirth
+        ? new Date(profile.dateOfBirth).toISOString().slice(0, 10)
+        : '',
+      hourlyRate: profile.hourlyRate != null ? String(Number(profile.hourlyRate)) : '',
+    });
+    setEditOpen(true);
+  };
+
+  const updateProfile = useMutation({
+    mutationFn: () =>
+      trainerApi.updateMyProfile({
+        specialization: form.specialization.trim(),
+        certification: form.certification.trim() || null,
+        experienceYears: Number(form.experienceYears) || 0,
+        bio: form.bio.trim() || null,
+        avatarUrl: form.avatarUrl.trim() || null,
+        gender: form.gender as 'MALE' | 'FEMALE' | 'OTHER',
+        dateOfBirth: form.dateOfBirth ? new Date(form.dateOfBirth).toISOString() : null,
+        hourlyRate: form.hourlyRate.trim() ? Number(form.hourlyRate) : null,
+      }),
+    onSuccess: (res) => {
+      toast.success(res?.message || 'Đã cập nhật hồ sơ huấn luyện viên');
+      setEditOpen(false);
+      void refetch();
+      void qc.invalidateQueries({ queryKey: ['public-trainer', profile?.id] });
+      void qc.invalidateQueries({ queryKey: ['public-trainers'] });
+    },
+    onError: (e: any) =>
+      toast.error('Không thể cập nhật hồ sơ', e?.response?.data?.message || e?.message),
+  });
+
+  const submitProfile = () => {
+    if (form.specialization.trim().length < 2) {
+      toast.error('Chuyên môn phải có ít nhất 2 ký tự');
+      return;
+    }
+    const rate = form.hourlyRate.trim() ? Number(form.hourlyRate) : null;
+    if (rate !== null && (!Number.isFinite(rate) || rate < 0)) {
+      toast.error('Phí kèm riêng phải là số không âm');
+      return;
+    }
+    updateProfile.mutate();
   };
 
   const statusMeta = profile
@@ -130,6 +202,9 @@ export default function TrainerProfilePage() {
                   </span>
                   <span className="text-xs text-muted">/ 5.0</span>
                 </div>
+                <Button variant="outline" size="sm" onClick={openEdit}>
+                  <Pencil className="size-4" /> Chỉnh sửa hồ sơ
+                </Button>
               </div>
 
               <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -181,7 +256,7 @@ export default function TrainerProfilePage() {
                     Phí kèm riêng
                   </p>
                   <p className="mt-0.5 font-display text-lg font-bold text-neon">
-                    {Number(profile.hourlyRate).toLocaleString('vi-VN')} ₫{' '}
+                    {formatCurrency(profile.hourlyRate)}{' '}
                     <span className="font-sans text-xs font-medium">/ buổi</span>
                   </p>
                 </div>
@@ -235,6 +310,97 @@ export default function TrainerProfilePage() {
           </Card>
         </>
       )}
+
+      <Dialog
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        title="Chỉnh sửa hồ sơ huấn luyện viên"
+        description="Thông tin này hiển thị công khai trên trang giới thiệu HLV. Phí kèm riêng được tính theo buổi và thanh toán trực tiếp với bạn qua tin nhắn."
+      >
+        <div className="space-y-4">
+          <Input
+            label="Chuyên môn chính"
+            value={form.specialization}
+            onChange={(e) => setForm({ ...form, specialization: e.target.value })}
+            placeholder="Ví dụ: Giảm mỡ & tăng cơ"
+            maxLength={400}
+          />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Input
+              label="Số năm kinh nghiệm"
+              type="number"
+              min={0}
+              max={60}
+              value={form.experienceYears}
+              onChange={(e) => setForm({ ...form, experienceYears: e.target.value })}
+            />
+            <Select
+              label="Giới tính"
+              value={form.gender}
+              onChange={(e) => setForm({ ...form, gender: e.target.value })}
+              options={[
+                { value: 'MALE', label: 'Nam' },
+                { value: 'FEMALE', label: 'Nữ' },
+                { value: 'OTHER', label: 'Khác' },
+              ]}
+            />
+          </div>
+          <Input
+            label="Ngày sinh"
+            type="date"
+            value={form.dateOfBirth}
+            onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })}
+          />
+          <Input
+            label="Chứng chỉ"
+            value={form.certification}
+            onChange={(e) => setForm({ ...form, certification: e.target.value })}
+            placeholder="Ví dụ: ACE-CPT, NASM..."
+            maxLength={400}
+          />
+          <Input
+            label="Ảnh đại diện (URL)"
+            value={form.avatarUrl}
+            onChange={(e) => setForm({ ...form, avatarUrl: e.target.value })}
+            placeholder="https://..."
+            maxLength={400}
+          />
+          <Textarea
+            label="Giới thiệu bản thân"
+            value={form.bio}
+            onChange={(e) => setForm({ ...form, bio: e.target.value })}
+            placeholder="Chia sẻ về phương pháp huấn luyện của bạn..."
+            maxLength={2000}
+            rows={4}
+          />
+          <div className="rounded-xl border border-neon/30 bg-neon/5 p-4">
+            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted">
+              <Wallet className="size-4 text-neon" /> Phí kèm riêng (VNĐ / buổi)
+            </p>
+            <Input
+              className="mt-2"
+              type="number"
+              min={0}
+              max={1000000000}
+              value={form.hourlyRate}
+              onChange={(e) => setForm({ ...form, hourlyRate: e.target.value })}
+              placeholder="Ví dụ: 350000"
+            />
+            <p className="mt-2 text-xs text-muted">
+              Hội viên xem giá này trên hồ sơ công khai và nhắn tin trực tiếp để đặt lịch. Để trống
+              nếu bạn muốn liên hệ thỏa thuận riêng.
+            </p>
+          </div>
+          <div className="flex flex-wrap justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setEditOpen(false)}>
+              Huỷ
+            </Button>
+            <Button variant="primary" isLoading={updateProfile.isPending} onClick={submitProfile}>
+              Lưu thay đổi
+            </Button>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 }

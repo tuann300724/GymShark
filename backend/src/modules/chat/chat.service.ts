@@ -153,8 +153,12 @@ export class ChatService {
     );
   }
 
-  private async ensureConversation(trainerId: string, memberId: string) {
-    await this.assertAssignment(trainerId, memberId);
+  private async ensureConversation(
+    trainerId: string,
+    memberId: string,
+    requireAssignment = true,
+  ) {
+    if (requireAssignment) await this.assertAssignment(trainerId, memberId);
     return this.prisma.conversation.upsert({
       where: { trainerId_memberId: { trainerId, memberId } },
       create: { trainerId, memberId },
@@ -211,16 +215,11 @@ export class ChatService {
       await this.syncTrainerConversations(actor.trainerId);
     else await this.syncMemberConversations(actor.memberId);
 
+    // HLV thấy mọi hội thoại của mình, kể cả hội viên chủ động nhắn mà chưa
+    // được phân công (luồng mới cho phép MEMBER nhắn trực tiếp HLV ACTIVE).
     const where: Prisma.ConversationWhereInput =
       actor.kind === "TRAINER"
-        ? {
-            trainerId: actor.trainerId,
-            member: {
-              trainerMembers: {
-                some: { trainerId: actor.trainerId, status: "ACTIVE" },
-              },
-            },
-          }
+        ? { trainerId: actor.trainerId }
         : { memberId: actor.memberId };
 
     if (actor.kind === "TRAINER" && query.search) {
@@ -373,15 +372,38 @@ export class ChatService {
     dto: StartConversationDto,
   ) {
     const actor = await this.resolveActor(user);
-    if (actor.kind !== "TRAINER") {
-      throw new ForbiddenException(
-        "Chỉ huấn luyện viên được chủ động mở cuộc trò chuyện.",
-      );
+
+    let trainerId: string;
+    let memberId: string;
+    let requireAssignment = true;
+
+    if (actor.kind === "TRAINER") {
+      if (!dto.memberId) {
+        throw new BadRequestException("Thiếu ID hội viên cần nhắn tin.");
+      }
+      trainerId = actor.trainerId;
+      memberId = dto.memberId;
+    } else {
+      if (!dto.trainerId) {
+        throw new BadRequestException("Thiếu ID huấn luyện viên cần nhắn tin.");
+      }
+      const trainer = await this.prisma.trainer.findFirst({
+        where: { id: dto.trainerId, status: "ACTIVE" },
+        select: { id: true },
+      });
+      if (!trainer) {
+        throw new NotFoundException("Không tìm thấy huấn luyện viên đang hoạt động.");
+      }
+      trainerId = trainer.id;
+      memberId = actor.memberId;
+      // Hội viên đã đăng nhập được nhắn bất kỳ HLV ACTIVE, không cần phân công.
+      requireAssignment = false;
     }
 
     const conversation = await this.ensureConversation(
-      actor.trainerId,
-      dto.memberId,
+      trainerId,
+      memberId,
+      requireAssignment,
     );
 
     const row = await this.prisma.conversation.findUnique({
@@ -430,7 +452,8 @@ export class ChatService {
       conversationId,
     );
 
-    await this.assertAssignment(conversation.trainerId, conversation.memberId);
+    // Không kiểm tra phân công ở đây: hội viên đã đăng nhập có thể chủ động
+    // nhắn bất kỳ HLV ACTIVE; quyền truy cập hội thoại đã được kiểm tra ở trên.
 
     const attachments = dto.attachments ?? [];
     const explicitType = dto.type;
