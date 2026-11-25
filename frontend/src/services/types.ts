@@ -92,6 +92,14 @@ export interface MembershipPackage {
   _count?: { memberships: number };
 }
 
+export interface PublicPartnerBranch {
+  id: string;
+  name: string;
+  address?: string | null;
+  phone?: string | null;
+  partner: { businessName: string };
+}
+
 /** Payload tạo/cập nhật gói đa đối tác; mã gói do backend tự sinh. */
 export interface MembershipPackageInput {
   name: string;

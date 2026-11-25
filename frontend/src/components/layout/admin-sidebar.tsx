@@ -52,8 +52,8 @@ const STAFF_HIDDEN_HREFS = [
   '/admin/reports/beverages',
 ];
 
-/** Mục chỉ riêng đối tác dùng (admin/manager/staff không có dữ liệu của nó). */
-const PARTNER_ONLY_HREFS = ['/admin/finance'];
+/** Mục chỉ riêng đối tác dùng (admin/manager/staff không có dữ liệu theo cơ sở của họ). */
+const PARTNER_ONLY_HREFS = ['/admin/finance', '/admin/facility-members', '/admin/branches'];
 
 /**
  * Menu chung: đối tác chỉ thấy trang quản lý cơ sở của mình —

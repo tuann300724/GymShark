@@ -1032,6 +1032,16 @@ export class AuthService {
       ip,
     });
 
+    // Báo tổ quản trị để hồ sơ đối tác mới xuất hiện trong chuông thông báo.
+    await this.notificationsService.notifyAdmins({
+      type: "SYSTEM",
+      title: "Có yêu cầu đăng ký đối tác mới",
+      content: `${dto.businessName} — chủ doanh nghiệp ${dto.ownerName} vừa gửi hồ sơ đăng ký đối tác.`,
+      link: `/admin/partners/${partner.id}`,
+      referenceType: "PARTNER_REGISTERED",
+      referenceId: partner.id,
+    });
+
     return {
       message: "Đã gửi yêu cầu đăng ký đối tác phòng gym, chờ admin duyệt",
       partner: {

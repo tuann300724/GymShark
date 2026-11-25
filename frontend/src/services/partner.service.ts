@@ -69,8 +69,9 @@ export const partnerApi = {
     return res.data;
   },
 
-  deleteMyBranch: async (id: string): Promise<void> => {
-    await apiClient.delete(`/partners/me/branches/${id}`);
+  deleteMyBranch: async (id: string): Promise<{ message: string }> => {
+    const res = await apiClient.delete<{ message: string }>(`/partners/me/branches/${id}`);
+    return res.data;
   },
 
   // ---------- Khu vực Admin ----------

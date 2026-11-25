@@ -188,7 +188,9 @@ export class CheckinsService {
           },
         });
         if (!membership) {
-          throw new BadRequestException("Gói tập không còn hiệu lực để check-in.");
+          throw new BadRequestException(
+            "Gói tập không còn hiệu lực để check-in.",
+          );
         }
         if (
           membership.freezeStartedAt &&
@@ -196,7 +198,9 @@ export class CheckinsService {
           membership.freezeEndsAt &&
           membership.freezeEndsAt >= now
         ) {
-          throw new BadRequestException("Gói tập đang trong thời gian bảo lưu.");
+          throw new BadRequestException(
+            "Gói tập đang trong thời gian bảo lưu.",
+          );
         }
 
         const activeCheckIn = await tx.checkIn.findFirst({
@@ -204,7 +208,9 @@ export class CheckinsService {
           select: { id: true },
         });
         if (activeCheckIn) {
-          throw new BadRequestException("Hội viên đang có phiên tập chưa check-out.");
+          throw new BadRequestException(
+            "Hội viên đang có phiên tập chưa check-out.",
+          );
         }
 
         // A business day is based on Vietnam time (UTC+7), across all partners.
@@ -212,9 +218,13 @@ export class CheckinsService {
         const year = vietnamNow.getUTCFullYear();
         const month = vietnamNow.getUTCMonth();
         const day = vietnamNow.getUTCDate();
-        const dayStart = new Date(Date.UTC(year, month, day) - 7 * 60 * 60 * 1000);
+        const dayStart = new Date(
+          Date.UTC(year, month, day) - 7 * 60 * 60 * 1000,
+        );
         const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
-        const monthStart = new Date(Date.UTC(year, month, 1) - 7 * 60 * 60 * 1000);
+        const monthStart = new Date(
+          Date.UTC(year, month, 1) - 7 * 60 * 60 * 1000,
+        );
         const usageStart = new Date(
           Math.max(monthStart.getTime(), membership.startDate.getTime()),
         );
@@ -232,7 +242,9 @@ export class CheckinsService {
         if (membership.package.type === PackageType.CREDIT_BASED) {
           const totalLimit = membership.package.visitLimit;
           if (totalLimit == null || totalLimit < 1) {
-            throw new BadRequestException("Gói lượt chưa được cấu hình tổng số lượt hợp lệ.");
+            throw new BadRequestException(
+              "Gói lượt chưa được cấu hình tổng số lượt hợp lệ.",
+            );
           }
           const usedVisits = await tx.checkIn.count({
             where: {
@@ -241,7 +253,9 @@ export class CheckinsService {
             },
           });
           if (usedVisits >= totalLimit) {
-            throw new BadRequestException("Gói tập đã sử dụng hết số lượt check-in.");
+            throw new BadRequestException(
+              "Gói tập đã sử dụng hết số lượt check-in.",
+            );
           }
         } else if (
           membership.package.type === PackageType.FIXED_TERM &&
@@ -293,7 +307,10 @@ export class CheckinsService {
    * Trả về id đối tác để thêm vào where; không có hồ sơ → chuỗi không khớp id nào
    * (KHÔNG được trả null vì `partnerId = null` sẽ làm lộ toàn bộ check-in hệ thống).
    */
-  private async partnerFacilityId(role?: string, userId?: string): Promise<string | null> {
+  private async partnerFacilityId(
+    role?: string,
+    userId?: string,
+  ): Promise<string | null> {
     if (role !== Role.PARTNER || !userId) return null;
     const partner = await this.prisma.partner.findUnique({
       where: { userId },
@@ -736,16 +753,22 @@ export class CheckinsService {
     const attributed = partner?.status === "APPROVED";
     const rate = attributed ? Number(partner!.commissionRate) : 0;
     const total =
-      attributed && membership ? Number(membership.finalAmount ?? membership.price ?? 0) : 0;
+      attributed && membership
+        ? Number(membership.finalAmount ?? membership.price ?? 0)
+        : 0;
     const days =
       attributed && membership
         ? Math.max(
             1,
-            Math.ceil((membership.endDate.getTime() - membership.startDate.getTime()) / 86400000),
+            Math.ceil(
+              (membership.endDate.getTime() - membership.startDate.getTime()) /
+                86400000,
+            ),
           )
         : 1;
     // Giá 1 lượt = giá trị hợp đồng / số ngày hiệu lực (không dùng quota buổi PT).
-    const unitPrice = attributed && membership ? Math.round((total / days) * 100) / 100 : null;
+    const unitPrice =
+      attributed && membership ? Math.round((total / days) * 100) / 100 : null;
     const commissionAmount =
       unitPrice !== null ? Math.round(unitPrice * rate * 100) / 100 : null;
 
@@ -816,7 +839,12 @@ export class CheckinsService {
           ? { id: membership.id, packageName: membership.package?.name ?? null }
           : null,
         commission: attributed
-          ? { unitPrice, rate, amount: commissionAmount, partnerId: partner!.id }
+          ? {
+              unitPrice,
+              rate,
+              amount: commissionAmount,
+              partnerId: partner!.id,
+            }
           : null,
       },
     };
@@ -1037,19 +1065,47 @@ export class CheckinsService {
   }
 
   /**
-   * GET /checkins/facility-members — tìm hội viên đã từng check-in vào cơ sở của
-   * đối tác (phục vụ check-in tay). Không lộ danh bạ toàn hệ thống: hội viên chưa
-   * từng tới cơ sở này phải dùng quét khuôn mặt 1:N.
+   * GET /checkins/facility-members — tìm hội viên đang đủ điều kiện tập để đối
+   * tác check-in thủ công. Gói hội viên không gắn với một cơ sở cụ thể, vì vậy
+   * lọc theo hợp đồng còn hiệu lực; lịch sử lượt đến vẫn được tính riêng theo cơ sở.
    */
-  async facilityMembers(search: string, actorId: string, pageInput?: number | string, limitInput?: number | string) {
-    const facilityId = (await this.partnerFacilityId(Role.PARTNER, actorId)) ?? "__NO_FACILITY__";
+  async facilityMembers(
+    search: string,
+    actorId: string,
+    pageInput?: number | string,
+    limitInput?: number | string,
+  ) {
+    const facilityId =
+      (await this.partnerFacilityId(Role.PARTNER, actorId)) ??
+      "__NO_FACILITY__";
     const term = (search ?? "").trim();
     const page = Math.max(1, Number(pageInput) || 1);
     const limit = Math.min(100, Math.max(1, Number(limitInput) || 20));
+    const now = new Date();
     const where: Prisma.MemberWhereInput = {
-      checkIns: { some: { partnerId: facilityId } },
+      status: "ACTIVE",
+      memberships: {
+        some: {
+          status: "ACTIVE",
+          startDate: { lte: now },
+          endDate: { gte: now },
+          OR: [
+            { freezeStartedAt: null },
+            { freezeEndsAt: null },
+            { freezeStartedAt: { gt: now } },
+            { freezeEndsAt: { lt: now } },
+          ],
+        },
+      },
+      checkIns: { none: { status: "CHECKED_IN" } },
       ...(term
-        ? { OR: [{ fullName: { contains: term } }, { code: { contains: term } }, { phone: { contains: term } }] }
+        ? {
+            OR: [
+              { fullName: { contains: term } },
+              { code: { contains: term } },
+              { phone: { contains: term } },
+            ],
+          }
         : {}),
     };
 
@@ -1064,7 +1120,9 @@ export class CheckinsService {
             orderBy: { checkInTime: "desc" },
             take: 1,
           },
-          _count: { select: { checkIns: { where: { partnerId: facilityId } } } },
+          _count: {
+            select: { checkIns: { where: { partnerId: facilityId } } },
+          },
         },
         orderBy: { fullName: "asc" },
         skip: (page - 1) * limit,

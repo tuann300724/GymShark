@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, MapPin, Phone, Plus, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useToast } from '@/components/ui/toast';
 import { PartnerBranchInput, PartnerBranchRecord, partnerApi } from '@/services/partner.service';
+import BranchAddressPicker from '@/components/partners/branch-address-picker';
 
 const EMPTY_FORM: PartnerBranchInput = { name: '', address: '', phone: '' };
 
@@ -46,9 +47,9 @@ export default function PartnerBranchesPage() {
 
   const deleteMutation = useMutation({
     mutationFn: partnerApi.deleteMyBranch,
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['partner-my-branches'] });
-      toast.success('Đã xóa cơ sở');
+      toast.success(result.message || 'Đã xóa cơ sở');
     },
     onError: (error: any) =>
       toast.error('Không xóa được cơ sở', error.response?.data?.message || 'Vui lòng thử lại.'),
@@ -62,7 +63,13 @@ export default function PartnerBranchesPage() {
 
   const openEdit = (branch: PartnerBranchRecord) => {
     setEditing(branch);
-    setForm({ name: branch.name, address: branch.address || '', phone: branch.phone || '' });
+    setForm({
+      name: branch.name,
+      address: branch.address || '',
+      phone: branch.phone || '',
+      latitude: branch.latitude,
+      longitude: branch.longitude,
+    });
     setOpen(true);
   };
 
@@ -79,6 +86,11 @@ export default function PartnerBranchesPage() {
     field: keyof Pick<PartnerBranchInput, 'name' | 'address' | 'phone'>,
     value: string,
   ) => setForm((current) => ({ ...current, [field]: value }));
+
+  const updateAddress = useCallback(
+    (address: string) => setForm((current) => ({ ...current, address })),
+    [],
+  );
 
   return (
     <div className="space-y-6">
@@ -188,11 +200,12 @@ export default function PartnerBranchesPage() {
             required
             maxLength={200}
           />
-          <Input
-            label="Địa chỉ"
-            value={form.address || ''}
-            onChange={(event) => updateField('address', event.target.value)}
-            maxLength={500}
+          <BranchAddressPicker
+            key={editing?.id || 'new-branch'}
+            initialAddress={editing?.address || ''}
+            initialLatitude={form.latitude}
+            initialLongitude={form.longitude}
+            onAddressChange={updateAddress}
           />
           <Input
             label="Số điện thoại"

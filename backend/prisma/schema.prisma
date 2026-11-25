@@ -272,6 +272,8 @@ model Membership {
   ptSessionsIncluded  Int?
   ptSessionsUsed      Int               @default(0)
   ptSessionValue      Decimal?          @db.Decimal(12, 2)
+  /// Giới hạn check-in mỗi ngày được lưu cùng gói hội viên để tương thích schema SQL hiện tại.
+  dailyVisitLimit     Int               @default(1)
   freezeStartedAt     DateTime?
   freezeEndsAt        DateTime?
   status              String            @default("ACTIVE") @db.NVarChar(400)

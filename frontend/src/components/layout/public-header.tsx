@@ -16,8 +16,6 @@ const NAV_ITEMS = [
   { name: 'Trang chủ', href: '/' },
   { name: 'Gói tập', href: '/packages' },
   { name: 'Huấn luyện viên', href: '/trainers' },
-  { name: 'Lịch tập', href: '/schedule' },
-  { name: 'Blog', href: '/blog' },
   { name: 'Đối tác', href: '/partner/register' },
   { name: 'Liên hệ', href: '/contact' },
 ];
@@ -26,8 +24,6 @@ const SEARCH_INDEX = [
   { title: 'Trang chủ', href: '/', desc: 'Tổng quan GymMaster Pro' },
   { title: 'Gói tập & giá', href: '/packages', desc: 'Các gói hội viên hiện hành' },
   { title: 'Huấn luyện viên', href: '/trainers', desc: 'Đội ngũ PT chuyên nghiệp' },
-  { title: 'Lịch tập & lớp học', href: '/schedule', desc: 'Thời khóa biểu tuần' },
-  { title: 'Blog fitness', href: '/blog', desc: 'Bài viết tập luyện & dinh dưỡng' },
   { title: 'Về GymMaster', href: '/about', desc: 'Giới thiệu hệ thống phòng tập' },
   { title: 'Liên hệ', href: '/contact', desc: 'Địa chỉ, hotline, giờ mở cửa' },
   { title: 'Đăng nhập', href: '/login', desc: 'Đăng nhập tài khoản' },

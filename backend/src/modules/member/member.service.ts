@@ -324,9 +324,7 @@ export class MemberService {
    * originalPrice - discount = finalAmount
    * STEP 8 — cộng thêm: giới hạn tổng lượt (đếm Payment PENDING+PAID) + giới hạn mỗi hội viên.
    */
-  private async calcPrice(
-    pkg: { price: Prisma.Decimal },
-  ) {
+  private async calcPrice(pkg: { price: Prisma.Decimal }) {
     const original = new Prisma.Decimal(pkg.price.toString());
     const discount = new Prisma.Decimal(0);
     let final = original.minus(discount);
@@ -475,9 +473,7 @@ export class MemberService {
     );
     const paymentCode = await this.genPaymentCode();
 
-    const { original, discount, final } = await this.calcPrice(
-      pkg,
-    );
+    const { original, discount, final } = await this.calcPrice(pkg);
 
     const result = await this.prisma.$transaction(async (tx) => {
       const created = await tx.membership.create({
@@ -491,6 +487,7 @@ export class MemberService {
           finalAmount: final,
           ptSessionsIncluded: pkg.sessions,
           ptSessionValue: pkg.ptSessionValue,
+          dailyVisitLimit: pkg.dailyVisitLimit,
           status: "PENDING",
         },
         include: { package: true },
@@ -630,9 +627,7 @@ export class MemberService {
     );
     const paymentCode = await this.genPaymentCode();
 
-    const { original, discount, final } = await this.calcPrice(
-      pkg,
-    );
+    const { original, discount, final } = await this.calcPrice(pkg);
 
     const result = await this.prisma.$transaction(async (tx) => {
       const created = await tx.membership.create({
@@ -646,6 +641,7 @@ export class MemberService {
           finalAmount: final,
           ptSessionsIncluded: pkg.sessions,
           ptSessionValue: pkg.ptSessionValue,
+          dailyVisitLimit: pkg.dailyVisitLimit,
           status: "PENDING",
         },
         include: { package: true },

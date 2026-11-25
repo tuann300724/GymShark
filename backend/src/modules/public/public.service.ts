@@ -1,7 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PackageType } from '../../common/constants/db-enums';
-import { PrismaService } from '../../prisma/prisma.service';
-import { parseJsonText } from '../../common/utils/json-text';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PackageType } from "../../common/constants/db-enums";
+import { PrismaService } from "../../prisma/prisma.service";
+import { parseJsonText } from "../../common/utils/json-text";
 
 @Injectable()
 export class PublicService {
@@ -10,19 +10,39 @@ export class PublicService {
   /** Membership packages cho trang public (chỉ lấy gói ACTIVE) */
   async getPackages() {
     const packages = await this.prisma.membershipPackage.findMany({
-      where: { status: 'ACTIVE', type: { not: PackageType.SESSION_BASED } },
-      orderBy: { price: 'asc' },
+      where: { status: "ACTIVE", type: { not: PackageType.SESSION_BASED } },
+      orderBy: { price: "asc" },
     });
     return packages.map((pkg) => ({
       ...pkg,
-      features: parseJsonText<{ title?: string; items: string[] }>(pkg.features),
+      features: parseJsonText<{ title?: string; items: string[] }>(
+        pkg.features,
+      ),
     }));
+  }
+
+  /** Chi nhánh công khai có thể được hội viên chọn khi đăng ký gói tập. */
+  async getBranches() {
+    return this.prisma.partnerBranch.findMany({
+      where: {
+        status: "ACTIVE",
+        partner: { is: { status: "APPROVED" } },
+      },
+      select: {
+        id: true,
+        name: true,
+        address: true,
+        phone: true,
+        partner: { select: { businessName: true } },
+      },
+      orderBy: [{ partner: { businessName: "asc" } }, { name: "asc" }],
+    });
   }
 
   /** Huấn luyện viên đang hoạt động cho trang public */
   async getTrainers() {
     return this.prisma.trainer.findMany({
-      where: { status: 'ACTIVE' },
+      where: { status: "ACTIVE" },
       include: {
         user: {
           select: {
@@ -32,7 +52,7 @@ export class PublicService {
           },
         },
       },
-      orderBy: { rating: 'desc' },
+      orderBy: { rating: "desc" },
     });
   }
 
@@ -42,7 +62,7 @@ export class PublicService {
    */
   async getTrainer(id: string) {
     const trainer = await this.prisma.trainer.findFirst({
-      where: { id, status: 'ACTIVE' },
+      where: { id, status: "ACTIVE" },
       select: {
         id: true,
         specialization: true,
@@ -64,18 +84,19 @@ export class PublicService {
       },
     });
 
-    if (!trainer) throw new NotFoundException('Không tìm thấy huấn luyện viên.');
+    if (!trainer)
+      throw new NotFoundException("Không tìm thấy huấn luyện viên.");
 
     const [upcomingSessions, activeMembers, reviewCount] = await Promise.all([
       this.prisma.trainingSchedule.count({
         where: {
           trainerId: id,
-          status: 'SCHEDULED',
+          status: "SCHEDULED",
           startTime: { gte: new Date() },
         },
       }),
       this.prisma.trainerMember.count({
-        where: { trainerId: id, status: 'ACTIVE' },
+        where: { trainerId: id, status: "ACTIVE" },
       }),
       this.prisma.trainerReview.count({ where: { trainerId: id } }),
     ]);
@@ -93,10 +114,11 @@ export class PublicService {
     query: { page?: number; limit?: number } = {},
   ) {
     const trainer = await this.prisma.trainer.findFirst({
-      where: { id, status: 'ACTIVE' },
+      where: { id, status: "ACTIVE" },
       select: { id: true },
     });
-    if (!trainer) throw new NotFoundException('Không tìm thấy huấn luyện viên.');
+    if (!trainer)
+      throw new NotFoundException("Không tìm thấy huấn luyện viên.");
 
     const page = Math.max(1, Number(query.page) || 1);
     const limit = Math.min(50, Math.max(1, Number(query.limit) || 20));
@@ -111,7 +133,7 @@ export class PublicService {
           createdAt: true,
           member: { select: { fullName: true, avatarUrl: true } },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         skip: (page - 1) * limit,
         take: limit,
       }),
@@ -139,7 +161,7 @@ export class PublicService {
       where: {
         memberId: null,
         startTime: { gte: new Date() },
-        status: 'SCHEDULED',
+        status: "SCHEDULED",
       },
       include: {
         trainer: {
@@ -151,7 +173,7 @@ export class PublicService {
         },
         room: { select: { id: true, name: true, capacity: true } },
       },
-      orderBy: { startTime: 'asc' },
+      orderBy: { startTime: "asc" },
       take: 50,
     });
   }
@@ -160,7 +182,7 @@ export class PublicService {
   async getHomeStats() {
     const [memberCount, trainerCount] = await Promise.all([
       this.prisma.member.count(),
-      this.prisma.trainer.count({ where: { status: 'ACTIVE' } }),
+      this.prisma.trainer.count({ where: { status: "ACTIVE" } }),
     ]);
     return { totalMembers: memberCount, totalTrainers: trainerCount };
   }

@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { getStoredUser } from '@/services/auth.service';
 import { Skeleton } from '@/components/ui/skeleton';
-import { canAccessAdminPath, isPartnerRole } from '@/lib/auth';
+import { canAccessAdminPath, isAdminRole, isPartnerRole } from '@/lib/auth';
 
-type GuardState = 'loading' | 'allowed' | 'guest' | 'member' | 'partner';
+type GuardState = 'loading' | 'allowed' | 'guest' | 'member' | 'partner' | 'restricted';
 
 const PARTNER_HOME = '/admin/dashboard';
 
@@ -35,13 +35,18 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
       );
       return;
     }
-    setState(canAccessAdminPath(user.role, pathname) ? 'allowed' : 'member');
+    if (canAccessAdminPath(user.role, pathname)) {
+      setState('allowed');
+    } else {
+      setState(isAdminRole(user.role) ? 'restricted' : 'member');
+    }
   }, [pathname]);
 
   useEffect(() => {
     if (state === 'guest') router.replace('/login');
     if (state === 'member') router.replace('/member');
     if (state === 'partner') router.replace(PARTNER_HOME);
+    if (state === 'restricted') router.replace('/admin/dashboard');
   }, [state, router]);
 
   if (state === 'loading') {

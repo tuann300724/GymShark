@@ -23,6 +23,7 @@ dist-dev/
 .env.development.local
 .env.test.local
 .env.production.local
+TAI_KHOAN_MOI.txt
 
 # Logs
 npm-debug.log*

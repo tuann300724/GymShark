@@ -3,16 +3,16 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
-} from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PartnerStatus } from '../../common/constants/db-enums';
-import { PrismaService } from '../../prisma/prisma.service';
-import { AuditService } from '../audit-logs/audit-logs.service';
-import { PartnerBranchDto } from './dto/update-partner-branch.dto';
-import { UpdatePartnerProfileDto } from './dto/update-partner-profile.dto';
-import { QueryPartnersDto } from './dto/query-partners.dto';
+} from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import { PartnerStatus } from "../../common/constants/db-enums";
+import { PrismaService } from "../../prisma/prisma.service";
+import { AuditService } from "../audit-logs/audit-logs.service";
+import { PartnerBranchDto } from "./dto/update-partner-branch.dto";
+import { UpdatePartnerProfileDto } from "./dto/update-partner-profile.dto";
+import { QueryPartnersDto } from "./dto/query-partners.dto";
 
-export type PartnerDecision = 'APPROVE' | 'REJECT' | 'SUSPEND';
+export type PartnerDecision = "APPROVE" | "REJECT" | "SUSPEND";
 
 const PARTNER_SELECT = {
   id: true,
@@ -49,21 +49,26 @@ export class PartnersService {
 
   /** Lấy hồ sơ đối tác theo userId từ JWT — KHÔNG cho phép truyền id của đối tác khác. */
   private async getPartnerOfUser(userId: string) {
-    if (!userId) throw new ForbiddenException('Phiên đăng nhập không hợp lệ');
+    if (!userId) throw new ForbiddenException("Phiên đăng nhập không hợp lệ");
     const partner = await this.prisma.partner.findUnique({
       where: { userId },
       select: PARTNER_SELECT,
     });
-    if (!partner) throw new NotFoundException('Không tìm thấy hồ sơ đối tác của tài khoản này');
+    if (!partner)
+      throw new NotFoundException(
+        "Không tìm thấy hồ sơ đối tác của tài khoản này",
+      );
     return partner;
   }
 
   private assertCanManage(partner: { status: string }) {
     if (partner.status === PartnerStatus.SUSPENDED) {
-      throw new ForbiddenException('Hồ sơ đối tác đang bị tạm khóa');
+      throw new ForbiddenException("Hồ sơ đối tác đang bị tạm khóa");
     }
     if (partner.status === PartnerStatus.REJECTED) {
-      throw new ForbiddenException('Hồ sơ đối tác đã bị từ chối, vui lòng liên hệ quản trị viên');
+      throw new ForbiddenException(
+        "Hồ sơ đối tác đã bị từ chối, vui lòng liên hệ quản trị viên",
+      );
     }
   }
 
@@ -72,7 +77,7 @@ export class PartnersService {
     const [branches, paid] = await this.prisma.$transaction([
       this.prisma.partnerBranch.count({ where: { partnerId: partner.id } }),
       this.prisma.payment.aggregate({
-        where: { partnerId: partner.id, status: 'PAID' },
+        where: { partnerId: partner.id, status: "PAID" },
         _sum: { amount: true },
         _count: { _all: true },
       }),
@@ -82,7 +87,7 @@ export class PartnersService {
       stats: {
         branches: branches,
         paidPayments: paid._count._all,
-        paidAmount: paid._sum.amount?.toString() ?? '0',
+        paidAmount: paid._sum.amount?.toString() ?? "0",
       },
     };
   }
@@ -103,8 +108,8 @@ export class PartnersService {
     });
     await this.audit.log({
       userId,
-      action: 'PARTNER_PROFILE_UPDATE',
-      entity: 'Partner',
+      action: "PARTNER_PROFILE_UPDATE",
+      entity: "Partner",
       entityId: partner.id,
       metadata: { businessName: updated.businessName },
     });
@@ -115,7 +120,7 @@ export class PartnersService {
     const partner = await this.getPartnerOfUser(userId);
     return this.prisma.partnerBranch.findMany({
       where: { partnerId: partner.id },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: "asc" },
     });
   }
 
@@ -134,8 +139,8 @@ export class PartnersService {
     });
     await this.audit.log({
       userId,
-      action: 'PARTNER_BRANCH_CREATE',
-      entity: 'PartnerBranch',
+      action: "PARTNER_BRANCH_CREATE",
+      entity: "PartnerBranch",
       entityId: branch.id,
       metadata: { partnerId: partner.id, name: branch.name },
     });
@@ -145,9 +150,13 @@ export class PartnersService {
   /** Chỉ cho phép sửa chi nhánh thuộc đối tác của chính người dùng này. */
   private async getOwnBranch(userId: string, branchId: string) {
     const partner = await this.getPartnerOfUser(userId);
-    const branch = await this.prisma.partnerBranch.findUnique({ where: { id: branchId } });
+    const branch = await this.prisma.partnerBranch.findUnique({
+      where: { id: branchId },
+    });
     if (!branch || branch.partnerId !== partner.id) {
-      throw new NotFoundException('Không tìm thấy chi nhánh thuộc quyền quản lý của bạn');
+      throw new NotFoundException(
+        "Không tìm thấy chi nhánh thuộc quyền quản lý của bạn",
+      );
     }
     return { partner, branch };
   }
@@ -167,8 +176,8 @@ export class PartnersService {
     });
     await this.audit.log({
       userId,
-      action: 'PARTNER_BRANCH_UPDATE',
-      entity: 'PartnerBranch',
+      action: "PARTNER_BRANCH_UPDATE",
+      entity: "PartnerBranch",
       entityId: branch.id,
       metadata: { partnerId: partner.id, name: updated.name },
     });
@@ -181,12 +190,12 @@ export class PartnersService {
     await this.prisma.partnerBranch.delete({ where: { id: branch.id } });
     await this.audit.log({
       userId,
-      action: 'PARTNER_BRANCH_DELETE',
-      entity: 'PartnerBranch',
+      action: "PARTNER_BRANCH_DELETE",
+      entity: "PartnerBranch",
       entityId: branch.id,
       metadata: { partnerId: partner.id, name: branch.name },
     });
-    return { message: 'Đã xóa chi nhánh' };
+    return { message: "Đã xóa chi nhánh" };
   }
 
   /** Doanh thu riêng của đối tác — KHÔNG trả về thông tin hội viên. */
@@ -200,23 +209,40 @@ export class PartnersService {
     const payments = await this.prisma.payment.findMany({
       where: {
         partnerId: partner.id,
-        status: 'PAID',
-        OR: [{ paidAt: { gte: since } }, { paidAt: null, createdAt: { gte: since } }],
+        status: "PAID",
+        OR: [
+          { paidAt: { gte: since } },
+          { paidAt: null, createdAt: { gte: since } },
+        ],
       },
-      select: { id: true, code: true, amount: true, status: true, method: true, paidAt: true, createdAt: true },
-      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        code: true,
+        amount: true,
+        status: true,
+        method: true,
+        paidAt: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: "desc" },
     });
 
-    const totalPaid = payments.reduce((sum, p) => sum.add(p.amount), new Prisma.Decimal(0));
+    const totalPaid = payments.reduce(
+      (sum, p) => sum.add(p.amount),
+      new Prisma.Decimal(0),
+    );
     const byMonth = new Map<string, Prisma.Decimal>();
     for (const p of payments) {
       const d = p.paidAt ?? p.createdAt;
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      byMonth.set(key, (byMonth.get(key) ?? new Prisma.Decimal(0)).add(p.amount));
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      byMonth.set(
+        key,
+        (byMonth.get(key) ?? new Prisma.Decimal(0)).add(p.amount),
+      );
     }
 
     const pending = await this.prisma.payment.aggregate({
-      where: { partnerId: partner.id, status: 'PENDING' },
+      where: { partnerId: partner.id, status: "PENDING" },
       _sum: { amount: true },
       _count: { _all: true },
     });
@@ -224,7 +250,7 @@ export class PartnersService {
     return {
       totalPaid: totalPaid.toString(),
       paidCount: payments.length,
-      pendingAmount: pending._sum.amount?.toString() ?? '0',
+      pendingAmount: pending._sum.amount?.toString() ?? "0",
       pendingCount: pending._count._all,
       monthly: Array.from(byMonth.entries())
         .sort(([a], [b]) => a.localeCompare(b))
@@ -243,7 +269,7 @@ export class PartnersService {
     const visits = await this.prisma.checkIn.findMany({
       where: { partnerId: partner.id, checkInTime: { gte: since } },
       select: { checkInTime: true, unitPrice: true, commissionAmount: true },
-      orderBy: { checkInTime: 'asc' },
+      orderBy: { checkInTime: "asc" },
     });
 
     const totalCommission = visits.reduce(
@@ -256,8 +282,13 @@ export class PartnersService {
     );
     const monthly = new Map<string, Prisma.Decimal>();
     for (const v of visits) {
-      const key = `${v.checkInTime.getFullYear()}-${String(v.checkInTime.getMonth() + 1).padStart(2, '0')}`;
-      monthly.set(key, (monthly.get(key) ?? new Prisma.Decimal(0)).add(v.commissionAmount ?? new Prisma.Decimal(0)));
+      const key = `${v.checkInTime.getFullYear()}-${String(v.checkInTime.getMonth() + 1).padStart(2, "0")}`;
+      monthly.set(
+        key,
+        (monthly.get(key) ?? new Prisma.Decimal(0)).add(
+          v.commissionAmount ?? new Prisma.Decimal(0),
+        ),
+      );
     }
 
     return {
@@ -298,7 +329,7 @@ export class PartnersService {
           ...PARTNER_SELECT,
           _count: { select: { branches: true } },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         skip: (page - 1) * limit,
         take: limit,
       }),
@@ -313,19 +344,19 @@ export class PartnersService {
       where: { id },
       select: {
         ...PARTNER_SELECT,
-        branches: { orderBy: { createdAt: 'asc' } },
+        branches: { orderBy: { createdAt: "asc" } },
       },
     });
-    if (!partner) throw new NotFoundException('Không tìm thấy đối tác');
+    if (!partner) throw new NotFoundException("Không tìm thấy đối tác");
 
     const [paid, pending, payments] = await this.prisma.$transaction([
       this.prisma.payment.aggregate({
-        where: { partnerId: id, status: 'PAID' },
+        where: { partnerId: id, status: "PAID" },
         _sum: { amount: true },
         _count: { _all: true },
       }),
       this.prisma.payment.aggregate({
-        where: { partnerId: id, status: 'PENDING' },
+        where: { partnerId: id, status: "PENDING" },
         _sum: { amount: true },
       }),
       this.prisma.payment.findMany({
@@ -340,7 +371,7 @@ export class PartnersService {
           createdAt: true,
           member: { select: { id: true, code: true, fullName: true } },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         take: 20,
       }),
     ]);
@@ -348,9 +379,9 @@ export class PartnersService {
     return {
       ...partner,
       stats: {
-        paidAmount: paid._sum.amount?.toString() ?? '0',
+        paidAmount: paid._sum.amount?.toString() ?? "0",
         paidCount: paid._count._all,
-        pendingAmount: pending._sum.amount?.toString() ?? '0',
+        pendingAmount: pending._sum.amount?.toString() ?? "0",
       },
       payments,
     };
@@ -359,7 +390,7 @@ export class PartnersService {
   /** Tổng hợp hoa hồng & lịch sử lượt tập tại một phòng gym (admin/manager). */
   async adminCommission(id: string) {
     const partner = await this.prisma.partner.findUnique({ where: { id } });
-    if (!partner) throw new NotFoundException('Không tìm thấy đối tác');
+    if (!partner) throw new NotFoundException("Không tìm thấy đối tác");
 
     const visits = await this.prisma.checkIn.findMany({
       where: { partnerId: id },
@@ -373,7 +404,7 @@ export class PartnersService {
         commissionAmount: true,
         member: { select: { id: true, code: true, fullName: true } },
       },
-      orderBy: { checkInTime: 'desc' },
+      orderBy: { checkInTime: "desc" },
       take: 200,
     });
 
@@ -399,7 +430,7 @@ export class PartnersService {
   /** Admin chỉnh tỷ lệ hoa hồng: DTO nhận phần trăm 0..100, lưu 0..1. */
   async adminUpdateCommission(id: string, percent: number, actorId: string) {
     const partner = await this.prisma.partner.findUnique({ where: { id } });
-    if (!partner) throw new NotFoundException('Không tìm thấy đối tác');
+    if (!partner) throw new NotFoundException("Không tìm thấy đối tác");
 
     const rate = Math.round((Number(percent) / 100) * 10000) / 10000;
     const updated = await this.prisma.partner.update({
@@ -410,8 +441,8 @@ export class PartnersService {
 
     await this.audit.log({
       userId: actorId,
-      action: 'PARTNER_COMMISSION_UPDATE',
-      entity: 'Partner',
+      action: "PARTNER_COMMISSION_UPDATE",
+      entity: "Partner",
       entityId: id,
       metadata: {
         businessName: partner.businessName,
@@ -429,19 +460,19 @@ export class PartnersService {
     actorId: string,
   ) {
     const partner = await this.prisma.partner.findUnique({ where: { id } });
-    if (!partner) throw new NotFoundException('Không tìm thấy đối tác');
+    if (!partner) throw new NotFoundException("Không tìm thấy đối tác");
 
     let status: PartnerStatus;
     let action: string;
-    if (decision === 'APPROVE') {
+    if (decision === "APPROVE") {
       status = PartnerStatus.APPROVED;
-      action = 'PARTNER_APPROVE';
-    } else if (decision === 'REJECT') {
+      action = "PARTNER_APPROVE";
+    } else if (decision === "REJECT") {
       status = PartnerStatus.REJECTED;
-      action = 'PARTNER_REJECT';
+      action = "PARTNER_REJECT";
     } else {
       status = PartnerStatus.SUSPENDED;
-      action = 'PARTNER_SUSPEND';
+      action = "PARTNER_SUSPEND";
     }
 
     const updated = await this.prisma.partner.update({
@@ -453,9 +484,14 @@ export class PartnersService {
     await this.audit.log({
       userId: actorId,
       action,
-      entity: 'Partner',
+      entity: "Partner",
       entityId: id,
-      metadata: { businessName: partner.businessName, previousStatus: partner.status, status, note: note ?? null },
+      metadata: {
+        businessName: partner.businessName,
+        previousStatus: partner.status,
+        status,
+        note: note ?? null,
+      },
     });
     return updated;
   }
@@ -463,21 +499,32 @@ export class PartnersService {
   /** Admin gán một giao dịch đã tồn tại cho đối tác để tính doanh thu riêng. */
   async adminAssignPayment(id: string, paymentCode: string, actorId: string) {
     const partner = await this.prisma.partner.findUnique({ where: { id } });
-    if (!partner) throw new NotFoundException('Không tìm thấy đối tác');
-    const payment = await this.prisma.payment.findUnique({ where: { code: paymentCode.trim() } });
-    if (!payment) throw new NotFoundException('Không tìm thấy giao dịch với mã này');
+    if (!partner) throw new NotFoundException("Không tìm thấy đối tác");
+    const payment = await this.prisma.payment.findUnique({
+      where: { code: paymentCode.trim() },
+    });
+    if (!payment)
+      throw new NotFoundException("Không tìm thấy giao dịch với mã này");
     if (payment.partnerId && payment.partnerId !== id) {
-      throw new BadRequestException('Giao dịch này đã được gán cho đối tác khác');
+      throw new BadRequestException(
+        "Giao dịch này đã được gán cho đối tác khác",
+      );
     }
     const updated = await this.prisma.payment.update({
       where: { id: payment.id },
       data: { partnerId: id },
-      select: { id: true, code: true, amount: true, status: true, partnerId: true },
+      select: {
+        id: true,
+        code: true,
+        amount: true,
+        status: true,
+        partnerId: true,
+      },
     });
     await this.audit.log({
       userId: actorId,
-      action: 'PARTNER_PAYMENT_ASSIGN',
-      entity: 'Payment',
+      action: "PARTNER_PAYMENT_ASSIGN",
+      entity: "Payment",
       entityId: payment.id,
       metadata: { partnerId: id, code: payment.code },
     });
@@ -485,9 +532,13 @@ export class PartnersService {
   }
 
   async adminUnassignPayment(id: string, paymentId: string, actorId: string) {
-    const payment = await this.prisma.payment.findUnique({ where: { id: paymentId } });
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+    });
     if (!payment || payment.partnerId !== id) {
-      throw new NotFoundException('Không tìm thấy giao dịch được gán cho đối tác này');
+      throw new NotFoundException(
+        "Không tìm thấy giao dịch được gán cho đối tác này",
+      );
     }
     await this.prisma.payment.update({
       where: { id: paymentId },
@@ -495,11 +546,11 @@ export class PartnersService {
     });
     await this.audit.log({
       userId: actorId,
-      action: 'PARTNER_PAYMENT_UNASSIGN',
-      entity: 'Payment',
+      action: "PARTNER_PAYMENT_UNASSIGN",
+      entity: "Payment",
       entityId: paymentId,
       metadata: { partnerId: id, code: payment.code },
     });
-    return { message: 'Đã bỏ gán giao dịch khỏi đối tác' };
+    return { message: "Đã bỏ gán giao dịch khỏi đối tác" };
   }
 }

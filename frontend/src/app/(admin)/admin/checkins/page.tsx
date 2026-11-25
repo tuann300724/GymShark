@@ -57,7 +57,7 @@ export default function AdminCheckinsPage() {
   const queryClient = useQueryClient();
   const toast = useToast();
   const today = todayKey();
-  // Đối tác: check-in tay chỉ tìm được hội viên đã từng check-in vào cơ sở này
+  // Đối tác: check-in tay tìm hội viên có gói còn hiệu lực
   const isPartner = isPartnerRole(getStoredUser()?.role);
 
   // ------------------ Stats ------------------
@@ -593,7 +593,7 @@ export default function AdminCheckinsPage() {
         title="Check-in cho hội viên"
         description={
           isPartner
-            ? 'Chỉ liệt kê hội viên đã từng check-in vào cơ sở này. Khách mới chưa từng tới cơ sở → dùng "Quét khuôn mặt".'
+            ? 'Tìm hội viên có gói còn hiệu lực để check-in. Hội viên đang có phiên tập chưa check-out sẽ không xuất hiện.'
             : 'Tìm hội viên theo tên, mã thẻ hoặc số điện thoại rồi xác nhận check-in.'
         }
       >

@@ -5,6 +5,7 @@ import type {
   PublicTrainer,
   PublicTrainerDetail,
   PublicTrainerReviewList,
+  PublicPartnerBranch,
 } from './types';
 
 /** API công khai (public website) - không cần đăng nhập */
@@ -17,6 +18,11 @@ export const packageApi = {
 
 export const publicApi = {
   getPackages: packageApi.getPublicPackages,
+
+  getBranches: async (): Promise<PublicPartnerBranch[]> => {
+    const res = await apiClient.get<PublicPartnerBranch[]>('/public/branches');
+    return res.data;
+  },
 
   getTrainers: async (): Promise<PublicTrainer[]> => {
     const res = await apiClient.get<PublicTrainer[]>('/public/trainers');

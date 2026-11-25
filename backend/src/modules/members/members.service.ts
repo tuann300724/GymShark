@@ -703,6 +703,7 @@ export class MembersService {
             finalAmount: pkg.price,
             ptSessionsIncluded: pkg.sessions,
             ptSessionValue: pkg.ptSessionValue,
+            dailyVisitLimit: pkg.dailyVisitLimit,
           },
         });
 

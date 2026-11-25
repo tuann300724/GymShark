@@ -128,10 +128,7 @@ export const searchMembersForCheckIn = async (search: string) => {
   return res.data as { data: any[]; total: number };
 };
 
-/**
- * Đối tác: tìm hội viên để check-in tay — CHỈ những người đã từng check-in vào
- * cơ sở của đối tác. Khách mới chưa từng tới dùng quét khuôn mặt 1:N.
- */
+/** Đối tác: tìm hội viên có gói còn hiệu lực để check-in tay tại cơ sở. */
 export const searchFacilityMembersForCheckIn = async (search: string) => {
   const res = await apiClient.get('/checkins/facility-members', {
     params: { search },
@@ -139,7 +136,7 @@ export const searchFacilityMembersForCheckIn = async (search: string) => {
   return res.data as { data: any[]; total: number };
 };
 
-/** Danh sách hội viên đã từng check-in vào cơ sở của đối tác hiện tại. */
+/** Danh sách hội viên đủ điều kiện tập; lượt đến vẫn thống kê theo cơ sở đối tác. */
 export const getFacilityMembers = async (params: {
   search?: string;
   page?: number;

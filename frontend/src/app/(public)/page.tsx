@@ -1,9 +1,7 @@
 import React from 'react';
 import { Hero } from '@/components/home/hero';
 import { Programs } from '@/components/home/programs';
-import { WeeklySchedule } from '@/components/home/weekly-schedule';
 import { WhyGymmaster } from '@/components/home/why-gymmaster';
-import { FeaturedArticle } from '@/components/home/featured-article';
 import { Cta } from '@/components/home/cta';
 
 export default function PublicHomePage() {
@@ -11,9 +9,7 @@ export default function PublicHomePage() {
     <div className="overflow-x-hidden">
       <Hero />
       <Programs />
-      <WeeklySchedule />
       <WhyGymmaster />
-      <FeaturedArticle />
       <Cta />
     </div>
   );

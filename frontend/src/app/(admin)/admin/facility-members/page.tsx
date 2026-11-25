@@ -34,7 +34,7 @@ export default function FacilityMembersPage() {
           Hội viên tại cơ sở
         </h1>
         <p className="mt-1 text-sm text-muted">
-          Danh sách chỉ gồm hội viên đã từng check-in tại cơ sở này.
+          Hội viên có gói còn hiệu lực và chưa check-in tại cơ sở nào trong phiên hiện tại.
         </p>
       </header>
 
@@ -54,7 +54,7 @@ export default function FacilityMembersPage() {
             />
           </div>
           <div className="flex items-center gap-2 text-sm text-muted">
-            <Users className="size-4" /> {query.data?.total ?? 0} hội viên đã từng đến
+            <Users className="size-4" /> {query.data?.total ?? 0} hội viên đủ điều kiện tập
           </div>
         </CardContent>
       </Card>
@@ -124,8 +124,8 @@ export default function FacilityMembersPage() {
       ) : (
         <EmptyState
           icon={Users}
-          title="Chưa có hội viên ghi nhận tại cơ sở"
-          description="Lượt check-in mới sẽ tự động được lưu vào danh sách này."
+          title="Chưa có hội viên đủ điều kiện check-in"
+          description="Hội viên có gói đang hiệu lực sẽ xuất hiện tại đây để bạn tìm và hỗ trợ check-in."
           action={
             <Link
               href="/admin/checkins"
