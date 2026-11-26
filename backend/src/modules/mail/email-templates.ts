@@ -459,6 +459,73 @@ export function paymentConfirmedEmail(params: {
   };
 }
 
+/** Xác nhận hệ thống đã nhận yêu cầu tư vấn hợp tác. */
+export function partnerLeadReceivedEmail(params: {
+  contactName: string;
+  direction: "OWNER" | "COMMUNITY";
+}): VerificationCodeEmail {
+  const contactName = escapeHtml(params.contactName.trim());
+  const direction =
+    params.direction === "COMMUNITY"
+      ? "Gym Cộng đồng"
+      : "quản lý phòng gym riêng";
+  return {
+    subject: "Đã nhận yêu cầu tư vấn hợp tác — GymMaster Pro",
+    html: layout(
+      `
+      <h1 style="margin:0 0 12px;font-size:20px;line-height:1.4;color:${BRAND.chalk};">Đã nhận yêu cầu tư vấn</h1>
+      <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:${BRAND.muted};">Xin chào <strong style="color:${BRAND.chalk};">${contactName}</strong>, GymMaster Pro đã nhận được yêu cầu trao đổi về <strong style="color:${BRAND.chalk};">${direction}</strong> của bạn.</p>
+      <p style="margin:0;font-size:14px;line-height:1.7;color:${BRAND.muted};">Đội ngũ của chúng tôi sẽ xem thông tin và liên hệ lại qua email hoặc số điện thoại bạn đã cung cấp. Vui lòng chờ phản hồi từ GymMaster Pro.</p>
+    `,
+      "Nếu bạn không gửi yêu cầu này, bạn có thể bỏ qua email.",
+    ),
+    text: [
+      `Xin chào ${params.contactName.trim()},`,
+      "",
+      "GymMaster Pro đã nhận được yêu cầu tư vấn của bạn.",
+      "Đội ngũ sẽ xem thông tin và liên hệ lại qua email hoặc số điện thoại bạn đã cung cấp. Vui lòng chờ phản hồi.",
+      "",
+    ].join("\n"),
+  };
+}
+
+/** Gửi thông tin đăng nhập ban đầu cho đối tác sau khi admin tạo tài khoản. */
+export function partnerAccountCreatedEmail(params: {
+  contactName: string;
+  businessName: string;
+  email: string;
+  temporaryPassword: string;
+  loginUrl: string;
+}): VerificationCodeEmail {
+  const contactName = escapeHtml(params.contactName.trim());
+  const businessName = escapeHtml(params.businessName.trim());
+  const email = escapeHtml(params.email.trim());
+  const password = escapeHtml(params.temporaryPassword);
+  const loginUrl = escapeHtml(params.loginUrl);
+  return {
+    subject: "Tài khoản đối tác GymMaster Pro của bạn",
+    html: layout(
+      `
+      <h1 style="margin:0 0 12px;font-size:20px;line-height:1.4;color:${BRAND.chalk};">Tài khoản đối tác đã sẵn sàng</h1>
+      <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:${BRAND.muted};">Xin chào <strong style="color:${BRAND.chalk};">${contactName}</strong>, tài khoản cho <strong style="color:${BRAND.chalk};">${businessName}</strong> đã được tạo sau khi hai bên chốt hợp đồng.</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 20px;">${kvRow("Email đăng nhập", email)}${kvRow("Mật khẩu tạm thời", password, true)}</table>
+      <p style="margin:0;font-size:14px;line-height:1.7;color:${BRAND.muted};">Đăng nhập tại <a href="${loginUrl}" style="color:${BRAND.neon};">${loginUrl}</a>. Hãy đổi mật khẩu sau lần đăng nhập đầu tiên và không chia sẻ thông tin này.</p>
+    `,
+      "Email này chứa thông tin đăng nhập riêng của đối tác.",
+    ),
+    text: [
+      `Xin chào ${params.contactName.trim()},`,
+      "",
+      `Tài khoản đối tác ${params.businessName.trim()} đã được tạo.`,
+      `Email đăng nhập: ${params.email.trim()}`,
+      `Mật khẩu tạm thời: ${params.temporaryPassword}`,
+      `Đăng nhập tại: ${params.loginUrl}`,
+      "",
+      "Vui lòng đổi mật khẩu sau lần đăng nhập đầu tiên và không chia sẻ thông tin này.",
+    ].join("\n"),
+  };
+}
+
 /**
  * Email cảnh báo gói hội viên sắp hết hạn (≤7 ngày).
  * Nhắc gia hạn kèm ngày hết hạn để hội viên không bị gián đoạn tập luyện.

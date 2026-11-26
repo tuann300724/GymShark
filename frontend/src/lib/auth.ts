@@ -49,6 +49,7 @@ const PARTNER_ADMIN_PREFIXES = [
 
 /** Các trang gắn với cơ sở riêng, chỉ tài khoản PARTNER mới có phạm vi dữ liệu phù hợp. */
 const PARTNER_ONLY_ADMIN_PREFIXES = ['/admin/facility-members', '/admin/branches'] as const;
+const STAFF_RESTRICTED_ADMIN_PREFIXES = ['/admin/partner-leads'] as const;
 
 function isPartnerAllowedAdminPath(pathname: string): boolean {
   return PARTNER_ADMIN_PREFIXES.some(
@@ -61,6 +62,13 @@ export function canAccessAdminPath(role: string | undefined, pathname: string): 
   if (!role) return false;
   if (isPartnerRole(role)) return isPartnerAllowedAdminPath(pathname);
   if (!isAdminRole(role)) return false;
+  if (
+    role === 'STAFF' &&
+    STAFF_RESTRICTED_ADMIN_PREFIXES.some(
+      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+    )
+  )
+    return false;
   return !PARTNER_ONLY_ADMIN_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );

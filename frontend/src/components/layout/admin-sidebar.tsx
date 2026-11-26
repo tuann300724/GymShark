@@ -47,6 +47,7 @@ type NavSection = {
 const STAFF_HIDDEN_HREFS = [
   '/admin/staff',
   '/admin/partners',
+  '/admin/partner-leads',
   '/admin/beverages',
   '/admin/beverages/imports',
   '/admin/reports/beverages',
@@ -112,6 +113,7 @@ export const navigationSections: NavSection[] = [
     title: 'Hệ thống',
     items: [
       { name: 'Đối tác phòng gym', href: '/admin/partners', icon: Building2 },
+      { name: 'Yêu cầu hợp tác', href: '/admin/partner-leads', icon: ClipboardList },
       { name: 'Báo cáo thống kê', href: '/admin/reports', icon: BarChart3 },
       { name: 'Thiết bị', href: '/admin/reports/equipment', icon: Wrench },
       { name: 'Thông báo', href: '/admin/notifications', icon: Bell },

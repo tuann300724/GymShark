@@ -35,6 +35,7 @@ import { EquipmentModule } from "./modules/equipment/equipment.module";
 import { BeveragesModule } from "./modules/beverages/beverages.module";
 import { PartnersModule } from "./modules/partners/partners.module";
 import { TrainerReviewsModule } from "./modules/trainer-reviews/trainer-reviews.module";
+import { PartnerLeadsModule } from "./modules/partner-leads/partner-leads.module";
 import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
 import { RealtimeMutationInterceptor } from "./common/interceptors/realtime-mutation.interceptor";
 
@@ -86,6 +87,7 @@ import { RealtimeMutationInterceptor } from "./common/interceptors/realtime-muta
     BeveragesModule,
     PartnersModule,
     TrainerReviewsModule,
+    PartnerLeadsModule,
   ],
   providers: [
     // Rate limiting: áp dụng cho mọi request

@@ -17,6 +17,8 @@ import {
   paymentConfirmedEmail,
   welcomeEmail,
   packageChangeInvoiceEmail,
+  partnerLeadReceivedEmail,
+  partnerAccountCreatedEmail,
 } from "./email-templates";
 
 export interface SendMailOptions {
@@ -242,6 +244,26 @@ export class MailService implements OnModuleInit {
     trainerName?: string | null;
   }): Promise<boolean> {
     const mail = bookingConfirmedEmail(params);
+    return this.sendSafe({ to: params.email, ...mail });
+  }
+
+  async sendPartnerLeadReceivedEmail(params: {
+    email: string;
+    contactName: string;
+    direction: "OWNER" | "COMMUNITY";
+  }): Promise<boolean> {
+    const mail = partnerLeadReceivedEmail(params);
+    return this.sendSafe({ to: params.email, ...mail });
+  }
+
+  async sendPartnerAccountCreatedEmail(params: {
+    email: string;
+    contactName: string;
+    businessName: string;
+    temporaryPassword: string;
+    loginUrl: string;
+  }): Promise<boolean> {
+    const mail = partnerAccountCreatedEmail(params);
     return this.sendSafe({ to: params.email, ...mail });
   }
 

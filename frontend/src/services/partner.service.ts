@@ -17,6 +17,38 @@ export interface PartnerRegisterPayload {
   address?: string;
 }
 
+export interface PartnerLeadPayload {
+  direction: 'OWNER' | 'COMMUNITY';
+  contactName: string;
+  address?: string;
+  email: string;
+  phone: string;
+  message?: string;
+}
+
+export type PartnerLeadStatus = 'NEW' | 'CONTACTED' | 'CONVERTED' | 'CLOSED';
+export interface PartnerLeadRecord {
+  id: string;
+  direction: 'OWNER' | 'COMMUNITY';
+  contactName: string;
+  address: string | null;
+  email: string;
+  phone: string;
+  message: string | null;
+  status: PartnerLeadStatus;
+  notes: string | null;
+  handledAt: string | null;
+  createdAt: string;
+  accountCreated: boolean;
+}
+
+export interface PartnerAccountCreationResult {
+  message: string;
+  partnerId: string;
+  emailSent: boolean;
+  temporaryPassword?: string;
+}
+
 export interface PartnerListParams {
   search?: string;
   status?: string;
@@ -42,6 +74,47 @@ export interface PartnerBranchRecord extends PartnerBranchInput {
 }
 
 export const partnerApi = {
+  /** Gửi yêu cầu tư vấn hợp tác; không tạo tài khoản. */
+  submitLead: async (
+    payload: PartnerLeadPayload,
+  ): Promise<{ message: string; emailSent: boolean }> => {
+    const res = await apiClient.post<{ message: string; emailSent: boolean }>(
+      '/partner-leads',
+      payload,
+      { timeout: 30000 },
+    );
+    return res.data;
+  },
+  adminLeadList: async (params: {
+    search?: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const res = await apiClient.get<{
+      data: PartnerLeadRecord[];
+      total: number;
+      page: number;
+      limit: number;
+    }>('/partner-leads/admin', {
+      params: Object.fromEntries(
+        Object.entries(params).filter(([, value]) => value !== '' && value !== undefined),
+      ),
+    });
+    return res.data;
+  },
+  adminUpdateLead: async (id: string, payload: { status?: PartnerLeadStatus; notes?: string }) => {
+    const res = await apiClient.patch<PartnerLeadRecord>(`/partner-leads/admin/${id}`, payload);
+    return res.data;
+  },
+  adminCreatePartnerAccount: async (id: string, businessName: string) => {
+    const res = await apiClient.post<PartnerAccountCreationResult>(
+      `/partner-leads/admin/${id}/create-account`,
+      { businessName },
+      { timeout: 30000 },
+    );
+    return res.data;
+  },
   /** Đăng ký đối tác (public) — tạo tài khoản PARTNER + hồ sơ chờ duyệt. */
   register: async (payload: PartnerRegisterPayload): Promise<PartnerRegisterResponse> => {
     const res = await apiClient.post<PartnerRegisterResponse>('/auth/partner-register', payload);

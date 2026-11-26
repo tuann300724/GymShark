@@ -1,12 +1,18 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/axios';
 import { MobileNav } from './mobile-nav';
 import NotificationBell from '@/components/notifications/notification-bell';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { Dialog } from '@/components/ui/dialog';
+import { PasswordInput } from '@/components/ui/password-input';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/toast';
+import { memberApi } from '@/services/member.service';
 import { getVisibleAdminItems, navigationSections } from './admin-sidebar';
 import { isPartnerRole } from '@/lib/auth';
 import { cn, formatCurrency } from '@/lib/utils';
@@ -25,6 +31,7 @@ import {
   Receipt,
   UserCog,
   ChevronRight,
+  KeyRound,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -85,6 +92,12 @@ export function AdminHeader() {
   const queryClient = useQueryClient();
   const [user, setUser] = useState<any>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+  const { success: showSuccess, error: showError } = useToast();
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Tìm nhanh trong admin
@@ -464,6 +477,33 @@ export function AdminHeader() {
     router.push('/login');
   };
 
+  const submitPasswordChange = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (newPassword.length < 6) {
+      showError('Mật khẩu mới phải có ít nhất 6 ký tự.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      showError('Mật khẩu xác nhận chưa khớp.');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      await memberApi.changePassword(currentPassword, newPassword);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setShowPasswordDialog(false);
+      showSuccess('Đã đổi mật khẩu thành công.');
+    } catch (err: any) {
+      const message = err?.response?.data?.message || 'Không thể đổi mật khẩu. Vui lòng thử lại.';
+      showError(typeof message === 'string' ? message : JSON.stringify(message));
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   const statusDot = isSuccess ? 'bg-neon' : isError ? 'bg-danger' : 'bg-muted animate-pulse';
   const statusText = isSuccess
     ? 'Đã kết nối API'
@@ -689,6 +729,21 @@ export function AdminHeader() {
                 <UserIcon className="size-3.5" />
                 Hồ sơ & Tài khoản
               </button>
+              {user?.role === 'PARTNER' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCurrentPassword('');
+                    setNewPassword('');
+                    setConfirmPassword('');
+                    setShowPasswordDialog(true);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-muted hover:bg-ink hover:text-chalk transition-colors"
+                >
+                  <KeyRound className="size-3.5" />
+                  Đổi mật khẩu
+                </button>
+              )}
               <button
                 onClick={handleLogout}
                 className="w-full flex items-center gap-2 px-3 py-2 text-danger hover:bg-danger/10 transition-colors"
@@ -700,6 +755,61 @@ export function AdminHeader() {
           )}
         </div>
       </div>
+      {showPasswordDialog &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <Dialog
+            open={showPasswordDialog}
+            onClose={() => !changingPassword && setShowPasswordDialog(false)}
+            title="Đổi mật khẩu"
+            description="Nhập mật khẩu hiện tại, sau đó đặt mật khẩu mới cho tài khoản đối tác."
+          >
+            <form onSubmit={submitPasswordChange} className="space-y-4">
+              <PasswordInput
+                label="Mật khẩu hiện tại"
+                name="currentPassword"
+                autoComplete="current-password"
+                required
+                value={currentPassword}
+                onChange={(event) => setCurrentPassword(event.target.value)}
+              />
+              <PasswordInput
+                label="Mật khẩu mới"
+                name="newPassword"
+                autoComplete="new-password"
+                minLength={6}
+                required
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                placeholder="Tối thiểu 6 ký tự"
+              />
+              <PasswordInput
+                label="Xác nhận mật khẩu mới"
+                name="confirmPassword"
+                autoComplete="new-password"
+                minLength={6}
+                required
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                placeholder="Nhập lại mật khẩu mới"
+              />
+              <div className="flex justify-end gap-2 pt-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={changingPassword}
+                  onClick={() => setShowPasswordDialog(false)}
+                >
+                  Hủy
+                </Button>
+                <Button type="submit" isLoading={changingPassword} disabled={changingPassword}>
+                  <KeyRound className="size-4" /> Đổi mật khẩu
+                </Button>
+              </div>
+            </form>
+          </Dialog>,
+          document.body,
+        )}
     </header>
   );
 }

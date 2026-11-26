@@ -50,6 +50,27 @@ model Partner {
   @@index([userId])
 }
 
+/// Yêu cầu hợp tác gửi từ trang đăng ký đối tác (chỉ lưu thông tin liên hệ, KHÔNG tạo tài khoản)
+model PartnerLead {
+  id           String   @id @default(uuid()) @db.NVarChar(100)
+  direction    String   @db.NVarChar(40) // OWNER | COMMUNITY — hướng hợp tác do đối tác chọn
+  contactName  String   @db.NVarChar(400)
+  address      String?  @db.NVarChar(Max)
+  email        String   @db.NVarChar(400)
+  phone        String   @db.NVarChar(400)
+  message      String?  @db.NVarChar(Max)
+  status       String   @default("NEW") @db.NVarChar(40) // NEW | CONTACTED | CONVERTED | CLOSED
+  handledBy    String?  @db.NVarChar(100) // User id admin/manager xử lý
+  handledAt    DateTime?
+  notes        String?  @db.NVarChar(Max) // ghi chú nội bộ của admin
+  ip           String?  @db.NVarChar(100)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
+
 /// Chi nhánh phòng gym thuộc một đối tác
 model PartnerBranch {
   id          String   @id @default(uuid()) @db.NVarChar(100)

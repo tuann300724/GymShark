@@ -40,6 +40,7 @@ export class MemberController {
   }
 
   @Put('change-password')
+  @Roles(Role.MEMBER, Role.TRAINER, Role.PARTNER)
   @ApiOperation({ summary: 'Đổi mật khẩu' })
   @ApiResponse({ status: 200, description: 'Đổi mật khẩu thành công' })
   @ApiResponse({ status: 400, description: 'Mật khẩu hiện tại sai' })
