@@ -16,7 +16,7 @@ import { GYM_TIERS, GYM_TIER_CRITERIA, gymTierLabel } from '@/lib/package-option
 import { cn, formatDateTime } from '@/lib/utils';
 
 /** Chọn hạng phòng gym kèm tiêu chí (dùng chung cho yêu cầu hợp tác & hồ sơ đối tác) */
-export function TierPicker({
+function TierPicker({
   value,
   onChange,
 }: {

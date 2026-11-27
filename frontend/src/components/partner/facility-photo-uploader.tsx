@@ -15,7 +15,7 @@ export const FACILITY_AREA_LABELS: Record<FacilityPhotoArea, string> = {
 };
 
 export const MIN_FACILITY_PHOTOS = 3;
-export const MAX_FACILITY_PHOTOS = 6;
+const MAX_FACILITY_PHOTOS = 6;
 const MAX_SIDE = 1280;
 /** Giới hạn ~500KB/ảnh sau nén — khớp MAX_PHOTO_DATA_URL_LENGTH ở backend */
 const MAX_DATA_URL = 680_000;

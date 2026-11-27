@@ -117,7 +117,7 @@ function topTier(pkg: MembershipPackage): string | null {
 }
 
 /** Chi phí trung bình mỗi lượt tập nếu dùng tối đa quyền lợi gói (tối đa 1 lượt/ngày) */
-export function costPerVisit(pkg: MembershipPackage): number {
+function costPerVisit(pkg: MembershipPackage): number {
   const price = Number(pkg.price) || 0;
   const days = Math.max(1, pkg.durationDays);
   const daily = Math.max(1, pkg.dailyVisitLimit ?? 1);

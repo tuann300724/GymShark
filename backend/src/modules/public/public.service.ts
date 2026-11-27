@@ -192,10 +192,21 @@ export class PublicService {
 
   /** Thống kê nhanh cho hero / giới thiệu */
   async getHomeStats() {
-    const [memberCount, trainerCount] = await Promise.all([
-      this.prisma.member.count(),
-      this.prisma.trainer.count({ where: { status: "ACTIVE" } }),
+    const approved = { partner: { is: { status: "APPROVED" } } };
+    const [memberCount, trainerCount, partnerCount, branchCount, checkInCount] = await Promise.all([
+      // Chỉ hội viên / PT của hệ thống Gym Master (không tính hội viên riêng của phòng đối tác)
+      this.prisma.member.count({ where: { ownerPartnerId: null } }),
+      this.prisma.trainer.count({ where: { status: "ACTIVE", ownerPartnerId: null } }),
+      this.prisma.partner.count({ where: { status: "APPROVED" } }),
+      this.prisma.partnerBranch.count({ where: { status: "ACTIVE", ...approved } }),
+      this.prisma.checkIn.count({ where: { member: { is: { ownerPartnerId: null } } } }),
     ]);
-    return { totalMembers: memberCount, totalTrainers: trainerCount };
+    return {
+      totalMembers: memberCount,
+      totalTrainers: trainerCount,
+      totalPartners: partnerCount,
+      totalBranches: branchCount,
+      totalCheckIns: checkInCount,
+    };
   }
 }

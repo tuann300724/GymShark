@@ -268,3 +268,53 @@ html.theme-transition *::after {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* ===== Hiệu ứng trang chủ (components/home/effects.tsx) ===== */
+.tilt-card {
+  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transform-style: preserve-3d;
+  transition: transform 0.25s ease-out;
+  will-change: transform;
+}
+.tilt-glare {
+  opacity: calc(var(--glare, 0) * 1);
+  background: radial-gradient(
+    420px circle at var(--gx, 50%) var(--gy, 50%),
+    rgb(var(--chalk) / 0.08),
+    transparent 60%
+  );
+  transition: opacity 0.3s ease;
+}
+
+.marquee-track {
+  animation: marquee 32s linear infinite;
+}
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* Ánh sáng mờ bám theo chuột ở hero (màu chữ, không tô nền neon) */
+.hero-spotlight {
+  background: radial-gradient(
+    560px circle at var(--mx, 70%) var(--my, 40%),
+    rgb(var(--chalk) / 0.06),
+    transparent 65%
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tilt-card {
+    transform: none;
+  }
+  .marquee-track {
+    animation: none;
+  }
+}

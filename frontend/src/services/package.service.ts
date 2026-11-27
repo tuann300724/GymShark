@@ -52,6 +52,9 @@ export const publicApi = {
   getHomeStats: async (): Promise<{
     totalMembers: number;
     totalTrainers: number;
+    totalPartners?: number;
+    totalBranches?: number;
+    totalCheckIns?: number;
   }> => {
     const res = await apiClient.get('/public/home-stats');
     return res.data;

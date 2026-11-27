@@ -26,13 +26,13 @@ export function Cta() {
             <div className="relative grid gap-8 p-8 sm:p-12 lg:grid-cols-[1fr_auto] lg:items-end lg:gap-12">
               <div>
                 <h2 className="max-w-xl font-display text-4xl font-extrabold uppercase leading-none tracking-tight text-chalk sm:text-5xl">
-                  Start today.
+                  Tập ở bất cứ đâu.
                   <br />
-                  <span className="text-neon">Get stronger</span> every week.
+                  <span className="text-neon">Một thẻ</span> cho cả mạng lưới.
                 </h2>
                 <p className="mt-4 max-w-md text-sm leading-relaxed text-muted sm:text-base">
-                  Đăng ký hội viên và nhận buổi đánh giá thể lực miễn phí cùng huấn luyện viên của
-                  GymMaster.
+                  Tạo tài khoản hội viên, chọn gói theo hạng phòng và bắt đầu tập tại các phòng đối
+                  tác gần bạn ngay hôm nay.
                 </p>
               </div>
 
@@ -43,9 +43,9 @@ export function Cta() {
                     <ArrowRight className="size-4" />
                   </button>
                 </Link>
-                <Link href="/contact">
+                <Link href="/partner/register">
                   <button className="inline-flex h-12 items-center gap-2.5 rounded-sm border border-line bg-ink/60 px-6 text-[15px] font-semibold text-chalk backdrop-blur-sm transition-colors hover:border-neon/60 hover:text-neon active:translate-y-px">
-                    Liên hệ tư vấn
+                    Tôi là chủ phòng gym
                   </button>
                 </Link>
               </div>

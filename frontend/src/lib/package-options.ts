@@ -1,9 +1,4 @@
-import type {
-  GymTier,
-  MembershipPackage,
-  MembershipPackageInput,
-  PackageBillingType,
-} from '@/services/types';
+import type { GymTier, MembershipPackage, PackageBillingType } from '@/services/types';
 
 /** Hằng số hạng phòng gym đối tác — khớp `GymTier` ở backend */
 export const GYM_TIERS: { value: GymTier; label: string; shortLabel: string; hint: string }[] = [
@@ -96,48 +91,3 @@ export function formatVisitLimit(
   if (pkg.type === 'CREDIT_BASED') return `${pkg.visitLimit} lượt / ${pkg.durationDays} ngày`;
   return `${pkg.visitLimit} lượt/tháng`;
 }
-
-/** Nhãn giải thích hạn mức (dùng cho aria-label / title) */
-export function visitLimitLabel(pkg: Pick<MembershipPackage, 'type' | 'visitLimit'>): string {
-  return pkg.type === 'CREDIT_BASED' ? 'Tổng số lượt của gói' : 'Số lượt tối đa mỗi tháng';
-}
-
-/** JSON mẫu để tích hợp API gói thời hạn và gói lượt. */
-export const SAMPLE_MEMBERSHIP_PACKAGES: MembershipPackageInput[] = [
-  {
-    name: 'Gói Standard 1 Tháng',
-    type: 'FIXED_TERM',
-    durationDays: 30,
-    visitLimit: 16,
-    dailyVisitLimit: 1,
-    gymTierAccess: ['TIER_1'],
-    price: 450000,
-    status: 'ACTIVE',
-    description: 'Tập luyện linh hoạt tại mạng lưới phòng gym đối tác.',
-    features: {
-      items: [
-        'Tập tại phòng gym hạng Standard',
-        'Tối đa 16 lượt/tháng',
-        'Tối đa 1 lượt check-in/ngày',
-      ],
-    },
-  },
-  {
-    name: 'Gói Pass 15 Lượt',
-    type: 'CREDIT_BASED',
-    durationDays: 60,
-    visitLimit: 15,
-    dailyVisitLimit: 1,
-    gymTierAccess: ['TIER_1', 'TIER_2'],
-    price: 750000,
-    status: 'ACTIVE',
-    description: '15 lượt tập tại các phòng gym hạng Standard và Plus trong 60 ngày.',
-    features: {
-      items: [
-        '15 lượt check-in',
-        'Tập tại phòng gym hạng Standard & Plus',
-        'Tối đa 1 lượt check-in/ngày',
-      ],
-    },
-  },
-];
