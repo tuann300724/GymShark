@@ -18,9 +18,15 @@ export default function AdminFaceScanPage() {
       setMsg('Đang quét khuôn mặt 1:N…');
       try {
         const res = await apiClient.post('/checkins/face-scan', { embedding });
-        const name = res.data?.member?.fullName || res.data?.fullName || '';
+        const name =
+          res.data?.data?.member?.fullName ||
+          res.data?.member?.fullName ||
+          res.data?.fullName ||
+          '';
+        // Quét lần 2 khi hội viên còn trong phòng → server tự check-out
+        const label = res.data?.action === 'CHECK_OUT' ? 'Check-out' : 'Check-in';
         setStatus('done');
-        setMsg(`✅ Đã nhận diện — ${name || 'Hội viên'}`);
+        setMsg(`✅ ${label} thành công — ${name || 'Hội viên'}`);
       } catch (e: any) {
         const m = e?.response?.data?.message || e?.message || 'Không nhận diện được';
         setStatus('error');

@@ -1,13 +1,37 @@
-import { Controller, Get, Param, Query } from "@nestjs/common";
+import { Controller, Get, NotFoundException, Param, Query, Res } from "@nestjs/common";
+import type { Response } from "express";
 import { ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { PublicService } from "./public.service";
 import { Public } from "../../common/decorators/public.decorator";
 import { TrainerReviewQueryDto } from "../trainer-reviews/dto/trainer-review.dto";
+import { PrismaService } from "../../prisma/prisma.service";
+import { AVATAR_DATA_URL_PATTERN } from "../../common/utils/avatar";
 
 @ApiTags("Public Website")
 @Controller("public")
 export class PublicController {
-  constructor(private readonly publicService: PublicService) {}
+  constructor(
+    private readonly publicService: PublicService,
+    private readonly prisma: PrismaService,
+  ) {}
+
+  /** Ảnh đại diện người dùng tải lên (User.avatarUrl trỏ tới đây) — trả về file ảnh */
+  @Public()
+  @Get("avatars/:userId")
+  @ApiOperation({ summary: "Ảnh đại diện người dùng tải lên (image/*)" })
+  @ApiResponse({ status: 404, description: "Người dùng chưa tải ảnh đại diện" })
+  async getAvatar(@Param("userId") userId: string, @Res() res: Response) {
+    const row = await this.prisma.userAvatar.findUnique({ where: { userId } });
+    const match = row?.dataUrl.match(AVATAR_DATA_URL_PATTERN);
+    if (!row || !match) throw new NotFoundException("Không có ảnh đại diện.");
+    const base64 = row.dataUrl.slice(row.dataUrl.indexOf(",") + 1);
+    res.setHeader("Content-Type", `image/${match[1]}`);
+    // URL có ?v= đổi theo mỗi lần cập nhật nên cache lâu an toàn
+    res.setHeader("Cache-Control", "public, max-age=604800, immutable");
+    // helmet mặc định same-origin — cho phép frontend (khác cổng) nhúng ảnh
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    res.send(Buffer.from(base64, "base64"));
+  }
 
   @Public()
   @Get("packages")

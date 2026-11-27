@@ -24,7 +24,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/utils';
-import { getTrainerFocusTags, getTrainerVisual } from '@/lib/trainer-visuals';
+import { getTrainerFocusTags, getTrainerImage } from '@/lib/trainer-visuals';
 
 interface TrainerProfileProps {
   id: string;
@@ -145,7 +145,7 @@ export function TrainerProfile({ id }: TrainerProfileProps) {
   const name = trainer.user?.fullName ?? 'Huấn luyện viên';
   const shortName = name.replace(/^HLV\s*/, '');
   const tags = getTrainerFocusTags(trainer.specialization);
-  const visual = getTrainerVisual(trainer.specialization, trainer.id);
+  const visual = getTrainerImage(trainer);
   const related = (others ?? []).filter((item) => item.id !== trainer.id).slice(0, 3);
   const chatPath = `/member/messages?trainer=${encodeURIComponent(trainer.id)}`;
   const canChat = viewerRole === null || viewerRole === 'MEMBER';
@@ -229,6 +229,7 @@ export function TrainerProfile({ id }: TrainerProfileProps) {
                 <Image
                   src={visual.src}
                   alt={visual.alt}
+                  unoptimized={visual.unoptimized}
                   fill
                   priority
                   sizes="(max-width: 1024px) 100vw, 45vw"
@@ -398,7 +399,7 @@ export function TrainerProfile({ id }: TrainerProfileProps) {
 
             <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {related.map((item) => {
-                const itemVisual = getTrainerVisual(item.specialization, item.id);
+                const itemVisual = getTrainerImage(item);
                 return (
                   <Link
                     key={item.id}
@@ -409,6 +410,7 @@ export function TrainerProfile({ id }: TrainerProfileProps) {
                       <Image
                         src={itemVisual.src}
                         alt={itemVisual.alt}
+                        unoptimized={itemVisual.unoptimized}
                         fill
                         sizes="80px"
                         className="object-cover transition-transform duration-500 group-hover:scale-105"

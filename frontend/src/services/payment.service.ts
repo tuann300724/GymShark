@@ -98,8 +98,17 @@ export const paymentApi = {
     return res.data;
   },
 
-  checkCasso: async (id: string) => {
-    const res = await apiClient.post(`/payments/${id}/check-casso`);
+  /**
+   * Kiểm tra giao dịch qua CASSO. `auto` = trang tự kiểm tra định kỳ (dùng cache 2s phía server);
+   * bấm tay thì ép tải lại dữ liệu ngân hàng mới nhất.
+   */
+  checkCasso: async (
+    id: string,
+    auto = false,
+  ): Promise<{ matched: boolean; status: string; message?: string; alreadyPaid?: boolean }> => {
+    const res = await apiClient.post(`/payments/${id}/check-casso`, undefined, {
+      params: auto ? { auto: 1 } : undefined,
+    });
     return res.data;
   },
 

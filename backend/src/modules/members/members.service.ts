@@ -124,7 +124,7 @@ export class MembersService {
       if (sortMap[field]) orderBy = sortMap[field];
     }
 
-    const [data, total] = await Promise.all([
+    const [rows, total] = await Promise.all([
       this.prisma.member.findMany({
         where,
         include: {
@@ -141,6 +141,12 @@ export class MembersService {
             orderBy: { createdAt: "desc" },
             take: 3,
           },
+          // Chỉ lấy trạng thái duyệt ảnh mới nhất — không kéo vector/ảnh về danh sách
+          faceEmbeddings: {
+            select: { status: true },
+            orderBy: { consentAt: "desc" },
+            take: 1,
+          },
         },
         orderBy,
         skip,
@@ -149,7 +155,15 @@ export class MembersService {
       this.prisma.member.count({ where }),
     ]);
 
-    return { data, total, page, limit };
+    return {
+      data: rows.map(({ faceEmbeddings, ...m }) => ({
+        ...m,
+        faceStatus: faceEmbeddings[0]?.status ?? "NONE",
+      })),
+      total,
+      page,
+      limit,
+    };
   }
 
   async findOne(id: string, actor?: ScopeActor) {

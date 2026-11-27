@@ -9,6 +9,7 @@ import { HealthModule } from "./modules/health/health.module";
 import { UsersModule } from "./modules/users/users.module";
 import { MembersModule } from "./modules/members/members.module";
 import { TrainersModule } from "./modules/trainers/trainers.module";
+import { PtSessionsModule } from "./modules/pt-sessions/pt-sessions.module";
 import { RoomsModule } from "./modules/rooms/rooms.module";
 import { PackagesModule } from "./modules/packages/packages.module";
 import { MembershipsModule } from "./modules/memberships/memberships.module";
@@ -63,6 +64,7 @@ import { RealtimeMutationInterceptor } from "./common/interceptors/realtime-muta
     UsersModule,
     MembersModule,
     TrainersModule,
+    PtSessionsModule,
     RoomsModule,
     PackagesModule,
     MembershipsModule,

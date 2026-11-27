@@ -329,7 +329,7 @@ export default function PartnerPartnershipPage() {
               {Math.round(p.commissionRate * 1000) / 10}% giá trị 1 ngày của gói hội viên đó. Xem
               chi tiết tại{' '}
               <Link
-                href="/admin/finance"
+                href="/partner/finance"
                 className="inline-flex items-center gap-1 text-neon hover:underline"
               >
                 <Wallet className="size-3" /> Tài chính cơ sở

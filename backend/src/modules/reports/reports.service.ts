@@ -532,7 +532,12 @@ export class ReportsService {
   }
 
   /** GET /reports/checkins/members — thống kê chuyên cần theo từng hội viên */
-  async getMemberAttendance(from?: string, to?: string, search?: string) {
+  async getMemberAttendance(
+    from?: string,
+    to?: string,
+    search?: string,
+    facility: { tier?: string; partnerId?: string } = {},
+  ) {
     const toDate = to ? this.endOfDay(new Date(to)) : new Date();
     const fromDate = from ? this.startOfDay(new Date(from)) : this.daysAgo(30);
 
@@ -546,27 +551,87 @@ export class ReportsService {
         }
       : {};
 
-    const members = await this.prisma.member.findMany({
-      where: { AND: [whereMember, SYSTEM_ONLY.member] },
-      select: {
-        id: true,
-        code: true,
-        fullName: true,
-        phone: true,
-        avatarUrl: true,
-        checkIns: {
-          where: { checkInTime: { gte: fromDate, lte: toDate } },
-          select: { checkInTime: true, checkOutTime: true },
-          orderBy: { checkInTime: "asc" },
+    // Lọc lượt tập theo cơ sở: 1 đối tác cụ thể, theo hạng phòng, hoặc phòng hệ thống (partnerId null)
+    const checkInWhere: Prisma.CheckInWhereInput = {
+      checkInTime: { gte: fromDate, lte: toDate },
+    };
+    if (facility.partnerId) checkInWhere.partnerId = facility.partnerId;
+    else if (facility.tier === "SYSTEM") checkInWhere.partnerId = null;
+    else if (facility.tier === "NONE") checkInWhere.partner = { is: { gymTier: null } };
+    else if (facility.tier) checkInWhere.partner = { is: { gymTier: facility.tier } };
+    const facilityFiltered = Boolean(facility.partnerId || facility.tier);
+
+    const [members, partners] = await Promise.all([
+      this.prisma.member.findMany({
+        where: {
+          AND: [
+            whereMember,
+            SYSTEM_ONLY.member,
+            // Đang lọc theo cơ sở → chỉ giữ hội viên có tập ở cơ sở đó trong kỳ
+            ...(facilityFiltered ? [{ checkIns: { some: checkInWhere } }] : []),
+          ],
         },
-      },
-      orderBy: { fullName: "asc" },
-    });
+        select: {
+          id: true,
+          code: true,
+          fullName: true,
+          phone: true,
+          avatarUrl: true,
+          checkIns: {
+            where: checkInWhere,
+            select: {
+              checkInTime: true,
+              checkOutTime: true,
+              partner: { select: { id: true, businessName: true, gymTier: true } },
+            },
+            orderBy: { checkInTime: "asc" },
+          },
+        },
+        orderBy: { fullName: "asc" },
+      }),
+      // Danh sách cơ sở cho bộ lọc — sắp theo hạng (Premium → Plus → Standard → chưa xếp hạng)
+      this.prisma.partner.findMany({
+        where: { status: "APPROVED" },
+        select: { id: true, businessName: true, gymTier: true },
+      }),
+    ]);
+
+    const tierRank = (t?: string | null) =>
+      t === "TIER_3" ? 0 : t === "TIER_2" ? 1 : t === "TIER_1" ? 2 : 3;
+    const facilityOptions = partners
+      .map((p) => ({ id: p.id, name: p.businessName, tier: p.gymTier }))
+      .sort((a, b) => tierRank(a.tier) - tierRank(b.tier) || a.name.localeCompare(b.name, "vi"));
 
     return {
       from: this.dayKey(fromDate),
       to: this.dayKey(toDate),
+      facilityOptions,
       data: members.map((m) => {
+        // Gom lượt tập theo cơ sở (null = phòng hệ thống Gym Master)
+        const byFacility = new Map<
+          string,
+          { id: string | null; name: string; tier: string | null; visits: number; lastVisit: Date }
+        >();
+        for (const c of m.checkIns) {
+          const key = c.partner?.id ?? "SYSTEM";
+          const cur = byFacility.get(key);
+          if (cur) {
+            cur.visits += 1;
+            cur.lastVisit = c.checkInTime;
+          } else {
+            byFacility.set(key, {
+              id: c.partner?.id ?? null,
+              name: c.partner?.businessName ?? "Gym Master (hệ thống)",
+              tier: c.partner?.gymTier ?? null,
+              visits: 1,
+              lastVisit: c.checkInTime,
+            });
+          }
+        }
+        const facilities = [...byFacility.values()].sort(
+          (a, b) => b.visits - a.visits || tierRank(a.tier) - tierRank(b.tier),
+        );
+
         const visits = m.checkIns.length;
         const done = m.checkIns.filter((c) => c.checkOutTime);
         const totalMinutes = done.reduce(
@@ -589,6 +654,7 @@ export class ReportsService {
             avatarUrl: m.avatarUrl,
           },
           totalVisits: visits,
+          facilities,
           avgDuration: done.length ? Math.round(totalMinutes / done.length) : 0,
           lastVisit: visits ? m.checkIns[visits - 1].checkInTime : null,
         };

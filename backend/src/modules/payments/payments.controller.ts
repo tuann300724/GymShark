@@ -3,6 +3,7 @@ import {
   ApiBearerAuth,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -107,11 +108,17 @@ export class PaymentsController {
   @ApiOperation({ summary: 'Đối soát tự động CASSO: poll Google Sheet → khớp GYM ... → xác nhận PAID' })
   @ApiParam({ name: 'id', description: 'ID thanh toán' })
   @ApiResponse({ status: 200, description: 'Khớp CASSO → PAID / Chưa khớp → PENDING' })
+  @ApiQuery({
+    name: 'auto',
+    required: false,
+    description: '1 = trang tự kiểm tra định kỳ (dùng cache CASSO 2s, không ép tải lại Google Sheet)',
+  })
   checkCasso(
     @Param('id') id: string,
     @CurrentUser() user: { id: string; role: string; fullName?: string },
+    @Query('auto') auto?: string,
   ) {
-    return this.paymentsService.verifyCasso(id, user, true);
+    return this.paymentsService.verifyCasso(id, user, auto !== '1');
   }
 
   @Post(':id/reject')

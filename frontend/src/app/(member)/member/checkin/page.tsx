@@ -217,12 +217,15 @@ export default function MemberCheckInPage() {
                     <div className="rounded-xl border border-line bg-ink p-5 text-center">
                       <ScanFace className="mx-auto size-8 text-muted" />
                       <p className="mt-3 text-sm text-muted">
-                        Bạn chưa đăng ký khuôn mặt. Đăng ký một lần để check-in bằng khuôn mặt ở
-                        những lần sau.
+                        {faceStatus?.reviewStatus === 'PENDING'
+                          ? 'Ảnh khuôn mặt của bạn đang chờ quản trị viên duyệt. Trong lúc chờ, hãy check-in bằng mã QR.'
+                          : 'Bạn chưa đăng ký khuôn mặt. Đăng ký một lần để check-in bằng khuôn mặt ở những lần sau.'}
                       </p>
                       <Link href="/member/face-registration">
                         <Button variant="primary" className="mt-4 w-full">
-                          Đăng ký khuôn mặt
+                          {faceStatus?.reviewStatus === 'PENDING'
+                            ? 'Xem trạng thái'
+                            : 'Đăng ký khuôn mặt'}
                         </Button>
                       </Link>
                     </div>

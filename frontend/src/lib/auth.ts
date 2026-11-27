@@ -8,7 +8,12 @@ export interface StoredUser {
   avatarUrl?: string | null;
   /** Nhân viên của phòng gym đối tác (role PARTNER nhưng không phải chủ) */
   partnerStaff?: boolean;
+  /** Tài khoản cấp mật khẩu tạm (PT, đối tác) — phải đổi mật khẩu trước khi dùng */
+  mustChangePassword?: boolean;
 }
+
+/** Trang bắt đổi mật khẩu ở lần đăng nhập đầu */
+export const CHANGE_PASSWORD_PATH = '/change-password';
 
 export function getStoredUser(): StoredUser | null {
   if (typeof window === 'undefined') return null;
@@ -22,9 +27,8 @@ export function getStoredUser(): StoredUser | null {
   }
 }
 
-// PARTNER dùng chung giao diện vận hành /admin, nhưng bị giới hạn ở trang quản
-// lý cơ sở của chính họ: check-in (kèm quét mặt), bán nước uống, phân ca và
-// tài chính cơ sở — không có danh bạ hội viên, báo cáo/doanh thu hệ thống.
+// Tài khoản vận hành: ADMIN/MANAGER/STAFF dùng khu /admin; PARTNER (phòng gym đối tác)
+// có khu riêng /partner với giao diện, menu và dashboard riêng.
 const ADMIN_ROLES = ['ADMIN', 'MANAGER', 'STAFF', 'PARTNER'] as const;
 
 export function isAdminRole(role?: string): boolean {
@@ -35,58 +39,81 @@ export function isPartnerRole(role?: string): boolean {
   return role === 'PARTNER';
 }
 
-/**
- * Các prefix /admin/* được phép cho đối tác.
- * /admin/checkins + /admin/finance gói dữ liệu theo partnerId ngay ở backend;
- * đối tác không vào được danh bạ hội viên, báo cáo/doanh thu hệ thống.
- */
-const PARTNER_ADMIN_PREFIXES = [
-  '/admin/dashboard',
-  '/admin/facility-members',
-  '/admin/branches',
-  '/admin/checkins',
-  '/admin/beverages',
-  '/admin/finance',
-  '/admin/partnership',
-  // Phòng gym tự quản lý (đợt 1) — backend gói dữ liệu theo ownerPartnerId
-  '/admin/members',
-  '/admin/memberships',
-  '/admin/membership-packages',
-  '/admin/payments',
-  '/admin/reports/revenue',
-  // Đợt 2 — PT, lịch tập & lớp học, nhân viên của phòng (backend gói theo đối tác)
-  '/admin/trainers',
-  '/admin/schedules',
-  '/admin/staff',
-] as const;
-
-/** Các trang gắn với cơ sở riêng, chỉ tài khoản PARTNER mới có phạm vi dữ liệu phù hợp. */
-const PARTNER_ONLY_ADMIN_PREFIXES = [
-  '/admin/facility-members',
-  '/admin/branches',
-  '/admin/partnership',
-] as const;
-const STAFF_RESTRICTED_ADMIN_PREFIXES = ['/admin/partner-leads'] as const;
-
-function isPartnerAllowedAdminPath(pathname: string): boolean {
-  return PARTNER_ADMIN_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-  );
+/** Trang chủ sau đăng nhập theo role */
+export function getPortalHome(role?: string): string {
+  if (isPartnerRole(role)) return '/partner/dashboard';
+  if (isAdminRole(role)) return '/admin';
+  if (role === 'TRAINER') return '/trainer';
+  return '/member';
 }
 
-/** Dùng chung cho AdminGuard, sidebar, mobile-nav và ô tìm nhanh. */
+const matchPrefix = (pathname: string, prefix: string) =>
+  pathname === prefix || pathname.startsWith(`${prefix}/`);
+
+/**
+ * Các trang trong khu /partner. Trang dùng chung (hội viên, gói, thanh toán...) tái dùng
+ * component của /admin — backend tự gói dữ liệu theo ownerPartnerId / partnerId.
+ */
+export const PARTNER_PATH_PREFIXES = [
+  '/partner/dashboard',
+  '/partner/partnership',
+  '/partner/checkins',
+  '/partner/facility-members',
+  '/partner/branches',
+  '/partner/members',
+  '/partner/memberships',
+  '/partner/membership-packages',
+  '/partner/trainers',
+  '/partner/schedules',
+  '/partner/staff',
+  '/partner/beverages',
+  '/partner/finance',
+  '/partner/payments',
+  '/partner/reports/revenue',
+] as const;
+
+/** Trang trong /admin mà STAFF không vào được */
+const STAFF_RESTRICTED_ADMIN_PREFIXES = [
+  '/admin/partner-leads',
+  // Duyệt hồ sơ PT tự do — chỉ ADMIN/MANAGER
+  '/admin/trainer-applications',
+  // Đối soát / chi trả buổi PT — chỉ ADMIN/MANAGER
+  '/admin/pt-sessions',
+] as const;
+/** Check-in tại quầy chỉ còn dành cho lễ tân (STAFF); ADMIN/MANAGER không dùng */
+const STAFF_ONLY_ADMIN_PREFIXES = ['/admin/checkins'] as const;
+/** Không còn trong khu /admin — các trang này chỉ đối tác dùng ở /partner */
+const REMOVED_ADMIN_PREFIXES = [
+  '/admin/staff',
+  // Bán nước và lịch tập/lớp học là nghiệp vụ tại cơ sở — chỉ còn ở khu /partner
+  '/admin/beverages',
+  '/admin/reports/beverages',
+  '/admin/schedules',
+] as const;
+
+/** Dùng chung cho AdminGuard, sidebar, mobile-nav và ô tìm nhanh của khu /admin. */
 export function canAccessAdminPath(role: string | undefined, pathname: string): boolean {
-  if (!role) return false;
-  if (isPartnerRole(role)) return isPartnerAllowedAdminPath(pathname);
-  if (!isAdminRole(role)) return false;
-  if (
-    role === 'STAFF' &&
-    STAFF_RESTRICTED_ADMIN_PREFIXES.some(
-      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-    )
-  )
-    return false;
-  return !PARTNER_ONLY_ADMIN_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-  );
+  if (!role || isPartnerRole(role) || !isAdminRole(role)) return false;
+  if (REMOVED_ADMIN_PREFIXES.some((p) => matchPrefix(pathname, p))) return false;
+  if (role === 'STAFF') {
+    return !STAFF_RESTRICTED_ADMIN_PREFIXES.some((p) => matchPrefix(pathname, p));
+  }
+  return !STAFF_ONLY_ADMIN_PREFIXES.some((p) => matchPrefix(pathname, p));
+}
+
+/** Dùng cho PartnerGuard */
+export function canAccessPartnerPath(role: string | undefined, pathname: string): boolean {
+  if (!isPartnerRole(role)) return false;
+  return PARTNER_PATH_PREFIXES.some((p) => matchPrefix(pathname, p));
+}
+
+/**
+ * Đổi link /admin/... sang /partner/... khi trang dùng chung đang hiển thị trong khu đối tác.
+ * Link tới trang không có ở khu đối tác thì giữ nguyên.
+ */
+export function toAreaHref(href: string, pathname: string | null): string {
+  if (!pathname?.startsWith('/partner') || !href.startsWith('/admin')) return href;
+  const mapped = href.replace(/^\/admin/, '/partner');
+  const path = mapped.split(/[?#]/)[0];
+  return PARTNER_PATH_PREFIXES.some((p) => matchPrefix(path, p)) ? mapped : href;
 }

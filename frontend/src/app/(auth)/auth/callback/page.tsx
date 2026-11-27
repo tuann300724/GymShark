@@ -7,7 +7,7 @@ import { saveSession } from '@/services/auth.service';
 import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dumbbell, AlertCircle, Loader2 } from 'lucide-react';
-import { isAdminRole } from '@/lib/auth';
+import { isAdminRole, getPortalHome } from '@/lib/auth';
 
 /**
  * Trang hứng callback sau khi đăng nhập Google xong.
@@ -36,7 +36,7 @@ export default function GoogleCallbackPage() {
       queryClient.clear();
       saveSession(data.accessToken, data.user);
       const role = data.user.role as string;
-      router.push(role === 'TRAINER' ? '/trainer' : isAdminRole(role) ? '/admin' : '/member');
+      router.push(getPortalHome(role));
     } catch {
       setErrorMessage(
         'Đăng nhập bằng Google thất bại. Vui lòng thử lại hoặc đăng nhập bằng email.',

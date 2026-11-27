@@ -53,6 +53,26 @@ export function getTrainerVisual(specialization: string, id: string) {
   return TRAINER_VISUALS[index];
 }
 
+/**
+ * Ảnh hiển thị cho thẻ / hồ sơ HLV công khai: ưu tiên ảnh đại diện PT tải lên,
+ * không có thì dùng ảnh minh hoạ theo chuyên môn. `unoptimized` vì ảnh tải lên nằm ở backend.
+ */
+export function getTrainerImage(trainer: {
+  id: string;
+  specialization: string;
+  user?: { fullName?: string; avatarUrl?: string | null } | null;
+}) {
+  const avatar = trainer.user?.avatarUrl;
+  if (avatar) {
+    return {
+      src: avatar,
+      alt: `Ảnh đại diện huấn luyện viên ${trainer.user?.fullName ?? ''}`.trim(),
+      unoptimized: true,
+    };
+  }
+  return { ...getTrainerVisual(trainer.specialization, trainer.id), unoptimized: false };
+}
+
 /** Tách chuyên môn thành các nhãn ngắn để lọc và hiển thị. */
 export function getTrainerFocusTags(specialization: string): string[] {
   return Array.from(

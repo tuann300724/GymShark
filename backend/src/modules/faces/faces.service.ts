@@ -8,9 +8,13 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit-logs/audit-logs.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { MailService } from '../mail/mail.service';
 import { EnrollFaceDto } from './dto/faces.dto';
 import { parseJsonText } from '../../common/utils/json-text';
 import { assertInScope, resolveOwnerScope, type ScopeActor } from '../../common/utils/partner-scope';
+
+/** Trạng thái duyệt ảnh khuôn mặt (NONE = chưa từng gửi) */
+export type FaceReviewStatus = 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export interface FaceMatchResult {
   memberId: string;
@@ -46,6 +50,7 @@ export class FacesService {
     private config: ConfigService,
     private auditService: AuditService,
     private notificationsService: NotificationsService,
+    private mailService: MailService,
   ) {
     this.thresholdSelf = this.readThreshold('FACE_MATCH_THRESHOLD', 0.6);
     this.thresholdGlobal = this.readThreshold('FACE_MATCH_THRESHOLD_1N', 0.7);
@@ -144,11 +149,12 @@ export class FacesService {
   /** Trạng thái đăng ký + ảnh tham chiếu (nếu có) của một hội viên */
   private async buildStatus(memberId: string) {
     const [sampleCount, latest, photo] = await Promise.all([
-      this.prisma.faceEmbedding.count({ where: { memberId } }),
+      // Dòng REJECTED chỉ là đánh dấu (không còn vector) → không tính là mẫu
+      this.prisma.faceEmbedding.count({ where: { memberId, embedding: { not: null } } }),
       this.prisma.faceEmbedding.findFirst({
         where: { memberId },
         orderBy: { consentAt: 'desc' },
-        select: { consentAt: true },
+        select: { consentAt: true, status: true, reviewedAt: true, rejectReason: true },
       }),
       // Ảnh chỉ nằm ở mẫu đầu tiên → lọc theo imageData != null thay vì lấy bừa
       this.prisma.faceEmbedding.findFirst({
@@ -156,10 +162,15 @@ export class FacesService {
         select: { imageData: true },
       }),
     ]);
+    const reviewStatus = (latest?.status ?? 'NONE') as FaceReviewStatus;
     return {
-      enrolled: sampleCount > 0,
+      // Chỉ ảnh đã duyệt mới dùng được để check-in
+      enrolled: sampleCount > 0 && reviewStatus === 'APPROVED',
+      reviewStatus,
       sampleCount,
       consentAt: latest?.consentAt ?? null,
+      reviewedAt: latest?.reviewedAt ?? null,
+      rejectReason: reviewStatus === 'REJECTED' ? (latest?.rejectReason ?? null) : null,
       imageData: photo?.imageData ?? null,
     };
   }
@@ -195,7 +206,7 @@ export class FacesService {
 
     // ── Kiểm tra trùng lặp sinh trắc học: một khuôn mặt không được đăng ký cho 2 hội viên khác nhau ──
     const otherEmbeddings = await this.prisma.faceEmbedding.findMany({
-      where: { memberId: { not: member.id } },
+      where: { memberId: { not: member.id }, embedding: { not: null } },
       select: {
         memberId: true,
         embedding: true,
@@ -220,7 +231,12 @@ export class FacesService {
     }
 
     const imageData = this.sanitizeImage(dto.imageData);
+    if (opts.via === 'self' && !imageData) {
+      throw new BadRequestException('Cần gửi kèm ảnh khuôn mặt để quản trị viên duyệt.');
+    }
     const consentAt = new Date();
+    // Hội viên tự gửi → chờ admin duyệt; lễ tân đăng ký tại quầy đã đối chiếu trực tiếp → duyệt luôn
+    const status = opts.via === 'self' ? 'PENDING' : 'APPROVED';
     await this.prisma.$transaction([
       this.prisma.faceEmbedding.deleteMany({ where: { memberId: member.id } }),
       this.prisma.faceEmbedding.createMany({
@@ -230,6 +246,8 @@ export class FacesService {
           // Ảnh chỉ gắn ở mẫu ĐẦU TIÊN → không nhân bản cùng một ảnh ra mọi dòng
           imageData: index === 0 ? imageData : null,
           consentAt,
+          status,
+          ...(status === 'APPROVED' ? { reviewedAt: consentAt, reviewedById: opts.actorId } : {}),
         })),
       }),
     ]);
@@ -252,9 +270,9 @@ export class FacesService {
       await this.notificationsService.notifyAdmins(
         {
           type: 'SYSTEM',
-          title: 'Hội viên đăng ký Face ID 📸',
-          content: `Hội viên ${member.code} vừa đăng ký dữ liệu khuôn mặt nhận diện Face ID.`,
-          link: `/admin/members/${member.id}`,
+          title: 'Ảnh Face ID chờ duyệt 📸',
+          content: `Hội viên ${member.fullName ?? ''} (${member.code}) vừa gửi ảnh khuôn mặt, cần duyệt trước khi dùng check-in.`,
+          link: '/admin/face-reviews',
           referenceType: 'FACE_ENROLL',
           referenceId: member.id,
         },
@@ -264,8 +282,17 @@ export class FacesService {
 
     return {
       success: true,
-      message: 'Đăng ký khuôn mặt thành công',
-      data: { enrolled: true, sampleCount: samples.length, consentAt, hasImage: Boolean(imageData) },
+      message:
+        status === 'PENDING'
+          ? 'Đã gửi ảnh khuôn mặt, vui lòng chờ quản trị viên duyệt'
+          : 'Đăng ký khuôn mặt thành công',
+      data: {
+        enrolled: status === 'APPROVED',
+        reviewStatus: status,
+        sampleCount: samples.length,
+        consentAt,
+        hasImage: Boolean(imageData),
+      },
     };
   }
 
@@ -355,6 +382,196 @@ export class FacesService {
   }
 
   // ---------------------------------------------------------------------------
+  // Duyệt ảnh khuôn mặt hội viên tự gửi
+  // ---------------------------------------------------------------------------
+
+  /** GET /faces/reviews — danh sách ảnh đang chờ duyệt (trong phạm vi người thao tác) */
+  async listPendingReviews(actor?: ScopeActor) {
+    const scope = await resolveOwnerScope(this.prisma, actor);
+    const rows = await this.prisma.faceEmbedding.findMany({
+      where: {
+        status: 'PENDING',
+        imageData: { not: null },
+        member: { ownerPartnerId: scope },
+      },
+      orderBy: { consentAt: 'asc' },
+      select: {
+        memberId: true,
+        imageData: true,
+        consentAt: true,
+        member: {
+          select: { id: true, code: true, fullName: true, email: true, phone: true, status: true },
+        },
+      },
+    });
+    return {
+      data: rows.map((r) => ({
+        memberId: r.memberId,
+        member: r.member,
+        imageData: r.imageData,
+        submittedAt: r.consentAt,
+      })),
+      total: rows.length,
+    };
+  }
+
+  /** POST /faces/member/:memberId/review — duyệt hoặc từ chối ảnh đang chờ */
+  async reviewMemberFace(
+    memberId: string,
+    decision: { approved: boolean; reason?: string },
+    actor?: ScopeActor,
+  ) {
+    const member = await this.findMemberInScope(memberId, actor);
+    const pending = await this.prisma.faceEmbedding.count({
+      where: { memberId, status: 'PENDING' },
+    });
+    if (pending === 0) {
+      throw new BadRequestException('Hội viên này không có ảnh khuôn mặt nào đang chờ duyệt.');
+    }
+    const reason = decision.reason?.trim() || null;
+    if (!decision.approved && !reason) {
+      throw new BadRequestException('Vui lòng nhập lý do từ chối để hội viên biết cách chụp lại.');
+    }
+
+    const reviewedAt = new Date();
+    const reviewedById = actor?.id ?? null;
+    if (decision.approved) {
+      await this.prisma.faceEmbedding.updateMany({
+        where: { memberId },
+        data: { status: 'APPROVED', reviewedAt, reviewedById, rejectReason: null },
+      });
+    } else {
+      // Từ chối: xoá sạch vector + ảnh (dữ liệu sinh trắc học không giữ khi không dùng),
+      // chỉ để lại 1 dòng đánh dấu để hội viên thấy lý do và chụp lại.
+      await this.prisma.$transaction([
+        this.prisma.faceEmbedding.deleteMany({ where: { memberId } }),
+        this.prisma.faceEmbedding.create({
+          data: {
+            memberId,
+            embedding: null,
+            imageData: null,
+            consentAt: reviewedAt,
+            status: 'REJECTED',
+            reviewedAt,
+            reviewedById,
+            rejectReason: reason,
+          },
+        }),
+      ]);
+    }
+
+    await this.auditService.log({
+      userId: reviewedById ?? undefined,
+      action: decision.approved ? 'FACE_APPROVE' : 'FACE_REJECT',
+      entity: 'Face',
+      entityId: memberId,
+      metadata: { memberCode: member.code, ...(reason ? { reason } : {}) },
+    });
+
+    const link = '/member/face-registration';
+    await this.notificationsService.create({
+      memberId,
+      type: 'SYSTEM',
+      title: decision.approved ? 'Face ID đã được duyệt ✅' : 'Ảnh khuôn mặt chưa được duyệt',
+      content: decision.approved
+        ? 'Ảnh khuôn mặt của bạn đã được duyệt. Bạn có thể check-in bằng khuôn mặt.'
+        : `Ảnh khuôn mặt của bạn bị từ chối. Lý do: ${reason}. Vui lòng chụp lại.`,
+      link,
+    });
+
+    // Email chạy nền — gửi lỗi không ảnh hưởng kết quả duyệt (sendSafe không ném lỗi)
+    const contact = await this.prisma.member.findUnique({
+      where: { id: memberId },
+      select: { email: true, user: { select: { email: true } } },
+    });
+    const email = contact?.email || contact?.user?.email;
+    if (email) {
+      const base = process.env.FRONTEND_URL?.replace(/\/$/, '') || 'http://localhost:3000';
+      void this.mailService.sendFaceReviewEmail({
+        email,
+        fullName: member.fullName,
+        approved: decision.approved,
+        reason,
+        link: `${base}${link}`,
+      });
+    }
+
+    return {
+      success: true,
+      message: decision.approved
+        ? `Đã duyệt ảnh khuôn mặt của ${member.fullName}`
+        : `Đã từ chối ảnh khuôn mặt của ${member.fullName}`,
+      emailSent: Boolean(email),
+    };
+  }
+
+  /**
+   * POST /faces/member/:memberId/remind — nhắc hội viên chưa có ảnh khuôn mặt đã duyệt.
+   * Gửi thông báo trong app + email (nền). Chặn nhắc lặp trong 1 giờ để tránh spam.
+   */
+  async remindMember(memberId: string, actor?: ScopeActor) {
+    const member = await this.findMemberInScope(memberId, actor);
+    const latest = await this.prisma.faceEmbedding.findFirst({
+      where: { memberId },
+      orderBy: { consentAt: 'desc' },
+      select: { status: true },
+    });
+    if (latest?.status === 'APPROVED') {
+      throw new BadRequestException('Hội viên này đã xác thực khuôn mặt.');
+    }
+    if (latest?.status === 'PENDING') {
+      throw new BadRequestException(
+        'Hội viên đã gửi ảnh và đang chờ duyệt — hãy duyệt ở trang Duyệt ảnh khuôn mặt.',
+      );
+    }
+
+    const recent = await this.prisma.notification.findFirst({
+      where: {
+        memberId,
+        referenceType: 'FACE_REMINDER',
+        createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) },
+      },
+      select: { id: true },
+    });
+    if (recent) {
+      throw new BadRequestException('Đã nhắc hội viên này trong vòng 1 giờ qua. Vui lòng thử lại sau.');
+    }
+
+    const link = '/member/face-registration';
+    await this.notificationsService.create({
+      memberId,
+      type: 'SYSTEM',
+      title: 'Cập nhật ảnh khuôn mặt 📸',
+      content:
+        'Tài khoản của bạn chưa có ảnh khuôn mặt đã xác thực. Hãy chụp và gửi ảnh để check-in bằng khuôn mặt.',
+      link,
+      referenceType: 'FACE_REMINDER',
+      // Mỗi lần nhắc là 1 thông báo mới (create dedupe theo referenceId)
+      referenceId: `${memberId}:${Date.now()}`,
+    });
+
+    const contact = await this.prisma.member.findUnique({
+      where: { id: memberId },
+      select: { email: true, user: { select: { email: true } } },
+    });
+    const email = contact?.email || contact?.user?.email;
+    if (email) {
+      const base = process.env.FRONTEND_URL?.replace(/\/$/, '') || 'http://localhost:3000';
+      void this.mailService.sendFaceReminderEmail({
+        email,
+        fullName: member.fullName,
+        link: `${base}${link}`,
+      });
+    }
+
+    return {
+      success: true,
+      message: `Đã nhắc ${member.fullName} cập nhật ảnh khuôn mặt`,
+      emailSent: Boolean(email),
+    };
+  }
+
+  // ---------------------------------------------------------------------------
   // So khớp (dùng bởi CheckinsService)
   // ---------------------------------------------------------------------------
 
@@ -369,10 +586,18 @@ export class FacesService {
   ): Promise<{ similarity: number } | null> {
     const probe = this.assertValidEmbedding(embedding);
     const samples = await this.prisma.faceEmbedding.findMany({
-      where: { memberId },
+      where: { memberId, status: 'APPROVED', embedding: { not: null } },
       select: { embedding: true },
     });
     if (samples.length === 0) {
+      const pending = await this.prisma.faceEmbedding.count({
+        where: { memberId, status: 'PENDING' },
+      });
+      if (pending > 0) {
+        throw new BadRequestException(
+          'Ảnh khuôn mặt của bạn đang chờ quản trị viên duyệt. Vui lòng check-in bằng mã QR trong lúc chờ.',
+        );
+      }
       throw new BadRequestException(
         'Chưa tìm thấy khuôn mặt của hội viên trong danh sách đăng ký. Vui lòng đăng ký khuôn mặt (tự đăng ký tại trang Đăng ký khuôn mặt hoặc nhờ lễ tân tại quầy) trước khi quét check-in.',
       );
@@ -394,7 +619,7 @@ export class FacesService {
   async matchGlobal(embedding: unknown): Promise<FaceMatchResult | null> {
     const probe = this.assertValidEmbedding(embedding);
     const rows = await this.prisma.faceEmbedding.findMany({
-      where: { member: { status: 'ACTIVE' } },
+      where: { status: 'APPROVED', embedding: { not: null }, member: { status: 'ACTIVE' } },
       select: {
         memberId: true,
         embedding: true,

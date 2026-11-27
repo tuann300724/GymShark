@@ -1,4 +1,9 @@
 import {
+  onPtSessionPaymentPaid,
+  onPtSessionPaymentRefunded,
+  onPtSessionPaymentVoided,
+} from "../pt-sessions/pt-session-payment.hooks";
+import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
@@ -463,6 +468,9 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
         data: { status: InvoiceStatus.PAID },
       });
 
+      // Buổi PT hội viên đặt qua chat: thanh toán xong → tạo lịch tập + báo PT
+      const ptSession = await onPtSessionPaymentPaid(tx, id, now);
+
       await tx.notification.create({
         data: {
           memberId: payment.member.id,
@@ -470,7 +478,9 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
           content: `Hóa đơn ${payment.code} đã được xác nhận. ${
             activatedMembership
               ? `Gói tập của bạn đã được kích hoạt và có hiệu lực đến ${activatedMembership.endDate.toLocaleDateString("vi-VN")}.`
-              : ""
+              : ptSession
+                ? `Buổi tập "${ptSession.title}" đã được xếp vào lịch của bạn.`
+                : ""
           }`,
           type: "PAYMENT",
           link: "/member/payments",
@@ -630,7 +640,9 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
             memberCode: payment.member.code,
             // Ưu tiên số hóa đơn chính thức (INV-...); fallback mã giao dịch
             invoiceNumber: payment.invoice?.invoiceNumber ?? payment.code,
-            packageName: payment.membership?.package?.name ?? "Gói hội viên",
+            packageName:
+              payment.membership?.package?.name ??
+              (payment.notes?.startsWith("[PT_SESSION:") ? "Buổi tập PT 1:1" : "Gói hội viên"),
             membershipEndDate: payment.membership?.endDate ?? null,
             amount: Number(payment.amount),
             paidAt: now,
@@ -823,6 +835,9 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
         },
       });
 
+      // Hoá đơn buổi PT bị từ chối → đề nghị quay về chờ hội viên thanh toán lại
+      await onPtSessionPaymentVoided(tx, id);
+
       let cancelledMembership = null;
       if (payment.membership && payment.membership.status === "PENDING") {
         cancelledMembership = await tx.membership.update({
@@ -966,6 +981,8 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
           where: { paymentId: id, status: InvoiceStatus.PAID },
           data: { status: InvoiceStatus.CANCELLED },
         });
+        // Hoàn tiền buổi PT → huỷ buổi + lịch tập
+        await onPtSessionPaymentRefunded(tx, id);
       }
 
       let cancelledMembership = null;

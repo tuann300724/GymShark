@@ -12,9 +12,10 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { resolvePartnerIdForUser } from "../../common/utils/partner-scope";
 import { AuditService } from "../audit-logs/audit-logs.service";
 import { NotificationsService } from "../notifications/notifications.service";
-import { FacesService } from "../faces/faces.service";
+import { FacesService, type FaceMatchResult } from "../faces/faces.service";
 import { FaceCheckInDto, FaceScanDto } from "./dto/checkin.dto";
 import { parseJsonText } from "../../common/utils/json-text";
+import { expireUsedUpCreditMemberships } from "../../common/utils/membership-usage";
 
 const GYM_TIER_LABEL: Record<string, string> = {
   TIER_1: "Standard",
@@ -65,6 +66,8 @@ export class CheckinsService {
       where: { memberId, status: "ACTIVE", endDate: { lt: new Date() } },
       data: { status: "EXPIRED" },
     });
+    // Gói lượt đã dùng hết lượt cũng kết thúc luôn
+    await expireUsedUpCreditMemberships(this.prisma, memberId);
   }
 
   /** Lấy membership đang ACTIVE, còn hiệu lực trong ngày hôm nay (startDate <= now <= endDate) */
@@ -124,6 +127,17 @@ export class CheckinsService {
       );
     }
 
+    // Điều kiện 6 (kiểm tra trước): không được có attendance đang CHECKED_IN.
+    // Đặt trước kiểm tra gói để hội viên vừa dùng lượt cuối vẫn nhận đúng thông báo
+    // "đang trong phòng" (quét lần 2 = check-out) thay vì "gói đã hết hạn".
+    const openSession = await this.prisma.checkIn.findFirst({
+      where: { memberId: member.id, status: "CHECKED_IN" },
+      select: { id: true },
+    });
+    if (openSession) {
+      throw new BadRequestException("Bạn đang trong phòng gym.");
+    }
+
     // Điều kiện 3 + 4 + 5: phải có membership ACTIVE còn hiệu lực hôm nay
     const now = new Date();
     const frozenMembership = await this.prisma.membership.findFirst({
@@ -155,14 +169,6 @@ export class CheckinsService {
         );
       }
       throw new BadRequestException("Bạn chưa có gói tập đang hoạt động.");
-    }
-
-    // Điều kiện 6: không được có attendance đang CHECKED_IN
-    const active = await this.prisma.checkIn.findFirst({
-      where: { memberId: member.id, status: "CHECKED_IN" },
-    });
-    if (active) {
-      throw new BadRequestException("Bạn đang trong phòng gym.");
     }
 
     return membership;
@@ -239,8 +245,16 @@ export class CheckinsService {
         );
 
         const dailyLimit = Math.max(1, membership.package.dailyVisitLimit ?? 1);
+        // Chỉ đếm lượt thuộc gói hiện tại: hội viên vừa dùng hết gói ngày rồi mua gói mới
+        // trong cùng ngày thì vẫn được tập tiếp (lượt của gói cũ không tính vào gói mới).
         const todayVisits = await tx.checkIn.count({
-          where: { memberId, checkInTime: { gte: dayStart, lt: dayEnd } },
+          where: {
+            memberId,
+            checkInTime: {
+              gte: new Date(Math.max(dayStart.getTime(), membership.startDate.getTime())),
+              lt: dayEnd,
+            },
+          },
         });
         if (todayVisits >= dailyLimit) {
           throw new BadRequestException(
@@ -289,6 +303,9 @@ export class CheckinsService {
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
   }
+
+  /** Số lượt/tháng mặc định khi gói theo thời hạn chưa đặt giới hạn lượt */
+  private static readonly VISITS_PER_MONTH = 12;
 
   private static memberSelect = {
     id: true,
@@ -522,6 +539,11 @@ export class CheckinsService {
     if (!match) {
       throw new NotFoundException("Không nhận diện được hội viên nào.");
     }
+    return this.checkOutFaceMatch(match, actorId);
+  }
+
+  /** Đóng phiên đang mở của hội viên vừa nhận diện bằng khuôn mặt (1:N) */
+  private async checkOutFaceMatch(match: FaceMatchResult, actorId?: string) {
     const active = await this.prisma.checkIn.findFirst({
       where: { memberId: match.memberId, status: "CHECKED_IN" },
     });
@@ -596,6 +618,7 @@ export class CheckinsService {
             )?.fullName ?? "",
         },
       },
+      action: "CHECK_OUT" as const,
       face: {
         similarity: Number(match.similarity.toFixed(4)),
         imageData: match.imageData,
@@ -611,6 +634,13 @@ export class CheckinsService {
       );
     }
 
+    // Quét lần 2 khi hội viên còn đang trong phòng = check-out
+    const open = await this.prisma.checkIn.findFirst({
+      where: { memberId: match.memberId, status: "CHECKED_IN" },
+      select: { id: true },
+    });
+    if (open) return this.checkOutFaceMatch(match, actorId);
+
     const result = await this.staffCheckIn(
       {
         memberId: match.memberId,
@@ -622,6 +652,7 @@ export class CheckinsService {
     );
     return {
       ...result,
+      action: "CHECK_IN" as const,
       face: {
         similarity: Number(match.similarity.toFixed(4)),
         imageData: match.imageData,
@@ -821,20 +852,28 @@ export class CheckinsService {
       attributed && membership
         ? Number(membership.finalAmount ?? membership.price ?? 0)
         : 0;
-    const days =
-      attributed && membership
-        ? Math.max(
-            1,
-            Math.ceil(
-              (membership.endDate.getTime() - membership.startDate.getTime()) /
-                86400000,
-            ),
-          )
-        : 1;
-    // Giá 1 lượt = giá trị hợp đồng / số ngày hiệu lực (không dùng quota buổi PT).
+    // Hoa hồng = (tiền gói của hội viên / tổng số lượt của gói) × tỷ lệ của đối tác.
+    // Chỉ dựa vào gói hội viên đã mua, không phụ thuộc hạng phòng.
+    // - Gói lượt (CREDIT_BASED): tổng lượt = số lượt của gói (vd 6.000.000đ / 30 lượt).
+    // - Gói theo thời hạn: tổng lượt = giới hạn lượt/tháng × số tháng
+    //   (vd Plus 12 tháng 9.200.000đ / (20 × 12) lượt). Gói chưa đặt giới hạn → 12 lượt/tháng.
+    const pkgVisitLimit = membership?.package?.visitLimit ?? 0;
+    const termDays = membership
+      ? Math.max(
+          1,
+          Math.ceil(
+            (membership.endDate.getTime() - membership.startDate.getTime()) / 86400000,
+          ),
+        )
+      : 1;
+    const months = Math.max(1, Math.round(termDays / 30));
+    const totalVisits =
+      membership?.package?.type === PackageType.CREDIT_BASED && pkgVisitLimit > 0
+        ? pkgVisitLimit
+        : (pkgVisitLimit > 0 ? pkgVisitLimit : CheckinsService.VISITS_PER_MONTH) * months;
     const unitPrice =
       attributed && !ownMember && membership
-        ? Math.round((total / days) * 100) / 100
+        ? Math.round((total / totalVisits) * 100) / 100
         : null;
     const commissionAmount =
       unitPrice !== null ? Math.round(unitPrice * rate * 100) / 100 : null;
@@ -1152,6 +1191,9 @@ export class CheckinsService {
     const now = new Date();
     const where: Prisma.MemberWhereInput = {
       status: "ACTIVE",
+      // Chỉ hội viên cộng đồng (tài khoản hệ thống Gym Master). Hội viên riêng do
+      // đối tác tự tạo (ownerPartnerId != null) nằm ở trang Hội viên của đối tác.
+      ownerPartnerId: null,
       memberships: {
         some: {
           status: "ACTIVE",

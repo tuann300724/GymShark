@@ -320,7 +320,16 @@ export class PartnersService {
 
     const visits = await this.prisma.checkIn.findMany({
       where: { partnerId: partner.id, checkInTime: { gte: since } },
-      select: { checkInTime: true, unitPrice: true, commissionAmount: true },
+      select: {
+        id: true,
+        memberId: true,
+        checkInTime: true,
+        unitPrice: true,
+        commissionRate: true,
+        commissionAmount: true,
+        // Chỉ mã + tên hội viên (không SĐT/email — NĐ13/2023)
+        member: { select: { code: true, fullName: true, ownerPartnerId: true } },
+      },
       orderBy: { checkInTime: "asc" },
     });
 
@@ -343,11 +352,65 @@ export class PartnersService {
       );
     }
 
+    // Hoa hồng theo từng hội viên (nhiều hoa hồng nhất trước)
+    const zero = () => new Prisma.Decimal(0);
+    const byMember = new Map<
+      string,
+      {
+        memberId: string;
+        code: string;
+        fullName: string;
+        /** Hội viên hệ thống Gym Master (cộng đồng) hay hội viên riêng của phòng */
+        community: boolean;
+        visitCount: number;
+        revenue: Prisma.Decimal;
+        commission: Prisma.Decimal;
+        lastVisitAt: Date;
+      }
+    >();
+    for (const v of visits) {
+      const row = byMember.get(v.memberId) ?? {
+        memberId: v.memberId,
+        code: v.member.code,
+        fullName: v.member.fullName,
+        community: v.member.ownerPartnerId == null,
+        visitCount: 0,
+        revenue: zero(),
+        commission: zero(),
+        lastVisitAt: v.checkInTime,
+      };
+      row.visitCount += 1;
+      row.revenue = row.revenue.add(v.unitPrice ?? 0);
+      row.commission = row.commission.add(v.commissionAmount ?? 0);
+      row.lastVisitAt = v.checkInTime;
+      byMember.set(v.memberId, row);
+    }
+
     return {
       commissionRate: Number(partner.commissionRate),
       visitCount: visits.length,
       totalRevenue: totalRevenue.toString(),
       totalCommission: totalCommission.toString(),
+      byMember: Array.from(byMember.values())
+        .sort((a, b) => b.commission.comparedTo(a.commission) || b.visitCount - a.visitCount)
+        .map((r) => ({
+          ...r,
+          revenue: r.revenue.toString(),
+          commission: r.commission.toString(),
+        })),
+      // 100 lượt gần nhất: giá 1 lượt × tỷ lệ (chốt lúc check-in) = hoa hồng
+      recentVisits: visits
+        .slice(-100)
+        .reverse()
+        .map((v) => ({
+          id: v.id,
+          checkInTime: v.checkInTime,
+          memberCode: v.member.code,
+          memberName: v.member.fullName,
+          unitPrice: (v.unitPrice ?? 0).toString(),
+          commissionRate: v.commissionRate != null ? Number(v.commissionRate) : null,
+          commissionAmount: (v.commissionAmount ?? 0).toString(),
+        })),
       monthly: Array.from(monthly.entries())
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([month, amount]) => ({ month, amount: amount.toString() })),

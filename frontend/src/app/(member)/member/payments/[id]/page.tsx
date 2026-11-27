@@ -12,7 +12,7 @@ import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/components/ui/toast';
 import { PaymentQrBlock } from '@/components/ui/payment-qr';
 import { formatCurrency, formatDateTime, formatDate } from '@/lib/utils';
-import { PAYMENT_STATUS_META, PAYMENT_METHOD_LABEL } from '@/lib/status';
+import { PAYMENT_STATUS_META, PAYMENT_METHOD_LABEL, paymentItemLabel } from '@/lib/status';
 import {
   ArrowLeft,
   Printer,
@@ -143,7 +143,7 @@ export default function MemberPaymentDetailPage() {
             <div className="flex justify-between">
               <span className="text-muted">Gói tập</span>
               <span className="font-semibold text-chalk text-right">
-                {payment.membership?.package?.name || '--'}
+                {paymentItemLabel(payment)}
                 {payment.membership?.package?.durationDays
                   ? ` (${payment.membership.package.durationDays} ngày)`
                   : ''}
@@ -218,6 +218,7 @@ export default function MemberPaymentDetailPage() {
                 paymentId={payment.id}
                 amount={Number(payment.amount ?? 0)}
                 content={`GYM ${payment.member?.code || ''} ${payment.code}`}
+                onPaid={() => refetch()}
               />
             </div>
           )}

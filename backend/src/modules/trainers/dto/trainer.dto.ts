@@ -1,7 +1,9 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { Gender, TrainerStatus } from '../../../common/constants/db-enums';
 import { Type } from 'class-transformer';
+import { MAX_AVATAR_DATA_URL_LENGTH } from '../../../common/utils/avatar';
 import {
+  IsBoolean,
   IsDateString,
   IsEmail,
   IsEnum,
@@ -77,6 +79,17 @@ export class CreateTrainerDto {
   @Min(0)
   hourlyRate?: number;
 
+  @ApiPropertyOptional({
+    example: 20,
+    description: '% chiết khấu GymMaster giữ lại trên mỗi buổi PT hội viên đặt qua hệ thống',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({}, { message: 'Chiết khấu phải là số' })
+  @Min(0, { message: 'Chiết khấu tối thiểu 0%' })
+  @Max(100, { message: 'Chiết khấu tối đa 100%' })
+  commissionRate?: number;
+
   @ApiPropertyOptional({ enum: TrainerStatus, default: TrainerStatus.ACTIVE })
   @IsOptional()
   @IsEnum(TrainerStatus, { message: 'Trạng thái không hợp lệ' })
@@ -118,10 +131,16 @@ export class UpdateMyTrainerProfileDto {
   @MaxLength(2000)
   bio?: string;
 
-  @ApiPropertyOptional({ description: 'URL ảnh đại diện (để trống để xoá)' })
+  @ApiPropertyOptional({
+    description: 'Ảnh đại diện: ảnh tải lên (data URL), link https:// hoặc để trống để xoá',
+  })
   @IsOptional()
   @IsString()
-  @MaxLength(400)
+  @Matches(
+    /^$|^https?:\/\/\S{1,390}$|^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/,
+    { message: 'Ảnh đại diện không hợp lệ' },
+  )
+  @MaxLength(MAX_AVATAR_DATA_URL_LENGTH, { message: 'Ảnh đại diện quá lớn, vui lòng chọn ảnh khác' })
   avatarUrl?: string;
 
   @ApiPropertyOptional({ enum: Gender })
@@ -172,4 +191,16 @@ export class TrainerQueryDto {
   @IsString()
   @MaxLength(100)
   specialization?: string;
+}
+/** Admin duyệt / từ chối (đơn đăng ký PT hoặc bản chỉnh sửa hồ sơ) */
+export class TrainerReviewDto {
+  @ApiProperty({ description: 'true = duyệt, false = từ chối' })
+  @IsBoolean()
+  approved: boolean;
+
+  @ApiPropertyOptional({ description: 'Lý do từ chối (bắt buộc khi từ chối)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
 }

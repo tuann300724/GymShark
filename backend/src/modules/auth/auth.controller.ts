@@ -35,14 +35,23 @@ export class AuthController {
     return this.authService.login(loginDto, req.ip);
   }
 
-  @Public()
+  /**
+   * Tạo tài khoản kèm role tuỳ ý — CHỈ quản trị viên (trước đây @Public nên ai cũng tự tạo được ADMIN).
+   * Người ngoài tự đăng ký qua luồng riêng: member-register (hội viên), partner-register (đối tác),
+   * POST /trainers/register (PT tự do).
+   */
   @Post('register')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth('JWT-auth')
   @Throttle({ default: { limit: 5, ttl: 300_000 } })
-  @ApiOperation({ summary: 'Đăng ký tài khoản người dùng mới' })
+  @ApiOperation({ summary: 'Admin tạo tài khoản người dùng (chỉ ADMIN)' })
   @ApiResponse({ status: 201, description: 'Tài khoản được tạo thành công' })
+  @ApiResponse({ status: 401, description: 'Chưa đăng nhập' })
+  @ApiResponse({ status: 403, description: 'Không phải ADMIN' })
   @ApiResponse({ status: 409, description: 'Email đã tồn tại' })
-  async register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
+  async register(@Body() registerDto: RegisterDto, @CurrentUser('id') actorId: string) {
+    return this.authService.register(registerDto, actorId);
   }
 
   @Public()

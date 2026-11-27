@@ -12,7 +12,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { StatCard } from '@/components/ui/stat-card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
+import { Select } from '@/components/ui/select';
 import { formatDate, formatDuration } from '@/lib/utils';
+import { GYM_TIERS, gymTierLabel } from '@/lib/package-options';
+import type { AttendanceTierFilter } from '@/services/types';
 import {
   CalendarRange,
   Users,
@@ -23,7 +26,16 @@ import {
   BarChart3,
   ArrowRight,
   ScanFace,
+  Building2,
 } from 'lucide-react';
+
+/** Bộ lọc hạng cơ sở — hạng cao trước (khớp thứ tự backend trả về facilityOptions) */
+const TIER_FILTER_OPTIONS: { value: '' | AttendanceTierFilter; label: string }[] = [
+  { value: '', label: 'Tất cả hạng cơ sở' },
+  ...[...GYM_TIERS].reverse().map((t) => ({ value: t.value, label: `Hạng ${t.shortLabel}` })),
+  { value: 'NONE', label: 'Cơ sở chưa xếp hạng' },
+  { value: 'SYSTEM', label: 'Phòng hệ thống Gym Master' },
+];
 
 /** Nhãn hình thức check-in (thống kê KPI) */
 const CHECKIN_METHOD_LABEL: Record<string, string> = {
@@ -48,6 +60,8 @@ export default function AttendanceReportPage() {
   const [from, setFrom] = useState(daysAgoKey(13));
   const [to, setTo] = useState(todayKey());
   const [search, setSearch] = useState('');
+  const [tier, setTier] = useState<'' | AttendanceTierFilter>('');
+  const [partnerId, setPartnerId] = useState('');
 
   const {
     data: daily,
@@ -66,12 +80,14 @@ export default function AttendanceReportPage() {
     isError: membersError,
     refetch: refetchMembers,
   } = useQuery({
-    queryKey: ['att-report-members', from, to, search],
+    queryKey: ['att-report-members', from, to, search, tier, partnerId],
     queryFn: () =>
       checkinApi.getMemberAttendance({
         from: from || undefined,
         to: to || undefined,
         search: search || undefined,
+        tier: partnerId ? undefined : tier || undefined,
+        partnerId: partnerId || undefined,
       }),
     retry: 0,
   });
@@ -87,6 +103,12 @@ export default function AttendanceReportPage() {
     queryFn: () => reportApi.attendance({ from: from || undefined, to: to || undefined }),
     retry: 0,
   });
+
+  // Danh sách cơ sở theo hạng đang chọn (đã sắp theo hạng từ backend)
+  const facilityOptions = (members?.facilityOptions ?? []).filter(
+    (f) => !tier || (tier === 'NONE' ? !f.tier : f.tier === tier),
+  );
+  const facilityFiltered = Boolean(tier || partnerId);
 
   const methodTotal = attReport?.byMethod?.reduce((sum, m) => sum + m.count, 0) ?? 0;
 
@@ -296,8 +318,32 @@ export default function AttendanceReportPage() {
             Chuyên cần theo hội viên
           </CardTitle>
           <CardDescription>
-            Số lượt ghé thăm, thời gian tập trung bình và lần tập gần nhất
+            Hội viên đã tập ở cơ sở nào, số lượt, thời gian tập trung bình và lần tập gần nhất
           </CardDescription>
+          <div className="flex flex-col gap-2 pt-2 sm:flex-row">
+            <Select
+              aria-label="Lọc theo hạng cơ sở"
+              value={tier}
+              onChange={(e) => {
+                setTier(e.target.value as '' | AttendanceTierFilter);
+                setPartnerId('');
+              }}
+              options={TIER_FILTER_OPTIONS}
+            />
+            <Select
+              aria-label="Lọc theo cơ sở"
+              value={partnerId}
+              disabled={tier === 'SYSTEM'}
+              onChange={(e) => setPartnerId(e.target.value)}
+              options={[
+                { value: '', label: 'Tất cả cơ sở' },
+                ...facilityOptions.map((f) => ({
+                  value: f.id,
+                  label: `${f.name} · ${gymTierLabel(f.tier)}`,
+                })),
+              ]}
+            />
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           {membersLoading ? (
@@ -317,15 +363,22 @@ export default function AttendanceReportPage() {
               className="m-3"
               icon={Users}
               title="Không có hội viên"
-              description="Không có hội viên nào tập trong khoảng thời gian này."
+              description={
+                facilityFiltered
+                  ? 'Không có hội viên nào tập ở cơ sở đã chọn trong khoảng thời gian này.'
+                  : 'Không có hội viên nào tập trong khoảng thời gian này.'
+              }
             />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-left text-sm">
+              <table className="w-full min-w-[920px] text-left text-sm">
                 <thead className="bg-ink border-b border-line text-[11px] uppercase tracking-wider text-muted">
                   <tr>
                     <th className="py-2.5 px-4 font-semibold">Hội viên</th>
-                    <th className="py-2.5 px-4 font-semibold text-right">Tổng lượt</th>
+                    <th className="py-2.5 px-4 font-semibold">Cơ sở đã tập</th>
+                    <th className="py-2.5 px-4 font-semibold text-right">
+                      {facilityFiltered ? 'Lượt tại cơ sở' : 'Tổng lượt'}
+                    </th>
                     <th className="py-2.5 px-4 font-semibold text-right">Thời gian TB/lượt</th>
                     <th className="py-2.5 px-4 font-semibold">Lần tập gần nhất</th>
                     <th className="py-2.5 px-4 font-semibold text-right">Thao tác</th>
@@ -346,6 +399,30 @@ export default function AttendanceReportPage() {
                             <p className="font-mono text-[10px] text-muted">{row.member.code}</p>
                           </div>
                         </div>
+                      </td>
+                      <td className="py-2.5 px-4">
+                        {row.facilities.length === 0 ? (
+                          <span className="text-xs text-muted">Chưa tập</span>
+                        ) : (
+                          <ul className="flex max-w-sm flex-wrap gap-1.5">
+                            {row.facilities.map((f) => (
+                              <li
+                                key={f.id ?? 'SYSTEM'}
+                                title={`Lần gần nhất: ${formatDate(f.lastVisit)}`}
+                                className="inline-flex items-center gap-1.5 rounded-full border border-line bg-ink px-2.5 py-1 text-[11px] text-chalk"
+                              >
+                                <Building2 className="size-3 shrink-0 text-muted" />
+                                <span className="max-w-[140px] truncate">{f.name}</span>
+                                {f.id && (
+                                  <span className="font-semibold text-neon">
+                                    {gymTierLabel(f.tier)}
+                                  </span>
+                                )}
+                                <span className="font-mono text-muted">×{f.visits}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                       </td>
                       <td className="py-2.5 px-4 text-right">
                         <Badge variant="outline">{row.totalVisits}</Badge>

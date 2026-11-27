@@ -13,8 +13,8 @@ import { PasswordInput } from '@/components/ui/password-input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { memberApi } from '@/services/member.service';
-import { getVisibleAdminItems, navigationSections } from './admin-sidebar';
-import { isPartnerRole } from '@/lib/auth';
+import { getNavSections, getVisibleAdminItems, type NavArea } from './admin-sidebar';
+import { canAccessAdminPath, isPartnerRole } from '@/lib/auth';
 import { partnerApi } from '@/services/partner.service';
 import { PARTNERSHIP_LABELS } from '@/components/admin/partnership';
 import { gymTierLabel } from '@/lib/package-options';
@@ -90,7 +90,7 @@ const normalize = (value: string) =>
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/đ/g, 'd');
 
-export function AdminHeader() {
+export function AdminHeader({ area = 'admin' }: { area?: NavArea }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [user, setUser] = useState<any>(null);
@@ -183,7 +183,7 @@ export function AdminHeader() {
 
   const role: string = user?.role || '';
   const isPartner = isPartnerRole(role);
-  const canSeeStaff = !isPartner && (role === 'ADMIN' || role === 'MANAGER');
+  const canSeeStaff = !isPartner && canAccessAdminPath(role, '/admin/staff');
 
   // Đối tác Gym Cộng đồng đã xếp hạng → hiện loại gói hợp tác + hạng phòng cạnh vai trò.
   // Dùng chung cache với trang /admin/partnership.
@@ -202,15 +202,15 @@ export function AdminHeader() {
   // Danh mục điều hướng (đồng bộ sidebar; ẩn mục STAFF không được xem)
   const navItems = useMemo(
     () =>
-      navigationSections.flatMap((section) =>
-        getVisibleAdminItems(section, role).map((item) => ({
+      getNavSections(area).flatMap((section) =>
+        getVisibleAdminItems(section, role, area).map((item) => ({
           name: item.name,
           href: item.href,
           icon: item.icon,
           section: section.title,
         })),
       ),
-    [role],
+    [role, area],
   );
 
   const trimmed = debounced.trim();
@@ -536,7 +536,7 @@ export function AdminHeader() {
     <header className="h-16 px-4 md:px-6 border-b border-line bg-ink/85 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between">
       {/* Left: Mobile Toggle & Quick Search */}
       <div className="flex items-center gap-3">
-        <MobileNav />
+        <MobileNav area={area} />
         <div className="relative hidden sm:block w-64 md:w-80" ref={searchRef}>
           <div className="flex items-center gap-2 px-3 py-2 rounded-sm bg-surface border border-line text-xs focus-within:border-neon/60">
             <Search className="size-3.5 text-muted shrink-0" />
@@ -704,7 +704,10 @@ export function AdminHeader() {
 
         {/* Notification Bell */}
         <ThemeToggle />
-        <NotificationBell notificationsHref="/admin/notifications" queryKeyPrefix="admin" />
+        <NotificationBell
+          notificationsHref={area === 'partner' ? undefined : '/admin/notifications'}
+          queryKeyPrefix="admin"
+        />
 
         {/* User Profile Dropdown */}
         <div className="relative" ref={menuRef}>
@@ -742,13 +745,15 @@ export function AdminHeader() {
                 <p className="font-semibold text-chalk">{user?.fullName || 'Quản trị viên'}</p>
                 <p className="text-[11px] text-muted truncate">{user?.email || 'admin@gym.com'}</p>
               </div>
-              <button
-                onClick={() => router.push('/admin/settings')}
-                className="w-full flex items-center gap-2 px-3 py-2 text-muted hover:bg-ink hover:text-chalk transition-colors"
-              >
-                <UserIcon className="size-3.5" />
-                Hồ sơ & Tài khoản
-              </button>
+              {area === 'admin' && (
+                <button
+                  onClick={() => router.push('/admin/settings')}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-muted hover:bg-ink hover:text-chalk transition-colors"
+                >
+                  <UserIcon className="size-3.5" />
+                  Hồ sơ & Tài khoản
+                </button>
+              )}
               {user?.role === 'PARTNER' && (
                 <button
                   type="button"

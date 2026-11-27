@@ -28,7 +28,22 @@ import {
   ShieldCheck,
   Wallet,
   Pencil,
+  Clock,
+  XCircle,
 } from 'lucide-react';
+import type { TrainerDetail, TrainerProfileDraft } from '@/services/types';
+import { AvatarUploader } from '@/components/trainer/avatar-uploader';
+
+const DRAFT_LABELS: Record<keyof TrainerProfileDraft, string> = {
+  specialization: 'Chuyên môn',
+  certification: 'Chứng chỉ',
+  experienceYears: 'Kinh nghiệm',
+  bio: 'Giới thiệu',
+  avatarUrl: 'Ảnh đại diện',
+  gender: 'Giới tính',
+  dateOfBirth: 'Ngày sinh',
+  hourlyRate: 'Phí kèm riêng',
+};
 
 export default function TrainerProfilePage() {
   const toast = useToast();
@@ -91,22 +106,35 @@ export default function TrainerProfilePage() {
     hourlyRate: '',
   });
 
+  // Mở form: ưu tiên nội dung bản nháp đang chờ duyệt / bị từ chối để PT sửa tiếp
   const openEdit = () => {
     if (!profile) return;
+    const draft: TrainerProfileDraft = profile.pendingProfile ?? {};
+    const pick = <K extends keyof TrainerProfileDraft>(key: K, fallback: TrainerProfileDraft[K]) =>
+      key in draft ? draft[key] : fallback;
+    const dob = pick('dateOfBirth', profile.dateOfBirth ?? null);
+    const rate = pick('hourlyRate', profile.hourlyRate != null ? Number(profile.hourlyRate) : null);
     setForm({
-      specialization: profile.specialization ?? '',
-      certification: profile.certification ?? '',
-      experienceYears: String(profile.experienceYears ?? 0),
-      bio: profile.bio ?? '',
-      avatarUrl: profile.user?.avatarUrl ?? '',
-      gender: profile.gender ?? 'MALE',
-      dateOfBirth: profile.dateOfBirth
-        ? new Date(profile.dateOfBirth).toISOString().slice(0, 10)
-        : '',
-      hourlyRate: profile.hourlyRate != null ? String(Number(profile.hourlyRate)) : '',
+      specialization: pick('specialization', profile.specialization) ?? '',
+      certification: pick('certification', profile.certification ?? null) ?? '',
+      experienceYears: String(pick('experienceYears', profile.experienceYears) ?? 0),
+      bio: pick('bio', profile.bio ?? null) ?? '',
+      avatarUrl: pick('avatarUrl', profile.user?.avatarUrl ?? null) ?? '',
+      gender: pick('gender', profile.gender ?? null) ?? 'MALE',
+      dateOfBirth: dob ? new Date(dob).toISOString().slice(0, 10) : '',
+      hourlyRate: rate != null ? String(Number(rate)) : '',
     });
     setEditOpen(true);
   };
+
+  const cancelDraft = useMutation({
+    mutationFn: trainerApi.cancelMyProfileDraft,
+    onSuccess: (res) => {
+      toast.success(res.message);
+      void refetch();
+    },
+    onError: (e: any) => toast.error('Không thể huỷ bản chỉnh sửa', e?.response?.data?.message),
+  });
 
   const updateProfile = useMutation({
     mutationFn: () =>
@@ -121,8 +149,10 @@ export default function TrainerProfilePage() {
         hourlyRate: form.hourlyRate.trim() ? Number(form.hourlyRate) : null,
       }),
     onSuccess: (res) => {
-      toast.success(res?.message || 'Đã cập nhật hồ sơ huấn luyện viên');
+      if (res.mode === 'DRAFT') toast.success('Đã gửi chỉnh sửa chờ duyệt', res.message);
+      else toast.success(res?.message || 'Đã cập nhật hồ sơ huấn luyện viên');
       setEditOpen(false);
+      qc.setQueryData(['trainer-my-profile'], res.trainer);
       void refetch();
       void qc.invalidateQueries({ queryKey: ['public-trainer', profile?.id] });
       void qc.invalidateQueries({ queryKey: ['public-trainers'] });
@@ -170,6 +200,13 @@ export default function TrainerProfilePage() {
         />
       ) : (
         <>
+          <ReviewBanner
+            profile={profile}
+            onEdit={openEdit}
+            onCancelDraft={() => cancelDraft.mutate()}
+            cancelling={cancelDraft.isPending}
+          />
+
           {/* Profile card */}
           <Card className="overflow-hidden">
             <CardContent className="p-6">
@@ -315,7 +352,11 @@ export default function TrainerProfilePage() {
         open={editOpen}
         onClose={() => setEditOpen(false)}
         title="Chỉnh sửa hồ sơ huấn luyện viên"
-        description="Thông tin này hiển thị công khai trên trang giới thiệu HLV. Phí kèm riêng được tính theo buổi và thanh toán trực tiếp với bạn qua tin nhắn."
+        description={
+          profile?.ownerPartnerId
+            ? 'Thông tin hồ sơ huấn luyện viên của bạn tại phòng gym. Phí kèm riêng tính theo buổi.'
+            : 'Thông tin này hiển thị công khai trên trang giới thiệu HLV, nên mọi chỉnh sửa sẽ được quản trị viên duyệt trước khi hiển thị. Phí kèm riêng tính theo buổi và thanh toán trực tiếp với bạn qua tin nhắn.'
+        }
       >
         <div className="space-y-4">
           <Input
@@ -358,12 +399,10 @@ export default function TrainerProfilePage() {
             placeholder="Ví dụ: ACE-CPT, NASM..."
             maxLength={400}
           />
-          <Input
-            label="Ảnh đại diện (URL)"
+          <AvatarUploader
+            name={profile?.user.fullName}
             value={form.avatarUrl}
-            onChange={(e) => setForm({ ...form, avatarUrl: e.target.value })}
-            placeholder="https://..."
-            maxLength={400}
+            onChange={(avatarUrl) => setForm({ ...form, avatarUrl })}
           />
           <Textarea
             label="Giới thiệu bản thân"
@@ -396,7 +435,7 @@ export default function TrainerProfilePage() {
               Huỷ
             </Button>
             <Button variant="primary" isLoading={updateProfile.isPending} onClick={submitProfile}>
-              Lưu thay đổi
+              {profile?.ownerPartnerId ? 'Lưu thay đổi' : 'Gửi duyệt'}
             </Button>
           </div>
         </div>
@@ -422,6 +461,68 @@ function InfoTile({
       <div className="min-w-0">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">{label}</p>
         <p className={`truncate text-sm font-medium text-chalk ${valueClass || ''}`}>{value}</p>
+      </div>
+    </div>
+  );
+}
+
+/** Trạng thái duyệt: hồ sơ đăng ký PT hoặc bản chỉnh sửa hồ sơ công khai */
+function ReviewBanner({
+  profile,
+  onEdit,
+  onCancelDraft,
+  cancelling,
+}: {
+  profile: TrainerDetail;
+  onEdit: () => void;
+  onCancelDraft: () => void;
+  cancelling: boolean;
+}) {
+  const draft = profile.pendingProfile;
+  if (!draft || !profile.profileReviewStatus || profile.profileReviewStatus === 'APPROVED') {
+    return null;
+  }
+  const rejected = profile.profileReviewStatus === 'REJECTED';
+  const fields = (Object.keys(draft) as (keyof TrainerProfileDraft)[])
+    .map((key) => DRAFT_LABELS[key] ?? key)
+    .join(', ');
+
+  return (
+    <div
+      className={`rounded-2xl border p-4 ${rejected ? 'border-danger/40 bg-danger/10' : 'border-neon/30 bg-neon/5'}`}
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className="flex items-center gap-2 text-sm font-semibold text-chalk">
+            {rejected ? (
+              <XCircle className="size-4 text-danger" />
+            ) : (
+              <Clock className="size-4 text-neon" />
+            )}
+            {rejected ? 'Chỉnh sửa hồ sơ bị từ chối' : 'Chỉnh sửa hồ sơ đang chờ duyệt'}
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-muted">
+            Mục thay đổi: <span className="text-chalk">{fields}</span>.{' '}
+            {rejected
+              ? 'Hồ sơ công khai vẫn giữ nội dung cũ.'
+              : `Gửi lúc ${profile.profileSubmittedAt ? formatDate(profile.profileSubmittedAt) : '--'}; hồ sơ công khai vẫn giữ nội dung cũ đến khi được duyệt.`}
+          </p>
+          {rejected && profile.profileRejectReason && (
+            <p className="mt-2 text-sm text-chalk">
+              <b className="text-danger">Lý do:</b> {profile.profileRejectReason}
+            </p>
+          )}
+        </div>
+        <div className="flex shrink-0 gap-2">
+          <Button size="sm" variant="outline" onClick={onEdit}>
+            <Pencil className="size-3.5" /> {rejected ? 'Sửa lại' : 'Sửa bản nháp'}
+          </Button>
+          {!rejected && (
+            <Button size="sm" variant="ghost" isLoading={cancelling} onClick={onCancelDraft}>
+              Huỷ gửi
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );

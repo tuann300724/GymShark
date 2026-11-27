@@ -1,0 +1,24 @@
+# Chuẩn hoá dòng cuối file = LF cho mọi file text.
+#
+# Lý do: trước đây repo không khai báo gì nên Windows checkout ra CRLF, còn
+# Prettier (endOfLine: "lf") đòi LF → sau MỖI lần `git pull` hay `git checkout`,
+# `npm run format:check` báo fail hàng loạt file (nhiễu EOL, không phải lỗi code).
+# Với `eol=lf`, file trong working tree luôn là LF → Prettier luôn PASS và
+# `git status` không còn hiện "modified" oan sau khi pull.
+#
+# `text=auto` để git tự nhận file binary (ảnh, .bak...) và không đụng tới chúng.
+* text=auto eol=lf
+
+# Giữ nguyên các dạng file không phải text
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.pdf binary
+*.bak binary

@@ -237,6 +237,12 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
     socket.on('admin:event', onRealtimeNotification);
     socket.on('realtime:event', onRealtimeNotification);
     socket.on('data:changed', scheduleRealtimeRefresh);
+    // Thẻ đề nghị buổi tập PT đổi trạng thái (chấp nhận / từ chối / đã thanh toán)
+    const onPtSessionUpdated = () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-messages'] });
+      queryClient.invalidateQueries({ queryKey: ['pt-sessions'] });
+    };
+    socket.on('pt-session:updated', onPtSessionUpdated);
 
     return () => {
       window.removeEventListener('gym:mutation-complete', scheduleRealtimeRefresh);
@@ -250,6 +256,7 @@ export function ChatSocketProvider({ children }: { children: React.ReactNode }) 
       socket.off('admin:event', onRealtimeNotification);
       socket.off('realtime:event', onRealtimeNotification);
       socket.off('data:changed', scheduleRealtimeRefresh);
+      socket.off('pt-session:updated', onPtSessionUpdated);
     };
   }, [queryClient, toast, pathname]);
 

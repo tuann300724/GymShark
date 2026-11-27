@@ -6,6 +6,9 @@ interface UserInfo {
   fullName: string;
   role: string;
   avatarUrl?: string | null;
+  partnerStaff?: boolean;
+  /** Tài khoản cấp mật khẩu tạm — phải đổi mật khẩu ở lần đăng nhập đầu */
+  mustChangePassword?: boolean;
 }
 
 export interface LoginResponse {
@@ -302,6 +305,8 @@ export interface CheckInResult {
   success: boolean;
   message: string;
   data: CheckInResultData;
+  /** Quét khuôn mặt 1:N: CHECK_OUT khi hội viên đang trong phòng (quét lần 2) */
+  action?: 'CHECK_IN' | 'CHECK_OUT';
   /** Chỉ có ở check-in bằng khuôn mặt: độ khớp cosine + ảnh tham chiếu để lễ tân đối chiếu */
   face?: { similarity: number; imageData?: string | null };
 }
@@ -383,13 +388,28 @@ interface MemberAttendanceRow {
     avatarUrl?: string | null;
   };
   totalVisits: number;
+  /** Các cơ sở hội viên đã tập trong kỳ (id null = phòng hệ thống), nhiều lượt nhất trước */
+  facilities: AttendanceFacility[];
   avgDuration: number;
   lastVisit: string | null;
 }
 
+export interface AttendanceFacility {
+  id: string | null;
+  name: string;
+  tier: GymTier | null;
+  visits: number;
+  lastVisit: string;
+}
+
+/** Lọc báo cáo chuyên cần theo hạng cơ sở; NONE = chưa xếp hạng, SYSTEM = phòng hệ thống */
+export type AttendanceTierFilter = GymTier | 'NONE' | 'SYSTEM';
+
 export interface MemberAttendanceReport {
   from: string;
   to: string;
+  /** Cơ sở đối tác cho bộ lọc, đã sắp theo hạng (Premium → Plus → Standard → chưa xếp hạng) */
+  facilityOptions: { id: string; name: string; tier: GymTier | null }[];
   data: MemberAttendanceRow[];
 }
 
@@ -694,6 +714,21 @@ export interface MemberStats {
     status: string;
     remainingDays: number;
     progress: number;
+    packageId?: string;
+    packageType?: string;
+    /** Gói lượt: tổng lượt và số lượt đã dùng (null với gói theo thời hạn) */
+    visitLimit?: number | null;
+    usedVisits?: number | null;
+  } | null;
+  /** Gói lượt vừa dùng hết lượt (không còn gói chạy) — hiện nút gia hạn / đổi gói */
+  finishedMembership?: {
+    id: string;
+    packageId: string;
+    packageName: string;
+    startDate: string;
+    endDate: string;
+    visitLimit: number;
+    usedVisits: number;
   } | null;
   pendingMembership?: {
     id: string;
@@ -724,6 +759,8 @@ export interface TrainerPublic {
   bio?: string | null;
   rating: number;
   hourlyRate?: string | null;
+  /** % chiết khấu GymMaster giữ lại mỗi buổi PT đặt qua hệ thống */
+  commissionRate?: string | number | null;
   gender?: 'MALE' | 'FEMALE' | 'OTHER' | null;
   dateOfBirth?: string | null;
   status: string;
@@ -781,7 +818,31 @@ export interface TrainerAssignment {
   member?: TrainerMemberSummary;
 }
 
+/** Các field hồ sơ công khai PT tự sửa — bản nháp chờ admin duyệt */
+export interface TrainerProfileDraft {
+  specialization?: string;
+  certification?: string | null;
+  experienceYears?: number;
+  bio?: string | null;
+  avatarUrl?: string | null;
+  gender?: 'MALE' | 'FEMALE' | 'OTHER' | null;
+  dateOfBirth?: string | null;
+  hourlyRate?: number | null;
+}
+
+export type TrainerProfileReviewStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
 export interface TrainerDetail extends TrainerPublic {
+  /** ADMIN = quản trị tạo, SELF = tạo từ đơn PT tự do được duyệt */
+  source?: 'ADMIN' | 'SELF';
+  /** PT riêng của phòng gym đối tác (NULL = PT hệ thống GymMaster) */
+  ownerPartnerId?: string | null;
+  pendingProfile?: TrainerProfileDraft | null;
+  profileReviewStatus?: TrainerProfileReviewStatus | null;
+  profileSubmittedAt?: string | null;
+  profileReviewedAt?: string | null;
+  profileRejectReason?: string | null;
+  createdAt?: string;
   trainerMembers?: TrainerAssignment[];
   schedules?: TrainingSession[];
   stats?: {
@@ -1005,6 +1066,28 @@ export interface PartnerCommissionSummary {
   totalRevenue: string;
   totalCommission: string;
   monthly: Array<{ month: string; amount: string }>;
+  /** Hoa hồng gom theo hội viên, nhiều nhất trước (chỉ có ở /partners/me/commission) */
+  byMember?: Array<{
+    memberId: string;
+    code: string;
+    fullName: string;
+    /** true = hội viên cộng đồng Gym Master, false = hội viên riêng của phòng */
+    community: boolean;
+    visitCount: number;
+    revenue: string;
+    commission: string;
+    lastVisitAt: string;
+  }>;
+  /** 100 lượt gần nhất: giá 1 lượt × tỷ lệ chốt lúc check-in */
+  recentVisits?: Array<{
+    id: string;
+    checkInTime: string;
+    memberCode: string;
+    memberName: string;
+    unitPrice: string;
+    commissionRate: number | null;
+    commissionAmount: string;
+  }>;
 }
 
 /** Hội viên Gym Master đã tập tại phòng đối tác — chỉ thông tin tối thiểu, không SĐT/email */

@@ -1,8 +1,16 @@
 import apiClient from '@/lib/axios';
 
+/** Trạng thái duyệt ảnh: hội viên tự gửi → PENDING; lễ tân đăng ký hộ → APPROVED luôn */
+export type FaceReviewStatus = 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED';
+
 /** Trạng thái đăng ký khuôn mặt (tự quét 1:1 hoặc do lễ tân đăng ký hộ tại quầy) */
 export interface FaceStatus {
+  /** true = đã được duyệt, dùng được để check-in */
   enrolled: boolean;
+  reviewStatus: FaceReviewStatus;
+  reviewedAt: string | null;
+  /** Lý do admin từ chối (chỉ có khi reviewStatus = REJECTED) */
+  rejectReason: string | null;
   sampleCount: number;
   consentAt: string | null;
   /** Ảnh tham chiếu chụp lúc đăng ký (data URL JPEG) — null nếu chưa lưu ảnh */
@@ -11,6 +19,20 @@ export interface FaceStatus {
 
 export interface FaceMemberStatus extends FaceStatus {
   member: { id: string; code: string; fullName: string; status: string };
+}
+
+export interface FacePendingReview {
+  memberId: string;
+  member: {
+    id: string;
+    code: string;
+    fullName: string;
+    email: string | null;
+    phone: string;
+    status: string;
+  };
+  imageData: string;
+  submittedAt: string;
 }
 
 export const faceApi = {
@@ -68,6 +90,30 @@ export const faceApi = {
   /** Admin/Manager: xoá đăng ký thay hội viên (khi hội viên yêu cầu) */
   adminWithdraw: async (memberId: string): Promise<{ success: boolean; message: string }> => {
     const res = await apiClient.delete(`/faces/member/${memberId}`);
+    return res.data;
+  },
+
+  /** Admin/Manager/Staff: ảnh khuôn mặt hội viên tự gửi đang chờ duyệt */
+  listPendingReviews: async (): Promise<{ data: FacePendingReview[]; total: number }> => {
+    const res = await apiClient.get('/faces/reviews');
+    return res.data;
+  },
+
+  /** Admin/Manager/Staff: duyệt hoặc từ chối (kèm lý do) — hội viên nhận email kết quả */
+  review: async (
+    memberId: string,
+    approved: boolean,
+    reason?: string,
+  ): Promise<{ success: boolean; message: string; emailSent: boolean }> => {
+    const res = await apiClient.post(`/faces/member/${memberId}/review`, { approved, reason });
+    return res.data;
+  },
+
+  /** Admin/Manager/Staff: nhắc hội viên chưa xác thực khuôn mặt (thông báo + email) */
+  remind: async (
+    memberId: string,
+  ): Promise<{ success: boolean; message: string; emailSent: boolean }> => {
+    const res = await apiClient.post(`/faces/member/${memberId}/remind`);
     return res.data;
   },
 };

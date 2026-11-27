@@ -17,11 +17,40 @@ import { assertInScope, ownerWhere, type OwnerScope } from "../../common/utils/p
 import {
   CreateTrainerDto,
   TrainerQueryDto,
+  TrainerReviewDto,
   UpdateMyTrainerProfileDto,
   UpdateTrainerDto,
 } from "./dto/trainer.dto";
 import { AuditService } from "../audit-logs/audit-logs.service";
 import { NotificationsService } from "../notifications/notifications.service";
+import { MailService } from "../mail/mail.service";
+import { isAvatarDataUrl, saveUserAvatar } from "../../common/utils/avatar";
+
+/** Các field hồ sơ công khai PT tự sửa (bản nháp chờ duyệt lưu đúng các key này) */
+type ProfileDraft = Partial<{
+  specialization: string;
+  certification: string | null;
+  experienceYears: number;
+  bio: string | null;
+  avatarUrl: string | null;
+  gender: string | null;
+  dateOfBirth: string | null;
+  hourlyRate: number | null;
+}>;
+
+const PROFILE_KEYS = [
+  "specialization",
+  "certification",
+  "experienceYears",
+  "bio",
+  "avatarUrl",
+  "gender",
+  "dateOfBirth",
+  "hourlyRate",
+] as const;
+
+const frontendBase = () =>
+  process.env.FRONTEND_URL?.replace(/\/$/, "") || "http://localhost:3000";
 
 /** Mật khẩu mặc định cho tài khoản HLV mới do admin tạo (trả về 1 lần khi tạo) */
 export const DEFAULT_TRAINER_PASSWORD = "Trainer@123456";
@@ -32,6 +61,7 @@ export class TrainersService {
     private prisma: PrismaService,
     private auditService: AuditService,
     private notificationsService: NotificationsService,
+    private mailService: MailService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -219,6 +249,7 @@ export class TrainersService {
           phone: dto.phone ?? null,
           role: UserRole.TRAINER,
           ownerPartnerId: scope,
+          mustChangePassword: true,
           status:
             dto.status === TrainerStatus.INACTIVE
               ? UserStatus.INACTIVE
@@ -238,6 +269,10 @@ export class TrainersService {
           gender: dto.gender ?? null,
           dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : null,
           hourlyRate: dto.hourlyRate ?? null,
+          // Chiết khấu chỉ áp dụng PT hệ thống (đối tác không tự đặt % của GymMaster)
+          ...(scope === null && dto.commissionRate !== undefined
+            ? { commissionRate: dto.commissionRate }
+            : {}),
           status: dto.status ?? TrainerStatus.ACTIVE,
         },
         include: {
@@ -312,6 +347,8 @@ export class TrainersService {
         ? new Date(dto.dateOfBirth)
         : null;
     if (dto.hourlyRate !== undefined) trainerData.hourlyRate = dto.hourlyRate;
+    if (dto.commissionRate !== undefined && scope === null)
+      trainerData.commissionRate = dto.commissionRate;
     if (dto.status !== undefined) trainerData.status = dto.status;
 
     const updated = await this.prisma.$transaction([
@@ -591,6 +628,7 @@ export class TrainersService {
 
     return {
       ...trainer,
+      pendingProfile: this.parseDraft(trainer.pendingProfile),
       stats: {
         totalSessions,
         activeMembers,
@@ -600,64 +638,296 @@ export class TrainersService {
     };
   }
 
-  /** HLV tự chỉnh hồ sơ công khai + giá kèm riêng theo buổi */
+  /**
+   * HLV tự chỉnh hồ sơ công khai + giá kèm riêng theo buổi.
+   * - PT của hệ thống: lưu thành BẢN NHÁP chờ admin duyệt, hồ sơ công khai giữ nguyên.
+   * - PT riêng của phòng gym đối tác: không hiển thị trên GymMaster nên áp dụng ngay.
+   */
   async updateMyProfile(userId: string, dto: UpdateMyTrainerProfileDto) {
-    const trainer = await this.resolveTrainerByUserId(userId);
+    const trainer = await this.prisma.trainer.findUnique({
+      where: { userId },
+      include: { user: { select: { id: true, fullName: true, avatarUrl: true } } },
+    });
+    if (!trainer)
+      throw new ForbiddenException(
+        "Tài khoản này không gắn với hồ sơ huấn luyện viên.",
+      );
 
-    const trainerData: any = {};
-    if (dto.specialization !== undefined)
-      trainerData.specialization = dto.specialization;
-    if (dto.certification !== undefined)
-      trainerData.certification = dto.certification.trim() || null;
-    if (dto.experienceYears !== undefined)
-      trainerData.experienceYears = dto.experienceYears;
-    if (dto.bio !== undefined) trainerData.bio = dto.bio.trim() || null;
-    if (dto.gender !== undefined) trainerData.gender = dto.gender;
-    if (dto.dateOfBirth !== undefined)
-      trainerData.dateOfBirth = dto.dateOfBirth
-        ? new Date(dto.dateOfBirth)
-        : null;
-    if (dto.hourlyRate !== undefined) trainerData.hourlyRate = dto.hourlyRate;
+    const input = this.normalizeProfileInput(dto);
 
-    const userData: any = {};
-    if (dto.avatarUrl !== undefined)
-      userData.avatarUrl = dto.avatarUrl.trim() || null;
+    if (trainer.ownerPartnerId) {
+      const { trainerData, userData } = this.toProfileData(input);
+      await this.persistUploadedAvatar(trainer.userId, userData);
+      await this.prisma.$transaction([
+        this.prisma.user.update({ where: { id: trainer.userId }, data: userData }),
+        this.prisma.trainer.update({ where: { id: trainer.id }, data: trainerData }),
+      ]);
+      await this.auditService.log({
+        userId,
+        action: "TRAINER_UPDATE",
+        entity: "Trainer",
+        entityId: trainer.id,
+        metadata: { fields: Object.keys(input), source: "SELF" },
+      });
+      return {
+        message: "Đã cập nhật hồ sơ huấn luyện viên.",
+        mode: "DIRECT",
+        trainer: await this.getMyProfile(userId),
+      };
+    }
 
-    const [, updated] = await this.prisma.$transaction([
-      this.prisma.user.update({ where: { id: trainer.userId }, data: userData }),
-      this.prisma.trainer.update({
-        where: { id: trainer.id },
-        data: trainerData,
-        include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              fullName: true,
-              phone: true,
-              avatarUrl: true,
-              status: true,
-            },
-          },
-        },
-      }),
-    ]);
+    // So với hồ sơ đang hiển thị — chỉ lưu các field thật sự thay đổi
+    const current = this.currentProfile(trainer);
+    const draft: Record<string, unknown> = {};
+    for (const key of PROFILE_KEYS) {
+      if (!(key in input)) continue;
+      if (JSON.stringify(input[key]) !== JSON.stringify(current[key])) {
+        draft[key] = input[key];
+      }
+    }
+    if (Object.keys(draft).length === 0) {
+      throw new BadRequestException(
+        "Không có thay đổi nào so với hồ sơ đang hiển thị công khai.",
+      );
+    }
 
-    await this.auditService.log({
-      userId,
-      action: "TRAINER_UPDATE",
-      entity: "Trainer",
-      entityId: trainer.id,
-      metadata: {
-        fields: Object.keys({ ...trainerData, ...userData }),
-        source: "SELF",
+    const submittedAt = new Date();
+    await this.prisma.trainer.update({
+      where: { id: trainer.id },
+      data: {
+        pendingProfile: JSON.stringify(draft),
+        profileReviewStatus: "PENDING",
+        profileSubmittedAt: submittedAt,
+        profileReviewedAt: null,
+        profileRejectReason: null,
       },
     });
 
+    await this.auditService.log({
+      userId,
+      action: "TRAINER_PROFILE_SUBMIT",
+      entity: "Trainer",
+      entityId: trainer.id,
+      metadata: { fields: Object.keys(draft) },
+    });
+    await this.notificationsService.notifyAdmins({
+      type: "SYSTEM",
+      title: "PT gửi chỉnh sửa hồ sơ",
+      content: `${trainer.user.fullName} vừa gửi chỉnh sửa hồ sơ công khai, cần duyệt trước khi hiển thị.`,
+      link: "/admin/trainer-applications",
+      referenceType: "TRAINER_PROFILE_CHANGE",
+      referenceId: `${trainer.id}:${submittedAt.getTime()}`,
+    });
+
     return {
-      message: "Đã cập nhật hồ sơ huấn luyện viên.",
-      trainer: updated,
+      message:
+        "Đã gửi chỉnh sửa hồ sơ. Nội dung mới sẽ hiển thị công khai sau khi quản trị viên duyệt.",
+      mode: "DRAFT",
+      trainer: await this.getMyProfile(userId),
     };
+  }
+
+  /** HLV huỷ bản chỉnh sửa hồ sơ đang chờ duyệt */
+  async cancelMyProfileDraft(userId: string) {
+    const trainer = await this.resolveTrainerByUserId(userId);
+    if (trainer.profileReviewStatus !== "PENDING") {
+      throw new BadRequestException("Không có chỉnh sửa hồ sơ nào đang chờ duyệt.");
+    }
+    await this.prisma.trainer.update({
+      where: { id: trainer.id },
+      data: { pendingProfile: null, profileReviewStatus: null, profileSubmittedAt: null },
+    });
+    return { message: "Đã huỷ bản chỉnh sửa hồ sơ đang chờ duyệt." };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Admin duyệt chỉnh sửa hồ sơ (đơn đăng ký PT mới: xem TrainerApplicationsService)
+  // ---------------------------------------------------------------------------
+
+  /** Admin: các bản chỉnh sửa hồ sơ công khai đang chờ duyệt (PT của hệ thống) */
+  async getProfileChanges() {
+    const rows = await this.prisma.trainer.findMany({
+      where: { profileReviewStatus: "PENDING", ownerPartnerId: null },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            fullName: true,
+            phone: true,
+            avatarUrl: true,
+            status: true,
+          },
+        },
+      },
+      orderBy: { profileSubmittedAt: "asc" },
+    });
+    return rows.map((t) => ({
+      ...t,
+      pendingProfile: this.parseDraft(t.pendingProfile),
+      currentProfile: this.currentProfile(t),
+    }));
+  }
+
+  /** Admin duyệt / từ chối bản chỉnh sửa hồ sơ công khai của PT */
+  async reviewProfileChange(id: string, dto: TrainerReviewDto, actorId?: string) {
+    const trainer = await this.prisma.trainer.findUnique({
+      where: { id },
+      include: { user: { select: { id: true, email: true, fullName: true } } },
+    });
+    if (!trainer || trainer.ownerPartnerId)
+      throw new NotFoundException("Không tìm thấy hồ sơ huấn luyện viên.");
+    if (trainer.profileReviewStatus !== "PENDING" || !trainer.pendingProfile)
+      throw new BadRequestException("PT này không có chỉnh sửa hồ sơ nào đang chờ duyệt.");
+    const reason = this.requireReason(dto);
+    const draft = this.parseDraft(trainer.pendingProfile) ?? {};
+    const reviewedAt = new Date();
+
+    if (dto.approved) {
+      const { trainerData, userData } = this.toProfileData(draft);
+      await this.persistUploadedAvatar(trainer.userId, userData);
+      await this.prisma.$transaction([
+        this.prisma.user.update({ where: { id: trainer.userId }, data: userData }),
+        this.prisma.trainer.update({
+          where: { id },
+          data: {
+            ...trainerData,
+            pendingProfile: null,
+            profileReviewStatus: "APPROVED",
+            profileReviewedAt: reviewedAt,
+            profileRejectReason: null,
+          },
+        }),
+      ]);
+    } else {
+      // Giữ bản nháp để PT thấy nội dung bị từ chối và sửa tiếp
+      await this.prisma.trainer.update({
+        where: { id },
+        data: {
+          profileReviewStatus: "REJECTED",
+          profileReviewedAt: reviewedAt,
+          profileRejectReason: reason,
+        },
+      });
+    }
+
+    await this.auditService.log({
+      userId: actorId,
+      action: dto.approved ? "TRAINER_PROFILE_APPROVE" : "TRAINER_PROFILE_REJECT",
+      entity: "Trainer",
+      entityId: id,
+      metadata: { fields: Object.keys(draft), ...(reason ? { reason } : {}) },
+    });
+
+    const link = "/trainer/profile";
+    await this.notificationsService.create({
+      userId: trainer.userId,
+      type: "SYSTEM",
+      title: dto.approved
+        ? "Chỉnh sửa hồ sơ đã được duyệt ✅"
+        : "Chỉnh sửa hồ sơ chưa được duyệt",
+      content: dto.approved
+        ? "Nội dung hồ sơ mới của bạn đã hiển thị công khai."
+        : `Chỉnh sửa hồ sơ của bạn bị từ chối. Lý do: ${reason}.`,
+      link,
+    });
+    void this.mailService.sendTrainerProfileReviewEmail({
+      email: trainer.user.email,
+      fullName: trainer.user.fullName,
+      approved: dto.approved,
+      reason,
+      link: `${frontendBase()}${link}`,
+    });
+
+    return {
+      message: dto.approved
+        ? `Đã duyệt chỉnh sửa hồ sơ của ${trainer.user.fullName}.`
+        : `Đã từ chối chỉnh sửa hồ sơ của ${trainer.user.fullName}.`,
+      emailSent: true,
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Helpers cho bản nháp hồ sơ
+  // ---------------------------------------------------------------------------
+
+  /** Ảnh đại diện dạng data URL → lưu UserAvatar, thay bằng link ngắn trước khi ghi User */
+  private async persistUploadedAvatar(userId: string, userData: Record<string, unknown>) {
+    if (isAvatarDataUrl(userData.avatarUrl)) {
+      userData.avatarUrl = await saveUserAvatar(this.prisma, userId, userData.avatarUrl);
+    }
+  }
+
+  private requireReason(dto: TrainerReviewDto) {
+    const reason = dto.reason?.trim() || null;
+    if (!dto.approved && !reason)
+      throw new BadRequestException("Vui lòng nhập lý do từ chối để PT biết cần chỉnh sửa gì.");
+    return dto.approved ? null : reason;
+  }
+
+  private parseDraft(raw: string | null): ProfileDraft | null {
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as ProfileDraft;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Chuẩn hoá input PT gửi lên về cùng dạng với currentProfile() để so sánh */
+  private normalizeProfileInput(dto: UpdateMyTrainerProfileDto): ProfileDraft {
+    const text = (v: unknown) => (typeof v === "string" ? v.trim() || null : null);
+    const out: ProfileDraft = {};
+    if (typeof dto.specialization === "string") out.specialization = dto.specialization.trim();
+    if (dto.certification !== undefined) out.certification = text(dto.certification);
+    if (dto.experienceYears !== undefined && dto.experienceYears !== null)
+      out.experienceYears = Number(dto.experienceYears);
+    if (dto.bio !== undefined) out.bio = text(dto.bio);
+    if (dto.avatarUrl !== undefined) out.avatarUrl = text(dto.avatarUrl);
+    if (dto.gender !== undefined) out.gender = dto.gender ?? null;
+    if (dto.dateOfBirth !== undefined)
+      out.dateOfBirth = dto.dateOfBirth
+        ? new Date(dto.dateOfBirth).toISOString().slice(0, 10)
+        : null;
+    if (dto.hourlyRate !== undefined)
+      out.hourlyRate = dto.hourlyRate === null ? null : Number(dto.hourlyRate);
+    return out;
+  }
+
+  private currentProfile(trainer: {
+    specialization: string;
+    certification: string | null;
+    experienceYears: number;
+    bio: string | null;
+    gender: string | null;
+    dateOfBirth: Date | null;
+    hourlyRate: unknown;
+    user: { avatarUrl: string | null };
+  }): Required<ProfileDraft> {
+    return {
+      specialization: trainer.specialization,
+      certification: trainer.certification,
+      experienceYears: trainer.experienceYears,
+      bio: trainer.bio,
+      avatarUrl: trainer.user.avatarUrl,
+      gender: trainer.gender,
+      dateOfBirth: trainer.dateOfBirth ? trainer.dateOfBirth.toISOString().slice(0, 10) : null,
+      hourlyRate: trainer.hourlyRate === null ? null : Number(trainer.hourlyRate),
+    };
+  }
+
+  private toProfileData(draft: ProfileDraft) {
+    const trainerData: Record<string, unknown> = {};
+    const userData: Record<string, unknown> = {};
+    for (const key of PROFILE_KEYS) {
+      if (!(key in draft)) continue;
+      const value = draft[key];
+      if (key === "avatarUrl") userData.avatarUrl = value;
+      else if (key === "dateOfBirth")
+        trainerData.dateOfBirth = value ? new Date(value as string) : null;
+      else trainerData[key] = value;
+    }
+    return { trainerData, userData };
   }
 
   /** Member đang đăng nhập xem HLV hiện tại của mình */

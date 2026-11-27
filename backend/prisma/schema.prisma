@@ -171,6 +171,8 @@ model User {
   updatedAt    DateTime @updatedAt
   /// Nhân viên của phòng gym đối tác (role PARTNER) hoặc PT do đối tác tạo. NULL = tài khoản hệ thống.
   ownerPartnerId String? @db.NVarChar(100)
+  /// Tài khoản cấp bằng mật khẩu tạm (PT, đối tác) — bắt đổi mật khẩu ở lần đăng nhập đầu
+  mustChangePassword Boolean @default(false)
 
   trainer                     Trainer?
   member                      Member?
@@ -205,6 +207,17 @@ model Trainer {
   updatedAt       DateTime  @updatedAt
   /// PT của phòng gym đối tác. NULL = PT của hệ thống Gym Master.
   ownerPartnerId  String?   @db.NVarChar(100)
+  /// Nguồn tạo hồ sơ: ADMIN (quản trị tạo) hoặc SELF (tạo từ đơn PT tự do được duyệt).
+  source          String    @default("ADMIN") @db.NVarChar(20)
+  /// % chiết khấu GymMaster giữ lại trên mỗi buổi PT hội viên đặt qua hệ thống (admin chỉnh)
+  commissionRate  Decimal   @default(20) @db.Decimal(5, 2)
+  /// Bản nháp chỉnh sửa hồ sơ công khai chờ admin duyệt (JSON các field đã đổi).
+  pendingProfile       String?   @db.NVarChar(Max)
+  /// NULL (chưa từng gửi) | PENDING | APPROVED | REJECTED
+  profileReviewStatus  String?   @db.NVarChar(20)
+  profileSubmittedAt   DateTime?
+  profileReviewedAt    DateTime?
+  profileRejectReason  String?   @db.NVarChar(500)
 
   schedules      TrainingSchedule[]
   trainerMembers TrainerMember[]
@@ -213,11 +226,67 @@ model Trainer {
   mealPlans      MealPlan[]
   programs       Program[]
   reviews        TrainerReview[]
+  ptSessions     PtSession[]
 
   @@index([userId])
   @@index([status])
   @@index([specialization])
   @@index([ownerPartnerId])
+  @@index([profileReviewStatus])
+}
+
+/// Đơn đăng ký làm PT tự do trên GymMaster (giống PartnerLead): chưa tạo tài khoản.
+/// Admin duyệt → hệ thống tạo User TRAINER + Trainer và gửi mật khẩu tạm qua email.
+model TrainerApplication {
+  id              String    @id @default(uuid()) @db.NVarChar(100)
+  fullName        String    @db.NVarChar(400)
+  email           String    @db.NVarChar(400)
+  phone           String    @db.NVarChar(400)
+  gender          String?   @db.NVarChar(40)
+  specialization  String    @db.NVarChar(400)
+  certification   String?   @db.NVarChar(400)
+  experienceYears Int       @default(0)
+  bio             String    @db.NVarChar(Max)
+  hourlyRate      Decimal?  @db.Decimal(10, 2)
+  /// Ảnh đại diện PT tải lên (data URL đã nén ở trình duyệt)
+  avatarUrl       String?   @db.NVarChar(Max)
+  /// PENDING | APPROVED | REJECTED
+  status          String    @default("PENDING") @db.NVarChar(20)
+  rejectReason    String?   @db.NVarChar(500)
+  reviewedAt      DateTime?
+  reviewedById    String?   @db.NVarChar(100)
+  /// Hồ sơ Trainer được tạo khi duyệt
+  trainerId       String?   @db.NVarChar(100)
+  ip              String?   @db.NVarChar(100)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  documents TrainerApplicationDocument[]
+
+  @@index([status])
+  @@index([email])
+  @@index([createdAt])
+}
+
+/// Ảnh đại diện người dùng tải lên (data URL). User.avatarUrl trỏ tới
+/// GET /api/public/avatars/:userId?v=... để danh sách không phải chở dữ liệu ảnh.
+model UserAvatar {
+  userId    String   @id @db.NVarChar(100)
+  dataUrl   String   @db.NVarChar(Max)
+  updatedAt DateTime @updatedAt
+}
+
+/// Ảnh bằng cấp / chứng chỉ PT gửi kèm đơn (data URL đã nén ở trình duyệt)
+model TrainerApplicationDocument {
+  id            String             @id @default(uuid()) @db.NVarChar(100)
+  applicationId String             @db.NVarChar(100)
+  application   TrainerApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  caption       String?            @db.NVarChar(400)
+  dataUrl       String             @db.NVarChar(Max)
+  sortOrder     Int                @default(0)
+  createdAt     DateTime           @default(now())
+
+  @@index([applicationId])
 }
 
 model Member {
@@ -262,6 +331,7 @@ model Member {
   classBookings  ClassBooking[]
   bodyMetrics    BodyMetric[]
   trainerReviews TrainerReview[]
+  ptSessions     PtSession[]
 
   @@index([code])
   @@index([phone])
@@ -516,10 +586,17 @@ model FaceEmbedding {
   /// Ảnh khuôn mặt tham chiếu (data URL JPEG base64) — chỉ có ở mẫu đầu tiên
   imageData String?  @db.NVarChar(Max)
   consentAt DateTime
+  /// Duyệt ảnh: PENDING (hội viên tự gửi, chờ admin) | APPROVED | REJECTED
+  /// REJECTED chỉ còn 1 dòng đánh dấu (embedding + ảnh đã xoá) để hội viên xem lý do
+  status       String    @default("APPROVED") @db.NVarChar(20)
+  reviewedAt   DateTime?
+  reviewedById String?   @db.NVarChar(100)
+  rejectReason String?   @db.NVarChar(500)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([memberId])
+  @@index([status])
 }
 
 model TrainingSchedule {
@@ -815,6 +892,9 @@ model Message {
   /// Tin nhắn thực đơn phải trỏ tới bản ghi MealPlan thật (không lưu text suông)
   mealPlanId     String?      @db.NVarChar(100)
   mealPlan       MealPlan?    @relation(fields: [mealPlanId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  /// Tin nhắn đề nghị buổi tập PT (type PT_SESSION) trỏ tới bản ghi PtSession
+  ptSessionId    String?      @db.NVarChar(100)
+  ptSession      PtSession?   @relation(fields: [ptSessionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   isRead         Boolean      @default(false)
   readAt         DateTime?
   /// Đã tới thiết bị người nhận (double check xám)
@@ -832,6 +912,50 @@ model Message {
   @@index([conversationId, createdAt])
   @@index([conversationId, isRead])
   @@index([mealPlanId])
+  @@index([ptSessionId])
+}
+
+/// Buổi tập PT hội viên tự đặt qua chat (không cần admin phân công):
+/// PT tạo đề nghị (OFFERED) → hội viên chấp nhận, tạo Payment (AWAITING_PAYMENT)
+/// → admin/CASSO xác nhận thanh toán → tạo TrainingSchedule (PAID). Doanh thu về GymMaster,
+/// PT nhận trainerEarning = price − platformFee, admin chi trả sau (payoutStatus).
+model PtSession {
+  id             String    @id @default(uuid()) @db.NVarChar(100)
+  trainerId      String    @db.NVarChar(100)
+  trainer        Trainer   @relation(fields: [trainerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  memberId       String    @db.NVarChar(100)
+  member         Member    @relation(fields: [memberId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  conversationId String?   @db.NVarChar(100)
+  title          String    @db.NVarChar(400)
+  note           String?   @db.NVarChar(Max)
+  startTime      DateTime
+  endTime        DateTime
+  price          Decimal   @db.Decimal(12, 2)
+  /// Snapshot % chiết khấu của PT tại thời điểm tạo đề nghị
+  commissionRate Decimal   @db.Decimal(5, 2)
+  platformFee    Decimal   @db.Decimal(12, 2)
+  trainerEarning Decimal   @db.Decimal(12, 2)
+  /// OFFERED | AWAITING_PAYMENT | PAID | DECLINED | CANCELLED
+  status         String    @default("OFFERED") @db.NVarChar(20)
+  declineReason  String?   @db.NVarChar(500)
+  paymentId      String?   @db.NVarChar(100)
+  scheduleId     String?   @db.NVarChar(100)
+  respondedAt    DateTime?
+  paidAt         DateTime?
+  /// UNPAID | PAID_OUT — admin đã chi trả phần của PT chưa
+  payoutStatus   String    @default("UNPAID") @db.NVarChar(20)
+  payoutAt       DateTime?
+  payoutById     String?   @db.NVarChar(100)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  messages Message[]
+
+  @@index([trainerId])
+  @@index([memberId])
+  @@index([status])
+  @@index([paymentId])
+  @@index([payoutStatus])
 }
 
 /// Ảnh/tệp đính kèm của tin nhắn. Ảnh lưu dạng data URL base64 trong DB —

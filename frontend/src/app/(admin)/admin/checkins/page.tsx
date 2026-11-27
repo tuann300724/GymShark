@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
+import Link from '@/components/ui/area-link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   checkinApi,
@@ -191,6 +191,8 @@ export default function AdminCheckinsPage() {
     code?: string;
     similarity: number;
     imageData?: string | null;
+    /** Quét lần 2 khi hội viên còn trong phòng → server tự check-out */
+    checkedOut?: boolean;
   } | null>(null);
 
   useEffect(() => {
@@ -209,6 +211,7 @@ export default function AdminCheckinsPage() {
         code: member?.code,
         similarity: res.face?.similarity ?? 0,
         imageData: res.face?.imageData ?? null,
+        checkedOut: res.action === 'CHECK_OUT',
       });
       invalidateAll();
       refetchInside();
@@ -687,7 +690,7 @@ export default function AdminCheckinsPage() {
               <strong className="font-mono text-chalk">
                 {(faceScanResult.similarity * 100).toFixed(1)}%
               </strong>{' '}
-              • Đã ghi nhận check-in.
+              • Đã ghi nhận {faceScanResult.checkedOut ? 'check-out' : 'check-in'}.
             </p>
             <Button
               variant="primary"

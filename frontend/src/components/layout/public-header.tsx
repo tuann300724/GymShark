@@ -10,7 +10,7 @@ import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { cn } from '@/lib/utils';
-import { isAdminRole } from '@/lib/auth';
+import { isAdminRole, getPortalHome } from '@/lib/auth';
 
 const NAV_ITEMS = [
   { name: 'Trang chủ', href: '/' },
@@ -29,6 +29,7 @@ const SEARCH_INDEX = [
   { title: 'Đăng nhập', href: '/login', desc: 'Đăng nhập tài khoản' },
   { title: 'Đăng ký hội viên', href: '/register', desc: 'Tạo tài khoản mới' },
   { title: 'Đăng ký đối tác', href: '/partner/register', desc: 'Chủ phòng gym đăng ký hợp tác' },
+  { title: 'Đăng ký làm PT', href: '/trainers/register', desc: 'Huấn luyện viên đăng ký miễn phí' },
 ];
 
 export function PublicHeader() {
@@ -86,7 +87,7 @@ export function PublicHeader() {
     );
   }, [query]);
 
-  const portalHref = user && isAdminRole(user.role) ? '/admin' : '/member';
+  const portalHref = user && isAdminRole(user.role) ? getPortalHome(user.role) : '/member';
 
   const go = (href: string) => {
     setSearchOpen(false);

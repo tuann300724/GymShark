@@ -11,7 +11,19 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MessageSquare, Send, User, Users, Utensils, Undo2, Check, CheckCheck } from 'lucide-react';
+import {
+  CalendarPlus,
+  MessageSquare,
+  Send,
+  User,
+  Users,
+  Utensils,
+  Undo2,
+  Check,
+  CheckCheck,
+} from 'lucide-react';
+import { PtSessionCard } from './pt-session-card';
+import { PtSessionOfferDialog } from './pt-session-offer-dialog';
 import { useToast } from '@/components/ui/toast';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 
@@ -32,6 +44,7 @@ export default function ChatClient({ myRole, emptyHint, trainerId }: ChatClientP
   const [activeConv, setActiveConv] = useState<string | null>(null);
   const [text, setText] = useState('');
   const [search, setSearch] = useState('');
+  const [offerOpen, setOfferOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -203,8 +216,8 @@ export default function ChatClient({ myRole, emptyHint, trainerId }: ChatClientP
         </h1>
         <p className="mt-1 text-sm text-muted">
           {myRole === 'TRAINER'
-            ? 'Trò chuyện với hội viên đang được phân công.'
-            : 'Trò chuyện với huấn luyện viên phụ trách.'}
+            ? 'Trò chuyện với hội viên và gửi đề nghị buổi tập — hội viên thanh toán qua GymMaster là buổi tập được xếp lịch.'
+            : 'Trò chuyện với huấn luyện viên, nhận đề nghị buổi tập và thanh toán ngay trong cuộc trò chuyện.'}
         </p>
       </div>
 
@@ -352,6 +365,9 @@ export default function ChatClient({ myRole, emptyHint, trainerId }: ChatClientP
                                 />
                               ) : null}
                               {m.mealPlan && <MealPlanCard message={m} />}
+                              {m.ptSession && (
+                                <PtSessionCard session={m.ptSession} myRole={myRole} />
+                              )}
                               {m.content && (
                                 <p className="whitespace-pre-wrap break-words">{m.content}</p>
                               )}
@@ -424,6 +440,18 @@ export default function ChatClient({ myRole, emptyHint, trainerId }: ChatClientP
               >
                 Ảnh
               </Button>
+              {myRole === 'TRAINER' && activePartner?.type === 'MEMBER' && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setOfferOpen(true)}
+                  title="Đề nghị buổi tập"
+                  aria-label="Đề nghị buổi tập"
+                >
+                  <CalendarPlus className="size-4" />
+                  <span className="hidden sm:inline">Buổi tập</span>
+                </Button>
+              )}
               <Input
                 ref={inputRef}
                 value={text}
@@ -452,6 +480,14 @@ export default function ChatClient({ myRole, emptyHint, trainerId }: ChatClientP
           </CardContent>
         </Card>
       </div>
+      {myRole === 'TRAINER' && activePartner?.type === 'MEMBER' && (
+        <PtSessionOfferDialog
+          open={offerOpen}
+          onClose={() => setOfferOpen(false)}
+          memberId={activePartner.id}
+          memberName={activePartner.name}
+        />
+      )}
     </div>
   );
 }

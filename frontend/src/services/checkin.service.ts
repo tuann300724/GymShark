@@ -113,6 +113,8 @@ export const checkinApi = {
       from?: string;
       to?: string;
       search?: string;
+      tier?: string;
+      partnerId?: string;
     } = {},
   ): Promise<MemberAttendanceReport> => {
     const res = await apiClient.get('/reports/checkins/members', { params });

@@ -113,6 +113,8 @@ export class AuthService {
         avatarUrl: user.avatarUrl,
         // Nhân viên của phòng gym đối tác (không phải chủ) — frontend ẩn mục quản lý nhân viên
         partnerStaff: user.role === UserRole.PARTNER && Boolean(user.ownerPartnerId),
+        // Tài khoản cấp mật khẩu tạm (PT, đối tác, nhân viên) — frontend bắt đổi ngay
+        mustChangePassword: user.mustChangePassword,
       },
     };
   }
@@ -569,6 +571,8 @@ export class AuthService {
             ownerPartnerId,
             status: "ACTIVE",
             provider: "LOCAL",
+            // Nhân viên đối tác nhận mật khẩu tạm qua email → đổi ở lần đăng nhập đầu
+            mustChangePassword: Boolean(ownerPartnerId),
           },
           select: {
             id: true,
@@ -873,6 +877,8 @@ export class AuthService {
         avatarUrl: user.avatarUrl,
         // Nhân viên của phòng gym đối tác (không phải chủ) — frontend ẩn mục quản lý nhân viên
         partnerStaff: user.role === UserRole.PARTNER && Boolean(user.ownerPartnerId),
+        // Tài khoản cấp mật khẩu tạm (PT, đối tác, nhân viên) — frontend bắt đổi ngay
+        mustChangePassword: user.mustChangePassword,
       },
     };
   }
@@ -945,7 +951,8 @@ export class AuthService {
     return user.user;
   }
 
-  async register(registerDto: RegisterDto) {
+  /** Chỉ ADMIN gọi (xem AuthController.register) — actorId ghi vào audit log */
+  async register(registerDto: RegisterDto, actorId?: string) {
     const existing = await this.prisma.user.findUnique({
       where: { email: registerDto.email },
     });
@@ -976,7 +983,7 @@ export class AuthService {
     });
 
     await this.auditService.log({
-      userId: user.id,
+      userId: actorId ?? user.id,
       action: "USER_CREATE",
       entity: "User",
       entityId: user.id,
@@ -1078,6 +1085,7 @@ export class AuthService {
         role: true,
         status: true,
         avatarUrl: true,
+        mustChangePassword: true,
         trainer: {
           select: {
             id: true,

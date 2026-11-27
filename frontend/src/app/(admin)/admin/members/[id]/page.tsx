@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { getStoredUser, isPartnerRole } from '@/lib/auth';
-import Link from 'next/link';
+import Link from '@/components/ui/area-link';
 import { useParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/axios';
@@ -658,6 +658,15 @@ export default function MemberDetailPage() {
                           mẫu • đồng ý từ{' '}
                           {faceStatus.consentAt ? formatDateTime(faceStatus.consentAt) : '--'}
                         </>
+                      ) : faceStatus?.reviewStatus === 'PENDING' ? (
+                        <>
+                          Hội viên đã gửi ảnh, đang chờ duyệt •{' '}
+                          <Link href="/admin/face-reviews" className="text-neon hover:underline">
+                            Duyệt ngay
+                          </Link>
+                        </>
+                      ) : faceStatus?.reviewStatus === 'REJECTED' ? (
+                        `Ảnh gần nhất bị từ chối${faceStatus.rejectReason ? `: ${faceStatus.rejectReason}` : ''} — chờ hội viên chụp lại.`
                       ) : (
                         'Chưa đăng ký — có thể quét khuôn mặt cho hội viên ngay tại quầy.'
                       )}

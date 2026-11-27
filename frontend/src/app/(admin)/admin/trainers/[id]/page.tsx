@@ -303,6 +303,17 @@ export default function TrainerDetailPage() {
                   value={trainer.stats?.completedSessions || 0}
                 />
               </ul>
+              {!trainer.ownerPartnerId && (
+                <div className="mt-4 rounded-xl border border-line bg-ink/60 p-3 text-center">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">
+                    Chiết khấu GymMaster
+                  </p>
+                  <p className="mt-0.5 text-lg font-bold text-chalk">
+                    {Number(trainer.commissionRate ?? 20)}%{' '}
+                    <span className="text-xs font-medium text-muted">/ buổi đặt qua hệ thống</span>
+                  </p>
+                </div>
+              )}
               {trainer.hourlyRate && (
                 <div className="mt-4 rounded-xl border border-neon/30 bg-neon/5 p-3 text-center">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">

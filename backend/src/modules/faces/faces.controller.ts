@@ -2,7 +2,7 @@
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FacesService } from './faces.service';
 import { AzureFaceService } from './azure-face.service';
-import { CheckGlassesDto, EnrollFaceDto } from './dto/faces.dto';
+import { CheckGlassesDto, EnrollFaceDto, ReviewFaceDto } from './dto/faces.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -64,6 +64,38 @@ export class FacesController {
   // ---------------------------------------------------------------------------
   // Admin / Manager / Staff — đăng ký thay & quản lý đăng ký khuôn mặt của hội viên
   // ---------------------------------------------------------------------------
+
+  @Get('reviews')
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @ApiOperation({ summary: 'Danh sách ảnh khuôn mặt hội viên tự gửi đang chờ duyệt' })
+  listPendingReviews(@CurrentUser() actor: { id: string; role: string }) {
+    return this.facesService.listPendingReviews(actor);
+  }
+
+  @Post('member/:memberId/review')
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @ApiOperation({
+    summary: 'Duyệt / từ chối ảnh khuôn mặt hội viên tự gửi (gửi email kết quả cho hội viên)',
+  })
+  review(
+    @Param('memberId') memberId: string,
+    @Body() dto: ReviewFaceDto,
+    @CurrentUser() actor: { id: string; role: string },
+  ) {
+    return this.facesService.reviewMemberFace(memberId, dto, actor);
+  }
+
+  @Post('member/:memberId/remind')
+  @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
+  @ApiOperation({
+    summary: 'Nhắc hội viên chưa xác thực khuôn mặt (thông báo trong app + email)',
+  })
+  remind(
+    @Param('memberId') memberId: string,
+    @CurrentUser() actor: { id: string; role: string },
+  ) {
+    return this.facesService.remindMember(memberId, actor);
+  }
 
   @Get('member/:memberId')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)

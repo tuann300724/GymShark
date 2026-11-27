@@ -29,7 +29,11 @@ export default function KioskFacePage() {
         };
         setMemberInfo(info);
         setStatus('done');
-        setMsg(`✅ Check-in thành công — anh ${info.name || 'Hội viên'}`);
+        // Server tự check-out nếu hội viên đang trong phòng (quét lần 2)
+        const isOut = res.data?.action === 'CHECK_OUT';
+        setMsg(
+          `✅ ${isOut ? 'Check-out' : 'Check-in'} thành công — anh ${info.name || 'Hội viên'}`,
+        );
       } catch (eIn: any) {
         const inMsg = eIn?.response?.data?.message || '';
         if (inMsg && inMsg.includes('trong phòng')) {

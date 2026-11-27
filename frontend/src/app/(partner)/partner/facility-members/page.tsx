@@ -128,7 +128,7 @@ export default function FacilityMembersPage() {
           description="Hội viên có gói đang hiệu lực sẽ xuất hiện tại đây để bạn tìm và hỗ trợ check-in."
           action={
             <Link
-              href="/admin/checkins"
+              href="/partner/checkins"
               className="inline-flex h-10 items-center gap-2 border border-line px-4 text-sm font-semibold text-chalk hover:border-neon/60 hover:text-neon"
               style={{ borderRadius: 10 }}
             >

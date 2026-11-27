@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,13 +12,23 @@ import { useToast } from '@/components/ui/toast';
 import { FaceScanner } from '@/components/ui/face-scanner';
 import { faceApi } from '@/services/face.service';
 import { formatDateTime } from '@/lib/utils';
-import { ArrowLeft, CheckCircle2, Info, ScanFace, ShieldCheck, Trash2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Clock,
+  Info,
+  ScanFace,
+  ShieldCheck,
+  Trash2,
+  XCircle,
+} from 'lucide-react';
 
 const SAMPLE_TARGET = 5;
 
 export default function FaceRegistrationPage() {
   const queryClient = useQueryClient();
   const toast = useToast();
+  const router = useRouter();
 
   const { data: status, isLoading } = useQuery({
     queryKey: ['face-status'],
@@ -41,12 +52,17 @@ export default function FaceRegistrationPage() {
     mutationFn: ({ vecs, image }: { vecs: number[][]; image: string | null }) =>
       faceApi.enroll(vecs, image),
     onSuccess: () => {
-      toast.success('ĐĂNG KÝ THÀNH CÔNG', 'Giờ bạn có thể check-in chỉ bằng khuôn mặt.');
+      toast.success(
+        'ĐÃ GỬI ẢNH',
+        'Quản trị viên sẽ duyệt ảnh khuôn mặt và gửi kết quả qua email cho bạn.',
+      );
       setPhase('idle');
       setConsent(false);
       setSamples([]);
       setImageData(null);
       queryClient.invalidateQueries({ queryKey: ['face-status'] });
+      // Về dashboard chờ kết quả — thẻ Face ID ở dashboard hiện trạng thái "đang chờ duyệt"
+      router.push('/member');
     },
     onError: (err: any) =>
       toast.error('Đăng ký thất bại', errMsg(err, 'Không lưu được dữ liệu lúc này.')),
@@ -94,10 +110,10 @@ export default function FaceRegistrationPage() {
           </p>
         </div>
         <Link
-          href="/member/checkin"
+          href="/member"
           className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-neon hover:underline"
         >
-          <ArrowLeft className="size-3.5" /> Check-in
+          <ArrowLeft className="size-3.5" /> Trang chủ
         </Link>
       </div>
 
@@ -134,7 +150,7 @@ export default function FaceRegistrationPage() {
                 onClick={() => enrollMutation.mutate({ vecs: samples, image: imageData })}
               >
                 <ShieldCheck className="size-4 mr-1.5" />
-                Đăng ký ({samples.length}/{SAMPLE_TARGET} mẫu)
+                Gửi duyệt ({samples.length}/{SAMPLE_TARGET} mẫu)
               </Button>
               <Button variant="outline" size="lg" onClick={restartScan}>
                 Chụp lại
@@ -227,10 +243,76 @@ export default function FaceRegistrationPage() {
             </div>
           </CardContent>
         </Card>
+      ) : status?.reviewStatus === 'PENDING' ? (
+        /* ------------------------------------------------ CHỜ ADMIN DUYỆT */
+        <Card className="mt-6 overflow-hidden border border-line">
+          <CardContent className="p-6 text-center sm:p-8">
+            <div className="mx-auto flex size-16 items-center justify-center rounded-full border-2 border-line bg-ink">
+              <Clock className="size-8 text-neon" />
+            </div>
+            <h2 className="mt-4 font-display text-xl font-bold uppercase tracking-tight text-chalk">
+              Đang chờ duyệt
+            </h2>
+            <p className="mx-auto mt-2 max-w-sm text-sm text-muted">
+              Ảnh khuôn mặt của bạn đã được gửi. Quản trị viên sẽ kiểm tra và gửi kết quả qua email.
+              Trong lúc chờ, bạn vẫn check-in bằng mã QR như bình thường.
+            </p>
+            {status.imageData && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={status.imageData}
+                alt="Ảnh khuôn mặt đang chờ duyệt"
+                className="mx-auto mt-4 h-36 w-28 rounded-xl border border-line object-cover"
+              />
+            )}
+            <p className="mt-3 font-mono text-xs text-muted">
+              Gửi lúc {status.consentAt ? formatDateTime(status.consentAt) : '--'}
+            </p>
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
+              <Button
+                variant="outline"
+                size="lg"
+                className="w-full sm:w-auto"
+                onClick={() => {
+                  setSamples([]);
+                  setPhase('scanning');
+                  setScanKey((k) => k + 1);
+                }}
+              >
+                Chụp lại ảnh khác
+              </Button>
+              <Button
+                variant="danger"
+                size="lg"
+                className="w-full sm:w-auto"
+                onClick={() => setConfirmDelete(true)}
+              >
+                <Trash2 className="size-4 mr-1.5" /> Huỷ yêu cầu
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       ) : (
-        /* ------------------------------------------------ CÒN CHƯA ĐĂNG KÝ */
+        /* ------------------------------------------------ CÒN CHƯA ĐĂNG KÝ / BỊ TỪ CHỐI */
         <Card className="mt-6 overflow-hidden border border-line">
           <CardContent className="p-5 sm:p-6">
+            {status?.reviewStatus === 'REJECTED' && (
+              <div
+                role="alert"
+                className="mb-5 flex gap-3 rounded-xl border border-danger/40 bg-danger/10 p-4"
+              >
+                <XCircle className="mt-0.5 size-5 shrink-0 text-danger" />
+                <div className="min-w-0 text-sm">
+                  <p className="font-semibold text-chalk">
+                    Ảnh khuôn mặt lần trước chưa được duyệt
+                  </p>
+                  {status.rejectReason && (
+                    <p className="mt-1 break-words text-muted">Lý do: {status.rejectReason}</p>
+                  )}
+                  <p className="mt-1 text-muted">Vui lòng đồng ý điều khoản và chụp lại ảnh mới.</p>
+                </div>
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <Info className="size-5 text-neon" />
               <h2 className="font-display text-lg font-bold uppercase tracking-tight text-chalk">

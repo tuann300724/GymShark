@@ -11,7 +11,7 @@ import { ErrorState } from '@/components/ui/error-state';
 import { Reveal } from '@/components/home/reveal';
 import { ArrowUpRight, Award, Briefcase, Star, Users } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
-import { getTrainerFocusTags, getTrainerVisual } from '@/lib/trainer-visuals';
+import { getTrainerFocusTags, getTrainerImage } from '@/lib/trainer-visuals';
 
 const ALL = 'ALL';
 
@@ -136,7 +136,7 @@ export default function PublicTrainersPage() {
           ) : (
             <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
               {filtered.map((trainer, index) => {
-                const visual = getTrainerVisual(trainer.specialization, trainer.id);
+                const visual = getTrainerImage(trainer);
                 const tags = getTrainerFocusTags(trainer.specialization);
                 const name = trainer.user?.fullName ?? 'Huấn luyện viên';
 
@@ -150,6 +150,7 @@ export default function PublicTrainersPage() {
                         <Image
                           src={visual.src}
                           alt={visual.alt}
+                          unoptimized={visual.unoptimized}
                           fill
                           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                           className="object-cover transition-transform duration-500 group-hover:scale-105"
@@ -229,6 +230,23 @@ export default function PublicTrainersPage() {
               Tất cả HLV đều có chứng chỉ hành nghề và lộ trình tập được cá nhân hóa.
             </p>
           ) : null}
+
+          <div className="mt-12 flex flex-col gap-4 rounded-2xl border border-line bg-surface p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+            <div>
+              <p className="font-display text-2xl font-extrabold uppercase text-chalk">
+                Bạn là PT? <span className="text-neon">Tham gia GymMaster</span>
+              </p>
+              <p className="mt-1 text-sm text-muted">
+                Đăng ký miễn phí, được thẩm định hồ sơ và nhận học viên online trên toàn mạng lưới.
+              </p>
+            </div>
+            <Link
+              href="/trainers/register"
+              className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-sm bg-neon px-5 text-sm font-bold text-ink transition-colors hover:bg-neon-hover"
+            >
+              Đăng ký làm PT <ArrowUpRight className="size-4" />
+            </Link>
+          </div>
         </div>
       </section>
     </div>

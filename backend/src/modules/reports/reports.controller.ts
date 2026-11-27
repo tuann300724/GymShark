@@ -155,6 +155,9 @@ export class ReportsController {
   @Get('checkins/members')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
   getMemberAttendance(@Query() query: MemberAttendanceQueryDto) {
-    return this.reportsService.getMemberAttendance(query.from, query.to, query.search);
+    return this.reportsService.getMemberAttendance(query.from, query.to, query.search, {
+      tier: query.tier,
+      partnerId: query.partnerId,
+    });
   }
 }

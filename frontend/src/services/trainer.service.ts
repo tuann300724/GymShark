@@ -4,8 +4,43 @@ import type {
   TrainerDetail,
   TrainerListResponse,
   TrainerListItem,
+  TrainerProfileDraft,
   TrainerPublic,
 } from './types';
+
+/** Ảnh bằng cấp / chứng chỉ gửi kèm đơn (data URL đã nén) */
+export interface TrainerDocumentInput {
+  caption?: string;
+  dataUrl: string;
+}
+
+export type TrainerApplicationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+/** Đơn đăng ký PT tự do (chưa có tài khoản) */
+export interface TrainerApplication {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  gender?: 'MALE' | 'FEMALE' | 'OTHER' | null;
+  specialization: string;
+  certification?: string | null;
+  experienceYears: number;
+  bio: string;
+  hourlyRate?: string | number | null;
+  avatarUrl?: string | null;
+  status: TrainerApplicationStatus;
+  rejectReason?: string | null;
+  reviewedAt?: string | null;
+  trainerId?: string | null;
+  createdAt: string;
+  _count?: { documents: number };
+}
+
+/** Bản chỉnh sửa hồ sơ PT chờ duyệt + hồ sơ đang hiển thị để so sánh */
+export interface TrainerProfileChange extends TrainerDetail {
+  currentProfile: Required<TrainerProfileDraft>;
+}
 
 export const trainerApi = {
   list: async (params?: {
@@ -36,6 +71,7 @@ export const trainerApi = {
     bio?: string;
     avatarUrl?: string;
     hourlyRate?: number;
+    commissionRate?: number;
     status?: string;
   }) => {
     const res = await apiClient.post('/trainers', payload);
@@ -56,6 +92,7 @@ export const trainerApi = {
       bio: string;
       avatarUrl: string;
       hourlyRate: number;
+      commissionRate: number;
       status: string;
     }>,
   ) => {
@@ -103,8 +140,78 @@ export const trainerApi = {
     gender?: 'MALE' | 'FEMALE' | 'OTHER';
     dateOfBirth?: string | null;
     hourlyRate?: number | null;
-  }): Promise<{ message: string; trainer: TrainerDetail }> => {
+  }): Promise<{
+    message: string;
+    /** DRAFT = chờ admin duyệt; APPLICATION = hồ sơ đăng ký gửi (lại); DIRECT = áp dụng ngay */
+    mode: 'DRAFT' | 'APPLICATION' | 'DIRECT';
+    trainer: TrainerDetail;
+  }> => {
     const res = await apiClient.patch('/trainers/me/profile', payload);
+    return res.data;
+  },
+
+  /** HLV huỷ bản chỉnh sửa hồ sơ đang chờ duyệt */
+  cancelMyProfileDraft: async (): Promise<{ message: string }> => {
+    const res = await apiClient.delete('/trainers/me/profile/pending');
+    return res.data;
+  },
+
+  /** Công khai: PT tự do gửi đơn đăng ký + ảnh bằng cấp (chưa tạo tài khoản) */
+  apply: async (payload: {
+    fullName: string;
+    email: string;
+    phone: string;
+    specialization: string;
+    certification?: string;
+    experienceYears: number;
+    bio: string;
+    avatarUrl?: string;
+    gender?: 'MALE' | 'FEMALE' | 'OTHER';
+    hourlyRate?: number;
+    documents: TrainerDocumentInput[];
+  }): Promise<{ message: string; id: string; emailSent: boolean }> => {
+    const res = await apiClient.post('/trainer-applications', payload);
+    return res.data;
+  },
+
+  /** Admin: đơn đăng ký PT theo trạng thái */
+  applications: async (status: TrainerApplicationStatus = 'PENDING') => {
+    const res = await apiClient.get<{
+      data: TrainerApplication[];
+      counts: Partial<Record<TrainerApplicationStatus, number>>;
+    }>('/trainer-applications', { params: { status } });
+    return res.data;
+  },
+
+  applicationDocuments: async (id: string) => {
+    const res = await apiClient.get<(TrainerDocumentInput & { id: string })[]>(
+      `/trainer-applications/${id}/documents`,
+    );
+    return res.data;
+  },
+
+  /** Duyệt (tạo tài khoản PT + email mật khẩu tạm) / từ chối đơn */
+  reviewApplication: async (
+    id: string,
+    approved: boolean,
+    reason?: string,
+  ): Promise<{ message: string; emailSent: boolean; temporaryPassword?: string }> => {
+    const res = await apiClient.post(`/trainer-applications/${id}/review`, { approved, reason });
+    return res.data;
+  },
+
+  /** Admin: bản chỉnh sửa hồ sơ PT đang chờ duyệt */
+  profileChanges: async (): Promise<TrainerProfileChange[]> => {
+    const res = await apiClient.get<TrainerProfileChange[]>('/trainers/profile-changes');
+    return res.data;
+  },
+
+  reviewProfileChange: async (
+    id: string,
+    approved: boolean,
+    reason?: string,
+  ): Promise<{ message: string; emailSent: boolean }> => {
+    const res = await apiClient.post(`/trainers/${id}/profile-review`, { approved, reason });
     return res.data;
   },
 

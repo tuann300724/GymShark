@@ -11,7 +11,9 @@ import { BarChart, MethodBars } from '@/components/charts/bar-chart';
 import { partnerApi } from '@/services/partner.service';
 import { beverageApi } from '@/services/beverage.service';
 import { getStoredUser, isPartnerRole } from '@/lib/auth';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   Wallet,
   Users,
@@ -21,6 +23,7 @@ import {
   CalendarDays,
   Package,
   Boxes,
+  ListChecks,
 } from 'lucide-react';
 
 /** Trả về từ GET /beverages/dashboard (dashboard doanh thu nước uống). */
@@ -64,7 +67,7 @@ export default function AdminFacilityFinancePage() {
   useEffect(() => {
     const ok = isPartnerRole(getStoredUser()?.role);
     setIsPartner(ok);
-    if (!ok) router.replace('/admin/dashboard');
+    if (!ok) router.replace('/admin');
   }, [router]);
 
   const commissionQuery = useQuery({
@@ -184,6 +187,133 @@ export default function AdminFacilityFinancePage() {
             colorScheme="amber"
           />
         </div>
+
+        {/* Cách tính */}
+        <p className="rounded-xl border border-line bg-surface px-4 py-3 text-sm text-muted">
+          Mỗi lượt hội viên cộng đồng check-in tại cơ sở:{' '}
+          <strong className="text-chalk">
+            hoa hồng = (tiền gói của hội viên ÷ tổng số lượt của gói) × tỷ lệ
+          </strong>
+          . Gói theo tháng tính tổng lượt = giới hạn lượt/tháng × số tháng. Giá và tỷ lệ được chốt
+          tại thời điểm check-in, nên thay đổi sau này không ảnh hưởng các lượt cũ.
+        </p>
+
+        {/* Theo hội viên */}
+        <Card className="overflow-hidden">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 font-display text-lg uppercase text-chalk">
+              <Users className="size-4 text-neon" /> Hoa hồng theo hội viên
+            </CardTitle>
+            <CardDescription>
+              Hội viên nào đã tập tại cơ sở, bao nhiêu lượt và mang lại bao nhiêu hoa hồng.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            {!commission?.byMember?.length ? (
+              <EmptyState
+                className="m-4"
+                icon={Users}
+                title="Chưa có lượt tập"
+                description="Khi hội viên check-in tại cơ sở, hoa hồng sẽ hiện ở đây."
+              />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[720px] text-left text-sm">
+                  <thead className="border-b border-line bg-ink text-[11px] uppercase tracking-wider text-muted">
+                    <tr>
+                      <th className="px-4 py-2.5 font-semibold">Hội viên</th>
+                      <th className="px-4 py-2.5 font-semibold">Loại</th>
+                      <th className="px-4 py-2.5 text-right font-semibold">Số lượt</th>
+                      <th className="px-4 py-2.5 text-right font-semibold">Giá trị lượt</th>
+                      <th className="px-4 py-2.5 text-right font-semibold">Hoa hồng</th>
+                      <th className="px-4 py-2.5 font-semibold">Lần gần nhất</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-line">
+                    {commission.byMember.map((m) => (
+                      <tr key={m.memberId} className="transition-colors hover:bg-line/30">
+                        <td className="px-4 py-2.5">
+                          <p className="font-semibold text-chalk">{m.fullName}</p>
+                          <p className="font-mono text-[10px] text-muted">{m.code}</p>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <Badge variant={m.community ? 'info' : 'outline'}>
+                            {m.community ? 'Cộng đồng' : 'Hội viên phòng'}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-2.5 text-right font-mono text-chalk">
+                          {m.visitCount}
+                        </td>
+                        <td className="px-4 py-2.5 text-right font-mono text-muted">
+                          {formatCurrency(m.revenue)}
+                        </td>
+                        <td className="px-4 py-2.5 text-right font-mono font-bold text-neon">
+                          {formatCurrency(m.commission)}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-muted">
+                          {formatDate(m.lastVisitAt)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Từng lượt */}
+        <Card className="overflow-hidden">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 font-display text-lg uppercase text-chalk">
+              <ListChecks className="size-4 text-neon" /> Chi tiết từng lượt
+            </CardTitle>
+            <CardDescription>100 lượt check-in gần nhất và hoa hồng của từng lượt.</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            {!commission?.recentVisits?.length ? (
+              <p className="py-6 text-center text-sm text-muted">Chưa có lượt tập nào.</p>
+            ) : (
+              <div className="max-h-[420px] overflow-auto">
+                <table className="w-full min-w-[720px] text-left text-sm">
+                  <thead className="sticky top-0 border-b border-line bg-ink text-[11px] uppercase tracking-wider text-muted">
+                    <tr>
+                      <th className="px-4 py-2.5 font-semibold">Thời gian</th>
+                      <th className="px-4 py-2.5 font-semibold">Hội viên</th>
+                      <th className="px-4 py-2.5 text-right font-semibold">Giá 1 lượt</th>
+                      <th className="px-4 py-2.5 text-right font-semibold">Tỷ lệ</th>
+                      <th className="px-4 py-2.5 text-right font-semibold">Hoa hồng</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-line">
+                    {commission.recentVisits.map((v) => (
+                      <tr key={v.id} className="transition-colors hover:bg-line/30">
+                        <td className="whitespace-nowrap px-4 py-2.5 text-muted">
+                          {formatDateTime(v.checkInTime)}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span className="font-semibold text-chalk">{v.memberName}</span>{' '}
+                          <span className="font-mono text-[10px] text-muted">{v.memberCode}</span>
+                        </td>
+                        <td className="px-4 py-2.5 text-right font-mono text-muted">
+                          {formatCurrency(v.unitPrice)}
+                        </td>
+                        <td className="px-4 py-2.5 text-right font-mono text-muted">
+                          {v.commissionRate != null
+                            ? `${(v.commissionRate * 100).toFixed(1)}%`
+                            : '--'}
+                        </td>
+                        <td className="px-4 py-2.5 text-right font-mono font-bold text-neon">
+                          {formatCurrency(v.commissionAmount)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>

@@ -20,6 +20,10 @@ import {
   partnerLeadReceivedEmail,
   partnerAccountCreatedEmail,
   partnerLeadClosedEmail,
+  faceReviewEmail,
+  trainerApplicationEmail,
+  trainerProfileReviewEmail,
+  faceReminderEmail,
 } from "./email-templates";
 
 export interface SendMailOptions {
@@ -275,6 +279,52 @@ export class MailService implements OnModuleInit {
   }): Promise<boolean> {
     const mail = partnerAccountCreatedEmail(params);
     return this.sendSafe({ to: params.email, ...mail });
+  }
+
+  /** Kết quả duyệt ảnh khuôn mặt (Face ID) hội viên tự gửi. */
+  async sendFaceReviewEmail(params: {
+    email: string;
+    fullName: string;
+    approved: boolean;
+    reason?: string | null;
+    link: string;
+  }): Promise<boolean> {
+    const { email, ...rest } = params;
+    return this.sendSafe({ to: email, ...faceReviewEmail(rest) });
+  }
+
+  /** Kết quả duyệt bản chỉnh sửa hồ sơ công khai của PT. */
+  async sendTrainerProfileReviewEmail(params: {
+    email: string;
+    fullName: string;
+    approved: boolean;
+    reason?: string | null;
+    link: string;
+  }): Promise<boolean> {
+    const { email, ...rest } = params;
+    return this.sendSafe({ to: email, ...trainerProfileReviewEmail(rest) });
+  }
+
+  /** Đơn đăng ký PT tự do: đã nhận / bị từ chối / được duyệt (kèm mật khẩu tạm). */
+  async sendTrainerApplicationEmail(params: {
+    status: "RECEIVED" | "REJECTED" | "APPROVED";
+    email: string;
+    fullName: string;
+    reason?: string | null;
+    temporaryPassword?: string;
+    link: string;
+  }): Promise<boolean> {
+    return this.sendSafe({ to: params.email, ...trainerApplicationEmail(params) });
+  }
+
+  /** Nhắc hội viên cập nhật ảnh khuôn mặt (Face ID). */
+  async sendFaceReminderEmail(params: {
+    email: string;
+    fullName: string;
+    link: string;
+  }): Promise<boolean> {
+    const { email, ...rest } = params;
+    return this.sendSafe({ to: email, ...faceReminderEmail(rest) });
   }
 
   /** Gửi hóa đơn xác nhận thanh toán nâng cấp gói hội viên. */

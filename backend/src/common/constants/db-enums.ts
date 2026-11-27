@@ -187,6 +187,8 @@ export const MessageType = {
   TEXT: "TEXT",
   IMAGE: "IMAGE",
   MEAL_PLAN: "MEAL_PLAN",
+  /// Thẻ đề nghị buổi tập PT (trỏ tới PtSession) — chỉ tạo qua PtSessionsService
+  PT_SESSION: "PT_SESSION",
   SYSTEM: "SYSTEM",
 } as const;
 export type MessageType = (typeof MessageType)[keyof typeof MessageType];

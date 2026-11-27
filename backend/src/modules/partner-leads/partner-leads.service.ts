@@ -428,6 +428,7 @@ export class PartnerLeadsService {
           phone: lead.phone || null,
           role: UserRole.PARTNER,
           status: UserStatus.ACTIVE,
+          mustChangePassword: true,
         },
         select: { id: true, email: true },
       });

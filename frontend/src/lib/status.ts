@@ -152,11 +152,18 @@ export const AUDIT_ACTION_META: Record<string, { label: string; variant: BadgeVa
   // Sinh trắc học (khuôn mặt)
   FACE_ENROLL: { label: 'Đăng ký khuôn mặt', variant: 'success' },
   FACE_DELETE: { label: 'Xoá dữ liệu khuôn mặt', variant: 'destructive' },
+  FACE_APPROVE: { label: 'Duyệt ảnh khuôn mặt', variant: 'success' },
+  FACE_REJECT: { label: 'Từ chối ảnh khuôn mặt', variant: 'destructive' },
 
   // Huấn luyện viên
   TRAINER_CREATE: { label: 'Tạo huấn luyện viên', variant: 'success' },
   TRAINER_UPDATE: { label: 'Cập nhật huấn luyện viên', variant: 'default' },
   TRAINER_REMOVE: { label: 'Ngừng hoạt động HLV', variant: 'warning' },
+  TRAINER_APPLICATION_APPROVE: { label: 'Duyệt đơn PT, tạo tài khoản', variant: 'success' },
+  TRAINER_APPLICATION_REJECT: { label: 'Từ chối đơn đăng ký PT', variant: 'destructive' },
+  TRAINER_PROFILE_SUBMIT: { label: 'PT gửi chỉnh sửa hồ sơ', variant: 'info' },
+  TRAINER_PROFILE_APPROVE: { label: 'Duyệt chỉnh sửa hồ sơ PT', variant: 'success' },
+  TRAINER_PROFILE_REJECT: { label: 'Từ chối chỉnh sửa hồ sơ PT', variant: 'destructive' },
   TRAINER_REVIEW_CREATE: { label: 'Đánh giá huấn luyện viên', variant: 'success' },
   TRAINER_REVIEW_UPDATE: { label: 'Sửa đánh giá HLV', variant: 'default' },
   TRAINER_REVIEW_DELETE: { label: 'Xoá đánh giá HLV', variant: 'destructive' },
@@ -232,3 +239,13 @@ export const AUDIT_ROLE_LABEL: Record<string, string> = {
   MEMBER: 'Hội viên',
   PARTNER: 'Đối tác phòng gym',
 };
+
+/** Tên khoản thu của hoá đơn: gói tập, buổi PT đặt qua chat, hoặc nhãn mặc định */
+export function paymentItemLabel(
+  payment: { notes?: string | null; membership?: { package?: { name?: string } | null } | null },
+  fallback = '--',
+): string {
+  if (payment.membership?.package?.name) return payment.membership.package.name;
+  if (payment.notes?.startsWith('[PT_SESSION:')) return 'Buổi tập PT 1:1';
+  return fallback;
+}

@@ -18,7 +18,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/components/ui/toast';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
-import { PAYMENT_STATUS_META, PAYMENT_METHOD_LABEL } from '@/lib/status';
+import { PAYMENT_STATUS_META, PAYMENT_METHOD_LABEL, paymentItemLabel } from '@/lib/status';
 import { getStoredUser } from '@/lib/auth';
 import {
   Receipt,
@@ -35,7 +35,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
-import Link from 'next/link';
+import Link from '@/components/ui/area-link';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Tất cả trạng thái' },
@@ -412,7 +412,7 @@ function PaymentsPageContent() {
                         {/* 3. Gói tập */}
                         <td className="p-3">
                           <p className="font-medium text-chalk text-xs truncate max-w-[150px]">
-                            {p.membership?.package?.name || 'Dịch vụ lẻ'}
+                            {paymentItemLabel(p, 'Dịch vụ lẻ')}
                           </p>
                           {p.membership?.package?.durationDays && (
                             <p className="text-[10px] text-muted">

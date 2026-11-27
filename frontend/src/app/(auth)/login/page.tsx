@@ -16,7 +16,7 @@ import { PasswordInput } from '@/components/ui/password-input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion } from 'framer-motion';
 import { Dumbbell, AlertCircle, KeyRound, ArrowLeft } from 'lucide-react';
-import { isAdminRole } from '@/lib/auth';
+import { isAdminRole, getPortalHome, CHANGE_PASSWORD_PATH } from '@/lib/auth';
 
 const loginSchema = z.object({
   email: z.string().email('Email không đúng định dạng'),
@@ -46,8 +46,7 @@ export default function LoginPage() {
 
   const getRedirectPath = (role: string, next?: string | null) => {
     if (next) return next;
-    if (role === 'TRAINER') return '/trainer';
-    return isAdminRole(role) ? '/admin' : '/member';
+    return getPortalHome(role);
   };
 
   const onSubmit = async (values: LoginFormValues) => {
@@ -69,7 +68,10 @@ export default function LoginPage() {
       if (typeof window !== 'undefined') {
         const params = new URLSearchParams(window.location.search);
         const next = params.get('next');
-        router.push(getRedirectPath(user.role, next));
+        // Mật khẩu tạm (PT / đối tác lần đầu đăng nhập) → bắt đặt mật khẩu mới trước
+        router.push(
+          user.mustChangePassword ? CHANGE_PASSWORD_PATH : getRedirectPath(user.role, next),
+        );
       }
     } catch (err: any) {
       const msg =

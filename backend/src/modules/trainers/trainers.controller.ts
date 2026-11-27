@@ -1,7 +1,8 @@
-﻿import {
+import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -14,6 +15,7 @@ import { TrainersService } from './trainers.service';
 import {
   CreateTrainerDto,
   TrainerQueryDto,
+  TrainerReviewDto,
   UpdateMyTrainerProfileDto,
   UpdateTrainerDto,
 } from './dto/trainer.dto';
@@ -73,6 +75,44 @@ export class TrainersController {
     @Body() dto: UpdateMyTrainerProfileDto,
   ) {
     return this.trainersService.updateMyProfile(userId, dto);
+  }
+
+  @Delete('me/profile/pending')
+  @Roles(Role.TRAINER)
+  @ApiOperation({ summary: 'HLV huỷ bản chỉnh sửa hồ sơ đang chờ duyệt' })
+  cancelMyProfileDraft(@CurrentUser('id') userId: string) {
+    return this.trainersService.cancelMyProfileDraft(userId);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Admin duyệt chỉnh sửa hồ sơ công khai của PT
+  // ---------------------------------------------------------------------------
+
+  @Get('profile-changes')
+  @Roles(Role.ADMIN, Role.MANAGER)
+  @ApiOperation({ summary: 'Các bản chỉnh sửa hồ sơ PT đang chờ duyệt' })
+  async getProfileChanges(@CurrentUser() actor: ScopeActor) {
+    await this.assertSystemActor(actor);
+    return this.trainersService.getProfileChanges();
+  }
+
+  @Post(':id/profile-review')
+  @Roles(Role.ADMIN, Role.MANAGER)
+  @ApiOperation({ summary: 'Duyệt / từ chối chỉnh sửa hồ sơ công khai của PT (gửi email kết quả)' })
+  async reviewProfileChange(
+    @Param('id') id: string,
+    @Body() dto: TrainerReviewDto,
+    @CurrentUser() actor: ScopeActor,
+  ) {
+    await this.assertSystemActor(actor);
+    return this.trainersService.reviewProfileChange(id, dto, actor.id);
+  }
+
+  /** Chỉ quản trị hệ thống GymMaster duyệt PT tự do (đối tác không được) */
+  private async assertSystemActor(actor: ScopeActor) {
+    if ((await this.scope(actor)) !== null) {
+      throw new ForbiddenException('Chỉ quản trị viên GymMaster được duyệt hồ sơ PT.');
+    }
   }
 
   // ---------------------------------------------------------------------------

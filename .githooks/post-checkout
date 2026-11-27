@@ -1,0 +1,27 @@
+#!/bin/sh
+# ---------------------------------------------------------------------------
+# post-checkout — chạy khi đổi branch (git checkout/switch) vì schema Prisma
+# giữa 2 branch có thể khác nhau → Prisma Client cũ làm backend báo lỗi TS.
+# Logic giống .githooks/post-merge.
+#
+# Kích hoạt (một lần trên máy):  git config core.hooksPath .githooks
+# ---------------------------------------------------------------------------
+prev="$1"
+next="$2"
+
+[ "$prev" = "$next" ] && exit 0 # checkout trong cùng commit (chỉ refresh index)
+
+if ! git diff --name-only "$prev" "$next" 2>/dev/null | grep -q '^backend/prisma/schema\.prisma$'; then
+  exit 0
+fi
+
+echo ""
+echo "[post-checkout] schema.prisma khác nhau giữa 2 branch — regenerate Prisma Client..."
+
+if (cd backend && npx prisma generate); then
+  echo "[post-checkout] OK — Prisma Client đã đồng bộ với schema mới."
+else
+  echo "[post-checkout] KHÔNG generate được — dừng backend rồi chạy:"
+  echo "                cd backend && npm run prisma:generate"
+  exit 1
+fi

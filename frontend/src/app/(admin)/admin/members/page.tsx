@@ -1,7 +1,7 @@
 'use client';
 
 import React, { Suspense, useEffect, useState } from 'react';
-import Link from 'next/link';
+import Link from '@/components/ui/area-link';
 import { useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/axios';
@@ -17,7 +17,9 @@ import { MemberPackageDialog } from '@/components/admin/member-package-dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { Spinner } from '@/components/ui/spinner';
-import { formatDate } from '@/lib/utils';
+import { cn, formatDate } from '@/lib/utils';
+import { getStoredUser, isPartnerRole } from '@/lib/auth';
+import { faceApi, type FaceReviewStatus } from '@/services/face.service';
 import { MEMBERSHIP_STATUS_META } from '@/lib/status';
 import {
   Users,
@@ -32,6 +34,8 @@ import {
   ChevronRight,
   ShieldCheck,
   Package,
+  BellRing,
+  ScanFace,
 } from 'lucide-react';
 
 const DEFAULT_STATUS = 'ALL';
@@ -41,6 +45,9 @@ function MembersPageContent() {
   const toast = useToast();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
+  // Đối tác quản lý hội viên riêng của phòng mình — không dùng Face ID hệ thống nên ẩn nút nhắc
+  const [isPartner, setIsPartner] = useState(false);
+  useEffect(() => setIsPartner(isPartnerRole(getStoredUser()?.role)), []);
 
   const [searchInput, setSearchInput] = useState(() => searchParams.get('search') ?? '');
   const [search, setSearch] = useState(() => searchParams.get('search') ?? '');
@@ -109,6 +116,21 @@ function MembersPageContent() {
     onError: (err: any) => {
       const msg = err.response?.data?.message || 'Cập nhật trạng thái thất bại';
       toast.error('Cập nhật thất bại', Array.isArray(msg) ? msg.join(', ') : msg);
+    },
+  });
+
+  const remindMutation = useMutation({
+    mutationFn: (memberId: string) => faceApi.remind(memberId),
+    onSuccess: (res) =>
+      toast.success(
+        res.message,
+        res.emailSent
+          ? 'Đã gửi thông báo trong app và email cho hội viên.'
+          : 'Đã gửi thông báo trong app (hội viên chưa có email).',
+      ),
+    onError: (err: any) => {
+      const msg = err.response?.data?.message || 'Không gửi được nhắc nhở';
+      toast.error('Nhắc nhở thất bại', Array.isArray(msg) ? msg.join(', ') : msg);
     },
   });
 
@@ -277,7 +299,7 @@ function MembersPageContent() {
             />
           ) : data?.data.length > 0 ? (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1128px] text-left text-sm table-fixed">
+              <table className="w-full min-w-[1164px] text-left text-sm table-fixed">
                 <thead className="text-[11px] uppercase tracking-wider text-muted bg-ink border-b border-line">
                   <tr>
                     <th className="w-[104px] py-3 px-4 font-semibold whitespace-nowrap">Mã HV</th>
@@ -290,7 +312,7 @@ function MembersPageContent() {
                       Ngày đăng ký
                     </th>
                     <th className="w-[156px] py-3 px-4 font-semibold">Trạng thái</th>
-                    <th className="w-[208px] py-3 px-4 font-semibold text-right whitespace-nowrap">
+                    <th className="w-[244px] py-3 px-4 font-semibold text-right whitespace-nowrap">
                       Thao tác
                     </th>
                   </tr>
@@ -323,6 +345,7 @@ function MembersPageContent() {
                           >
                             {m.email || 'Không có email'}
                           </p>
+                          <FaceBadge status={m.faceStatus} />
                         </td>
                         <td
                           className="py-3 px-4 align-middle text-muted truncate"
@@ -404,6 +427,23 @@ function MembersPageContent() {
                             >
                               <Pencil className="size-4 text-muted" />
                             </Button>
+                            {!isPartner &&
+                              (m.faceStatus === 'NONE' || m.faceStatus === 'REJECTED') && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="size-8"
+                                  title="Nhắc xác thực khuôn mặt (thông báo + email)"
+                                  aria-label={`Nhắc ${m.fullName} xác thực khuôn mặt`}
+                                  isLoading={
+                                    remindMutation.isPending && remindMutation.variables === m.id
+                                  }
+                                  disabled={remindMutation.isPending}
+                                  onClick={() => remindMutation.mutate(m.id)}
+                                >
+                                  <BellRing className="size-4 text-neon" />
+                                </Button>
+                              )}
                             {m.status === 'SUSPENDED' ? (
                               <Button
                                 variant="outline"
@@ -583,5 +623,23 @@ export default function MembersPage() {
     <Suspense fallback={<Spinner />}>
       <MembersPageContent />
     </Suspense>
+  );
+}
+
+/** Trạng thái xác thực khuôn mặt (Face ID) hiển thị dưới tên hội viên */
+const FACE_BADGE: Record<FaceReviewStatus, { label: string; className: string }> = {
+  APPROVED: { label: 'Đã xác thực mặt', className: 'text-neon' },
+  PENDING: { label: 'Ảnh mặt chờ duyệt', className: 'text-chalk' },
+  REJECTED: { label: 'Ảnh mặt bị từ chối', className: 'text-danger' },
+  NONE: { label: 'Chưa xác thực mặt', className: 'text-muted' },
+};
+
+function FaceBadge({ status }: { status?: FaceReviewStatus }) {
+  const meta = FACE_BADGE[status ?? 'NONE'];
+  return (
+    <p className={cn('mt-0.5 flex items-center gap-1 text-[11px] font-medium', meta.className)}>
+      <ScanFace className="size-3 shrink-0" />
+      <span className="truncate">{meta.label}</span>
+    </p>
   );
 }

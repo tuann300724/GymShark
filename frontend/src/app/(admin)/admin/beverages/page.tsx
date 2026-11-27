@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import Link from '@/components/ui/area-link';
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { beverageApi } from '@/services/beverage.service';

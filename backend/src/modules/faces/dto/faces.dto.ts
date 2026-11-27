@@ -61,3 +61,15 @@ export class CheckGlassesDto {
   @MaxLength(IMAGE_MAX_LENGTH, { message: 'Ảnh khuôn mặt quá lớn (tối đa ~450KB).' })
   imageData: string;
 }
+
+/** POST /faces/member/:memberId/review — admin duyệt hoặc từ chối ảnh khuôn mặt hội viên tự gửi */
+export class ReviewFaceDto {
+  @IsBoolean()
+  approved: boolean;
+
+  /** Bắt buộc khi từ chối — được gửi kèm email cho hội viên */
+  @IsOptional()
+  @IsString()
+  @MaxLength(500, { message: 'Lý do tối đa 500 ký tự.' })
+  reason?: string;
+}

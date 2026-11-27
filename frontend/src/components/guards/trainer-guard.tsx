@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getStoredUser } from '@/services/auth.service';
 import { Skeleton } from '@/components/ui/skeleton';
-import { isAdminRole } from '@/lib/auth';
+import { isAdminRole, getPortalHome, CHANGE_PASSWORD_PATH } from '@/lib/auth';
 
 /**
  * Bảo vệ khu vực /trainer/*
@@ -14,12 +14,18 @@ import { isAdminRole } from '@/lib/auth';
  */
 export function TrainerGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const [state, setState] = useState<'loading' | 'allowed' | 'guest' | 'other'>('loading');
+  const [state, setState] = useState<'loading' | 'allowed' | 'guest' | 'other' | 'change-password'>(
+    'loading',
+  );
 
   useEffect(() => {
     const user = getStoredUser();
     if (!user) {
       setState('guest');
+      return;
+    }
+    if (user.role === 'TRAINER' && user.mustChangePassword) {
+      setState('change-password');
       return;
     }
     if (user.role === 'TRAINER') {
@@ -31,9 +37,10 @@ export function TrainerGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (state === 'guest') router.replace('/login');
+    if (state === 'change-password') router.replace(CHANGE_PASSWORD_PATH);
     if (state === 'other') {
       const user = getStoredUser();
-      router.replace(user && isAdminRole(user.role) ? '/admin' : '/member');
+      router.replace(user && isAdminRole(user.role) ? getPortalHome(user.role) : '/member');
     }
   }, [state, router]);
 

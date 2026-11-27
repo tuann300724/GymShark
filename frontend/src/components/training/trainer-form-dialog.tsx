@@ -1,5 +1,6 @@
 'use client';
 
+import { usePathname } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -30,6 +31,7 @@ const trainerSchema = z.object({
   experienceYears: z.coerce.number().min(0).max(60).optional(),
   bio: z.string().max(2000).optional().or(z.literal('')),
   hourlyRate: z.coerce.number().min(0).optional(),
+  commissionRate: z.coerce.number().min(0, 'Tối thiểu 0%').max(100, 'Tối đa 100%').optional(),
   status: z.enum(['ACTIVE', 'INACTIVE', 'ON_LEAVE']).optional(),
 });
 
@@ -48,6 +50,7 @@ export function TrainerFormDialog({ open, onClose, onSaved, editing }: TrainerFo
   const queryClient = useQueryClient();
   const [tempPassword, setTempPassword] = useState<string | null>(null);
   const isEdit = !!editing;
+  const isPartnerArea = usePathname()?.startsWith('/partner') ?? false;
 
   const {
     register,
@@ -74,6 +77,7 @@ export function TrainerFormDialog({ open, onClose, onSaved, editing }: TrainerFo
         experienceYears: editing.experienceYears,
         bio: editing.bio || '',
         hourlyRate: editing.hourlyRate ? Number(editing.hourlyRate) : undefined,
+        commissionRate: editing.commissionRate != null ? Number(editing.commissionRate) : 20,
         status: editing.status as any,
       });
     } else {
@@ -88,6 +92,7 @@ export function TrainerFormDialog({ open, onClose, onSaved, editing }: TrainerFo
         experienceYears: 1,
         bio: '',
         hourlyRate: undefined,
+        commissionRate: 20,
         status: 'ACTIVE',
       });
     }
@@ -106,6 +111,8 @@ export function TrainerFormDialog({ open, onClose, onSaved, editing }: TrainerFo
         experienceYears: values.experienceYears,
         bio: values.bio || undefined,
         hourlyRate: values.hourlyRate,
+        // Đối tác không đặt chiết khấu của GymMaster
+        ...(isPartnerArea ? {} : { commissionRate: values.commissionRate }),
         status: values.status,
       };
       return editing ? trainerApi.update(editing.id, payload) : trainerApi.create(payload);
@@ -242,6 +249,18 @@ export function TrainerFormDialog({ open, onClose, onSaved, editing }: TrainerFo
               error={errors.hourlyRate?.message}
               {...register('hourlyRate')}
             />
+            {!isPartnerArea && (
+              <Input
+                label="Chiết khấu GymMaster (% mỗi buổi)"
+                type="number"
+                min={0}
+                max={100}
+                step={0.5}
+                placeholder="20"
+                error={errors.commissionRate?.message}
+                {...register('commissionRate')}
+              />
+            )}
             <Select
               label="Trạng thái"
               error={errors.status?.message}

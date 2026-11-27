@@ -3,6 +3,7 @@ import { Hero } from '@/components/home/hero';
 import { HowItWorks } from '@/components/home/how-it-works';
 import { GymTiers } from '@/components/home/gym-tiers';
 import { PartnerProgram } from '@/components/home/partner-program';
+import { TrainerRecruit } from '@/components/home/trainer-recruit';
 import { Cta } from '@/components/home/cta';
 import { Marquee } from '@/components/home/effects';
 
@@ -13,6 +14,7 @@ const MARQUEE = [
   'Tìm phòng gần bạn',
   'Phòng tập được thẩm định',
   'Quản lý phòng gym trọn gói',
+  'PT đăng ký miễn phí',
 ];
 
 /** Trang chủ: giới thiệu mạng lưới phòng gym liên kết Gym Master (hội viên + chủ phòng gym) */
@@ -24,6 +26,7 @@ export default function PublicHomePage() {
       <HowItWorks />
       <GymTiers />
       <PartnerProgram />
+      <TrainerRecruit />
       <Cta />
     </div>
   );

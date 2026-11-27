@@ -2,6 +2,7 @@
 
 import React, { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from '@/components/ui/area-link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -248,12 +249,12 @@ function TrainersPageContent() {
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center justify-end gap-1.5">
-                          <a
+                          <Link
                             href={`/admin/trainers/${t.id}`}
                             className="flex h-8 items-center gap-1 rounded-sm border border-line px-2.5 text-xs font-semibold text-muted transition-colors hover:border-neon/50 hover:text-neon"
                           >
                             <Eye className="size-3.5" /> Chi tiết
-                          </a>
+                          </Link>
                           <button
                             type="button"
                             onClick={() => {

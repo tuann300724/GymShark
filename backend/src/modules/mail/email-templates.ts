@@ -698,3 +698,224 @@ export function bookingConfirmedEmail(params: {
     ].join("\n"),
   };
 }
+
+/**
+ * Kết quả admin duyệt ảnh khuôn mặt hội viên tự gửi (Face ID).
+ * Duyệt → dùng được check-in bằng khuôn mặt; từ chối → kèm lý do, mời chụp lại.
+ */
+export function faceReviewEmail(params: {
+  fullName: string;
+  approved: boolean;
+  reason?: string | null;
+  link: string;
+}): VerificationCodeEmail {
+  const fullName = escapeHtml(params.fullName.trim());
+  const reason = params.reason?.trim() ? escapeHtml(params.reason.trim()) : "";
+  const link = escapeHtml(params.link);
+  const subject = params.approved
+    ? "Ảnh khuôn mặt của bạn đã được duyệt — GymMaster Pro"
+    : "Ảnh khuôn mặt của bạn chưa được duyệt — GymMaster Pro";
+  const heading = params.approved ? "Face ID đã sẵn sàng ✅" : "Ảnh khuôn mặt chưa được duyệt";
+  const body = params.approved
+    ? "Ảnh khuôn mặt bạn gửi đã được quản trị viên duyệt. Từ giờ bạn có thể check-in tại phòng tập chỉ bằng khuôn mặt."
+    : "Rất tiếc, ảnh khuôn mặt bạn gửi chưa đạt yêu cầu nên quản trị viên đã từ chối. Dữ liệu khuôn mặt của lần gửi này đã được xoá.";
+
+  return {
+    subject,
+    html: layout(
+      `
+      <h1 style="margin:0 0 12px;font-size:20px;line-height:1.4;color:${BRAND.chalk};">${heading}</h1>
+      <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:${BRAND.muted};">Xin chào <strong style="color:${BRAND.chalk};">${fullName}</strong>, ${body}</p>
+      ${
+        reason
+          ? `<p style="margin:0 0 16px;padding:12px 14px;border-left:3px solid ${BRAND.neon};background:${BRAND.ink};font-size:14px;line-height:1.7;color:${BRAND.chalk};">Lý do: ${reason}</p>`
+          : ""
+      }
+      <p style="margin:24px 0 0;">
+        <a href="${link}" style="display:inline-block;padding:12px 22px;background:${BRAND.neon};color:${BRAND.ink};font-size:14px;font-weight:700;text-decoration:none;border-radius:10px;">
+          ${params.approved ? "Xem trạng thái Face ID" : "Chụp lại ảnh khuôn mặt"}
+        </a>
+      </p>
+    `,
+      "Bạn nhận email này vì đã gửi ảnh khuôn mặt để đăng ký Face ID trên GymMaster Pro.",
+    ),
+    text: [
+      `Xin chào ${params.fullName.trim()},`,
+      "",
+      params.approved
+        ? "Ảnh khuôn mặt của bạn đã được duyệt. Bạn có thể check-in bằng khuôn mặt."
+        : "Ảnh khuôn mặt của bạn chưa được duyệt.",
+      ...(reason ? [`Lý do: ${params.reason?.trim()}`] : []),
+      "",
+      `${params.approved ? "Xem trạng thái" : "Chụp lại ảnh"}: ${params.link}`,
+    ].join("\n"),
+  };
+}
+
+/** Kết quả admin duyệt bản chỉnh sửa hồ sơ công khai PT gửi lên. */
+export function trainerProfileReviewEmail(params: {
+  fullName: string;
+  approved: boolean;
+  reason?: string | null;
+  link: string;
+}): VerificationCodeEmail {
+  const fullName = escapeHtml(params.fullName.trim());
+  const reason = params.reason?.trim() ? escapeHtml(params.reason.trim()) : "";
+  const link = escapeHtml(params.link);
+  const subject = params.approved
+    ? "Chỉnh sửa hồ sơ PT đã được duyệt — GymMaster Pro"
+    : "Chỉnh sửa hồ sơ PT chưa được duyệt — GymMaster Pro";
+  const heading = params.approved
+    ? "Hồ sơ công khai đã được cập nhật ✅"
+    : "Chỉnh sửa hồ sơ chưa được duyệt";
+  const body = params.approved
+    ? "nội dung chỉnh sửa hồ sơ bạn gửi đã được duyệt và đang hiển thị công khai."
+    : "nội dung chỉnh sửa hồ sơ bạn gửi chưa được duyệt nên hồ sơ công khai vẫn giữ như cũ.";
+
+  return {
+    subject,
+    html: layout(
+      `
+      <h1 style="margin:0 0 12px;font-size:20px;line-height:1.4;color:${BRAND.chalk};">${heading}</h1>
+      <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:${BRAND.muted};">Xin chào <strong style="color:${BRAND.chalk};">${fullName}</strong>, ${body}</p>
+      ${
+        reason
+          ? `<p style="margin:0 0 16px;padding:12px 14px;border-left:3px solid ${BRAND.neon};background:${BRAND.ink};font-size:14px;line-height:1.7;color:${BRAND.chalk};">Lý do: ${reason}</p>`
+          : ""
+      }
+      <p style="margin:24px 0 0;">
+        <a href="${link}" style="display:inline-block;padding:12px 22px;background:${BRAND.neon};color:${BRAND.ink};font-size:14px;font-weight:700;text-decoration:none;border-radius:10px;">
+          Xem hồ sơ của tôi
+        </a>
+      </p>
+    `,
+      "Bạn nhận email này vì là huấn luyện viên trên GymMaster Pro.",
+    ),
+    text: [
+      `Xin chào ${params.fullName.trim()},`,
+      "",
+      `${heading}.`,
+      ...(reason ? [`Lý do: ${params.reason?.trim()}`] : []),
+      "",
+      `Xem hồ sơ: ${params.link}`,
+    ].join("\n"),
+  };
+}
+
+/**
+ * Đơn đăng ký làm PT tự do:
+ *   RECEIVED — xác nhận đã nhận đơn (chưa có tài khoản)
+ *   REJECTED — đơn chưa đạt, kèm lý do, mời gửi đơn mới
+ *   APPROVED — đơn được duyệt, kèm email + mật khẩu tạm để đăng nhập
+ */
+export function trainerApplicationEmail(params: {
+  status: "RECEIVED" | "REJECTED" | "APPROVED";
+  fullName: string;
+  email: string;
+  reason?: string | null;
+  temporaryPassword?: string;
+  link: string;
+}): VerificationCodeEmail {
+  const fullName = escapeHtml(params.fullName.trim());
+  const email = escapeHtml(params.email.trim());
+  const reason = params.reason?.trim() ? escapeHtml(params.reason.trim()) : "";
+  const link = escapeHtml(params.link);
+  const password = params.temporaryPassword ? escapeHtml(params.temporaryPassword) : "";
+
+  const copy = {
+    RECEIVED: {
+      subject: "Đã nhận đơn đăng ký huấn luyện viên — GymMaster Pro",
+      heading: "Đã nhận hồ sơ của bạn",
+      body: "GymMaster đã nhận đơn đăng ký làm huấn luyện viên cùng ảnh bằng cấp bạn gửi. Quản trị viên sẽ thẩm định và gửi kết quả qua email này, thường trong 1–2 ngày làm việc. Tài khoản đăng nhập chỉ được tạo sau khi hồ sơ được duyệt.",
+      cta: "Về trang GymMaster",
+    },
+    REJECTED: {
+      subject: "Đơn đăng ký huấn luyện viên chưa được duyệt — GymMaster Pro",
+      heading: "Hồ sơ PT chưa được duyệt",
+      body: "rất tiếc, đơn đăng ký huấn luyện viên của bạn chưa đạt yêu cầu. Bạn có thể bổ sung theo góp ý bên dưới và gửi đơn mới bất cứ lúc nào.",
+      cta: "Gửi đơn đăng ký mới",
+    },
+    APPROVED: {
+      subject: "Tài khoản huấn luyện viên GymMaster Pro của bạn",
+      heading: "Chào mừng bạn đến với GymMaster ✅",
+      body: "hồ sơ huấn luyện viên của bạn đã được duyệt. Tài khoản PT đã được tạo và hồ sơ của bạn đã hiển thị công khai trên GymMaster.",
+      cta: "Đăng nhập cổng huấn luyện viên",
+    },
+  }[params.status];
+  const greeting =
+    params.status === "RECEIVED"
+      ? `Xin chào <strong style="color:${BRAND.chalk};">${fullName}</strong>. ${copy.body}`
+      : `Xin chào <strong style="color:${BRAND.chalk};">${fullName}</strong>, ${copy.body}`;
+
+  return {
+    subject: copy.subject,
+    html: layout(
+      `
+      <h1 style="margin:0 0 12px;font-size:20px;line-height:1.4;color:${BRAND.chalk};">${copy.heading}</h1>
+      <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:${BRAND.muted};">${greeting}</p>
+      ${
+        reason
+          ? `<p style="margin:0 0 16px;padding:12px 14px;border-left:3px solid ${BRAND.neon};background:${BRAND.ink};font-size:14px;line-height:1.7;color:${BRAND.chalk};">Lý do: ${reason}</p>`
+          : ""
+      }
+      ${
+        password
+          ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 20px;">${kvRow("Email đăng nhập", email)}${kvRow("Mật khẩu tạm thời", password, true)}</table>
+      <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:${BRAND.muted};">Hãy đổi mật khẩu ở trang Hồ sơ của tôi sau lần đăng nhập đầu tiên và không chia sẻ thông tin này.</p>`
+          : ""
+      }
+      <p style="margin:24px 0 0;">
+        <a href="${link}" style="display:inline-block;padding:12px 22px;background:${BRAND.neon};color:${BRAND.ink};font-size:14px;font-weight:700;text-decoration:none;border-radius:10px;">
+          ${copy.cta}
+        </a>
+      </p>
+    `,
+      "Bạn nhận email này vì đã gửi đơn đăng ký làm huấn luyện viên trên GymMaster Pro.",
+    ),
+    text: [
+      `Xin chào ${params.fullName.trim()},`,
+      "",
+      `${copy.heading}.`,
+      ...(reason ? [`Lý do: ${params.reason?.trim()}`] : []),
+      ...(params.temporaryPassword
+        ? [
+            `Email đăng nhập: ${params.email.trim()}`,
+            `Mật khẩu tạm thời: ${params.temporaryPassword}`,
+            "Hãy đổi mật khẩu sau lần đăng nhập đầu tiên.",
+          ]
+        : []),
+      "",
+      `${copy.cta}: ${params.link}`,
+    ].join("\n"),
+  };
+}
+
+/** Nhắc hội viên cập nhật ảnh khuôn mặt (Face ID) — admin bấm "Nhắc nhở" ở danh sách hội viên. */
+export function faceReminderEmail(params: {
+  fullName: string;
+  link: string;
+}): VerificationCodeEmail {
+  const fullName = escapeHtml(params.fullName.trim());
+  const link = escapeHtml(params.link);
+  return {
+    subject: "Nhắc nhở cập nhật ảnh khuôn mặt — GymMaster Pro",
+    html: layout(
+      `
+      <h1 style="margin:0 0 12px;font-size:20px;line-height:1.4;color:${BRAND.chalk};">Cập nhật ảnh khuôn mặt để check-in nhanh hơn</h1>
+      <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:${BRAND.muted};">Xin chào <strong style="color:${BRAND.chalk};">${fullName}</strong>, tài khoản của bạn chưa có ảnh khuôn mặt đã xác thực. Hãy chụp và gửi ảnh khuôn mặt trong tài khoản hội viên — sau khi được duyệt, bạn có thể check-in tại phòng tập chỉ bằng khuôn mặt.</p>
+      <p style="margin:24px 0 0;">
+        <a href="${link}" style="display:inline-block;padding:12px 22px;background:${BRAND.neon};color:${BRAND.ink};font-size:14px;font-weight:700;text-decoration:none;border-radius:10px;">
+          Cập nhật ảnh khuôn mặt
+        </a>
+      </p>
+    `,
+      "Bạn nhận email này vì là hội viên của GymMaster Pro.",
+    ),
+    text: [
+      `Xin chào ${params.fullName.trim()},`,
+      "",
+      "Tài khoản của bạn chưa có ảnh khuôn mặt đã xác thực. Hãy cập nhật để check-in bằng khuôn mặt.",
+      `Cập nhật tại: ${params.link}`,
+    ].join("\n"),
+  };
+}

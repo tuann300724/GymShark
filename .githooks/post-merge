@@ -1,0 +1,31 @@
+#!/bin/sh
+# ---------------------------------------------------------------------------
+# post-merge — chạy sau khi `git pull` (hoặc merge/checkout qua branch khác).
+#
+# Mục đích: schema Prisma đổi thì Prisma Client cũ sai type → backend watch
+# báo lỗi TS2353/TS2339 ("dailyVisitLimit does not exist", "Property
+# 'trainerReview' does not exist") y hệt lần pull ngày 2026-11-26.
+# Hook này tự regenerate Client nên bạn không phải nhớ chạy tay.
+#
+# Kích hoạt (một lần trên máy):  git config core.hooksPath .githooks
+# ---------------------------------------------------------------------------
+set -e
+
+# Chỉ chạy khi file schema thật sự thay đổi giữa trước/sau pull
+if ! git diff --name-only ORIG_HEAD HEAD 2>/dev/null | grep -q '^backend/prisma/schema\.prisma$'; then
+  exit 0
+fi
+
+echo ""
+echo "[post-merge] backend/prisma/schema.prisma đã đổi — regenerate Prisma Client..."
+
+if (cd backend && npx prisma generate); then
+  echo "[post-merge] OK — Prisma Client đã đồng bộ với schema mới."
+else
+  echo ""
+  echo "[post-merge] KHÔNG generate được (thường do backend đang giữ file DLL)."
+  echo "             1) Dừng backend (Ctrl+C / kill process port 3001)"
+  echo "             2) Chạy:  cd backend && npm run prisma:generate"
+  echo "             3) Khởi động lại:  npm run start:dev"
+  exit 1
+fi

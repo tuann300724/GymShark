@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getStoredUser } from '@/services/auth.service';
 import { Skeleton } from '@/components/ui/skeleton';
-import { isAdminRole } from '@/lib/auth';
+import { isAdminRole, getPortalHome } from '@/lib/auth';
 
 /**
  * Bảo vệ khu vực /member/*
@@ -32,7 +32,7 @@ export function MemberGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (state === 'guest') router.replace('/login');
-    if (state === 'admin') router.replace('/admin');
+    if (state === 'admin') router.replace(getPortalHome(getStoredUser()?.role));
   }, [state, router]);
 
   if (state === 'loading') {

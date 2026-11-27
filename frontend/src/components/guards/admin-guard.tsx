@@ -4,18 +4,31 @@ import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { getStoredUser } from '@/services/auth.service';
 import { Skeleton } from '@/components/ui/skeleton';
-import { canAccessAdminPath, isAdminRole, isPartnerRole } from '@/lib/auth';
+import {
+  CHANGE_PASSWORD_PATH,
+  canAccessAdminPath,
+  canAccessPartnerPath,
+  isAdminRole,
+  isPartnerRole,
+} from '@/lib/auth';
 
-type GuardState = 'loading' | 'allowed' | 'guest' | 'member' | 'partner' | 'restricted';
+type GuardState = 'loading' | 'allowed' | 'redirect';
 
-const PARTNER_HOME = '/admin/dashboard';
+function GuardSkeleton() {
+  return (
+    <div className="min-h-screen bg-ink flex flex-col items-center justify-center gap-4">
+      <Skeleton className="h-8 w-56" />
+      <Skeleton className="h-4 w-80" />
+    </div>
+  );
+}
 
 /**
- * Bảo vệ khu vực /admin/*
+ * Bảo vệ khu vực /admin/* (ADMIN / MANAGER / STAFF)
  * - Chưa đăng nhập → /login
- * - MEMBER/TRAINER → /member hoặc /trainer
- * - PARTNER → dùng chung /admin, rơi về trang vận hành cơ sở của mình.
- * - ADMIN/MANAGER/STAFF → toàn quyền admin
+ * - MEMBER/TRAINER → /member
+ * - PARTNER → chuyển sang khu riêng /partner (giữ đúng trang nếu có)
+ * - Trang không đủ quyền → /admin/dashboard
  */
 export function AdminGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -24,40 +37,48 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const user = getStoredUser();
-    if (!user) {
-      setState('guest');
-      return;
-    }
-    if (isPartnerRole(user.role)) {
-      // /admin là trang điều hướng về dashboard riêng của cơ sở.
-      setState(
-        pathname === '/admin' || !canAccessAdminPath(user.role, pathname) ? 'partner' : 'allowed',
-      );
-      return;
-    }
-    if (canAccessAdminPath(user.role, pathname)) {
-      setState('allowed');
-    } else {
-      setState(isAdminRole(user.role) ? 'restricted' : 'member');
-    }
-  }, [pathname]);
+    let target: string | null = null;
+    if (!user) target = '/login';
+    else if (isPartnerRole(user.role)) {
+      const mapped = pathname.replace(/^\/admin/, '/partner');
+      target = canAccessPartnerPath(user.role, mapped) ? mapped : '/partner/dashboard';
+    } else if (!isAdminRole(user.role)) target = '/member';
+    else if (pathname !== '/admin' && !canAccessAdminPath(user.role, pathname))
+      target = '/admin/dashboard';
+
+    if (target) {
+      setState('redirect');
+      router.replace(target);
+    } else setState('allowed');
+  }, [pathname, router]);
+
+  if (state !== 'allowed') return <GuardSkeleton />;
+  return <>{children}</>;
+}
+
+/**
+ * Bảo vệ khu vực /partner/* — chỉ tài khoản PARTNER (chủ hoặc nhân viên phòng gym đối tác).
+ * Tài khoản hệ thống bị đẩy về /admin, hội viên về /member.
+ */
+export function PartnerGuard({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [state, setState] = useState<GuardState>('loading');
 
   useEffect(() => {
-    if (state === 'guest') router.replace('/login');
-    if (state === 'member') router.replace('/member');
-    if (state === 'partner') router.replace(PARTNER_HOME);
-    if (state === 'restricted') router.replace('/admin/dashboard');
-  }, [state, router]);
+    const user = getStoredUser();
+    let target: string | null = null;
+    if (!user) target = '/login';
+    else if (user.mustChangePassword) target = CHANGE_PASSWORD_PATH;
+    else if (!isPartnerRole(user.role)) target = isAdminRole(user.role) ? '/admin' : '/member';
+    else if (!canAccessPartnerPath(user.role, pathname)) target = '/partner/dashboard';
 
-  if (state === 'loading') {
-    return (
-      <div className="min-h-screen bg-ink flex flex-col items-center justify-center gap-4">
-        <Skeleton className="h-8 w-56" />
-        <Skeleton className="h-4 w-80" />
-      </div>
-    );
-  }
+    if (target) {
+      setState('redirect');
+      router.replace(target);
+    } else setState('allowed');
+  }, [pathname, router]);
 
-  if (state !== 'allowed') return null;
+  if (state !== 'allowed') return <GuardSkeleton />;
   return <>{children}</>;
 }

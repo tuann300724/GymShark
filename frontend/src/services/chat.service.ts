@@ -1,3 +1,4 @@
+import type { PtSessionCard } from './pt-session.service';
 import apiClient from '@/lib/axios';
 
 interface ConversationPartner {
@@ -48,9 +49,11 @@ export interface MessageItem {
   conversationId: string;
   senderId: string;
   sender: MessageSender;
-  type: 'TEXT' | 'IMAGE' | 'MEAL_PLAN' | 'SYSTEM';
+  type: 'TEXT' | 'IMAGE' | 'MEAL_PLAN' | 'PT_SESSION' | 'SYSTEM';
   content: string | null;
   mealPlan: any | null;
+  /** Thẻ đề nghị buổi tập PT (type PT_SESSION) — trạng thái luôn lấy mới từ server */
+  ptSession?: PtSessionCard | null;
   attachments: MessageAttachment[];
   isRead: boolean;
   readAt: string | null;

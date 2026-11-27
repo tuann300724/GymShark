@@ -18,6 +18,7 @@ import { useToast } from '@/components/ui/toast';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StaggerGroup, StaggerItem } from '@/components/ui/motion';
 import NearbyGymsCard from '@/components/member/nearby-gyms-card';
+import FaceStatusCard from '@/components/member/face-status-card';
 import {
   QrCode,
   CalendarCheck,
@@ -96,6 +97,8 @@ export default function MemberDashboardPage() {
 
   const firstName = me?.fullName?.split(' ').slice(-1)[0] || 'bạn';
   const membership = stats?.currentMembership;
+  const visitLimit = membership?.visitLimit ?? 0;
+  const usedVisits = membership?.usedVisits ?? 0;
 
   const statItems = [
     {
@@ -233,6 +236,46 @@ export default function MemberDashboardPage() {
             <Skeleton className="mt-3 h-20 w-full" />
           </CardContent>
         </Card>
+      ) : !membership && stats?.finishedMembership && !stats?.pendingMembership ? (
+        /* Gói lượt đã tập xong hết lượt → mời gia hạn hoặc đổi gói */
+        <Card className="overflow-hidden border-neon/30">
+          <div className="p-6 sm:p-8">
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="size-5 text-neon" />
+                  <p className="meta-label">Thẻ thành viên</p>
+                </div>
+                <h2 className="mt-3 font-display text-2xl font-bold uppercase tracking-tight text-chalk">
+                  {stats.finishedMembership.packageName}
+                </h2>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <Badge variant="outline">Đã dùng hết lượt</Badge>
+                  <span className="text-xs text-muted">
+                    Bạn đã tập xong {stats.finishedMembership.usedVisits}/
+                    {stats.finishedMembership.visitLimit} lượt của gói (bắt đầu{' '}
+                    {formatDate(stats.finishedMembership.startDate)}).
+                  </span>
+                </div>
+                <p className="mt-2 text-sm text-muted">
+                  Gia hạn gói này hoặc đổi sang gói khác để tiếp tục tập.
+                </p>
+              </div>
+              <div className="flex shrink-0 flex-col gap-2 sm:w-56">
+                <Link href={`/member/register-membership/${stats.finishedMembership.packageId}`}>
+                  <Button className="w-full">
+                    Gia hạn gói <ArrowRight className="size-4" />
+                  </Button>
+                </Link>
+                <Link href="/packages">
+                  <Button variant="secondary" className="w-full">
+                    Đổi gói khác
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </Card>
       ) : !membership ? (
         <Card className="overflow-hidden border-line">
           <div className="relative p-6 sm:p-8">
@@ -286,24 +329,45 @@ export default function MemberDashboardPage() {
                   <div className="mt-3 flex items-center gap-2">
                     <Badge variant="success">Active</Badge>
                     <span className="text-xs text-muted">
-                      Còn {membership.remainingDays} ngày sử dụng
+                      {visitLimit
+                        ? `Đã tập ${usedVisits}/${visitLimit} lượt · còn ${membership.remainingDays} ngày sử dụng`
+                        : `Còn ${membership.remainingDays} ngày sử dụng`}
                     </span>
                   </div>
                 </div>
               </div>
 
               <div className="shrink-0 sm:w-64">
-                <p className="meta-label mb-2">Thời gian còn lại</p>
-                <Progress value={membership.progress || 0} />
-                <p className="mt-2 font-display text-2xl font-bold text-neon">
-                  {membership.remainingDays ?? 0}
-                  <span className="ml-1 font-sans text-sm font-semibold text-muted">ngày</span>
-                </p>
+                {visitLimit ? (
+                  /* Gói lượt: hiển thị lượt còn lại */
+                  <>
+                    <p className="meta-label mb-2">Lượt còn lại</p>
+                    <Progress value={Math.round((usedVisits / visitLimit) * 100)} />
+                    <p className="mt-2 font-display text-2xl font-bold text-neon">
+                      {Math.max(0, visitLimit - usedVisits)}
+                      <span className="ml-1 font-sans text-sm font-semibold text-muted">
+                        / {visitLimit} lượt
+                      </span>
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="meta-label mb-2">Thời gian còn lại</p>
+                    <Progress value={membership.progress || 0} />
+                    <p className="mt-2 font-display text-2xl font-bold text-neon">
+                      {membership.remainingDays ?? 0}
+                      <span className="ml-1 font-sans text-sm font-semibold text-muted">ngày</span>
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           </div>
         </Card>
       )}
+
+      {/* Nhắc cập nhật ảnh khuôn mặt (ẩn khi đã duyệt) */}
+      <FaceStatusCard />
 
       {/* Payment summary */}
       {!statsLoading && stats?.paymentSummary && (

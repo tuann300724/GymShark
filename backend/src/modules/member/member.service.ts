@@ -24,6 +24,10 @@ import { ChangePasswordDto } from "./dto/change-password.dto";
 import { RegisterMembershipDto } from "./dto/register-membership.dto";
 import { uniqueReferralCode } from "../../common/utils/referral-code";
 import { parseJsonText } from "../../common/utils/json-text";
+import {
+  countCreditVisits,
+  expireUsedUpCreditMemberships,
+} from "../../common/utils/membership-usage";
 
 /** Chuẩn hoá một phần địa chỉ: bỏ dấu, bỏ cấp hành chính ("Phường", "Tỉnh"...), gộp tên gọi TP.HCM. */
 function normalizeAreaPart(part: string) {
@@ -259,12 +263,15 @@ export class MemberService {
     if (!isMatch)
       throw new BadRequestException("Mật khẩu hiện tại không chính xác");
 
+    if (await bcrypt.compare(dto.newPassword, user.passwordHash))
+      throw new BadRequestException("Mật khẩu mới phải khác mật khẩu hiện tại");
+
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(dto.newPassword, salt);
 
     await this.prisma.user.update({
       where: { id: userId },
-      data: { passwordHash },
+      data: { passwordHash, mustChangePassword: false },
     });
 
     await this.auditService.log({
@@ -338,6 +345,8 @@ export class MemberService {
       where,
       data: { status: "EXPIRED" },
     });
+    // Gói lượt đã dùng hết lượt → kết thúc luôn để hội viên gia hạn / đổi gói bắt đầu ngay
+    if (memberId) await expireUsedUpCreditMemberships(this.prisma, memberId);
   }
 
   /** Tìm memberships đang chờ xác nhận thanh toán của member */
@@ -1312,6 +1321,31 @@ export class MemberService {
       memberships.find(
         (m) => m.status === "PENDING" || m.payments.length > 0,
       ) || null;
+    // Gói lượt: số lượt đã dùng / tổng lượt (đếm như lúc check-in)
+    const creditUsage = async (m: (typeof memberships)[number]) => {
+      if (m.package.type !== PackageType.CREDIT_BASED || !m.package.visitLimit) return null;
+      const usedVisits = await countCreditVisits(this.prisma, member.id, m.startDate);
+      return { visitLimit: m.package.visitLimit, usedVisits };
+    };
+    const activeUsage = active ? await creditUsage(active) : null;
+
+    // Không còn gói chạy, không có yêu cầu chờ, gói gần nhất là gói lượt đã dùng hết →
+    // dashboard hiện "đã tập xong hết lượt" kèm nút gia hạn / đổi gói
+    const latest = memberships[0];
+    const latestUsage =
+      !active && !pending && latest?.status === "EXPIRED" ? await creditUsage(latest) : null;
+    const finishedMembership =
+      latest && latestUsage && latestUsage.usedVisits >= latestUsage.visitLimit
+        ? {
+            id: latest.id,
+            packageId: latest.packageId,
+            packageName: latest.package.name,
+            startDate: latest.startDate,
+            endDate: latest.endDate,
+            ...latestUsage,
+          }
+        : null;
+
     let remainingDays = 0;
     let membershipProgress = 0;
     if (active) {
@@ -1358,8 +1392,12 @@ export class MemberService {
             status: active.status,
             remainingDays,
             progress: membershipProgress,
+            packageType: active.package.type,
+            visitLimit: activeUsage?.visitLimit ?? null,
+            usedVisits: activeUsage?.usedVisits ?? null,
           }
         : null,
+      finishedMembership,
       pendingMembership: pending
         ? {
             id: pending.id,

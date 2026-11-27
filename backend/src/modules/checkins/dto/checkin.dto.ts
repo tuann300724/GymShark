@@ -158,6 +158,20 @@ export class MemberAttendanceQueryDto {
   @IsString()
   @MaxLength(100)
   search?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Lọc theo hạng cơ sở đã tập: TIER_1 | TIER_2 | TIER_3 | NONE (chưa xếp hạng) | SYSTEM (phòng hệ thống)',
+  })
+  @IsOptional()
+  @IsIn(['TIER_1', 'TIER_2', 'TIER_3', 'NONE', 'SYSTEM'])
+  tier?: string;
+
+  @ApiPropertyOptional({ description: 'Lọc theo 1 cơ sở đối tác (partnerId)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  partnerId?: string;
 }
 
 export class FaceCheckInDto {

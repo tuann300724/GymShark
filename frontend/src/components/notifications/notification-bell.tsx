@@ -9,10 +9,11 @@ import { NOTIFICATION_TYPE_META } from '@/lib/status';
 import { formatDateTime } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
+import { useAreaHref } from '@/lib/use-area-href';
 
 interface NotificationBellProps {
-  /** Đường dẫn trang danh sách thông báo đầy đủ (định tuyến theo role) */
-  notificationsHref: string;
+  /** Đường dẫn trang danh sách thông báo đầy đủ (định tuyến theo role); bỏ trống = ẩn link */
+  notificationsHref?: string;
   /** Query key riêng theo role để tránh dùng chung cache */
   queryKeyPrefix: string;
 }
@@ -26,6 +27,8 @@ export default function NotificationBell({
   queryKeyPrefix,
 }: NotificationBellProps) {
   const router = useRouter();
+  // Thông báo đối tác có link /admin/... → đổi sang /partner/... khi đang ở khu đối tác
+  const areaHref = useAreaHref();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -75,7 +78,7 @@ export default function NotificationBell({
     } catch {
       // không chặn điều hướng
     }
-    router.push(link);
+    router.push(areaHref(link));
   };
 
   const handleMarkAll = async () => {
@@ -181,13 +184,15 @@ export default function NotificationBell({
             )}
           </div>
 
-          <Link
-            href={notificationsHref}
-            onClick={() => setOpen(false)}
-            className="flex items-center justify-center gap-1 border-t border-line bg-ink/60 px-3.5 py-2.5 text-[11px] font-semibold text-muted transition-colors hover:text-neon"
-          >
-            Xem tất cả thông báo <ChevronRight className="size-3.5" />
-          </Link>
+          {notificationsHref && (
+            <Link
+              href={notificationsHref}
+              onClick={() => setOpen(false)}
+              className="flex items-center justify-center gap-1 border-t border-line bg-ink/60 px-3.5 py-2.5 text-[11px] font-semibold text-muted transition-colors hover:text-neon"
+            >
+              Xem tất cả thông báo <ChevronRight className="size-3.5" />
+            </Link>
+          )}
         </div>
       )}
     </div>

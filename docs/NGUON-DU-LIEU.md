@@ -4103,7 +4103,7 @@ Index được đặt theo truy vấn thực tế (theo `status`, `memberId`, `c
 | Phân quyền | `RolesGuard` đọc `@Roles(...)` từ metadata; trả `403` rõ ràng khi thiếu quyền |
 | Input validation | `ValidationPipe` toàn cục: `whitelist`, `forbidNonWhitelisted`, `transform` → field lạ trong body bị từ chối `400` |
 | HTTP headers | `helmet` (HSTS, `X-Content-Type-Options`, ẩn `X-Powered-By`, CSP…) |
-| Rate limit | `@nestjs/throttler`: toàn cục **300 req/phút**; `POST /auth/login` **10/60s**; `POST /auth/register` **5/300s**; đăng ký hội viên tự do: `member-register/send-code` & `resend-code` **5/300s**, `member-register/verify` **10/300s** |
+| Rate limit | `@nestjs/throttler`: toàn cục **300 req/phút**; `POST /auth/login` **10/60s**; `POST /auth/register` (chỉ ADMIN) **5/300s**; đăng ký hội viên tự do: `member-register/send-code` & `resend-code` **5/300s**, `member-register/verify` **10/300s** |
 | CORS | Allowlist qua `CORS_ORIGIN` (danh sách phân tách dấu phẩy) |
 | Lỗi | `AllExceptionsFilter` chuẩn hoá `{ statusCode, message, error, path, timestamp }`, map lỗi Prisma, **luôn** log chi tiết ở server |
 | Nhật ký | `AuditService` (@Global) ghi 53 loại hành động (xem `AUDIT_ACTION_META`); `log()` **không bao giờ throw** để không làm hỏng nghiệp vụ chính; không lưu mật khẩu/token |

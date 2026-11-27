@@ -24,6 +24,7 @@ import {
   MessageSquare,
   Utensils,
   ClipboardList,
+  Wallet,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -34,6 +35,7 @@ const NAV_ITEMS = [
   { name: 'Tin nhắn', href: '/trainer/messages', icon: MessageSquare },
   { name: 'Thực đơn', href: '/trainer/meal-plans', icon: Utensils },
   { name: 'Bài tập', href: '/trainer/programs/builder', icon: ClipboardList },
+  { name: 'Thu nhập', href: '/trainer/earnings', icon: Wallet },
 ];
 
 const NAV_LINK_CLASSES =

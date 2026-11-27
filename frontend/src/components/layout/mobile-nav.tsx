@@ -5,11 +5,11 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { getVisibleAdminItems, navigationSections } from './admin-sidebar';
+import { getNavSections, getVisibleAdminItems, type NavArea } from './admin-sidebar';
 import { getStoredUser } from '@/lib/auth';
 import { Menu, X, Dumbbell } from 'lucide-react';
 
-export function MobileNav() {
+export function MobileNav({ area = 'admin' }: { area?: NavArea }) {
   const [isOpen, setIsOpen] = useState(false);
   const [role, setRole] = useState('');
   const pathname = usePathname();
@@ -61,8 +61,8 @@ export function MobileNav() {
               </div>
 
               <div className="flex-1 overflow-y-auto py-4 space-y-4">
-                {navigationSections.map((section) => {
-                  const visibleItems = getVisibleAdminItems(section, role);
+                {getNavSections(area).map((section) => {
+                  const visibleItems = getVisibleAdminItems(section, role, area);
                   if (!visibleItems.length) return null;
                   return (
                     <div key={section.title} className="space-y-1">

@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { canAccessAdminPath, getStoredUser, isPartnerRole } from '@/lib/auth';
+import { canAccessAdminPath, getStoredUser } from '@/lib/auth';
 import {
   LayoutDashboard,
   Users,
@@ -31,6 +31,9 @@ import {
   Wallet,
   ChevronDown,
   FileSignature,
+  ScanFace,
+  BadgeCheck,
+  HandCoins,
 } from 'lucide-react';
 
 type NavItem = {
@@ -45,8 +48,10 @@ type NavSection = {
   items: NavItem[];
 };
 
+export type NavArea = 'admin' | 'partner';
+
+/** Mục STAFF (lễ tân hệ thống) không thấy */
 const STAFF_HIDDEN_HREFS = [
-  '/admin/staff',
   '/admin/partners',
   '/admin/partner-leads',
   '/admin/beverages',
@@ -54,80 +59,44 @@ const STAFF_HIDDEN_HREFS = [
   '/admin/reports/beverages',
 ];
 
-/** Mục chỉ riêng đối tác dùng (admin/manager/staff không có dữ liệu theo cơ sở của họ). */
-const PARTNER_ONLY_HREFS = [
-  '/admin/finance',
-  '/admin/facility-members',
-  '/admin/branches',
-  '/admin/partnership',
-];
-
-/**
- * Menu chung: đối tác chỉ thấy trang quản lý cơ sở của mình —
- * Check-in, hội viên từng đến, cơ sở/chi nhánh, bán nước và tài chính.
- * Chỉ xem hội viên từng check-in tại đây; không có danh bạ hệ thống.
- */
-export function getVisibleAdminItems(section: NavSection, role: string): NavItem[] {
-  const isPartner = isPartnerRole(role);
-  // Nhân viên của đối tác không quản lý tài khoản nhân viên (chỉ chủ đối tác)
-  const partnerStaff = isPartner && Boolean(getStoredUser()?.partnerStaff);
-  return section.items.filter((item) => {
-    if (partnerStaff && item.href === '/admin/staff') return false;
-    if (isPartner) return canAccessAdminPath(role, item.href);
-    if (PARTNER_ONLY_HREFS.includes(item.href)) return false;
-    return role !== 'STAFF' || !STAFF_HIDDEN_HREFS.includes(item.href);
-  });
-}
-
-export const navigationSections: NavSection[] = [
+/** Menu khu quản trị hệ thống (ADMIN / MANAGER / STAFF) */
+const adminNavigationSections: NavSection[] = [
   {
     title: 'Tổng quan',
     items: [{ name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard }],
   },
   {
-    // Chỉ đối tác thấy: hợp đồng, hạng phòng, gia hạn
-    title: 'Hợp tác',
-    items: [{ name: 'Hợp đồng & hạng phòng', href: '/admin/partnership', icon: FileSignature }],
-  },
-  {
     title: 'Hội viên & Vận hành',
     items: [
+      // Chỉ STAFF (lễ tân) còn check-in tại quầy — xem canAccessAdminPath
       { name: 'Lượt Check-in', href: '/admin/checkins', icon: QrCode, badge: 'Live' },
-      { name: 'Hội viên cộng đồng', href: '/admin/facility-members', icon: Users },
-      { name: 'Cơ sở / Chi nhánh', href: '/admin/branches', icon: Building2 },
-      { name: 'Báo cáo chuyên cần', href: '/admin/reports/attendance', icon: ClipboardCheck },
       { name: 'Hội viên', href: '/admin/members', icon: Users },
+      { name: 'Duyệt ảnh khuôn mặt', href: '/admin/face-reviews', icon: ScanFace },
       { name: 'Thẻ hội viên', href: '/admin/memberships', icon: CreditCard },
       { name: 'Gói tập Gym', href: '/admin/membership-packages', icon: Package },
       { name: 'Huấn luyện viên (PT)', href: '/admin/trainers', icon: UserCheck },
-      { name: 'Lịch tập & Lớp học', href: '/admin/schedules', icon: CalendarDays },
-      { name: 'Tài khoản nhân viên', href: '/admin/staff', icon: UserCog },
+      { name: 'Duyệt hồ sơ PT', href: '/admin/trainer-applications', icon: BadgeCheck },
+      { name: 'Buổi PT & chi trả', href: '/admin/pt-sessions', icon: HandCoins },
+      { name: 'Báo cáo chuyên cần', href: '/admin/reports/attendance', icon: ClipboardCheck },
     ],
   },
   {
-    title: 'Kinh doanh nước uống',
+    title: 'Đối tác',
     items: [
-      { name: 'Dashboard nước uống', href: '/admin/beverages', icon: Droplets },
-      { name: 'Sản phẩm nước uống', href: '/admin/beverages/products', icon: Package },
-      { name: 'Nhập kho nước uống', href: '/admin/beverages/imports', icon: ClipboardList },
-      { name: 'Bán nước tại quầy', href: '/admin/beverages/pos', icon: ShoppingCart },
-      { name: 'Tồn kho nước uống', href: '/admin/beverages/stock', icon: Boxes },
+      { name: 'Đối tác phòng gym', href: '/admin/partners', icon: Building2 },
+      { name: 'Yêu cầu hợp tác', href: '/admin/partner-leads', icon: ClipboardList },
     ],
   },
   {
     title: 'Tài chính',
     items: [
-      { name: 'Tài chính cơ sở', href: '/admin/finance', icon: Wallet },
       { name: 'Hóa đơn & Thu phí', href: '/admin/payments', icon: Receipt },
       { name: 'Báo cáo doanh thu', href: '/admin/reports/revenue', icon: BarChart3 },
-      { name: 'Báo cáo nước uống', href: '/admin/reports/beverages', icon: Droplets },
     ],
   },
   {
     title: 'Hệ thống',
     items: [
-      { name: 'Đối tác phòng gym', href: '/admin/partners', icon: Building2 },
-      { name: 'Yêu cầu hợp tác', href: '/admin/partner-leads', icon: ClipboardList },
       { name: 'Báo cáo thống kê', href: '/admin/reports', icon: BarChart3 },
       { name: 'Thiết bị', href: '/admin/reports/equipment', icon: Wrench },
       { name: 'Thông báo', href: '/admin/notifications', icon: Bell },
@@ -138,7 +107,73 @@ export const navigationSections: NavSection[] = [
   },
 ];
 
-export function AdminSidebar() {
+/** Menu khu đối tác (phòng gym tự quản lý) — /partner */
+const partnerNavigationSections: NavSection[] = [
+  {
+    title: 'Tổng quan',
+    items: [{ name: 'Dashboard', href: '/partner/dashboard', icon: LayoutDashboard }],
+  },
+  {
+    title: 'Hợp tác',
+    items: [{ name: 'Hợp đồng & hạng phòng', href: '/partner/partnership', icon: FileSignature }],
+  },
+  {
+    title: 'Hội viên & Vận hành',
+    items: [
+      { name: 'Lượt Check-in', href: '/partner/checkins', icon: QrCode, badge: 'Live' },
+      { name: 'Hội viên cộng đồng', href: '/partner/facility-members', icon: Users },
+      { name: 'Cơ sở / Chi nhánh', href: '/partner/branches', icon: Building2 },
+      { name: 'Hội viên', href: '/partner/members', icon: Users },
+      { name: 'Thẻ hội viên', href: '/partner/memberships', icon: CreditCard },
+      { name: 'Gói tập Gym', href: '/partner/membership-packages', icon: Package },
+      { name: 'Huấn luyện viên (PT)', href: '/partner/trainers', icon: UserCheck },
+      { name: 'Lịch tập & Lớp học', href: '/partner/schedules', icon: CalendarDays },
+      { name: 'Tài khoản nhân viên', href: '/partner/staff', icon: UserCog },
+    ],
+  },
+  {
+    title: 'Kinh doanh nước uống',
+    items: [
+      { name: 'Dashboard nước uống', href: '/partner/beverages', icon: Droplets },
+      { name: 'Sản phẩm nước uống', href: '/partner/beverages/products', icon: Package },
+      { name: 'Nhập kho nước uống', href: '/partner/beverages/imports', icon: ClipboardList },
+      { name: 'Bán nước tại quầy', href: '/partner/beverages/pos', icon: ShoppingCart },
+      { name: 'Tồn kho nước uống', href: '/partner/beverages/stock', icon: Boxes },
+    ],
+  },
+  {
+    title: 'Tài chính',
+    items: [
+      { name: 'Tài chính cơ sở', href: '/partner/finance', icon: Wallet },
+      { name: 'Hóa đơn & Thu phí', href: '/partner/payments', icon: Receipt },
+      { name: 'Báo cáo doanh thu', href: '/partner/reports/revenue', icon: BarChart3 },
+    ],
+  },
+];
+
+export function getNavSections(area: NavArea): NavSection[] {
+  return area === 'partner' ? partnerNavigationSections : adminNavigationSections;
+}
+
+/** Lọc mục menu theo role trong từng khu */
+export function getVisibleAdminItems(
+  section: NavSection,
+  role: string,
+  area: NavArea = 'admin',
+): NavItem[] {
+  if (area === 'partner') {
+    // Nhân viên của đối tác không quản lý tài khoản nhân viên (chỉ chủ đối tác)
+    const partnerStaff = Boolean(getStoredUser()?.partnerStaff);
+    return section.items.filter((item) => !(partnerStaff && item.href === '/partner/staff'));
+  }
+  return section.items.filter((item) => {
+    if (!canAccessAdminPath(role, item.href)) return false;
+    return role !== 'STAFF' || !STAFF_HIDDEN_HREFS.includes(item.href);
+  });
+}
+
+export function AdminSidebar({ area = 'admin' }: { area?: NavArea }) {
+  const navigationSections = getNavSections(area);
   const pathname = usePathname();
   const [role, setRole] = useState('');
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
@@ -150,8 +185,8 @@ export function AdminSidebar() {
   useEffect(() => {
     const activeSection = navigationSections.find(
       (section) =>
-        getVisibleAdminItems(section, role).length > 1 &&
-        getVisibleAdminItems(section, role).some(
+        getVisibleAdminItems(section, role, area).length > 1 &&
+        getVisibleAdminItems(section, role, area).some(
           (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
         ),
     );
@@ -159,7 +194,7 @@ export function AdminSidebar() {
     if (activeSection) {
       setOpenSections((current) => ({ ...current, [activeSection.title]: true }));
     }
-  }, [pathname, role]);
+  }, [pathname, role, area, navigationSections]);
 
   return (
     <aside className="w-64 border-r border-line bg-surface/95 backdrop-blur-md flex flex-col h-screen sticky top-0 z-30 transition-all select-none">
@@ -173,7 +208,7 @@ export function AdminSidebar() {
             GYM<span className="text-neon">MASTER</span>
           </span>
           <span className="text-[10px] uppercase font-bold tracking-widest text-muted block -mt-0.5">
-            Operations Pro
+            {area === 'partner' ? 'Partner Portal' : 'Operations Pro'}
           </span>
         </div>
       </div>
@@ -181,7 +216,7 @@ export function AdminSidebar() {
       {/* Navigation Links */}
       <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
         {navigationSections.map((section) => {
-          const visibleItems = getVisibleAdminItems(section, role);
+          const visibleItems = getVisibleAdminItems(section, role, area);
           if (!visibleItems.length) return null;
 
           const isCollapsible = visibleItems.length > 1;

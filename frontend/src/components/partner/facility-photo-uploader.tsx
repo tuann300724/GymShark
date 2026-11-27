@@ -20,8 +20,8 @@ const MAX_SIDE = 1280;
 /** Giới hạn ~500KB/ảnh sau nén — khớp MAX_PHOTO_DATA_URL_LENGTH ở backend */
 const MAX_DATA_URL = 680_000;
 
-/** Nén ảnh ở trình duyệt: thu nhỏ cạnh dài ≤ 1280px, xuất JPEG giảm dần chất lượng. */
-async function compressImage(file: File): Promise<string> {
+/** Nén ảnh ở trình duyệt: thu nhỏ cạnh dài ≤ maxSide (mặc định 1280px), xuất JPEG giảm dần chất lượng. */
+export async function compressImage(file: File, maxSide = MAX_SIDE): Promise<string> {
   const source = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
@@ -34,7 +34,7 @@ async function compressImage(file: File): Promise<string> {
     el.onerror = () => reject(new Error('Ảnh không hợp lệ'));
     el.src = source;
   });
-  const scale = Math.min(1, MAX_SIDE / Math.max(img.width, img.height));
+  const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(img.width * scale);
   canvas.height = Math.round(img.height * scale);

@@ -50,6 +50,20 @@ const messageInclude = {
       },
     },
   },
+  // Thẻ đề nghị buổi tập PT: trạng thái đọc trực tiếp từ PtSession (luôn mới nhất)
+  ptSession: {
+    select: {
+      id: true,
+      title: true,
+      note: true,
+      startTime: true,
+      endTime: true,
+      price: true,
+      status: true,
+      declineReason: true,
+      paymentId: true,
+    },
+  },
 } satisfies Prisma.MessageInclude;
 
 type ConversationRow = Prisma.ConversationGetPayload<{
@@ -431,6 +445,7 @@ export class ChatService {
     if (text) return text.length > 140 ? `${text.slice(0, 140)}…` : text;
     if (message.type === "IMAGE") return "[Hình ảnh]";
     if (message.type === "MEAL_PLAN") return "[Thực đơn dinh dưỡng]";
+    if (message.type === "PT_SESSION") return "[Đề nghị buổi tập]";
     return "Tin nhắn";
   }
 
@@ -459,6 +474,7 @@ export class ChatService {
     const explicitType = dto.type;
     if (
       explicitType === MessageType.MEAL_PLAN ||
+      explicitType === MessageType.PT_SESSION ||
       explicitType === MessageType.SYSTEM
     ) {
       throw new BadRequestException(
@@ -836,6 +852,100 @@ export class ChatService {
 
     await this.notifyRecipient(detailed, messageOut, actor);
     return messageOut;
+  }
+
+  /**
+   * Gửi thẻ đề nghị buổi tập PT vào cuộc trò chuyện đã có giữa HLV ↔ hội viên.
+   * Không yêu cầu phân công: hội viên tự liên hệ PT qua chat rồi PT đề nghị buổi tập.
+   */
+  async sendPtSessionMessage(params: {
+    trainerUserId: string;
+    trainerId: string;
+    memberId: string;
+    ptSessionId: string;
+    content: string;
+  }) {
+    const conversation = await this.ensureConversation(
+      params.trainerId,
+      params.memberId,
+      false,
+    );
+    const actor: ChatActor = {
+      kind: "TRAINER",
+      userId: params.trainerUserId,
+      trainerId: params.trainerId,
+    };
+
+    const created = await this.prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        senderId: params.trainerUserId,
+        type: MessageType.PT_SESSION,
+        content: params.content,
+        ptSessionId: params.ptSessionId,
+      },
+      include: messageInclude,
+    });
+
+    const member = await this.prisma.member.findUnique({
+      where: { id: params.memberId },
+      select: { userId: true },
+    });
+    const messageOut = await this.markDeliveredIfOnline(
+      created,
+      params.trainerUserId,
+      member?.userId,
+    );
+    const preview = "[Đề nghị buổi tập]";
+    await this.prisma.conversation.update({
+      where: { id: conversation.id },
+      data: { lastMessageAt: created.createdAt, lastMessagePreview: preview, lastSenderRole: "TRAINER" },
+    });
+
+    const detailed = await this.prisma.conversation.findUniqueOrThrow({
+      where: { id: conversation.id },
+      include: {
+        trainer: {
+          select: {
+            id: true,
+            userId: true,
+            user: { select: { fullName: true, avatarUrl: true } },
+          },
+        },
+        member: {
+          select: { id: true, userId: true, fullName: true, avatarUrl: true },
+        },
+      },
+    });
+    for (const uid of [detailed.trainer.userId, detailed.member.userId]) {
+      this.gateway.emitToUser(uid, "message:new", {
+        conversationId: conversation.id,
+        message: messageOut,
+      });
+      this.gateway.emitToUser(uid, "conversation:updated", {
+        conversationId: conversation.id,
+        lastMessageAt: created.createdAt,
+        lastMessagePreview: preview,
+      });
+    }
+    await this.notifyRecipient(detailed, messageOut, actor);
+    return { conversationId: conversation.id, message: messageOut };
+  }
+
+  /** Báo hai phía tải lại thẻ đề nghị buổi tập khi trạng thái PtSession đổi */
+  async emitPtSessionUpdated(params: {
+    trainerUserId: string;
+    memberUserId?: string | null;
+    conversationId?: string | null;
+    ptSessionId: string;
+  }) {
+    for (const uid of [params.trainerUserId, params.memberUserId]) {
+      if (!uid) continue;
+      this.gateway.emitToUser(uid, "pt-session:updated", {
+        conversationId: params.conversationId ?? null,
+        ptSessionId: params.ptSessionId,
+      });
+    }
   }
 
   /**

@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Receipt, Wallet, Clock, CheckCircle2, CreditCard, ArrowRight } from 'lucide-react';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
-import { PAYMENT_STATUS_META, PAYMENT_METHOD_LABEL } from '@/lib/status';
+import { PAYMENT_STATUS_META, PAYMENT_METHOD_LABEL, paymentItemLabel } from '@/lib/status';
 
 export default function MemberPaymentsPage() {
   const { data: payments, isLoading } = useQuery({
@@ -163,9 +163,7 @@ export default function MemberPaymentsPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-4 py-3.5 text-chalk">
-                          {p.membership?.package?.name || '--'}
-                        </td>
+                        <td className="px-4 py-3.5 text-chalk">{paymentItemLabel(p)}</td>
                         <td className="whitespace-nowrap px-4 py-3.5 font-bold text-chalk">
                           {formatCurrency(p.amount)}
                         </td>
