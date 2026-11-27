@@ -45,6 +45,39 @@ import {
 import Link from 'next/link';
 import { getStoredUser, isPartnerRole } from '@/lib/auth';
 
+/** Nhắc đối tác khi hợp đồng còn ≤ 7 ngày hoặc đã hết hạn — dẫn sang trang gia hạn */
+function PartnerContractReminder() {
+  const query = useQuery({
+    queryKey: ['partner-my-partnership'],
+    queryFn: () =>
+      import('@/services/partner.service').then(({ partnerApi }) => partnerApi.getMyPartnership()),
+    retry: 0,
+  });
+  const endAt = query.data?.contractEndAt;
+  if (!endAt) return null;
+  const daysLeft = Math.ceil((new Date(endAt).getTime() - Date.now()) / 86_400_000);
+  if (daysLeft > 7) return null;
+  const expired = daysLeft < 0;
+  return (
+    <Link
+      href="/admin/partnership"
+      className={cn(
+        'flex flex-col gap-1 rounded-2xl border p-4 transition-colors sm:flex-row sm:items-center sm:justify-between',
+        expired
+          ? 'border-danger/40 bg-danger/10 hover:border-danger/60'
+          : 'border-amber-500/40 bg-amber-500/10 hover:border-amber-500/60',
+      )}
+    >
+      <span className="text-sm font-semibold text-chalk">
+        {expired
+          ? `Hợp đồng hợp tác đã hết hạn ${-daysLeft} ngày.`
+          : `Hợp đồng hợp tác còn ${daysLeft} ngày (hết hạn ${new Date(endAt).toLocaleDateString('vi-VN')}).`}
+      </span>
+      <span className="text-xs font-semibold text-neon">Gửi yêu cầu gia hạn →</span>
+    </Link>
+  );
+}
+
 function FacilityDashboardPage() {
   const today = new Date();
   const dateKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -80,7 +113,7 @@ function FacilityDashboardPage() {
     },
     {
       href: '/admin/facility-members',
-      title: 'Hội viên tại cơ sở',
+      title: 'Hội viên cộng đồng',
       description: 'Tra cứu hội viên từng check-in vào cơ sở này.',
       icon: Users,
     },
@@ -115,6 +148,7 @@ function FacilityDashboardPage() {
           Tổng quan lượt tập và các nghiệp vụ tại cơ sở của bạn.
         </p>
       </header>
+      <PartnerContractReminder />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard
           title="Check-in hôm nay"

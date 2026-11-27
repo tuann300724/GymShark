@@ -6,14 +6,15 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
+    "prebuild": "prisma generate",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\"",
     "start": "nest start --path tsconfig.dev.json",
-    "prestart": "npm run db:sync-single-location",
+    "prestart": "prisma generate && npm run db:sync-single-location",
     "start:dev": "nest start --watch --path tsconfig.dev.json",
-    "prestart:dev": "npm run db:sync-single-location",
+    "prestart:dev": "prisma generate && npm run db:sync-single-location",
     "start:debug": "nest start --debug --watch --path tsconfig.dev.json",
-    "prestart:debug": "npm run db:sync-single-location",
+    "prestart:debug": "prisma generate && npm run db:sync-single-location",
     "start:prod": "node dist/main.js",
     "prestart:prod": "npm run db:sync-single-location",
     "db:sync-single-location": "prisma db execute --file prisma/sqlserver-remove-branch-management.sql --schema prisma/schema.prisma",
@@ -21,7 +22,8 @@
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:seed": "ts-node prisma/seed.ts",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "postinstall": "prisma generate"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

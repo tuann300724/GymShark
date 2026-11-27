@@ -95,13 +95,14 @@ export class CreatePackageDto {
     description: "Hạng phòng gym đối tác được phép tập",
     type: [String],
   })
+  @IsOptional() // gói riêng của đối tác không áp dụng hạng phòng; gói hệ thống bắt buộc (kiểm ở service)
   @IsArray({ message: "Hạng phòng gym phải là danh sách" })
   @ArrayNotEmpty({ message: "Phải chọn ít nhất một hạng phòng gym" })
   @IsIn(GYM_TIER_VALUES, {
     each: true,
     message: "Hạng phòng gym không hợp lệ (chỉ có Tier 1, Tier 2, Tier 3)",
   })
-  gymTierAccess: string[];
+  gymTierAccess?: string[];
 
   @ApiProperty({ example: 450000, description: "Giá bán (VND, >= 0)" })
   @Type(() => Number)

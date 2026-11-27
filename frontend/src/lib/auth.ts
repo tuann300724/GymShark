@@ -6,6 +6,8 @@ export interface StoredUser {
   role: 'ADMIN' | 'MANAGER' | 'STAFF' | 'TRAINER' | 'MEMBER' | 'PARTNER';
   status?: string;
   avatarUrl?: string | null;
+  /** Nhân viên của phòng gym đối tác (role PARTNER nhưng không phải chủ) */
+  partnerStaff?: boolean;
 }
 
 export function getStoredUser(): StoredUser | null {
@@ -45,10 +47,25 @@ const PARTNER_ADMIN_PREFIXES = [
   '/admin/checkins',
   '/admin/beverages',
   '/admin/finance',
+  '/admin/partnership',
+  // Phòng gym tự quản lý (đợt 1) — backend gói dữ liệu theo ownerPartnerId
+  '/admin/members',
+  '/admin/memberships',
+  '/admin/membership-packages',
+  '/admin/payments',
+  '/admin/reports/revenue',
+  // Đợt 2 — PT, lịch tập & lớp học, nhân viên của phòng (backend gói theo đối tác)
+  '/admin/trainers',
+  '/admin/schedules',
+  '/admin/staff',
 ] as const;
 
 /** Các trang gắn với cơ sở riêng, chỉ tài khoản PARTNER mới có phạm vi dữ liệu phù hợp. */
-const PARTNER_ONLY_ADMIN_PREFIXES = ['/admin/facility-members', '/admin/branches'] as const;
+const PARTNER_ONLY_ADMIN_PREFIXES = [
+  '/admin/facility-members',
+  '/admin/branches',
+  '/admin/partnership',
+] as const;
 const STAFF_RESTRICTED_ADMIN_PREFIXES = ['/admin/partner-leads'] as const;
 
 function isPartnerAllowedAdminPath(pathname: string): boolean {

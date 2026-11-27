@@ -15,6 +15,8 @@ import {
   UserCheck,
 } from 'lucide-react';
 import { partnerApi } from '@/services/partner.service';
+import { PartnerTierCard } from '@/components/admin/facility-assessment';
+import { PartnerContractCard } from '@/components/admin/partnership';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -300,6 +302,14 @@ export default function AdminPartnerDetailPage({ params }: { params: { id: strin
             </div>
           </CardContent>
         </Card>
+
+        <div className="lg:col-span-2">
+          <PartnerContractCard partner={p} />
+        </div>
+
+        <div className="lg:col-span-2">
+          <PartnerTierCard partner={p} />
+        </div>
 
         <Card>
           <CardHeader>

@@ -17,6 +17,11 @@ import {
   PaymentStatus,
 } from "../../common/constants/db-enums";
 import { PrismaService } from "../../prisma/prisma.service";
+import {
+  assertInScope,
+  memberOwnerWhere,
+  resolveOwnerScope,
+} from "../../common/utils/partner-scope";
 import { AuditService } from "../audit-logs/audit-logs.service";
 import { Role } from "../../common/enums/role.enum";
 import { PaymentGatewayService } from "./gateway/payment-gateway.service";
@@ -155,11 +160,14 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
    * Total Revenue, Today's Revenue, Pending, Paid, Failed, Refunded.
    * Cards luôn toàn cục; bảng tôn trọng filter/search/pagination.
    */
-  async findAll(query: PaymentListQueryDto) {
+  async findAll(query: PaymentListQueryDto, actor?: Actor) {
+    const scope = await resolveOwnerScope(this.prisma, actor);
+    // Đối tác chỉ thấy giao dịch của hội viên phòng mình; hệ thống không lẫn sổ đối tác
+    const own = memberOwnerWhere(scope);
     const page = query.page || 1;
     const limit = query.limit || 20;
     const skip = (page - 1) * limit;
-    const where: Prisma.PaymentWhereInput = {};
+    const where: Prisma.PaymentWhereInput = { ...own };
 
     if (query.status) where.status = query.status;
     if (query.method) where.method = query.method;
@@ -223,21 +231,23 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       this.prisma.payment.count({ where }),
       this.prisma.payment.aggregate({
         _sum: { amount: true, refundAmount: true },
-        where: { status: { in: [PaymentStatus.PAID, PaymentStatus.REFUNDED] } },
+        where: { ...own, status: { in: [PaymentStatus.PAID, PaymentStatus.REFUNDED] } },
       }),
       this.prisma.payment.aggregate({
         _sum: { amount: true, refundAmount: true },
         where: {
+          ...own,
           status: { in: [PaymentStatus.PAID, PaymentStatus.REFUNDED] },
           paidAt: { gte: startOfToday },
         },
       }),
-      this.prisma.payment.count({ where: { status: "PENDING" } }),
-      this.prisma.payment.count({ where: { status: "PAID" } }),
-      this.prisma.payment.count({ where: { status: "FAILED" } }),
-      this.prisma.payment.count({ where: { status: "CANCELLED" } }),
+      this.prisma.payment.count({ where: { ...own, status: "PENDING" } }),
+      this.prisma.payment.count({ where: { ...own, status: "PAID" } }),
+      this.prisma.payment.count({ where: { ...own, status: "FAILED" } }),
+      this.prisma.payment.count({ where: { ...own, status: "CANCELLED" } }),
       this.prisma.payment.findMany({
         where: {
+          ...own,
           status: { in: [PaymentStatus.PAID, PaymentStatus.REFUNDED] },
           OR: [
             { refundAmount: { gt: 0 } },
@@ -274,12 +284,13 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, actor?: Actor) {
     const payment = await this.prisma.payment.findUnique({
       where: { id },
       include: {
         member: {
           select: {
+            ownerPartnerId: true,
             id: true,
             code: true,
             fullName: true,
@@ -297,7 +308,15 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     });
     if (!payment)
       throw new NotFoundException("Không tìm thấy giao dịch thanh toán");
+    await this.assertPaymentScope(actor, payment.member?.ownerPartnerId);
     return payment;
+  }
+
+  /** Tài khoản đối tác/hệ thống chỉ thao tác giao dịch thuộc phạm vi của mình (bỏ qua luồng tự động & hội viên) */
+  private async assertPaymentScope(actor: Actor | null | undefined, ownerPartnerId: string | null | undefined) {
+    if (!actor || actor.role === "MEMBER") return;
+    const scope = await resolveOwnerScope(this.prisma, actor);
+    assertInScope(ownerPartnerId, scope, "Không tìm thấy giao dịch thanh toán");
   }
 
   /**
@@ -322,6 +341,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
             code: true,
             fullName: true,
             email: true,
+            ownerPartnerId: true,
             user: { select: { email: true } },
           },
         },
@@ -329,6 +349,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     });
     if (!payment)
       throw new NotFoundException("Không tìm thấy giao dịch thanh toán");
+    await this.assertPaymentScope(actor, payment.member?.ownerPartnerId);
     if (payment.status !== "PENDING") {
       throw new BadRequestException(
         "Chỉ hóa đơn đang chờ (PENDING) mới có thể xác nhận",
@@ -771,11 +792,12 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       where: { id },
       include: {
         membership: { include: { package: true } },
-        member: { select: { id: true, code: true, fullName: true } },
+        member: { select: { id: true, code: true, fullName: true, ownerPartnerId: true } },
       },
     });
     if (!payment)
       throw new NotFoundException("Không tìm thấy giao dịch thanh toán");
+    await this.assertPaymentScope(actor, payment.member?.ownerPartnerId);
     if (payment.status !== "PENDING") {
       throw new BadRequestException(
         "Chỉ hóa đơn đang chờ (PENDING) mới có thể từ chối/hủy",
@@ -872,11 +894,12 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       where: { id },
       include: {
         membership: { include: { package: true } },
-        member: { select: { id: true, code: true, fullName: true } },
+        member: { select: { id: true, code: true, fullName: true, ownerPartnerId: true } },
       },
     });
     if (!payment)
       throw new NotFoundException("Không tìm thấy giao dịch thanh toán");
+    await this.assertPaymentScope(actor, payment.member?.ownerPartnerId);
     if (payment.membershipId) {
       throw new BadRequestException(
         "Khoản hoàn gắn với hợp đồng phải đi qua quy trình yêu cầu, xác nhận và phê duyệt chấm dứt",

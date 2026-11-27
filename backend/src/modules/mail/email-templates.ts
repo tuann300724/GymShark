@@ -489,6 +489,35 @@ export function partnerLeadReceivedEmail(params: {
   };
 }
 
+/** Thông báo yêu cầu hợp tác đã kết thúc (kèm lý do do admin ghi). */
+export function partnerLeadClosedEmail(params: {
+  contactName: string;
+  reason: string;
+}): VerificationCodeEmail {
+  const contactName = escapeHtml(params.contactName.trim());
+  const reason = escapeHtml(params.reason.trim());
+  return {
+    subject: "Cập nhật yêu cầu hợp tác — GymMaster Pro",
+    html: layout(
+      `
+      <h1 style="margin:0 0 12px;font-size:20px;line-height:1.4;color:${BRAND.chalk};">Yêu cầu hợp tác đã được khép lại</h1>
+      <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:${BRAND.muted};">Xin chào <strong style="color:${BRAND.chalk};">${contactName}</strong>, cảm ơn bạn đã quan tâm hợp tác cùng GymMaster Pro. Yêu cầu tư vấn của bạn đã được khép lại với ghi chú sau:</p>
+      <p style="margin:0 0 16px;padding:12px 14px;border-left:3px solid ${BRAND.neon};background:${BRAND.ink};font-size:14px;line-height:1.7;color:${BRAND.chalk};">${reason}</p>
+      <p style="margin:0;font-size:14px;line-height:1.7;color:${BRAND.muted};">Nếu sau này bạn muốn trao đổi lại, chỉ cần gửi yêu cầu mới trên trang Đối tác hoặc trả lời email này.</p>
+    `,
+      "Bạn nhận email này vì đã gửi yêu cầu hợp tác trên GymMaster Pro.",
+    ),
+    text: [
+      `Xin chào ${params.contactName.trim()},`,
+      "",
+      "Yêu cầu tư vấn hợp tác của bạn với GymMaster Pro đã được khép lại.",
+      `Ghi chú: ${params.reason.trim()}`,
+      "",
+      "Nếu muốn trao đổi lại, bạn có thể gửi yêu cầu mới trên trang Đối tác.",
+    ].join("\n"),
+  };
+}
+
 /** Gửi thông tin đăng nhập ban đầu cho đối tác sau khi admin tạo tài khoản. */
 export function partnerAccountCreatedEmail(params: {
   contactName: string;

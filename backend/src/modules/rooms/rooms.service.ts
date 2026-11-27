@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { assertInScope, ownerWhere, type OwnerScope } from '../../common/utils/partner-scope';
 import { CreateRoomDto, SetRoomStatusDto, UpdateRoomDto } from './dto/room.dto';
 
 @Injectable()
@@ -18,25 +19,28 @@ export class RoomsService {
     } satisfies Prisma.RoomInclude;
   }
 
-  async findAll() {
+  async findAll(scope: OwnerScope = null) {
     return this.prisma.room.findMany({
+      where: ownerWhere(scope),
       include: this.buildRoomInclude(),
       orderBy: [{ code: 'asc' }, { createdAt: 'asc' }],
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, scope: OwnerScope = null) {
     const room = await this.prisma.room.findUnique({
       where: { id },
       include: this.buildRoomInclude(),
     });
     if (!room) throw new NotFoundException('Không tìm thấy phòng tập.');
+    assertInScope(room.ownerPartnerId, scope, 'Không tìm thấy phòng tập.');
     return room;
   }
 
-  async create(dto: CreateRoomDto) {
+  async create(dto: CreateRoomDto, scope: OwnerScope = null) {
+    // Mã phòng chỉ cần duy nhất trong phạm vi của từng phòng gym
     const dup = await this.prisma.room.findFirst({
-      where: { code: dto.code },
+      where: { code: dto.code, ownerPartnerId: scope },
       select: { id: true },
     });
     if (dup) {
@@ -52,6 +56,7 @@ export class RoomsService {
         floor: dto.floor ?? null,
         description: dto.description ?? null,
         status: dto.status ?? 'AVAILABLE',
+        ownerPartnerId: scope,
       },
       include: this.buildRoomInclude(),
     });
@@ -59,13 +64,14 @@ export class RoomsService {
     return { message: 'Tạo phòng tập thành công.', room };
   }
 
-  async update(id: string, dto: UpdateRoomDto) {
-    const room = await this.prisma.room.findUnique({ where: { id }, select: { id: true } });
+  async update(id: string, dto: UpdateRoomDto, scope: OwnerScope = null) {
+    const room = await this.prisma.room.findUnique({ where: { id }, select: { id: true, ownerPartnerId: true } });
     if (!room) throw new NotFoundException('Không tìm thấy phòng tập.');
+    assertInScope(room.ownerPartnerId, scope, 'Không tìm thấy phòng tập.');
 
     if (dto.code) {
       const dup = await this.prisma.room.findFirst({
-        where: { code: dto.code, id: { not: id } },
+        where: { code: dto.code, id: { not: id }, ownerPartnerId: scope },
         select: { id: true },
       });
       if (dup) throw new ConflictException(`Mã phòng ${dto.code} đã được sử dụng bởi phòng khác.`);
@@ -90,9 +96,10 @@ export class RoomsService {
   }
 
   /** Đổi trạng thái phòng — session chỉ tạo được ở phòng AVAILABLE */
-  async setRoomStatus(id: string, dto: SetRoomStatusDto) {
-    const room = await this.prisma.room.findUnique({ where: { id }, select: { id: true } });
+  async setRoomStatus(id: string, dto: SetRoomStatusDto, scope: OwnerScope = null) {
+    const room = await this.prisma.room.findUnique({ where: { id }, select: { id: true, ownerPartnerId: true } });
     if (!room) throw new NotFoundException('Không tìm thấy phòng tập.');
+    assertInScope(room.ownerPartnerId, scope, 'Không tìm thấy phòng tập.');
 
     if (dto.status !== 'AVAILABLE') {
       // Không cho đóng phòng nếu còn buổi tập chưa diễn ra
@@ -115,9 +122,10 @@ export class RoomsService {
     return { message: 'Đã cập nhật trạng thái phòng.', room: updated };
   }
 
-  async remove(id: string) {
-    const room = await this.prisma.room.findUnique({ where: { id }, select: { id: true } });
+  async remove(id: string, scope: OwnerScope = null) {
+    const room = await this.prisma.room.findUnique({ where: { id }, select: { id: true, ownerPartnerId: true } });
     if (!room) throw new NotFoundException('Không tìm thấy phòng tập.');
+    assertInScope(room.ownerPartnerId, scope, 'Không tìm thấy phòng tập.');
 
     const scheduleCount = await this.prisma.trainingSchedule.count({ where: { roomId: id } });
     if (scheduleCount > 0) {

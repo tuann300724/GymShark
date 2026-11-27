@@ -14,7 +14,15 @@ import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/error-state';
 import { PARTNER_STATUS_META } from '@/lib/status';
-import { formatDate } from '@/lib/utils';
+import { cn, formatCurrency, formatDate } from '@/lib/utils';
+import {
+  PARTNERSHIP_ICONS,
+  PARTNERSHIP_LABELS,
+  PartnershipPlansCard,
+  PartnershipTypeBadge,
+  contractStatus,
+} from '@/components/admin/partnership';
+import type { PartnershipType } from '@/services/types';
 
 const LIMIT = 20;
 const STATUS_OPTIONS = [
@@ -26,7 +34,7 @@ export default function AdminPartnersPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
-  const [applied, setApplied] = useState({ search: '', status: '' });
+  const [applied, setApplied] = useState({ search: '', status: '', partnershipType: '' });
 
   const query = useQuery({
     queryKey: ['admin-partners', page, applied],
@@ -72,8 +80,36 @@ export default function AdminPartnersPage() {
           ))}
       </div>
 
+      <PartnershipPlansCard />
+
       <Card>
         <CardContent className="space-y-4 p-4">
+          <div role="group" aria-label="Lọc theo loại hợp tác" className="flex flex-wrap gap-2">
+            {(['', 'COMMUNITY', 'OWNER'] as const).map((type) => {
+              const active = applied.partnershipType === type;
+              const Icon = type ? PARTNERSHIP_ICONS[type] : Building2;
+              return (
+                <button
+                  key={type || 'ALL'}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => {
+                    setPage(1);
+                    setApplied({ ...applied, partnershipType: type });
+                  }}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors',
+                    active
+                      ? 'border-neon/60 bg-neon/10 text-neon'
+                      : 'border-line bg-ink text-chalk hover:border-neon/40',
+                  )}
+                >
+                  <Icon className="size-3.5" />
+                  {type ? PARTNERSHIP_LABELS[type as PartnershipType] : 'Tất cả loại hợp tác'}
+                </button>
+              );
+            })}
+          </div>
           <div className="grid gap-3 sm:grid-cols-[1fr_220px_auto]">
             <Input
               label="Tìm kiếm"
@@ -84,7 +120,7 @@ export default function AdminPartnersPage() {
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   setPage(1);
-                  setApplied({ search: search.trim(), status });
+                  setApplied({ ...applied, search: search.trim(), status });
                 }
               }}
             />
@@ -99,7 +135,7 @@ export default function AdminPartnersPage() {
               <Button
                 onClick={() => {
                   setPage(1);
-                  setApplied({ search: search.trim(), status });
+                  setApplied({ ...applied, search: search.trim(), status });
                 }}
               >
                 <Search className="size-4" /> Lọc
@@ -110,7 +146,7 @@ export default function AdminPartnersPage() {
                   setSearch('');
                   setStatus('');
                   setPage(1);
-                  setApplied({ search: '', status: '' });
+                  setApplied({ search: '', status: '', partnershipType: '' });
                 }}
               >
                 <FilterX className="size-4" /> Xóa
@@ -128,15 +164,16 @@ export default function AdminPartnersPage() {
           ) : (
             <>
               <div className="overflow-x-auto rounded-xl border border-line">
-                <table className="w-full min-w-[760px] text-left text-sm">
+                <table className="w-full min-w-[1040px] text-left text-sm">
                   <thead className="bg-ink/70 text-[11px] uppercase tracking-wider text-muted">
                     <tr className="border-b border-line">
                       <th className="p-3 font-semibold">Doanh nghiệp</th>
+                      <th className="p-3 font-semibold">Loại hợp tác</th>
                       <th className="p-3 font-semibold">Chủ sở hữu</th>
                       <th className="p-3 font-semibold">Liên hệ</th>
                       <th className="p-3 font-semibold">Mã số thuế</th>
                       <th className="p-3 font-semibold">Chi nhánh</th>
-                      <th className="p-3 font-semibold">Ngày đăng ký</th>
+                      <th className="p-3 font-semibold">Thời hạn hợp tác</th>
                       <th className="p-3 font-semibold text-center">Trạng thái</th>
                       <th className="p-3 font-semibold text-right">Thao tác</th>
                     </tr>
@@ -156,6 +193,14 @@ export default function AdminPartnersPage() {
                                 {p.address || 'Chưa có địa chỉ'}
                               </p>
                             </td>
+                            <td className="p-3">
+                              <PartnershipTypeBadge type={p.partnershipType} />
+                              {p.monthlyFee != null && (
+                                <p className="mt-1 text-[11px] text-muted">
+                                  {formatCurrency(p.monthlyFee)}/tháng
+                                </p>
+                              )}
+                            </td>
                             <td className="p-3 text-chalk">{p.user?.fullName || '—'}</td>
                             <td className="p-3 text-xs text-muted">
                               <p>{p.email || '—'}</p>
@@ -163,7 +208,25 @@ export default function AdminPartnersPage() {
                             </td>
                             <td className="p-3 text-xs text-muted">{p.taxCode || '—'}</td>
                             <td className="p-3 text-chalk">{p._count?.branches ?? 0}</td>
-                            <td className="p-3 text-xs text-muted">{formatDate(p.createdAt)}</td>
+                            <td className="p-3 text-xs">
+                              {p.contractEndAt ? (
+                                <>
+                                  <p className="whitespace-nowrap text-chalk">
+                                    {formatDate(p.contractStartAt)} → {formatDate(p.contractEndAt)}
+                                  </p>
+                                  <Badge
+                                    variant={contractStatus(p.contractEndAt).variant}
+                                    className="mt-1"
+                                  >
+                                    {contractStatus(p.contractEndAt).label}
+                                  </Badge>
+                                </>
+                              ) : (
+                                <span className="text-muted">
+                                  Chưa có · đăng ký {formatDate(p.createdAt)}
+                                </span>
+                              )}
+                            </td>
                             <td className="p-3 text-center">
                               <Badge variant={meta.variant}>{meta.label}</Badge>
                             </td>
@@ -179,7 +242,7 @@ export default function AdminPartnersPage() {
                       })
                     ) : (
                       <tr>
-                        <td colSpan={8} className="p-10 text-center text-xs text-muted">
+                        <td colSpan={9} className="p-10 text-center text-xs text-muted">
                           Không có đối tác nào khớp bộ lọc.
                         </td>
                       </tr>

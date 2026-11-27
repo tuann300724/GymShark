@@ -33,6 +33,13 @@ export class PublicController {
   }
 
   @Public()
+  @Get("partnership-plans")
+  @ApiOperation({ summary: "Bảng giá 2 gói hợp tác (trang đăng ký đối tác)" })
+  getPartnershipPlans() {
+    return this.publicService.getPartnershipPlans();
+  }
+
+  @Public()
   @Get("trainers")
   @ApiOperation({ summary: "Danh sách huấn luyện viên công khai" })
   @ApiResponse({ status: 200, description: "Danh sách HLV đang ACTIVE" })

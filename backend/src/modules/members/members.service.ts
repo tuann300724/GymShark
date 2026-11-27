@@ -15,6 +15,12 @@ import {
 } from "../../common/constants/db-enums";
 import { uniqueReferralCode } from "../../common/utils/referral-code";
 import { PrismaService } from "../../prisma/prisma.service";
+import {
+  assertInScope,
+  ownerWhere,
+  resolveOwnerScope,
+  type ScopeActor,
+} from "../../common/utils/partner-scope";
 import { AuditService } from "../audit-logs/audit-logs.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { MemberService } from "../member/member.service";
@@ -60,12 +66,14 @@ export class MembersService {
    * Danh sách hội viên với tìm kiếm, lọc, sắp xếp và phân trang.
    * Trả về { data, total, page, limit } để frontend render bảng quản trị.
    */
-  async findAll(query: MemberListQuery = {}) {
+  async findAll(query: MemberListQuery = {}, actor?: ScopeActor) {
+    const scope = await resolveOwnerScope(this.prisma, actor);
     const page = Math.max(1, query.page || 1);
     const limit = Math.min(100, Math.max(1, query.limit || 20));
     const skip = (page - 1) * limit;
 
-    const where: Prisma.MemberWhereInput = {};
+    // Đối tác chỉ thấy hội viên của phòng mình; hệ thống chỉ thấy hội viên Gym Master
+    const where: Prisma.MemberWhereInput = { ...ownerWhere(scope) };
 
     if (query.search) {
       const q = query.search.trim();
@@ -144,7 +152,8 @@ export class MembersService {
     return { data, total, page, limit };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, actor?: ScopeActor) {
+    const scope = await resolveOwnerScope(this.prisma, actor);
     const member = await this.prisma.member.findUnique({
       where: { id },
       include: {
@@ -177,6 +186,7 @@ export class MembersService {
       },
     });
     if (!member) throw new NotFoundException("Không tìm thấy hội viên");
+    assertInScope(member.ownerPartnerId, scope, "Không tìm thấy hội viên");
 
     // Thống kê chuyên cần cho tab Attendance
     const [totalVisits, lastVisitRow, doneRows] = await Promise.all([
@@ -219,9 +229,11 @@ export class MembersService {
   }
 
   /** Admin cập nhật hồ sơ / trạng thái hội viên */
-  async update(id: string, dto: UpdateMemberDto, actorId?: string) {
+  async update(id: string, dto: UpdateMemberDto, actorId?: string, actor?: ScopeActor) {
+    const scope = await resolveOwnerScope(this.prisma, actor);
     const member = await this.prisma.member.findUnique({ where: { id } });
     if (!member) throw new NotFoundException("Không tìm thấy hội viên");
+    assertInScope(member.ownerPartnerId, scope, "Không tìm thấy hội viên");
 
     const data: Prisma.MemberUpdateInput = {};
     if (dto.fullName !== undefined) data.fullName = dto.fullName;
@@ -357,11 +369,13 @@ export class MembersService {
   }
 
   /** Lịch sử HLV phụ trách của hội viên (cho tab Trainer trên hồ sơ member) */
-  async getTrainers(memberId: string) {
+  async getTrainers(memberId: string, actor?: ScopeActor) {
+    const scope = await resolveOwnerScope(this.prisma, actor);
     const member = await this.prisma.member.findUnique({
       where: { id: memberId },
     });
     if (!member) throw new NotFoundException("Không tìm thấy hội viên");
+    assertInScope(member.ownerPartnerId, scope, "Không tìm thấy hội viên");
 
     return this.prisma.trainerMember.findMany({
       where: { memberId },
@@ -389,19 +403,107 @@ export class MembersService {
   // ---------------------------------------------------------------------------
 
   /**
+   * Đối tác tạo hội viên riêng nhưng email/SĐT đã thuộc hội viên Gym Master → báo rõ để
+   * lễ tân check-in theo gói nền tảng (tính hoa hồng), không tạo hồ sơ trùng hay
+   * chuyển hội viên nền tảng sang sổ riêng của phòng.
+   */
+  private assertNotPlatformMember(
+    member: { code: string; ownerPartnerId: string | null } | null,
+    scope: string | null,
+  ) {
+    if (scope && member && !member.ownerPartnerId) {
+      throw new ConflictException(
+        `Người này đã là hội viên Gym Master (mã ${member.code}). Hãy check-in theo gói Gym Master thay vì tạo hội viên riêng.`,
+      );
+    }
+  }
+
+  /**
+   * Hội viên riêng của phòng gym đối tác: CHỈ tạo hồ sơ Member (không User, không mật khẩu).
+   * Hội viên đến phòng nói tên / quét khuôn mặt để check-in — không dùng nền tảng web Gym Master.
+   */
+  private async createPartnerMember(dto: CreateMemberDto, actor: StaffActor, scope: string) {
+    const fullName = dto.fullName.trim();
+    const phone = dto.phone.trim();
+    const email = dto.email?.trim().toLowerCase() || null;
+
+    // Người đã là hội viên Gym Master thì check-in theo gói Gym Master, không tạo hồ sơ riêng
+    const platformUser = await this.prisma.user.findFirst({
+      where: { OR: [{ phone }, ...(email ? [{ email }] : [])] },
+      select: { member: { select: { code: true, ownerPartnerId: true } } },
+    });
+    this.assertNotPlatformMember(platformUser?.member ?? null, scope);
+
+    const duplicate = await this.prisma.member.findFirst({
+      where: { ownerPartnerId: scope, phone },
+      select: { code: true, fullName: true },
+    });
+    if (duplicate) {
+      throw new ConflictException(
+        `Số điện thoại này đã có hội viên "${duplicate.fullName}" (${duplicate.code}) tại phòng của bạn.`,
+      );
+    }
+
+    const member = await this.prisma.member.create({
+      data: {
+        ownerPartnerId: scope,
+        userId: null,
+        code: await this.genMemberCode(),
+        fullName,
+        email,
+        phone,
+        gender: dto.gender,
+        dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : null,
+        address: dto.address?.trim() || null,
+        emergencyContact: dto.emergencyContact?.trim() || null,
+      },
+      select: { id: true, code: true, fullName: true, email: true, phone: true, status: true },
+    });
+
+    await this.auditService.log({
+      userId: actor.id,
+      action: "MEMBER_CREATE",
+      entity: "Member",
+      entityId: member.id,
+      metadata: { memberCode: member.code, fullName, phone, via: "partner", noAccount: true },
+    });
+
+    // Mọi động thái của đối tác đều báo quản trị (không kèm dữ liệu liên hệ của hội viên)
+    await this.notificationsService.notifyAdmins(
+      {
+        type: "SYSTEM",
+        title: "Đối tác thêm hội viên riêng",
+        content: `Phòng gym đối tác vừa thêm hội viên ${member.code} (chỉ tập tại phòng đối tác, không có tài khoản).`,
+        link: `/admin/partners/${scope}`,
+        referenceType: "MEMBER_REGISTERED",
+        referenceId: member.id,
+      },
+      actor.id,
+    );
+
+    return { message: "Đã tạo hội viên mới", member, user: null };
+  }
+
+  /**
    * Tạo hội viên mới tại quầy: tạo tài khoản (User) để hội viên đăng nhập + hồ sơ (Member).
    * Không truyền mật khẩu → hệ thống sinh mật khẩu tạm, trả về 1 lần cho lễ tân đưa hội viên.
    */
   async create(dto: CreateMemberDto, actor: StaffActor) {
+    const scope = await resolveOwnerScope(this.prisma, actor);
+    // Phòng gym đối tác: hội viên chỉ cần hồ sơ + khuôn mặt, không tạo tài khoản đăng nhập
+    if (scope) return this.createPartnerMember(dto, actor, scope);
+
+    if (!dto.email?.trim()) throw new BadRequestException("Email là bắt buộc");
     const email = dto.email.trim().toLowerCase();
     const fullName = dto.fullName.trim();
     const phone = dto.phone.trim();
 
     const existing = await this.prisma.user.findUnique({
       where: { email },
-      select: { id: true },
+      select: { id: true, member: { select: { code: true, ownerPartnerId: true } } },
     });
     if (existing) {
+      this.assertNotPlatformMember(existing.member, scope);
       throw new ConflictException("Email này đã được sử dụng");
     }
 
@@ -409,9 +511,14 @@ export class MembersService {
     // để lễ tân thấy thông báo rõ ràng, thay vì lỗi Prisma P2002 khi insert.
     const phoneOwner = await this.prisma.user.findUnique({
       where: { phone },
-      select: { id: true, fullName: true },
+      select: {
+        id: true,
+        fullName: true,
+        member: { select: { code: true, ownerPartnerId: true } },
+      },
     });
     if (phoneOwner) {
+      this.assertNotPlatformMember(phoneOwner.member, scope);
       throw new ConflictException(
         `Số điện thoại này đã được dùng cho tài khoản "${phoneOwner.fullName}". Mỗi số điện thoại chỉ được đăng ký 1 hội viên.`,
       );
@@ -438,6 +545,7 @@ export class MembersService {
 
       const createdMember = await tx.member.create({
         data: {
+          ownerPartnerId: scope,
           userId: createdUser.id,
           code: memberCode,
           fullName,
@@ -519,11 +627,13 @@ export class MembersService {
     dto: RegisterCardDto,
     actor: StaffActor,
   ) {
+    const scope = await resolveOwnerScope(this.prisma, actor);
     const member = await this.prisma.member.findUnique({
       where: { id: memberId },
-      select: { id: true, code: true, fullName: true },
+      select: { id: true, code: true, fullName: true, ownerPartnerId: true },
     });
     if (!member) throw new NotFoundException("Không tìm thấy hội viên");
+    assertInScope(member.ownerPartnerId, scope, "Không tìm thấy hội viên");
 
     const method = dto.paymentMethod ?? PaymentMethod.CASH;
 
@@ -598,6 +708,13 @@ export class MembersService {
     dto: ChangePackageDto,
     actor: StaffActor,
   ) {
+    const scope = await resolveOwnerScope(this.prisma, actor);
+    const owner = await this.prisma.member.findUnique({
+      where: { id: memberId },
+      select: { ownerPartnerId: true },
+    });
+    if (!owner) throw new NotFoundException("Không tìm thấy hội viên");
+    assertInScope(owner.ownerPartnerId, scope, "Không tìm thấy hội viên");
     const current = await this.prisma.membership.findFirst({
       where: { memberId, status: "ACTIVE" },
       include: { package: true },
@@ -623,7 +740,7 @@ export class MembersService {
     const pkg = await this.prisma.membershipPackage.findUnique({
       where: { id: dto.newPackageId },
     });
-    if (!pkg) throw new NotFoundException("Gói không tồn tại");
+    if (!pkg || (pkg.ownerPartnerId ?? null) !== scope) throw new NotFoundException("Gói không tồn tại");
     if (pkg.status !== "ACTIVE" || pkg.type === PackageType.SESSION_BASED) {
       throw new BadRequestException("Chỉ có thể đổi sang gói đang được mở bán");
     }

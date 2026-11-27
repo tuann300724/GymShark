@@ -90,6 +90,8 @@ export interface MembershipPackage {
   sessions?: number | null;
   ptSessionValue?: string | null;
   _count?: { memberships: number };
+  /** Có giá trị = gói riêng của phòng gym đối tác */
+  ownerPartnerId?: string | null;
 }
 
 export interface PublicPartnerBranch {
@@ -97,7 +99,9 @@ export interface PublicPartnerBranch {
   name: string;
   address?: string | null;
   phone?: string | null;
-  partner: { businessName: string };
+  latitude?: number | null;
+  longitude?: number | null;
+  partner: { businessName: string; gymTier?: GymTier | null };
 }
 
 /** Payload tạo/cập nhật gói đa đối tác; mã gói do backend tự sinh. */
@@ -109,7 +113,8 @@ export interface MembershipPackageInput {
   visitLimit: number | null;
   /** Giới hạn chống gian lận, mặc định 1 lượt check-in/ngày. */
   dailyVisitLimit: number;
-  gymTierAccess: GymTier[];
+  /** Bắt buộc với gói hệ thống; gói riêng của đối tác bỏ trống */
+  gymTierAccess?: GymTier[];
   price: number;
   status: 'ACTIVE' | 'INACTIVE';
   description?: string;
@@ -929,6 +934,16 @@ type PartnerBranch = {
   updatedAt: string;
 };
 
+export type PartnershipType = 'OWNER' | 'COMMUNITY';
+
+/** Bảng giá gói hợp tác — admin sửa được */
+export interface PartnershipPlan {
+  code: PartnershipType;
+  name: string;
+  monthlyPrice: string | number;
+  updatedAt?: string;
+}
+
 type PartnerBase = {
   id: string;
   userId: string;
@@ -941,6 +956,16 @@ type PartnerBase = {
   /** Tỷ lệ hoa hồng lưu dạng 0..1 (0.3 = 30%). */
   commissionRate?: number | string;
   notes?: string | null;
+  /** Hạng phòng gym do admin đánh giá (null = chưa xếp hạng) */
+  gymTier?: GymTier | null;
+  tierNote?: string | null;
+  tierAssessedAt?: string | null;
+  /** Loại hợp tác: OWNER (quản lý phòng gym riêng) | COMMUNITY (Gym Cộng đồng) */
+  partnershipType?: PartnershipType | null;
+  /** Phí hợp tác/tháng chốt lúc ký hợp đồng */
+  monthlyFee?: string | number | null;
+  contractStartAt?: string | null;
+  contractEndAt?: string | null;
   createdAt: string;
   updatedAt: string;
   user?: PartnerUser;
@@ -960,6 +985,8 @@ export interface PartnerSummary extends PartnerBase {
 
 export interface PartnerDetail extends PartnerBase {
   branches: PartnerBranch[];
+  /** Yêu cầu gia hạn của đối tác chưa được xử lý */
+  pendingRenewal?: { at: string; months: number | null; note: string | null } | null;
   payments: Array<{
     id: string;
     code: string;
@@ -978,6 +1005,23 @@ export interface PartnerCommissionSummary {
   totalRevenue: string;
   totalCommission: string;
   monthly: Array<{ month: string; amount: string }>;
+}
+
+/** Hội viên Gym Master đã tập tại phòng đối tác — chỉ thông tin tối thiểu, không SĐT/email */
+export interface PartnerNetworkMembers {
+  partnershipType: PartnershipType | null;
+  memberCount: number;
+  visitCount: number;
+  items: Array<{
+    memberId: string;
+    code: string;
+    fullName: string;
+    avatarUrl: string | null;
+    visitCount: number;
+    lastVisitAt: string;
+    commission: string;
+    packageName: string | null;
+  }>;
 }
 
 export interface PartnerCommissionDetail extends PartnerCommissionSummary {

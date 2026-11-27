@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
   ArrowLeft,
   Building2,
+  Check,
   CheckCircle2,
   AlertCircle,
   UserPlus,
@@ -17,12 +19,50 @@ import {
   Mail,
   Users,
 } from 'lucide-react';
-import { partnerApi } from '@/services/partner.service';
+import { partnerApi, type FacilityPhotoInput } from '@/services/partner.service';
+import {
+  FacilityPhotoUploader,
+  MIN_FACILITY_PHOTOS,
+} from '@/components/partner/facility-photo-uploader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 
 type Direction = 'owner' | 'community';
+
+/** 2 hướng hợp tác — chú thích ngắn để đối tác thấy rõ khác biệt */
+const DIRECTIONS = [
+  {
+    value: 'owner',
+    icon: Building2,
+    title: 'Quản lý phòng gym riêng',
+    price: '699.000đ',
+    summary: 'Dùng phần mềm Gym Master để vận hành phòng tập của bạn.',
+    points: [
+      'Quản lý hội viên, gói tập, lịch tập và check-in',
+      'Chỉ phục vụ hội viên riêng của phòng bạn',
+    ],
+  },
+  {
+    value: 'community',
+    icon: Users,
+    title: 'Lên Gym Cộng đồng',
+    price: '799.000đ',
+    summary: 'Đưa phòng tập vào mạng lưới phòng gym đối tác Gym Master.',
+    points: [
+      'Hội viên mua gói trên Gym Master được đến tập tại phòng bạn',
+      'Nhận hoa hồng theo mỗi lượt check-in, đối soát hằng tháng',
+      'Gửi kèm ảnh cơ sở vật chất để được xếp hạng Standard/Plus/Premium',
+    ],
+  },
+] as const satisfies readonly {
+  value: Direction;
+  icon: typeof Building2;
+  title: string;
+  price: string;
+  summary: string;
+  points: readonly string[];
+}[];
 const BENEFITS = [
   { icon: UserPlus, text: 'Tiếp cận thêm hội viên phù hợp với phòng tập.' },
   { icon: CalendarDays, text: 'Trao đổi giải pháp quản lý và vận hành phòng gym.' },
@@ -48,6 +88,21 @@ export default function PartnerRegisterPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [confirmationEmailSent, setConfirmationEmailSent] = useState(true);
+  const [photos, setPhotos] = useState<FacilityPhotoInput[]>([]);
+  const [photoError, setPhotoError] = useState('');
+  const isCommunity = direction === 'community';
+  // Giá 2 gói hợp tác do admin cấu hình — lỗi mạng thì dùng giá mặc định trong DIRECTIONS
+  const plansQuery = useQuery({
+    queryKey: ['public-partnership-plans'],
+    queryFn: partnerApi.publicPlans,
+    staleTime: 5 * 60_000,
+  });
+  const priceOf = (value: Direction, fallback: string) => {
+    const plan = plansQuery.data?.find(
+      (p) => p.code === (value === 'owner' ? 'OWNER' : 'COMMUNITY'),
+    );
+    return plan ? `${Number(plan.monthlyPrice).toLocaleString('vi-VN')}đ` : fallback;
+  };
   const set =
     (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       setForm((current) => ({ ...current, [key]: e.target.value }));
@@ -55,16 +110,27 @@ export default function PartnerRegisterPage() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setPhotoError('');
+    if (isCommunity && photos.length < MIN_FACILITY_PHOTOS) {
+      setPhotoError(
+        `Gym Cộng đồng cần tối thiểu ${MIN_FACILITY_PHOTOS} ảnh phòng tập để admin đánh giá hạng.`,
+      );
+      return;
+    }
     setLoading(true);
     try {
       const result = await partnerApi.submitLead({
-        direction: direction === 'owner' ? 'OWNER' : 'COMMUNITY',
+        direction: isCommunity ? 'COMMUNITY' : 'OWNER',
         contactName: form.contactName.trim(),
         address: form.address.trim(),
         email: form.email.trim(),
         phone: form.phone.trim(),
         message: form.message.trim(),
+        photos: isCommunity
+          ? photos.map((photo) => ({ ...photo, caption: photo.caption?.trim() || undefined }))
+          : undefined,
       });
+      setPhotos([]);
       setConfirmationEmailSent(result.emailSent);
       setSuccess(true);
     } catch (err: any) {
@@ -183,12 +249,7 @@ export default function PartnerRegisterPage() {
                   </div>
                   <form onSubmit={submit} className="space-y-4">
                     <div className="grid gap-3 sm:grid-cols-2">
-                      {(
-                        [
-                          ['owner', Building2, 'Quản lý phòng gym riêng', '699.000đ'],
-                          ['community', Users, 'Lên Gym Cộng đồng', '799.000đ'],
-                        ] as const
-                      ).map(([value, Icon, title, price]) => (
+                      {DIRECTIONS.map(({ value, icon: Icon, title, price, summary, points }) => (
                         <button
                           key={value}
                           type="button"
@@ -206,10 +267,24 @@ export default function PartnerRegisterPage() {
                             {title}
                           </span>
                           <span className="mt-1 block font-display text-2xl font-extrabold text-neon">
-                            {price}
+                            {priceOf(value, price)}
                             <span className="ml-1 font-sans text-xs font-medium text-muted">
                               / tháng
                             </span>
+                          </span>
+                          <span className="mt-2 block text-xs leading-relaxed text-muted">
+                            {summary}
+                          </span>
+                          <span className="mt-2 block space-y-1 border-t border-line pt-2">
+                            {points.map((point) => (
+                              <span
+                                key={point}
+                                className="flex items-start gap-1.5 text-xs leading-snug text-chalk"
+                              >
+                                <Check className="mt-0.5 size-3 shrink-0 text-neon" />
+                                {point}
+                              </span>
+                            ))}
                           </span>
                         </button>
                       ))}
@@ -267,6 +342,16 @@ export default function PartnerRegisterPage() {
                         className="w-full rounded-lg border border-line bg-ink px-3.5 py-3 text-sm text-chalk placeholder:text-muted focus:border-neon focus:outline-none"
                       />
                     </label>
+                    {isCommunity && (
+                      <FacilityPhotoUploader
+                        value={photos}
+                        onChange={(next) => {
+                          setPhotos(next);
+                          if (next.length >= MIN_FACILITY_PHOTOS) setPhotoError('');
+                        }}
+                        error={photoError}
+                      />
+                    )}
                     {error && (
                       <p
                         role="alert"

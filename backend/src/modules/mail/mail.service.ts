@@ -19,6 +19,7 @@ import {
   packageChangeInvoiceEmail,
   partnerLeadReceivedEmail,
   partnerAccountCreatedEmail,
+  partnerLeadClosedEmail,
 } from "./email-templates";
 
 export interface SendMailOptions {
@@ -253,6 +254,15 @@ export class MailService implements OnModuleInit {
     direction: "OWNER" | "COMMUNITY";
   }): Promise<boolean> {
     const mail = partnerLeadReceivedEmail(params);
+    return this.sendSafe({ to: params.email, ...mail });
+  }
+
+  async sendPartnerLeadClosedEmail(params: {
+    email: string;
+    contactName: string;
+    reason: string;
+  }): Promise<boolean> {
+    const mail = partnerLeadClosedEmail(params);
     return this.sendSafe({ to: params.email, ...mail });
   }
 

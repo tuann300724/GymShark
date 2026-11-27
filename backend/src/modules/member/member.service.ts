@@ -15,6 +15,7 @@ import {
   UserRole,
 } from "../../common/constants/db-enums";
 import { PrismaService } from "../../prisma/prisma.service";
+import { resolvePartnerIdForUser } from "../../common/utils/partner-scope";
 import { AuditService } from "../audit-logs/audit-logs.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { BANK_INFO } from "../payments/bank-info";
@@ -22,6 +23,38 @@ import { UpdateMemberDto } from "./dto/update-member.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
 import { RegisterMembershipDto } from "./dto/register-membership.dto";
 import { uniqueReferralCode } from "../../common/utils/referral-code";
+import { parseJsonText } from "../../common/utils/json-text";
+
+/** Chuẩn hoá một phần địa chỉ: bỏ dấu, bỏ cấp hành chính ("Phường", "Tỉnh"...), gộp tên gọi TP.HCM. */
+function normalizeAreaPart(part: string) {
+  const text = part
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/đ/gi, "d")
+    .toLowerCase()
+    .replace(/\./g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^(tinh|thanh pho|tp|quan|huyen|thi xa|thi tran|phuong|xa)\s+/, "");
+  return ["hcm", "tp hcm", "sai gon", "saigon", "ho chi minh city"].includes(text)
+    ? "ho chi minh"
+    : text;
+}
+
+function splitAddress(address?: string | null) {
+  return (address ?? "").split(",").map(normalizeAreaPart).filter(Boolean);
+}
+
+/** Địa chỉ dạng "số nhà, phường, quận, tỉnh" — lấy từ cuối lên. */
+function parseMemberArea(address?: string | null) {
+  const parts = splitAddress(address);
+  const n = parts.length;
+  return {
+    province: n >= 1 ? parts[n - 1] : null,
+    district: n >= 2 ? parts[n - 2] : null,
+    ward: n >= 3 ? parts[n - 3] : null,
+  };
+}
 
 @Injectable()
 export class MemberService {
@@ -242,6 +275,23 @@ export class MemberService {
       metadata: null,
     });
 
+    if (user.role === UserRole.PARTNER) {
+      const partnerId = await resolvePartnerIdForUser(this.prisma, userId);
+      const partner = partnerId
+        ? await this.prisma.partner.findUnique({
+            where: { id: partnerId },
+            select: { id: true, businessName: true },
+          })
+        : null;
+      await this.notificationsService.notifyAdmins({
+        type: "SYSTEM",
+        title: "Đối tác đổi mật khẩu 🔐",
+        content: `${partner?.businessName ?? user.fullName} vừa đổi mật khẩu tài khoản đối tác.`,
+        link: partner ? `/admin/partners/${partner.id}` : "/admin/partners",
+        referenceType: "PARTNER_PASSWORD_CHANGED",
+      });
+    }
+
     return { message: "Đổi mật khẩu thành công" };
   }
 
@@ -386,6 +436,85 @@ export class MemberService {
     return { current, pending, upcoming, history, memberId: member.id };
   }
 
+  /**
+   * Gợi ý phòng tập đối tác cho hội viên đã có gói đang hoạt động:
+   * chỉ lấy cơ sở mà gói cho phép vào (hạng phòng ∈ gymTierAccess), xếp theo
+   * mức trùng khu vực với địa chỉ trong hồ sơ (phường → quận → tỉnh) rồi tới phòng cùng hạng gói.
+   */
+  async getNearbyGyms(userId: string) {
+    const member = await this.resolveMember(userId);
+    if (!member) return { hasActiveMembership: false, items: [] };
+
+    const current = await this.getActiveMembership(member.id);
+    if (!current) return { hasActiveMembership: false, items: [] };
+
+    // Hội viên riêng của phòng gym tự quản lý chỉ tập tại phòng đã đăng ký
+    if (member.ownerPartnerId) {
+      return { hasActiveMembership: true, privateGym: true, items: [] };
+    }
+
+    const tiers = parseJsonText<string[]>(current.package?.gymTierAccess) ?? [];
+    const tierOrder = ["TIER_1", "TIER_2", "TIER_3"];
+    const packageTier =
+      [...tiers].sort((a, b) => tierOrder.indexOf(b) - tierOrder.indexOf(a))[0] ?? null;
+
+    const area = parseMemberArea(member.address);
+    const branches = tiers.length
+      ? await this.prisma.partnerBranch.findMany({
+          where: {
+            status: "ACTIVE",
+            partner: { is: { status: "APPROVED", gymTier: { in: tiers } } },
+          },
+          select: {
+            id: true,
+            name: true,
+            address: true,
+            phone: true,
+            latitude: true,
+            longitude: true,
+            partner: { select: { businessName: true, gymTier: true } },
+          },
+        })
+      : [];
+
+    const AREA_RANK = { WARD: 0, DISTRICT: 1, PROVINCE: 2, OTHER: 3 } as const;
+    const items = branches
+      .map((branch) => {
+        const parts = new Set(splitAddress(branch.address));
+        const sameDistrict = Boolean(area.district && parts.has(area.district));
+        const areaMatch: keyof typeof AREA_RANK =
+          area.ward && sameDistrict && parts.has(area.ward)
+            ? "WARD"
+            : sameDistrict
+              ? "DISTRICT"
+              : area.province && parts.has(area.province)
+                ? "PROVINCE"
+                : "OTHER";
+        return {
+          ...branch,
+          areaMatch,
+          sameTier: branch.partner.gymTier === packageTier,
+        };
+      })
+      .sort(
+        (a, b) =>
+          AREA_RANK[a.areaMatch] - AREA_RANK[b.areaMatch] ||
+          Number(b.sameTier) - Number(a.sameTier) ||
+          a.partner.businessName.localeCompare(b.partner.businessName, "vi"),
+      );
+
+    return {
+      hasActiveMembership: true,
+      privateGym: false,
+      packageName: current.package?.name ?? null,
+      packageTier,
+      allowedTiers: tiers,
+      memberAddress: member.address ?? null,
+      hasArea: Boolean(area.province),
+      items,
+    };
+  }
+
   async getCurrentMembership(userId: string) {
     const member = await this.resolveMember(userId);
     if (!member) return { current: null };
@@ -429,7 +558,7 @@ export class MemberService {
 
   /** Thân hành chung: tạo Membership PENDING + Payment PENDING + Invoice ISSUED + notification */
   private async createPendingMembership(
-    member: { id: string; code: string; fullName: string },
+    member: { id: string; code: string; fullName: string; ownerPartnerId: string | null },
     dto: RegisterMembershipDto,
     ctx: {
       actorUserId: string;
@@ -443,7 +572,9 @@ export class MemberService {
     if (
       !pkg ||
       pkg.status !== "ACTIVE" ||
-      pkg.type === PackageType.SESSION_BASED
+      pkg.type === PackageType.SESSION_BASED ||
+      // Gói riêng của phòng gym đối tác chỉ bán cho hội viên của chính phòng đó (và ngược lại)
+      (pkg.ownerPartnerId ?? null) !== (member.ownerPartnerId ?? null)
     ) {
       throw new NotFoundException("Gói tập không tồn tại hoặc đã ngừng bán");
     }
@@ -600,7 +731,9 @@ export class MemberService {
     if (
       !pkg ||
       pkg.status !== "ACTIVE" ||
-      pkg.type === PackageType.SESSION_BASED
+      pkg.type === PackageType.SESSION_BASED ||
+      // Gói riêng của phòng gym đối tác chỉ bán cho hội viên của chính phòng đó (và ngược lại)
+      (pkg.ownerPartnerId ?? null) !== (member.ownerPartnerId ?? null)
     ) {
       throw new NotFoundException("Gói tập không tồn tại hoặc đã ngừng bán");
     }

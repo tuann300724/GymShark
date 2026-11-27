@@ -31,7 +31,7 @@ export default function FacilityMembersPage() {
       <header>
         <p className="meta-label">Vận hành cơ sở</p>
         <h1 className="mt-1 font-display text-3xl font-bold uppercase tracking-tight text-chalk">
-          Hội viên tại cơ sở
+          Hội viên cộng đồng
         </h1>
         <p className="mt-1 text-sm text-muted">
           Hội viên có gói còn hiệu lực và chưa check-in tại cơ sở nào trong phiên hiện tại.

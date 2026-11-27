@@ -111,6 +111,8 @@ export class AuthService {
         fullName: user.fullName,
         role: user.role,
         avatarUrl: user.avatarUrl,
+        // Nhân viên của phòng gym đối tác (không phải chủ) — frontend ẩn mục quản lý nhân viên
+        partnerStaff: user.role === UserRole.PARTNER && Boolean(user.ownerPartnerId),
       },
     };
   }
@@ -531,7 +533,11 @@ export class AuthService {
     }
   }
 
-  async createStaffAccount(dto: CreateStaffAccountDto, actorId: string) {
+  async createStaffAccount(
+    dto: CreateStaffAccountDto,
+    actorId: string,
+    ownerPartnerId: string | null = null,
+  ) {
     const email = this.normalizeEmail(dto.email);
     const phone = dto.phone?.trim() || null;
     const duplicate = await this.prisma.user.findFirst({
@@ -558,7 +564,9 @@ export class AuthService {
             fullName: dto.fullName.trim(),
             phone,
             passwordHash,
-            role: UserRole.STAFF,
+            // Nhân viên của phòng gym đối tác dùng vai trò PARTNER, gắn với đối tác chủ quản
+            role: ownerPartnerId ? UserRole.PARTNER : UserRole.STAFF,
+            ownerPartnerId,
             status: "ACTIVE",
             provider: "LOCAL",
           },
@@ -600,7 +608,11 @@ export class AuthService {
       action: "USER_CREATE",
       entity: "User",
       entityId: staff.id,
-      metadata: { email, role: UserRole.STAFF },
+      metadata: {
+        email,
+        role: ownerPartnerId ? UserRole.PARTNER : UserRole.STAFF,
+        ownerPartnerId,
+      },
     });
 
     return {
@@ -859,6 +871,8 @@ export class AuthService {
         fullName: user.fullName,
         role: user.role,
         avatarUrl: user.avatarUrl,
+        // Nhân viên của phòng gym đối tác (không phải chủ) — frontend ẩn mục quản lý nhân viên
+        partnerStaff: user.role === UserRole.PARTNER && Boolean(user.ownerPartnerId),
       },
     };
   }

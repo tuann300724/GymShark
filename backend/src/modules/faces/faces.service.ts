@@ -10,6 +10,7 @@ import { AuditService } from '../audit-logs/audit-logs.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { EnrollFaceDto } from './dto/faces.dto';
 import { parseJsonText } from '../../common/utils/json-text';
+import { assertInScope, resolveOwnerScope, type ScopeActor } from '../../common/utils/partner-scope';
 
 export interface FaceMatchResult {
   memberId: string;
@@ -174,13 +175,9 @@ export class FacesService {
    * Dùng ở quầy lễ tân khi làm thẻ: nhân viên xác nhận hội viên đã đồng ý xử lý
    * dữ liệu sinh trắc học (consentGiven) và ảnh chụp được lưu để đối chiếu sau.
    */
-  async enrollForMember(memberId: string, dto: EnrollFaceDto, actorId?: string) {
-    const member = await this.prisma.member.findUnique({
-      where: { id: memberId },
-      select: { id: true, code: true, fullName: true, status: true },
-    });
-    if (!member) throw new NotFoundException('Không tìm thấy hội viên.');
-    return this.saveEnrollment(member, dto, { actorId, via: 'staff' });
+  async enrollForMember(memberId: string, dto: EnrollFaceDto, actor?: ScopeActor) {
+    const member = await this.findMemberInScope(memberId, actor);
+    return this.saveEnrollment(member, dto, { actorId: actor?.id, via: 'staff' });
   }
 
   /** Validate mẫu + ghi đè toàn bộ dữ liệu khuôn mặt của hội viên trong 1 transaction */
@@ -310,22 +307,30 @@ export class FacesService {
   }
 
   /** GET /faces/member/:memberId — nhân viên xem trạng thái + ảnh đăng ký của 1 hội viên */
-  async getMemberFace(memberId: string) {
-    const member = await this.prisma.member.findUnique({
-      where: { id: memberId },
-      select: { id: true, code: true, fullName: true, status: true },
-    });
-    if (!member) throw new NotFoundException('Không tìm thấy hội viên.');
+  async getMemberFace(memberId: string, actor?: ScopeActor) {
+    const { ownerPartnerId: _owner, ...member } = await this.findMemberInScope(memberId, actor);
     return { member, ...(await this.buildStatus(memberId)) };
   }
 
-  /** DELETE /faces/member/:memberId — admin/manager xoá đăng ký thay hội viên */
-  async adminWithdraw(memberId: string, actorId?: string) {
+  /**
+   * Hội viên trong phạm vi người thao tác: đối tác chỉ chạm được hội viên riêng của phòng mình,
+   * quản trị/lễ tân Gym Master chỉ chạm hội viên hệ thống.
+   */
+  private async findMemberInScope(memberId: string, actor?: ScopeActor) {
     const member = await this.prisma.member.findUnique({
       where: { id: memberId },
-      select: { id: true, code: true, fullName: true },
+      select: { id: true, code: true, fullName: true, status: true, ownerPartnerId: true },
     });
     if (!member) throw new NotFoundException('Không tìm thấy hội viên.');
+    const scope = await resolveOwnerScope(this.prisma, actor);
+    assertInScope(member.ownerPartnerId, scope, 'Không tìm thấy hội viên.');
+    return member;
+  }
+
+  /** DELETE /faces/member/:memberId — admin/manager xoá đăng ký thay hội viên */
+  async adminWithdraw(memberId: string, actor?: ScopeActor) {
+    const actorId = actor?.id;
+    const member = await this.findMemberInScope(memberId, actor);
 
     const count = await this.prisma.faceEmbedding.count({ where: { memberId } });
     if (count === 0) {

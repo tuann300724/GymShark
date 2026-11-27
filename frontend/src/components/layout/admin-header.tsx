@@ -15,6 +15,9 @@ import { useToast } from '@/components/ui/toast';
 import { memberApi } from '@/services/member.service';
 import { getVisibleAdminItems, navigationSections } from './admin-sidebar';
 import { isPartnerRole } from '@/lib/auth';
+import { partnerApi } from '@/services/partner.service';
+import { PARTNERSHIP_LABELS } from '@/components/admin/partnership';
+import { gymTierLabel } from '@/lib/package-options';
 import { cn, formatCurrency } from '@/lib/utils';
 import { PAYMENT_STATUS_META, PAYMENT_METHOD_LABEL, TRAINER_STATUS_META } from '@/lib/status';
 import {
@@ -181,6 +184,20 @@ export function AdminHeader() {
   const role: string = user?.role || '';
   const isPartner = isPartnerRole(role);
   const canSeeStaff = !isPartner && (role === 'ADMIN' || role === 'MANAGER');
+
+  // Đối tác Gym Cộng đồng đã xếp hạng → hiện loại gói hợp tác + hạng phòng cạnh vai trò.
+  // Dùng chung cache với trang /admin/partnership.
+  const { data: partnership } = useQuery({
+    queryKey: ['partner-my-partnership'],
+    queryFn: partnerApi.getMyPartnership,
+    enabled: isPartner,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+  const partnershipTag =
+    partnership?.partnershipType === 'COMMUNITY' && partnership.gymTier
+      ? `${PARTNERSHIP_LABELS.COMMUNITY} ${gymTierLabel(partnership.gymTier)}`
+      : null;
 
   // Danh mục điều hướng (đồng bộ sidebar; ẩn mục STAFF không được xem)
   const navItems = useMemo(
@@ -705,6 +722,9 @@ export function AdminHeader() {
               <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-neon">
                 <ShieldCheck className="size-3" />
                 {user?.role || 'ADMIN'}
+                {partnershipTag && (
+                  <span className="ml-1 font-semibold text-muted">· {partnershipTag}</span>
+                )}
               </span>
             </div>
           </button>

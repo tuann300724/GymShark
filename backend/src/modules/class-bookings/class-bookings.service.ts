@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../prisma/prisma.service';
+import { assertInScope, resolveOwnerScope } from '../../common/utils/partner-scope';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { MAIL_EVENTS } from '../mail/mail.events';
 import { AuditService } from '../audit-logs/audit-logs.service';
@@ -34,6 +35,32 @@ export class ClassBookingsService {
   }
 
   /** Ca nhóm sắp tới đang mở đăng ký + cờ "đã đăng ký" của hội viên này */
+  /** Admin/nhân viên/đối tác chỉ quản lý lớp của PT thuộc phạm vi mình (PT tự giới hạn ở assertCanManage) */
+  private async assertScheduleScope(scheduleId: string, role: string, userId: string) {
+    if (role === 'TRAINER') return;
+    const scope = await resolveOwnerScope(this.prisma, { id: userId, role });
+    const session = await this.prisma.trainingSchedule.findUnique({
+      where: { id: scheduleId },
+      select: { trainer: { select: { ownerPartnerId: true } } },
+    });
+    if (!session) throw new NotFoundException('Không tìm thấy ca tập.');
+    assertInScope(session.trainer?.ownerPartnerId, scope, 'Không tìm thấy ca tập.');
+  }
+
+  /** Hội viên được gán vào lớp phải cùng phòng gym với lớp */
+  private async assertMembersInScope(memberIds: string[], role: string, userId: string) {
+    if (!memberIds.length) return;
+    const scope =
+      role === 'TRAINER'
+        ? ((await this.prisma.trainer.findUnique({ where: { userId }, select: { ownerPartnerId: true } }))
+            ?.ownerPartnerId ?? null)
+        : await resolveOwnerScope(this.prisma, { id: userId, role });
+    const inScope = await this.prisma.member.count({
+      where: { id: { in: memberIds }, ownerPartnerId: scope },
+    });
+    if (inScope !== memberIds.length) throw new NotFoundException('Không tìm thấy hội viên.');
+  }
+
   async listOpen(userId: string) {
     const member = await this.resolveMember(userId);
     const now = new Date();
@@ -45,6 +72,8 @@ export class ClassBookingsService {
         capacity: { not: null },
         startTime: { gte: now },
         memberId: null,
+        // Hội viên chỉ thấy lớp của phòng gym mình (hệ thống hoặc đúng đối tác)
+        trainer: { is: { ownerPartnerId: member.ownerPartnerId ?? null } },
       },
       include: {
         trainer: { include: { user: { select: { fullName: true, avatarUrl: true } } } },
@@ -129,6 +158,9 @@ export class ClassBookingsService {
       },
     });
     if (!session) throw new NotFoundException('Không tìm thấy ca tập.');
+    if ((session.trainer?.ownerPartnerId ?? null) !== (member.ownerPartnerId ?? null)) {
+      throw new NotFoundException('Không tìm thấy ca tập.');
+    }
     if (session.type !== 'GROUP_CLASS' || !session.capacity) {
       throw new BadRequestException('Buổi tập này không mở đăng ký (chỉ ca nhóm mới nhận đăng ký).');
     }
@@ -237,6 +269,7 @@ export class ClassBookingsService {
 
   /** Danh sách hội viên đã đăng ký 1 ca (HLV phụ trách / quản trị) */
   async listBySession(scheduleId: string, role: string, userId: string) {
+    await this.assertScheduleScope(scheduleId, role, userId);
     const session = await this.prisma.trainingSchedule.findUnique({
       where: { id: scheduleId },
       select: { id: true, trainerId: true },
@@ -278,6 +311,7 @@ export class ClassBookingsService {
    * Thành công → notification in-app + email xác nhận (chạy nền).
    */
   async addMembers(scheduleId: string, memberIds: string[], role: string, userId: string) {
+    await this.assertScheduleScope(scheduleId, role, userId);
     const session = await this.prisma.trainingSchedule.findUnique({
       where: { id: scheduleId },
       include: {
@@ -305,6 +339,7 @@ export class ClassBookingsService {
     });
     const alreadySet = new Set(already.map((b) => b.memberId));
     const toAdd = uniqueIds.filter((id) => !alreadySet.has(id));
+    await this.assertMembersInScope(toAdd, role, userId);
     if (toAdd.length === 0) {
       throw new BadRequestException('Những hội viên này đã có trong ca tập.');
     }
@@ -438,6 +473,7 @@ export class ClassBookingsService {
 
   /** [HLV/QTV] Bỏ 1 hội viên khỏi ca nhóm (hủy đăng ký trước khi buổi bắt đầu) */
   async removeMember(scheduleId: string, memberId: string, role: string, userId: string) {
+    await this.assertScheduleScope(scheduleId, role, userId);
     const session = await this.prisma.trainingSchedule.findUnique({
       where: { id: scheduleId },
       select: { id: true, trainerId: true, status: true, startTime: true },

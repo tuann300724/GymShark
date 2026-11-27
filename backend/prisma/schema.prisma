@@ -38,6 +38,17 @@ model Partner {
   // Tỷ lệ hoa hồng cho mỗi lượt hội viên vào tập tại phòng gym (0..1, vd 0.30 = 30%)
   commissionRate Decimal @default(0.30) @db.Decimal(5, 4)
   notes        String?  @db.NVarChar(Max)
+  /// Hạng phòng gym do admin đánh giá: TIER_1 | TIER_2 | TIER_3 (NULL = chưa xếp hạng).
+  /// Check-in tại phòng có hạng chỉ hợp lệ khi gói của hội viên bao gồm hạng này.
+  gymTier        String?   @db.NVarChar(40)
+  tierNote       String?   @db.NVarChar(Max)
+  tierAssessedAt DateTime?
+  /// Loại hợp tác: OWNER (quản lý phòng gym riêng) | COMMUNITY (Gym Cộng đồng)
+  partnershipType String?   @db.NVarChar(40)
+  /// Phí hợp tác/tháng tại thời điểm ký (chốt giá, không đổi khi bảng giá thay đổi)
+  monthlyFee      Decimal?  @db.Decimal(12, 2)
+  contractStartAt DateTime?
+  contractEndAt   DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -50,6 +61,15 @@ model Partner {
   @@index([userId])
 }
 
+/// Bảng giá 2 gói hợp tác đối tác (admin chỉnh được, trang đăng ký đối tác đọc từ đây)
+model PartnershipPlan {
+  code         String   @id @db.NVarChar(40) // OWNER | COMMUNITY
+  name         String   @db.NVarChar(400)
+  monthlyPrice Decimal  @db.Decimal(12, 2)
+  updatedBy    String?  @db.NVarChar(100)
+  updatedAt    DateTime @updatedAt
+}
+
 /// Yêu cầu hợp tác gửi từ trang đăng ký đối tác (chỉ lưu thông tin liên hệ, KHÔNG tạo tài khoản)
 model PartnerLead {
   id           String   @id @default(uuid()) @db.NVarChar(100)
@@ -59,16 +79,37 @@ model PartnerLead {
   email        String   @db.NVarChar(400)
   phone        String   @db.NVarChar(400)
   message      String?  @db.NVarChar(Max)
-  status       String   @default("NEW") @db.NVarChar(40) // NEW | CONTACTED | CONVERTED | CLOSED
+  status       String   @default("NEW") @db.NVarChar(40) // NEW | CONTACTED | CONSULTING | CONVERTED | CLOSED
   handledBy    String?  @db.NVarChar(100) // User id admin/manager xử lý
   handledAt    DateTime?
   notes        String?  @db.NVarChar(Max) // ghi chú nội bộ của admin
+  /// Đánh giá cơ sở vật chất (bắt buộc với hướng COMMUNITY trước khi chốt hợp tác)
+  assessedTier   String?   @db.NVarChar(40) // TIER_1 | TIER_2 | TIER_3
+  assessmentNote String?   @db.NVarChar(Max)
+  assessedAt     DateTime?
+  assessedBy     String?   @db.NVarChar(100)
   ip           String?  @db.NVarChar(100)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  photos PartnerLeadPhoto[]
+
   @@index([status])
   @@index([createdAt])
+}
+
+/// Ảnh phòng tập / cơ sở vật chất đối tác gửi kèm yêu cầu hợp tác (data URL đã nén ở client)
+model PartnerLeadPhoto {
+  id        String      @id @default(uuid()) @db.NVarChar(100)
+  leadId    String      @db.NVarChar(100)
+  lead      PartnerLead @relation(fields: [leadId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  area      String      @db.NVarChar(40) // khu vực: WEIGHTS | CARDIO | LOCKER | RECEPTION | OTHER
+  caption   String?     @db.NVarChar(400)
+  dataUrl   String      @db.NVarChar(Max)
+  sortOrder Int         @default(0)
+  createdAt DateTime    @default(now())
+
+  @@index([leadId])
 }
 
 /// Chi nhánh phòng gym thuộc một đối tác
@@ -100,11 +141,14 @@ model Room {
   status      String   @default("AVAILABLE") @db.NVarChar(400)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  /// Phòng tập của phòng gym đối tác. NULL = phòng của hệ thống Gym Master.
+  ownerPartnerId String? @db.NVarChar(100)
 
   schedules TrainingSchedule[]
 
   @@index([status])
   @@index([type])
+  @@index([ownerPartnerId])
 }
 
 model User {
@@ -125,6 +169,8 @@ model User {
   providerId   String?  @unique @db.NVarChar(100)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  /// Nhân viên của phòng gym đối tác (role PARTNER) hoặc PT do đối tác tạo. NULL = tài khoản hệ thống.
+  ownerPartnerId String? @db.NVarChar(100)
 
   trainer                     Trainer?
   member                      Member?
@@ -139,6 +185,7 @@ model User {
 
   @@index([email])
   @@index([role])
+  @@index([ownerPartnerId])
 }
 
 model Trainer {
@@ -156,6 +203,8 @@ model Trainer {
   status          String    @default("ACTIVE") @db.NVarChar(400)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+  /// PT của phòng gym đối tác. NULL = PT của hệ thống Gym Master.
+  ownerPartnerId  String?   @db.NVarChar(100)
 
   schedules      TrainingSchedule[]
   trainerMembers TrainerMember[]
@@ -168,6 +217,7 @@ model Trainer {
   @@index([userId])
   @@index([status])
   @@index([specialization])
+  @@index([ownerPartnerId])
 }
 
 model Member {
@@ -192,6 +242,8 @@ model Member {
   referrals                Member[]                  @relation("Referral")
   membershipChangeRequests MembershipChangeRequest[] @relation("MembershipChangeRequester")
   referralRewardedAt       DateTime? // Chưa thưởng / đã thưởng khi người được giới thiệu kích hoạt gói đầu tiên
+  /// Đối tác sở hữu hội viên (phòng gym tự quản lý). NULL = hội viên của hệ thống Gym Master.
+  ownerPartnerId           String?                   @db.NVarChar(100)
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
 
@@ -214,6 +266,7 @@ model Member {
   @@index([code])
   @@index([phone])
   @@index([status])
+  @@index([ownerPartnerId])
 }
 
 /// ĐĂNG KÝ HỘI VIÊN CHỜ XÁC MINH EMAIL — dữ liệu form đăng ký + mã 6 số đã gửi
@@ -272,10 +325,14 @@ model MembershipPackage {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  /// Đối tác sở hữu gói (gói riêng của phòng gym đối tác). NULL = gói của hệ thống Gym Master.
+  ownerPartnerId String?  @db.NVarChar(100)
+
   memberships Membership[]
 
   @@index([code])
   @@index([status])
+  @@index([ownerPartnerId])
 }
 
 model Membership {

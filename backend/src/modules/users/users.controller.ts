@@ -20,6 +20,12 @@ import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { Role } from "../../common/enums/role.enum";
 import { Throttle } from "@nestjs/throttler";
+import { PrismaService } from "../../prisma/prisma.service";
+import {
+  assertPartnerOwner,
+  resolveOwnerScope,
+  type ScopeActor,
+} from "../../common/utils/partner-scope";
 
 @ApiTags("Users")
 @ApiBearerAuth("JWT-auth")
@@ -29,24 +35,36 @@ export class UsersController {
   constructor(
     private readonly usersService: UsersService,
     private readonly authService: AuthService,
+    private readonly prisma: PrismaService,
   ) {}
+
+  /** Chủ đối tác quản lý nhân viên phòng mình; nhân viên đối tác không được quản lý nhân viên */
+  private async staffScope(actor: ScopeActor) {
+    if (actor?.role === Role.PARTNER) await assertPartnerOwner(this.prisma, actor.id);
+    return resolveOwnerScope(this.prisma, actor);
+  }
 
   @Get("staff")
   @Roles(Role.ADMIN, Role.MANAGER)
   @ApiOperation({ summary: "Danh sách tài khoản nhân viên STAFF" })
-  findStaff(@Query("search") search?: string) {
-    return this.usersService.findStaff(search);
+  async findStaff(@CurrentUser() actor: ScopeActor, @Query("search") search?: string) {
+    return this.usersService.findStaff(search, await this.staffScope(actor));
   }
 
   @Patch("staff/:id/status")
   @Roles(Role.ADMIN, Role.MANAGER)
   @ApiOperation({ summary: "Khóa hoặc kích hoạt tài khoản nhân viên STAFF" })
-  updateStaffStatus(
+  async updateStaffStatus(
     @Param("id", new ParseUUIDPipe()) id: string,
     @Body() dto: UpdateStaffStatusDto,
-    @CurrentUser("id") actorId: string,
+    @CurrentUser() actor: ScopeActor,
   ) {
-    return this.usersService.updateStaffStatus(id, dto.status, actorId);
+    return this.usersService.updateStaffStatus(
+      id,
+      dto.status,
+      actor.id!,
+      await this.staffScope(actor),
+    );
   }
 
   @Get()
@@ -71,10 +89,10 @@ export class UsersController {
   @ApiOperation({
     summary: "Tạo tài khoản STAFF và gửi mật khẩu tạm thời qua email",
   })
-  createStaff(
+  async createStaff(
     @Body() dto: CreateStaffAccountDto,
-    @CurrentUser("id") actorId: string,
+    @CurrentUser() actor: ScopeActor,
   ) {
-    return this.authService.createStaffAccount(dto, actorId);
+    return this.authService.createStaffAccount(dto, actor.id!, await this.staffScope(actor));
   }
 }

@@ -24,6 +24,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { gymTierLabel } from '@/lib/package-options';
 
 type SortKey = 'price_asc' | 'price_desc' | 'duration_asc' | 'duration_desc';
 
@@ -67,8 +68,11 @@ export default function PublicPackagesPage() {
   });
   const mapBranch =
     matchingBranches.find((branch) => branch.id === focusedBranchId) || matchingBranches[0];
+  // Ưu tiên toạ độ đối tác đã ghim trên bản đồ; chưa ghim thì tìm theo địa chỉ chữ
   const mapAddress = mapBranch
-    ? `${mapBranch.address || mapBranch.name}, ${mapBranch.partner.businessName}, Việt Nam`
+    ? mapBranch.latitude != null && mapBranch.longitude != null
+      ? `${mapBranch.latitude},${mapBranch.longitude}`
+      : `${mapBranch.address || mapBranch.name}, ${mapBranch.partner.businessName}, Việt Nam`
     : '';
   const mapEmbedUrl = mapAddress
     ? `https://maps.google.com/maps?q=${encodeURIComponent(mapAddress)}&z=16&output=embed`
@@ -195,6 +199,11 @@ export default function PublicPackagesPage() {
                               <span className="mt-1 block font-semibold text-chalk">
                                 {branch.name}
                               </span>
+                              {branch.partner.gymTier && (
+                                <span className="mt-1.5 inline-flex rounded-full border border-neon/30 bg-neon/10 px-2 py-0.5 text-[10px] font-semibold text-neon">
+                                  Hạng {gymTierLabel(branch.partner.gymTier)}
+                                </span>
+                              )}
                             </span>
                             <Building2
                               className={`size-5 shrink-0 ${isSelected ? 'text-neon' : 'text-muted'}`}

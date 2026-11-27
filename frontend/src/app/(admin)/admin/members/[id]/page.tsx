@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { getStoredUser, isPartnerRole } from '@/lib/auth';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -58,6 +59,9 @@ const SAMPLE_TARGET = 5;
 export default function MemberDetailPage() {
   const params = useParams();
   const id = params?.id as string;
+  // Đối tác: chưa mở sinh trắc học cho hội viên riêng (đợt 1)
+  const [isPartner, setIsPartner] = useState(false);
+  useEffect(() => setIsPartner(isPartnerRole(getStoredUser()?.role)), []);
   const [activeTab, setActiveTab] = useState<'memberships' | 'checkins' | 'payments' | 'schedules'>(
     'memberships',
   );
@@ -622,56 +626,58 @@ export default function MemberDetailPage() {
           </div>
 
           {/* Sinh trắc học — trạng thái đăng ký khuôn mặt (lễ tân đăng ký hộ tại quầy) */}
-          <Card className="border-line">
-            <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-3">
-                {faceStatus?.imageData ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={faceStatus.imageData}
-                    alt={`Ảnh khuôn mặt của ${member?.fullName ?? ''}`}
-                    className="size-14 shrink-0 rounded-xl border border-neon/40 object-cover"
-                  />
-                ) : (
-                  <span
-                    className={`flex size-10 shrink-0 items-center justify-center rounded-full ${
-                      faceStatus?.enrolled
-                        ? 'border border-neon/40 bg-neon/10 text-neon'
-                        : 'border border-line bg-ink text-muted'
-                    }`}
-                  >
-                    <ScanFace className="size-5" />
-                  </span>
-                )}
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-chalk">Đăng ký khuôn mặt</p>
-                  <p className="text-xs text-muted">
-                    {faceStatus?.enrolled ? (
-                      <>
-                        Đã lưu{' '}
-                        <strong className="font-mono text-neon">{faceStatus.sampleCount}</strong>{' '}
-                        mẫu • đồng ý từ{' '}
-                        {faceStatus.consentAt ? formatDateTime(faceStatus.consentAt) : '--'}
-                      </>
-                    ) : (
-                      'Chưa đăng ký — có thể quét khuôn mặt cho hội viên ngay tại quầy.'
-                    )}
-                  </p>
+          {
+            <Card className="border-line">
+              <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                  {faceStatus?.imageData ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={faceStatus.imageData}
+                      alt={`Ảnh khuôn mặt của ${member?.fullName ?? ''}`}
+                      className="size-14 shrink-0 rounded-xl border border-neon/40 object-cover"
+                    />
+                  ) : (
+                    <span
+                      className={`flex size-10 shrink-0 items-center justify-center rounded-full ${
+                        faceStatus?.enrolled
+                          ? 'border border-neon/40 bg-neon/10 text-neon'
+                          : 'border border-line bg-ink text-muted'
+                      }`}
+                    >
+                      <ScanFace className="size-5" />
+                    </span>
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-chalk">Đăng ký khuôn mặt</p>
+                    <p className="text-xs text-muted">
+                      {faceStatus?.enrolled ? (
+                        <>
+                          Đã lưu{' '}
+                          <strong className="font-mono text-neon">{faceStatus.sampleCount}</strong>{' '}
+                          mẫu • đồng ý từ{' '}
+                          {faceStatus.consentAt ? formatDateTime(faceStatus.consentAt) : '--'}
+                        </>
+                      ) : (
+                        'Chưa đăng ký — có thể quét khuôn mặt cho hội viên ngay tại quầy.'
+                      )}
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex shrink-0 flex-wrap items-center gap-2">
-                <Button variant="outline" size="sm" onClick={openFaceEnroll}>
-                  <ScanFace className="size-3.5 mr-1" />
-                  {faceStatus?.enrolled ? 'Đăng ký lại' : 'Đăng ký khuôn mặt'}
-                </Button>
-                {faceStatus?.enrolled && (
-                  <Button variant="danger" size="sm" onClick={() => setConfirmFaceDelete(true)}>
-                    <Trash2 className="size-3.5 mr-1" /> Xoá đăng ký
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={openFaceEnroll}>
+                    <ScanFace className="size-3.5 mr-1" />
+                    {faceStatus?.enrolled ? 'Đăng ký lại' : 'Đăng ký khuôn mặt'}
                   </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                  {faceStatus?.enrolled && (
+                    <Button variant="danger" size="sm" onClick={() => setConfirmFaceDelete(true)}>
+                      <Trash2 className="size-3.5 mr-1" /> Xoá đăng ký
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          }
 
           <Card>
             <CardContent className="p-0">

@@ -3,8 +3,10 @@ import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PARTNER_LEAD_DIRECTIONS } from './create-partner-lead.dto';
 
-/** Trạng thái xử lý yêu cầu hợp tác */
-export const PARTNER_LEAD_STATUSES = ['NEW', 'CONTACTED', 'CONVERTED', 'CLOSED'] as const;
+import { PARTNER_LEAD_STATUSES } from '../partner-lead-workflow';
+
+/** Trạng thái xử lý yêu cầu hợp tác — xem quy trình ở partner-lead-workflow.ts */
+export { PARTNER_LEAD_STATUSES };
 
 export class QueryPartnerLeadsDto {
   @ApiPropertyOptional({ example: 'Gym', description: 'Tìm theo tên người liên hệ / email / SĐT' })

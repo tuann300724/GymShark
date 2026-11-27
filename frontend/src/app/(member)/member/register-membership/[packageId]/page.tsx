@@ -17,7 +17,6 @@ import { useToast } from '@/components/ui/toast';
 import {
   CreditCard,
   CheckCircle2,
-  Wallet,
   Banknote,
   Landmark,
   CalendarDays,
@@ -32,7 +31,7 @@ import {
 import Link from 'next/link';
 import { formatCurrency } from '@/lib/utils';
 
-/** Phương thức thanh toán theo spec: CASH / BANK_TRANSFER hỗ trợ ngay; MOMO/VNPAY chờ cổng thanh toán */
+/** Phương thức thanh toán hội viên tự chọn: tiền mặt tại quầy hoặc chuyển khoản */
 const PAYMENT_METHODS = [
   {
     value: 'CASH',
@@ -48,14 +47,6 @@ const PAYMENT_METHODS = [
     icon: Landmark,
     disabled: false,
   },
-  {
-    value: 'CREDIT_CARD',
-    label: 'Thẻ ngân hàng',
-    desc: 'Visa, Mastercard...',
-    icon: CreditCard,
-    disabled: true,
-  },
-  { value: 'MOMO', label: 'Ví điện tử', desc: 'MoMo / VNPay', icon: Wallet, disabled: true },
 ];
 
 export default function RegisterMembershipPage() {

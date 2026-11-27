@@ -56,6 +56,14 @@ export class MemberController {
     return this.memberService.getStats(userId);
   }
 
+  @Get('nearby-gyms')
+  @ApiOperation({
+    summary: 'Gợi ý phòng tập đối tác gần khu vực trong hồ sơ, dùng được với gói đang hoạt động',
+  })
+  getNearbyGyms(@CurrentUser('id') userId: string) {
+    return this.memberService.getNearbyGyms(userId);
+  }
+
   @Get('trainer')
   @ApiOperation({ summary: 'HLV hiện tại đang phụ trách hội viên đang đăng nhập' })
   getTrainer(@CurrentUser('id') userId: string) {

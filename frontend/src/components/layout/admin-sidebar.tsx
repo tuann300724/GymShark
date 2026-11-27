@@ -30,6 +30,7 @@ import {
   Boxes,
   Wallet,
   ChevronDown,
+  FileSignature,
 } from 'lucide-react';
 
 type NavItem = {
@@ -54,7 +55,12 @@ const STAFF_HIDDEN_HREFS = [
 ];
 
 /** Mục chỉ riêng đối tác dùng (admin/manager/staff không có dữ liệu theo cơ sở của họ). */
-const PARTNER_ONLY_HREFS = ['/admin/finance', '/admin/facility-members', '/admin/branches'];
+const PARTNER_ONLY_HREFS = [
+  '/admin/finance',
+  '/admin/facility-members',
+  '/admin/branches',
+  '/admin/partnership',
+];
 
 /**
  * Menu chung: đối tác chỉ thấy trang quản lý cơ sở của mình —
@@ -63,7 +69,10 @@ const PARTNER_ONLY_HREFS = ['/admin/finance', '/admin/facility-members', '/admin
  */
 export function getVisibleAdminItems(section: NavSection, role: string): NavItem[] {
   const isPartner = isPartnerRole(role);
+  // Nhân viên của đối tác không quản lý tài khoản nhân viên (chỉ chủ đối tác)
+  const partnerStaff = isPartner && Boolean(getStoredUser()?.partnerStaff);
   return section.items.filter((item) => {
+    if (partnerStaff && item.href === '/admin/staff') return false;
     if (isPartner) return canAccessAdminPath(role, item.href);
     if (PARTNER_ONLY_HREFS.includes(item.href)) return false;
     return role !== 'STAFF' || !STAFF_HIDDEN_HREFS.includes(item.href);
@@ -76,10 +85,15 @@ export const navigationSections: NavSection[] = [
     items: [{ name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard }],
   },
   {
+    // Chỉ đối tác thấy: hợp đồng, hạng phòng, gia hạn
+    title: 'Hợp tác',
+    items: [{ name: 'Hợp đồng & hạng phòng', href: '/admin/partnership', icon: FileSignature }],
+  },
+  {
     title: 'Hội viên & Vận hành',
     items: [
       { name: 'Lượt Check-in', href: '/admin/checkins', icon: QrCode, badge: 'Live' },
-      { name: 'Hội viên tại cơ sở', href: '/admin/facility-members', icon: Users },
+      { name: 'Hội viên cộng đồng', href: '/admin/facility-members', icon: Users },
       { name: 'Cơ sở / Chi nhánh', href: '/admin/branches', icon: Building2 },
       { name: 'Báo cáo chuyên cần', href: '/admin/reports/attendance', icon: ClipboardCheck },
       { name: 'Hội viên', href: '/admin/members', icon: Users },

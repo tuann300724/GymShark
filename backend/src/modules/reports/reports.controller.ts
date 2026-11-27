@@ -8,6 +8,7 @@
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { ReportsService } from './reports.service';
+import type { ScopeActor } from '../../common/utils/partner-scope';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -42,8 +43,8 @@ export class ReportsController {
     summary:
       'Báo cáo doanh thu: hôm nay/tuần/tháng/năm, theo ngày, theo tháng, theo phương thức, theo gói tập. Chỉ tính PAID; REFUNDED hạch toán riêng.',
   })
-  getRevenue(@Query() query: RevenueReportQueryDto) {
-    return this.reportsService.getRevenue(query);
+  getRevenue(@Query() query: RevenueReportQueryDto, @CurrentUser() actor: ScopeActor) {
+    return this.reportsService.getRevenue(query, actor);
   }
 
   @Get('overview')

@@ -11,6 +11,8 @@
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SchedulesService } from './schedules.service';
+import { PrismaService } from '../../prisma/prisma.service';
+import { resolveOwnerScope, type ScopeActor } from '../../common/utils/partner-scope';
 import {
   CancelSessionDto,
   CreateProgressDto,
@@ -34,20 +36,23 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('schedules')
 export class SchedulesController {
-  constructor(private readonly schedulesService: SchedulesService) {}
+  constructor(
+    private readonly schedulesService: SchedulesService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   @Get()
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
   @ApiOperation({ summary: '[Cũ] Lấy danh sách lịch tập luyện & lớp học PT' })
-  findAll() {
-    return this.schedulesService.findAll();
+  async findAll(@CurrentUser() actor: ScopeActor) {
+    return this.schedulesService.findAll(await resolveOwnerScope(this.prisma, actor));
   }
 
   @Get(':id')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
   @ApiOperation({ summary: '[Cũ] Lấy chi tiết một lịch tập' })
-  findOne(@Param('id') id: string) {
-    return this.schedulesService.findOne(id);
+  async findOne(@Param('id') id: string, @CurrentUser() actor: ScopeActor) {
+    return this.schedulesService.findOne(id, await resolveOwnerScope(this.prisma, actor));
   }
 }
 

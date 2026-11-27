@@ -8,6 +8,7 @@ import { Prisma } from "@prisma/client";
 import { GYM_TIER_VALUES, PackageType } from "../../common/constants/db-enums";
 import { parseJsonText, serializeJsonText } from "../../common/utils/json-text";
 import { PrismaService } from "../../prisma/prisma.service";
+import { assertInScope, ownerWhere, type OwnerScope } from "../../common/utils/partner-scope";
 import { CreatePackageDto } from "./dto/create-package.dto";
 import { UpdatePackageDto } from "./dto/update-package.dto";
 
@@ -31,10 +32,10 @@ export class PackagesService {
     };
   }
 
-  /** Danh sách gói tập (admin: trả tất cả kèm số lượng đã bán) */
-  async findAll() {
+  /** Danh sách gói tập theo phạm vi: hệ thống (admin) hoặc gói riêng của đối tác */
+  async findAll(scope: OwnerScope = null) {
     const packages = await this.prisma.membershipPackage.findMany({
-      where: { type: { not: PackageType.SESSION_BASED } },
+      where: { type: { not: PackageType.SESSION_BASED }, ...ownerWhere(scope) },
       include: {
         _count: {
           select: { memberships: true },
@@ -45,7 +46,7 @@ export class PackagesService {
     return packages.map((pkg) => this.withFeatures(pkg));
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, scope: OwnerScope = null) {
     const pkg = await this.prisma.membershipPackage.findUnique({
       where: { id },
       include: {
@@ -53,6 +54,7 @@ export class PackagesService {
       },
     });
     if (!pkg) throw new NotFoundException("Không tìm thấy gói tập");
+    assertInScope(pkg.ownerPartnerId, scope, "Không tìm thấy gói tập");
     return this.withFeatures(pkg);
   }
 
@@ -72,7 +74,7 @@ export class PackagesService {
     }
   }
 
-  private assertTierList(tiers: string[]) {
+  private assertTierList(tiers: string[] | undefined) {
     if (!Array.isArray(tiers) || tiers.length === 0) {
       throw new BadRequestException("Phải chọn ít nhất một hạng phòng gym");
     }
@@ -83,10 +85,11 @@ export class PackagesService {
   }
 
   /** Tạo gói tập mới — backend tự sinh mã gói, không tin frontend */
-  async create(dto: CreatePackageDto) {
+  async create(dto: CreatePackageDto, scope: OwnerScope = null) {
     const type = dto.type ?? PackageType.FIXED_TERM;
     this.assertVisitRule(type, dto.visitLimit);
-    this.assertTierList(dto.gymTierAccess);
+    // Gói hệ thống bắt buộc chọn hạng phòng đối tác; gói riêng của đối tác chỉ dùng tại phòng đó
+    if (scope === null) this.assertTierList(dto.gymTierAccess);
 
     if (dto.features && typeof dto.features === "object") {
       if (!Array.isArray(dto.features.items)) {
@@ -115,19 +118,21 @@ export class PackagesService {
         type,
         visitLimit: dto.visitLimit ?? null,
         dailyVisitLimit: dto.dailyVisitLimit ?? 1,
-        gymTierAccess: serializeJsonText(dto.gymTierAccess),
+        gymTierAccess: scope === null ? serializeJsonText(dto.gymTierAccess) : null,
         status: dto.status || "ACTIVE",
+        ownerPartnerId: scope,
       },
     });
     return this.withFeatures(pkg);
   }
 
   /** Cập nhật gói tập */
-  async update(id: string, dto: UpdatePackageDto) {
+  async update(id: string, dto: UpdatePackageDto, scope: OwnerScope = null) {
     const pkg = await this.prisma.membershipPackage.findUnique({
       where: { id },
     });
     if (!pkg) throw new NotFoundException("Không tìm thấy gói tập");
+    assertInScope(pkg.ownerPartnerId, scope, "Không tìm thấy gói tập");
     if (pkg.type === PackageType.SESSION_BASED) {
       if (dto.status === "ACTIVE") {
         throw new BadRequestException(
@@ -144,7 +149,7 @@ export class PackagesService {
     const type = dto.type ?? pkg.type;
     const visitLimit = dto.visitLimit !== undefined ? dto.visitLimit : pkg.visitLimit;
     this.assertVisitRule(type, visitLimit);
-    if (dto.gymTierAccess !== undefined) this.assertTierList(dto.gymTierAccess);
+    if (dto.gymTierAccess !== undefined && scope === null) this.assertTierList(dto.gymTierAccess);
 
     const data: Prisma.MembershipPackageUpdateInput = {};
     if (dto.type !== undefined) data.type = dto.type;
@@ -156,7 +161,7 @@ export class PackagesService {
       data.price = new Prisma.Decimal(dto.price.toFixed(2));
     if (dto.visitLimit !== undefined) data.visitLimit = dto.visitLimit;
     if (dto.dailyVisitLimit !== undefined) data.dailyVisitLimit = dto.dailyVisitLimit;
-    if (dto.gymTierAccess !== undefined)
+    if (dto.gymTierAccess !== undefined && scope === null)
       data.gymTierAccess = serializeJsonText(dto.gymTierAccess);
     if (dto.status !== undefined) data.status = dto.status;
 
@@ -168,12 +173,13 @@ export class PackagesService {
   }
 
   /** Xoá gói tập — chỉ khi gói CHƯA được bán cho bất kỳ membership nào */
-  async remove(id: string) {
+  async remove(id: string, scope: OwnerScope = null) {
     const pkg = await this.prisma.membershipPackage.findUnique({
       where: { id },
       include: { _count: { select: { memberships: true } } },
     });
     if (!pkg) throw new NotFoundException("Không tìm thấy gói tập");
+    assertInScope(pkg.ownerPartnerId, scope, "Không tìm thấy gói tập");
 
     if (pkg._count.memberships > 0) {
       throw new ConflictException(

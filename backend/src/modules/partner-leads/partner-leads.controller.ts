@@ -20,7 +20,11 @@ import { RolesGuard } from "../../common/guards/roles.guard";
 import { CreatePartnerLeadDto } from "./dto/create-partner-lead.dto";
 import { CreatePartnerAccountDto } from "./dto/create-partner-account.dto";
 import { QueryPartnerLeadsDto } from "./dto/query-partner-leads.dto";
-import { UpdatePartnerLeadDto } from "./dto/update-partner-lead.dto";
+import {
+  AssessPartnerLeadDto,
+  TransitionPartnerLeadDto,
+  UpdatePartnerLeadDto,
+} from "./dto/update-partner-lead.dto";
 import { PartnerLeadsService } from "./partner-leads.service";
 
 @ApiTags("Partner leads")
@@ -48,13 +52,62 @@ export class PartnerLeadsController {
   @ApiBearerAuth("JWT-auth")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN, Role.MANAGER)
-  @ApiOperation({ summary: "Cập nhật trạng thái và ghi chú yêu cầu hợp tác" })
+  @ApiOperation({ summary: "Cập nhật ghi chú nội bộ của yêu cầu hợp tác" })
   adminUpdate(
     @Param("id") id: string,
     @Body() dto: UpdatePartnerLeadDto,
     @CurrentUser("id") actorId: string,
   ) {
     return this.service.adminUpdate(id, dto, actorId);
+  }
+
+  @Post("admin/:id/transition")
+  @ApiBearerAuth("JWT-auth")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.MANAGER)
+  @ApiOperation({
+    summary:
+      "Chuyển yêu cầu sang bước tiếp theo: Mới nhận → Đã liên hệ → Đang tư vấn → Đã chốt hợp tác (hoặc Đóng)",
+  })
+  transition(
+    @Param("id") id: string,
+    @Body() dto: TransitionPartnerLeadDto,
+    @CurrentUser("id") actorId: string,
+  ) {
+    return this.service.transition(id, dto, actorId);
+  }
+
+  @Get("admin/:id/photos")
+  @ApiBearerAuth("JWT-auth")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.MANAGER)
+  @ApiOperation({ summary: "Ảnh cơ sở vật chất đối tác gửi kèm yêu cầu" })
+  photos(@Param("id") id: string) {
+    return this.service.photos(id);
+  }
+
+  @Post("admin/:id/assessment")
+  @ApiBearerAuth("JWT-auth")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.MANAGER)
+  @ApiOperation({
+    summary: "Đánh giá hạng phòng gym (Standard/Plus/Premium) cho yêu cầu Gym Cộng đồng",
+  })
+  assess(
+    @Param("id") id: string,
+    @Body() dto: AssessPartnerLeadDto,
+    @CurrentUser("id") actorId: string,
+  ) {
+    return this.service.assess(id, dto, actorId);
+  }
+
+  @Get("admin/:id/history")
+  @ApiBearerAuth("JWT-auth")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.MANAGER)
+  @ApiOperation({ summary: "Lịch sử xử lý của một yêu cầu hợp tác" })
+  history(@Param("id") id: string) {
+    return this.service.history(id);
   }
 
   @Post("admin/:id/create-account")
@@ -69,6 +122,6 @@ export class PartnerLeadsController {
     @Body() dto: CreatePartnerAccountDto,
     @CurrentUser("id") actorId: string,
   ) {
-    return this.service.createPartnerAccount(id, dto.businessName, actorId);
+    return this.service.createPartnerAccount(id, dto.businessName, actorId, dto.termMonths);
   }
 }

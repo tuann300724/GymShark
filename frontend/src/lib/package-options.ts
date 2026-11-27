@@ -1,4 +1,9 @@
-import type { GymTier, MembershipPackage, MembershipPackageInput, PackageBillingType } from '@/services/types';
+import type {
+  GymTier,
+  MembershipPackage,
+  MembershipPackageInput,
+  PackageBillingType,
+} from '@/services/types';
 
 /** Hằng số hạng phòng gym đối tác — khớp `GymTier` ở backend */
 export const GYM_TIERS: { value: GymTier; label: string; shortLabel: string; hint: string }[] = [
@@ -11,6 +16,29 @@ export const GYM_TIERS: { value: GymTier; label: string; shortLabel: string; hin
   { value: 'TIER_2', label: 'Tier 2 — Plus', shortLabel: 'Plus', hint: 'Phòng gym nâng cao' },
   { value: 'TIER_3', label: 'Tier 3 — Premium', shortLabel: 'Premium', hint: 'Phòng gym cao cấp' },
 ];
+
+/** Tiêu chí xếp hạng phòng gym đối tác — admin đối chiếu với ảnh cơ sở vật chất */
+export const GYM_TIER_CRITERIA: Record<GymTier, string[]> = {
+  TIER_1: [
+    'Máy tạ, tạ tự do và cardio phổ thông, đủ dùng',
+    'Có quạt/điều hòa, phòng thay đồ và vệ sinh cơ bản',
+    'Không gian gọn, sạch sẽ',
+  ],
+  TIER_2: [
+    'Thiết bị đa dạng, còn mới, chia khu tạ / cardio / functional rõ ràng',
+    'Điều hòa toàn phòng, tủ đồ có khóa, phòng tắm riêng',
+    'Có khu lớp nhóm hoặc PT, lễ tân trực thường xuyên',
+  ],
+  TIER_3: [
+    'Thiết bị cao cấp (thương hiệu nhập khẩu), không gian rộng, thiết kế đẹp',
+    'Tiện ích thêm: xông hơi, hồ bơi, khăn, nước uống, khu nghỉ',
+    'Dịch vụ chuyên nghiệp: lễ tân, vệ sinh liên tục, đội ngũ PT',
+  ],
+};
+
+export function gymTierLabel(tier: GymTier | null | undefined): string {
+  return GYM_TIERS.find((t) => t.value === tier)?.shortLabel ?? 'Chưa xếp hạng';
+}
 
 /** Loại hình gói có thể tạo/sửa — khớp `CREATABLE_PACKAGE_TYPES` ở backend */
 export type CreatablePackageType = 'FIXED_TERM' | 'CREDIT_BASED';
@@ -74,7 +102,6 @@ export function visitLimitLabel(pkg: Pick<MembershipPackage, 'type' | 'visitLimi
   return pkg.type === 'CREDIT_BASED' ? 'Tổng số lượt của gói' : 'Số lượt tối đa mỗi tháng';
 }
 
-
 /** JSON mẫu để tích hợp API gói thời hạn và gói lượt. */
 export const SAMPLE_MEMBERSHIP_PACKAGES: MembershipPackageInput[] = [
   {
@@ -87,7 +114,13 @@ export const SAMPLE_MEMBERSHIP_PACKAGES: MembershipPackageInput[] = [
     price: 450000,
     status: 'ACTIVE',
     description: 'Tập luyện linh hoạt tại mạng lưới phòng gym đối tác.',
-    features: { items: ['Tập tại phòng gym hạng Standard', 'Tối đa 16 lượt/tháng', 'Tối đa 1 lượt check-in/ngày'] },
+    features: {
+      items: [
+        'Tập tại phòng gym hạng Standard',
+        'Tối đa 16 lượt/tháng',
+        'Tối đa 1 lượt check-in/ngày',
+      ],
+    },
   },
   {
     name: 'Gói Pass 15 Lượt',
@@ -99,6 +132,12 @@ export const SAMPLE_MEMBERSHIP_PACKAGES: MembershipPackageInput[] = [
     price: 750000,
     status: 'ACTIVE',
     description: '15 lượt tập tại các phòng gym hạng Standard và Plus trong 60 ngày.',
-    features: { items: ['15 lượt check-in', 'Tập tại phòng gym hạng Standard & Plus', 'Tối đa 1 lượt check-in/ngày'] },
+    features: {
+      items: [
+        '15 lượt check-in',
+        'Tập tại phòng gym hạng Standard & Plus',
+        'Tối đa 1 lượt check-in/ngày',
+      ],
+    },
   },
 ];

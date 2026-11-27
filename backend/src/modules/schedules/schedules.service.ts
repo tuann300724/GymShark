@@ -8,6 +8,7 @@ import {
 import { Prisma } from "@prisma/client";
 import { SessionType, TrainerStatus } from "../../common/constants/db-enums";
 import { PrismaService } from "../../prisma/prisma.service";
+import { assertInScope, resolveOwnerScope, type OwnerScope } from "../../common/utils/partner-scope";
 import { AuditService } from "../audit-logs/audit-logs.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import {
@@ -35,6 +36,51 @@ export class SchedulesService {
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
+
+  // ---------------------------------------------------------------------------
+  // Phạm vi đối tác: lịch tập thuộc phòng gym của PT phụ trách (Trainer.ownerPartnerId)
+  // ---------------------------------------------------------------------------
+
+  private scopeFor(role?: string, userId?: string) {
+    return resolveOwnerScope(this.prisma, { id: userId, role });
+  }
+
+  /** Admin/nhân viên/đối tác chỉ thao tác buổi tập thuộc phạm vi của mình (PT & hội viên tự giới hạn riêng) */
+  private async assertSessionScope(sessionId: string, role?: string, userId?: string) {
+    if (role === "TRAINER" || role === "MEMBER") return;
+    const scope = await this.scopeFor(role, userId);
+    const session = await this.prisma.trainingSchedule.findUnique({
+      where: { id: sessionId },
+      select: { trainer: { select: { ownerPartnerId: true } } },
+    });
+    if (!session) throw new NotFoundException("Không tìm thấy buổi tập.");
+    assertInScope(session.trainer?.ownerPartnerId, scope, "Không tìm thấy buổi tập.");
+  }
+
+  /** PT, hội viên, phòng tập của một buổi phải cùng phạm vi với người thao tác */
+  private async assertRefsInScope(
+    refs: { trainerId?: string | null; memberId?: string | null; roomId?: string | null },
+    role?: string,
+    userId?: string,
+  ) {
+    if (role === "TRAINER" || role === "MEMBER") return;
+    const scope = await this.scopeFor(role, userId);
+    if (refs.trainerId) {
+      const t = await this.prisma.trainer.findUnique({ where: { id: refs.trainerId }, select: { ownerPartnerId: true } });
+      if (!t) throw new NotFoundException("Không tìm thấy huấn luyện viên.");
+      assertInScope(t.ownerPartnerId, scope, "Không tìm thấy huấn luyện viên.");
+    }
+    if (refs.memberId) {
+      const m = await this.prisma.member.findUnique({ where: { id: refs.memberId }, select: { ownerPartnerId: true } });
+      if (!m) throw new NotFoundException("Không tìm thấy hội viên.");
+      assertInScope(m.ownerPartnerId, scope, "Không tìm thấy hội viên.");
+    }
+    if (refs.roomId) {
+      const r = await this.prisma.room.findUnique({ where: { id: refs.roomId }, select: { ownerPartnerId: true } });
+      if (!r) throw new NotFoundException("Không tìm thấy phòng tập.");
+      assertInScope(r.ownerPartnerId, scope, "Không tìm thấy phòng tập.");
+    }
+  }
 
   private async resolveMemberByUserId(userId: string) {
     const member = await this.prisma.member.findUnique({ where: { userId } });
@@ -208,8 +254,9 @@ export class SchedulesService {
   // Backward-compatible GET /schedules (trang lịch cũ + public)
   // ---------------------------------------------------------------------------
 
-  async findAll() {
+  async findAll(scope: OwnerScope = null) {
     return this.prisma.trainingSchedule.findMany({
+      where: { trainer: { is: { ownerPartnerId: scope } } },
       include: {
         trainer: {
           include: {
@@ -225,7 +272,7 @@ export class SchedulesService {
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, scope: OwnerScope = null) {
     const session = await this.prisma.trainingSchedule.findUnique({
       where: { id },
       include: {
@@ -235,6 +282,7 @@ export class SchedulesService {
       },
     });
     if (!session) throw new NotFoundException("Không tìm thấy buổi tập.");
+    assertInScope(session.trainer?.ownerPartnerId, scope, "Không tìm thấy buổi tập.");
     return session;
   }
 
@@ -261,6 +309,10 @@ export class SchedulesService {
     const skip = (page - 1) * limit;
 
     const where: Prisma.TrainingScheduleWhereInput = {};
+    // Đối tác chỉ thấy lịch của PT phòng mình; hệ thống chỉ thấy lịch PT Gym Master
+    if (role !== "TRAINER") {
+      where.trainer = { is: { ownerPartnerId: await this.scopeFor(role, userId) } };
+    }
 
     // TRAINER chỉ xem được lịch của chính mình — backend enforce
     if (role === "TRAINER" && userId) {
@@ -335,6 +387,7 @@ export class SchedulesService {
   }
 
   async findOneSession(id: string, role?: string, userId?: string) {
+    await this.assertSessionScope(id, role, userId);
     const session = await this.prisma.trainingSchedule.findUnique({
       where: { id },
       include: {
@@ -388,6 +441,7 @@ export class SchedulesService {
   // ---------------------------------------------------------------------------
 
   async createSession(dto: CreateSessionDto, role: string, actorId?: string) {
+    await this.assertRefsInScope(dto, role, actorId);
     const start = new Date(dto.startTime);
     const end = new Date(dto.endTime);
     this.assertValidTime(start, end);
@@ -489,6 +543,8 @@ export class SchedulesService {
     role: string,
     actorId?: string,
   ) {
+    await this.assertSessionScope(id, role, actorId);
+    await this.assertRefsInScope(dto, role, actorId);
     const existing = await this.prisma.trainingSchedule.findUnique({
       where: { id },
     });
@@ -617,6 +673,7 @@ export class SchedulesService {
     role: string,
     userId?: string,
   ) {
+    await this.assertSessionScope(id, role, userId);
     const existing = await this.prisma.trainingSchedule.findUnique({
       where: { id },
     });
@@ -661,6 +718,7 @@ export class SchedulesService {
   }
 
   async completeSession(id: string, role: string, userId?: string) {
+    await this.assertSessionScope(id, role, userId);
     const existing = await this.prisma.trainingSchedule.findUnique({
       where: { id },
     });
@@ -952,6 +1010,7 @@ export class SchedulesService {
   // ---------------------------------------------------------------------------
 
   async getProgress(sessionId: string, role?: string, userId?: string) {
+    await this.assertSessionScope(sessionId, role, userId);
     const session = await this.prisma.trainingSchedule.findUnique({
       where: { id: sessionId },
       select: { id: true, trainerId: true, memberId: true },
@@ -994,6 +1053,7 @@ export class SchedulesService {
     role: string,
     userId?: string,
   ) {
+    await this.assertSessionScope(sessionId, role, userId);
     const session = await this.prisma.trainingSchedule.findUnique({
       where: { id: sessionId },
       select: { id: true, trainerId: true, memberId: true },

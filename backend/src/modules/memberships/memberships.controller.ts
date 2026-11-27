@@ -14,6 +14,7 @@ import {
   ApiResponse,
 } from "@nestjs/swagger";
 import { MembershipsService } from "./memberships.service";
+import type { ScopeActor } from "../../common/utils/partner-scope";
 import { UpdateMembershipStatusDto } from "./dto/update-membership-status.dto";
 import { ExtendMembershipDto } from "./dto/extend-membership.dto";
 import { CreateCancelRequestDto } from "./dto/create-cancel-request.dto";
@@ -37,15 +38,15 @@ export class MembershipsController {
   @Get()
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
   @ApiOperation({ summary: "Lấy danh sách các hợp đồng/thẻ hội viên" })
-  findAll() {
-    return this.membershipsService.findAll();
+  findAll(@CurrentUser() actor: ScopeActor) {
+    return this.membershipsService.findAll(actor);
   }
 
   @Get(":id")
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
   @ApiOperation({ summary: "Lấy chi tiết một hợp đồng/thẻ hội viên" })
-  findOne(@Param("id") id: string) {
-    return this.membershipsService.findOne(id);
+  findOne(@Param("id") id: string, @CurrentUser() actor: ScopeActor) {
+    return this.membershipsService.findOne(id, actor);
   }
 
   @Patch(":id/status")
@@ -61,9 +62,9 @@ export class MembershipsController {
   updateStatus(
     @Param("id") id: string,
     @Body() dto: UpdateMembershipStatusDto,
-    @CurrentUser("id") actorId: string,
+    @CurrentUser() actor: ScopeActor,
   ) {
-    return this.membershipsService.updateStatus(id, dto, actorId);
+    return this.membershipsService.updateStatus(id, dto, actor?.id, actor);
   }
 
   @Patch(":id/extend")
@@ -73,9 +74,9 @@ export class MembershipsController {
   extend(
     @Param("id") id: string,
     @Body() dto: ExtendMembershipDto,
-    @CurrentUser("id") actorId: string,
+    @CurrentUser() actor: ScopeActor,
   ) {
-    return this.membershipsService.extend(id, dto, actorId);
+    return this.membershipsService.extend(id, dto, actor?.id, actor);
   }
 
   // ---------------- Yêu cầu hủy gói (hội viên gửi → admin duyệt) ----------------

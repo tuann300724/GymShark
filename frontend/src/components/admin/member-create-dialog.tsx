@@ -30,6 +30,7 @@ import {
   type RegisterCardResult,
 } from '@/services/admin-member.service';
 import { faceApi } from '@/services/face.service';
+import { getStoredUser } from '@/lib/auth';
 import type { MembershipPackage } from '@/services/types';
 
 /**
@@ -79,6 +80,8 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
   const toast = useToast();
   const [step, setStep] = useState<Step>(1);
   const [form, setForm] = useState(EMPTY_FORM);
+  // Phòng gym đối tác: hội viên không có tài khoản — chỉ hồ sơ + khuôn mặt để check-in
+  const [isPartner, setIsPartner] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Gói tập
@@ -134,6 +137,7 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
   // Reset toàn bộ mỗi lần mở lại dialog
   useEffect(() => {
     if (!open) return;
+    setIsPartner(getStoredUser()?.role === 'PARTNER');
     setStep(1);
     setForm(EMPTY_FORM);
     setErrors({});
@@ -237,7 +241,9 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
   const validateStep1 = () => {
     const next: Record<string, string> = {};
     if (form.fullName.trim().length < 2) next.fullName = 'Họ và tên phải có tối thiểu 2 ký tự';
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())) next.email = 'Email không hợp lệ';
+    const email = form.email.trim();
+    if ((!isPartner || email) && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))
+      next.email = 'Email không hợp lệ';
     if (!/^[0-9+\s.()-]{8,20}$/.test(form.phone.trim())) next.phone = 'Số điện thoại không hợp lệ';
     if (form.password && form.password.length < 6) next.password = 'Mật khẩu tối thiểu 6 ký tự';
     setErrors(next);
@@ -248,11 +254,11 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
     if (!validateStep1()) return;
     const payload: CreateMemberPayload = {
       fullName: form.fullName.trim(),
-      email: form.email.trim(),
       phone: form.phone.trim(),
       gender: form.gender as CreateMemberPayload['gender'],
     };
-    if (form.password.trim()) payload.password = form.password.trim();
+    if (form.email.trim()) payload.email = form.email.trim();
+    if (!isPartner && form.password.trim()) payload.password = form.password.trim();
     if (form.dateOfBirth) payload.dateOfBirth = form.dateOfBirth;
     if (form.address.trim()) payload.address = form.address.trim();
     if (form.emergencyContact.trim()) payload.emergencyContact = form.emergencyContact.trim();
@@ -350,7 +356,7 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
             />
             <Input
-              label="Email *"
+              label={isPartner ? 'Email (không bắt buộc)' : 'Email *'}
               type="email"
               placeholder="ten@gmail.com"
               value={form.email}
@@ -373,14 +379,16 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
               value={form.dateOfBirth}
               onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })}
             />
-            <Input
-              label="Mật khẩu đăng nhập"
-              type="text"
-              placeholder="Để trống = hệ thống sinh mật khẩu tạm"
-              value={form.password}
-              error={errors.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-            />
+            {!isPartner && (
+              <Input
+                label="Mật khẩu đăng nhập"
+                type="text"
+                placeholder="Để trống = hệ thống sinh mật khẩu tạm"
+                value={form.password}
+                error={errors.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+              />
+            )}
             <Input
               label="Người liên hệ khẩn cấp"
               placeholder="Nguyễn Văn B - 0911222333"
@@ -395,8 +403,9 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
             />
           </div>
           <p className="rounded-lg border border-line bg-surface px-3 py-2.5 text-[11px] leading-relaxed text-muted">
-            Bước này tạo tài khoản đăng nhập + hồ sơ hội viên. Nếu không nhập mật khẩu, hệ thống
-            sinh một mật khẩu tạm và hiển thị ở bước cuối để bàn giao cho hội viên.
+            {isPartner
+              ? 'Hội viên tập tại phòng của bạn không cần tài khoản hay mật khẩu — chỉ tạo hồ sơ. Khi đến tập, lễ tân tìm theo tên / số điện thoại hoặc quét khuôn mặt để check-in.'
+              : 'Bước này tạo tài khoản đăng nhập + hồ sơ hội viên. Nếu không nhập mật khẩu, hệ thống sinh một mật khẩu tạm và hiển thị ở bước cuối để bàn giao cho hội viên.'}
           </p>
         </div>
       );
@@ -592,8 +601,9 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
           <div className="flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2.5">
             <ScanFace className="size-4 shrink-0 text-neon" />
             <p className="text-[11px] leading-relaxed text-muted">
-              Bước này là tuỳ chọn. Quét khuôn mặt giúp hội viên check-in nhanh bằng nhận diện tại
-              quầy. Có thể bỏ qua và quét lại sau trong hồ sơ hội viên.
+              {isPartner
+                ? 'Nên quét ngay: hội viên không có tài khoản nên lần sau chỉ cần đến quầy quét mặt là check-in được. Có thể bỏ qua và quét sau trong hồ sơ hội viên (khi đó lễ tân tìm theo tên để check-in).'
+                : 'Bước này là tuỳ chọn. Quét khuôn mặt giúp hội viên check-in nhanh bằng nhận diện tại quầy. Có thể bỏ qua và quét lại sau trong hồ sơ hội viên.'}
             </p>
           </div>
 
@@ -693,7 +703,11 @@ export function MemberCreateDialog({ open, onClose, onCreated }: Props) {
       open={open}
       onClose={onClose}
       title="Đăng ký hội viên mới"
-      description="Làm thẻ tại quầy: tạo hồ sơ → chọn gói tập → thanh toán → quét khuôn mặt"
+      description={
+        isPartner
+          ? 'Tại quầy: tạo hồ sơ (không cần tài khoản) → chọn gói tập → thanh toán → quét khuôn mặt'
+          : 'Làm thẻ tại quầy: tạo hồ sơ → chọn gói tập → thanh toán → quét khuôn mặt'
+      }
       className="max-w-2xl"
     >
       <div className="space-y-5">

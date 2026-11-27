@@ -2,6 +2,12 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { InvoiceStatus } from '../../common/constants/db-enums';
 import { PrismaService } from '../../prisma/prisma.service';
+import {
+  assertInScope,
+  memberOwnerWhere,
+  resolveOwnerScope,
+  type ScopeActor,
+} from '../../common/utils/partner-scope';
 import { InvoiceListQueryDto } from './dto/invoice-list-query.dto';
 
 @Injectable()
@@ -9,11 +15,12 @@ export class InvoicesService {
   constructor(private prisma: PrismaService) {}
 
   /** Danh sách hóa đơn (admin) — filter + search + phân trang */
-  async findAll(query: InvoiceListQueryDto) {
+  async findAll(query: InvoiceListQueryDto, actor?: ScopeActor) {
+    const scope = await resolveOwnerScope(this.prisma, actor);
     const page = query.page || 1;
     const limit = query.limit || 20;
     const skip = (page - 1) * limit;
-    const where: Prisma.InvoiceWhereInput = {};
+    const where: Prisma.InvoiceWhereInput = { ...memberOwnerWhere(scope) };
 
     if (query.status) where.status = query.status;
     if (query.from || query.to) {
@@ -54,7 +61,8 @@ export class InvoicesService {
   }
 
   /** Chi tiết hóa đơn (admin) */
-  async findOne(id: string) {
+  async findOne(id: string, actor?: ScopeActor) {
+    const scope = await resolveOwnerScope(this.prisma, actor);
     const invoice = await this.prisma.invoice.findUnique({
       where: { id },
       include: {
@@ -64,6 +72,7 @@ export class InvoicesService {
       },
     });
     if (!invoice) throw new NotFoundException('Không tìm thấy hóa đơn');
+    assertInScope(invoice.member?.ownerPartnerId, scope, 'Không tìm thấy hóa đơn');
     return invoice;
   }
 

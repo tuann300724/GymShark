@@ -34,8 +34,11 @@ export class PaymentsController {
   @ApiOperation({
     summary: 'Danh sách giao dịch thanh toán (admin) — filter, search, phân trang kèm thống kê doanh thu',
   })
-  findAll(@Query() query: PaymentListQueryDto) {
-    return this.paymentsService.findAll(query);
+  findAll(
+    @Query() query: PaymentListQueryDto,
+    @CurrentUser() user: { id: string; role: string },
+  ) {
+    return this.paymentsService.findAll(query, user);
   }
 
   @Get('bank-info')
@@ -77,8 +80,8 @@ export class PaymentsController {
   @Get(':id')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
   @ApiOperation({ summary: 'Chi tiết một giao dịch thanh toán (admin)' })
-  findOne(@Param('id') id: string) {
-    return this.paymentsService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: { id: string; role: string }) {
+    return this.paymentsService.findOne(id, user);
   }
 
   @Post(':id/confirm')

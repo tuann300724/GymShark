@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/toast';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StaggerGroup, StaggerItem } from '@/components/ui/motion';
+import NearbyGymsCard from '@/components/member/nearby-gyms-card';
 import {
   QrCode,
   CalendarCheck,
@@ -359,6 +360,9 @@ export default function MemberDashboardPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Gợi ý phòng tập đối tác theo khu vực + hạng gói (chỉ khi có gói đang hoạt động) */}
+      <NearbyGymsCard />
 
       {/* Stats */}
       <StaggerGroup className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

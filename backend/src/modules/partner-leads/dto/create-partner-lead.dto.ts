@@ -1,12 +1,43 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  ArrayMaxSize,
+  IsArray,
   IsEmail,
   IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
+  Matches,
   MaxLength,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  FACILITY_PHOTO_AREAS,
+  MAX_FACILITY_PHOTOS,
+  MAX_PHOTO_DATA_URL_LENGTH,
+} from '../partner-lead-workflow';
+
+/** Một ảnh cơ sở vật chất (đã nén ở trình duyệt, gửi dạng data URL) */
+export class PartnerLeadPhotoDto {
+  @ApiProperty({ enum: FACILITY_PHOTO_AREAS, example: 'WEIGHTS' })
+  @IsIn(FACILITY_PHOTO_AREAS, { message: 'Khu vực ảnh không hợp lệ' })
+  area: (typeof FACILITY_PHOTO_AREAS)[number];
+
+  @ApiPropertyOptional({ example: 'Khu tạ tự do 120m²' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(400)
+  caption?: string;
+
+  @ApiProperty({ description: 'data:image/jpeg;base64,...' })
+  @IsString()
+  @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/, {
+    message: 'Ảnh phải là JPG, PNG hoặc WEBP',
+  })
+  @MaxLength(MAX_PHOTO_DATA_URL_LENGTH, { message: 'Ảnh quá lớn, vui lòng chọn ảnh khác' })
+  dataUrl: string;
+}
 
 /** Hướng hợp tác đối tác chọn trên 2 thẻ (owner = phòng gym riêng, community = cộng đồng) */
 export const PARTNER_LEAD_DIRECTIONS = ['OWNER', 'COMMUNITY'] as const;
@@ -54,4 +85,15 @@ export class CreatePartnerLeadDto {
   @IsString()
   @MaxLength(4000)
   message?: string;
+
+  @ApiPropertyOptional({
+    type: [PartnerLeadPhotoDto],
+    description: `Ảnh cơ sở vật chất — bắt buộc tối thiểu 3 ảnh với hướng COMMUNITY (tối đa ${MAX_FACILITY_PHOTOS})`,
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(MAX_FACILITY_PHOTOS, { message: `Tối đa ${MAX_FACILITY_PHOTOS} ảnh` })
+  @ValidateNested({ each: true })
+  @Type(() => PartnerLeadPhotoDto)
+  photos?: PartnerLeadPhotoDto[];
 }

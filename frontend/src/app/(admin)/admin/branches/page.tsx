@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { getStoredUser } from '@/lib/auth';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, MapPin, Phone, Plus, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,9 @@ export default function PartnerBranchesPage() {
   const [editing, setEditing] = useState<PartnerBranchRecord | null>(null);
   const [form, setForm] = useState<PartnerBranchInput>(EMPTY_FORM);
   const [open, setOpen] = useState(false);
+  // Chỉ chủ đối tác thêm/sửa/xóa cơ sở; nhân viên chỉ xem
+  const [isStaff, setIsStaff] = useState(false);
+  useEffect(() => setIsStaff(Boolean(getStoredUser()?.partnerStaff)), []);
 
   const branchesQuery = useQuery({
     queryKey: ['partner-my-branches'],
@@ -67,8 +71,8 @@ export default function PartnerBranchesPage() {
       name: branch.name,
       address: branch.address || '',
       phone: branch.phone || '',
-      latitude: branch.latitude,
-      longitude: branch.longitude,
+      latitude: branch.latitude ?? undefined,
+      longitude: branch.longitude ?? undefined,
     });
     setOpen(true);
   };
@@ -92,6 +96,16 @@ export default function PartnerBranchesPage() {
     [],
   );
 
+  const updateCoordinates = useCallback(
+    (point: { lat: number; lng: number } | null) =>
+      setForm((current) => ({
+        ...current,
+        latitude: point?.lat ?? undefined,
+        longitude: point?.lng ?? undefined,
+      })),
+    [],
+  );
+
   return (
     <div className="space-y-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -104,9 +118,11 @@ export default function PartnerBranchesPage() {
             Thêm và cập nhật thông tin các địa điểm thuộc doanh nghiệp của bạn.
           </p>
         </div>
-        <Button variant="primary" onClick={openCreate}>
-          <Plus className="size-4" /> Thêm cơ sở
-        </Button>
+        {!isStaff && (
+          <Button variant="primary" onClick={openCreate}>
+            <Plus className="size-4" /> Thêm cơ sở
+          </Button>
+        )}
       </header>
 
       {branchesQuery.isPending ? (
@@ -150,7 +166,9 @@ export default function PartnerBranchesPage() {
                     <span>{branch.phone || 'Chưa cập nhật số điện thoại'}</span>
                   </p>
                 </div>
-                <div className="mt-5 flex justify-end gap-2 border-t border-line pt-4">
+                <div
+                  className={`mt-5 flex justify-end gap-2 border-t border-line pt-4 ${isStaff ? 'hidden' : ''}`}
+                >
                   <Button variant="outline" size="sm" onClick={() => openEdit(branch)}>
                     <Pencil className="size-3.5" /> Sửa
                   </Button>
@@ -173,9 +191,11 @@ export default function PartnerBranchesPage() {
           title="Doanh nghiệp chưa có cơ sở nào"
           description="Thêm địa điểm đầu tiên để quản lý thông tin chi nhánh của doanh nghiệp."
           action={
-            <Button variant="primary" onClick={openCreate}>
-              <Plus className="size-4" /> Thêm cơ sở
-            </Button>
+            isStaff ? undefined : (
+              <Button variant="primary" onClick={openCreate}>
+                <Plus className="size-4" /> Thêm cơ sở
+              </Button>
+            )
           }
         />
       )}
@@ -203,9 +223,10 @@ export default function PartnerBranchesPage() {
           <BranchAddressPicker
             key={editing?.id || 'new-branch'}
             initialAddress={editing?.address || ''}
-            initialLatitude={form.latitude}
-            initialLongitude={form.longitude}
+            initialLatitude={editing?.latitude ?? undefined}
+            initialLongitude={editing?.longitude ?? undefined}
             onAddressChange={updateAddress}
+            onCoordinatesChange={updateCoordinates}
           />
           <Input
             label="Số điện thoại"

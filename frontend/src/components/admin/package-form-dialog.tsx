@@ -16,6 +16,7 @@ import {
   type CreatablePackageType,
 } from '@/lib/package-options';
 import { cn } from '@/lib/utils';
+import { getStoredUser, isPartnerRole } from '@/lib/auth';
 import { Check, Info, Plus, X } from 'lucide-react';
 import type { GymTier, MembershipPackage, MembershipPackageInput } from '@/services/types';
 
@@ -56,7 +57,7 @@ function initialState(pkg?: MembershipPackage | null): PackageFormState {
 
 type FormErrors = Partial<Record<keyof PackageFormState | 'features', string>>;
 
-function validate(form: PackageFormState, features: string[]): FormErrors {
+function validate(form: PackageFormState, features: string[], isPartner = false): FormErrors {
   const errors: FormErrors = {};
   if (!form.name.trim()) errors.name = 'Tên gói tập không được để trống';
 
@@ -70,7 +71,8 @@ function validate(form: PackageFormState, features: string[]): FormErrors {
     errors.price = 'Giá bán không hợp lệ';
   }
 
-  if (form.gymTierAccess.length === 0) {
+  // Gói riêng của phòng gym đối tác không áp dụng hạng phòng
+  if (!isPartner && form.gymTierAccess.length === 0) {
     errors.gymTierAccess = 'Phải chọn ít nhất một hạng phòng gym';
   }
 
@@ -107,6 +109,8 @@ export function PackageFormDialog({ open, pkg, onClose, onSaved }: PackageFormDi
   const [form, setForm] = useState<PackageFormState>(() => initialState(pkg));
   const [features, setFeatures] = useState<string[]>([]);
   const [showErrors, setShowErrors] = useState(false);
+  const [isPartner, setIsPartner] = useState(false);
+  useEffect(() => setIsPartner(isPartnerRole(getStoredUser()?.role)), []);
 
   // Đồng bộ form mỗi khi mở hộp thoại (tạo mới hoặc sửa gói khác)
   useEffect(() => {
@@ -116,7 +120,7 @@ export function PackageFormDialog({ open, pkg, onClose, onSaved }: PackageFormDi
     setShowErrors(false);
   }, [open, pkg]);
 
-  const errors = validate(form, features);
+  const errors = validate(form, features, isPartner);
   const canSubmit = Object.keys(errors).length === 0;
 
   const saveMutation = useMutation({
@@ -130,7 +134,7 @@ export function PackageFormDialog({ open, pkg, onClose, onSaved }: PackageFormDi
         durationDays: Number(form.durationDays),
         visitLimit,
         dailyVisitLimit: 1,
-        gymTierAccess: form.gymTierAccess,
+        gymTierAccess: isPartner ? undefined : form.gymTierAccess,
         price: Number(form.price),
         status: form.status,
         description: form.description.trim() || undefined,
@@ -311,46 +315,52 @@ export function PackageFormDialog({ open, pkg, onClose, onSaved }: PackageFormDi
           để chống gian lận, áp dụng cho mọi loại hình gói.
         </p>
 
-        {/* Hạng phòng gym */}
-        <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
-            Hạng phòng gym đối tác được phép tập *
+        {/* Hạng phòng gym — chỉ gói của hệ thống; gói riêng của đối tác dùng tại chính phòng đó */}
+        {isPartner ? (
+          <p className="rounded-xl border border-line bg-ink p-3 text-xs text-muted">
+            Gói riêng của phòng bạn: chỉ hội viên của phòng mua được và chỉ check-in tại phòng bạn.
           </p>
-          <div className="space-y-2">
-            {GYM_TIERS.map((tier) => {
-              const checked = form.gymTierAccess.includes(tier.value);
-              return (
-                <label
-                  key={tier.value}
-                  className={cn(
-                    'flex cursor-pointer items-center gap-3 rounded-xl border px-3.5 py-3 transition-colors',
-                    checked
-                      ? 'border-neon/70 bg-neon/5'
-                      : 'border-line bg-ink hover:border-neon/30',
-                  )}
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => toggleTier(tier.value)}
-                    className="size-4 shrink-0 accent-neon"
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-semibold text-chalk">{tier.label}</span>
-                    <span className="block text-xs text-muted">{tier.hint}</span>
-                  </span>
-                  {checked && <Check className="size-4 shrink-0 text-neon" />}
-                </label>
-              );
-            })}
+        ) : (
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
+              Hạng phòng gym đối tác được phép tập *
+            </p>
+            <div className="space-y-2">
+              {GYM_TIERS.map((tier) => {
+                const checked = form.gymTierAccess.includes(tier.value);
+                return (
+                  <label
+                    key={tier.value}
+                    className={cn(
+                      'flex cursor-pointer items-center gap-3 rounded-xl border px-3.5 py-3 transition-colors',
+                      checked
+                        ? 'border-neon/70 bg-neon/5'
+                        : 'border-line bg-ink hover:border-neon/30',
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleTier(tier.value)}
+                      className="size-4 shrink-0 accent-neon"
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold text-chalk">{tier.label}</span>
+                      <span className="block text-xs text-muted">{tier.hint}</span>
+                    </span>
+                    {checked && <Check className="size-4 shrink-0 text-neon" />}
+                  </label>
+                );
+              })}
+            </div>
+            {showErrors && errors.gymTierAccess && (
+              <p className="mt-1.5 text-xs font-medium text-danger">{errors.gymTierAccess}</p>
+            )}
+            <p className="mt-2 text-xs text-muted">
+              Gói giá càng cao thì mở khóa được các phòng hạng cao hơn.
+            </p>
           </div>
-          {showErrors && errors.gymTierAccess && (
-            <p className="mt-1.5 text-xs font-medium text-danger">{errors.gymTierAccess}</p>
-          )}
-          <p className="mt-2 text-xs text-muted">
-            Gói giá càng cao thì mở khóa được các phòng hạng cao hơn.
-          </p>
-        </div>
+        )}
 
         {/* Giá + Trạng thái */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

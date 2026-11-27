@@ -22,10 +22,15 @@ export class CreateMemberDto {
   @MaxLength(100, { message: 'Họ và tên không được vượt quá 100 ký tự' })
   fullName: string;
 
-  @ApiProperty({ example: 'lan.nguyen@gmail.com' })
+  @ApiPropertyOptional({
+    example: 'lan.nguyen@gmail.com',
+    description:
+      'Bắt buộc với hội viên Gym Master (dùng làm tài khoản đăng nhập). Hội viên riêng của phòng gym đối tác không cần.',
+  })
+  @IsOptional()
   @IsEmail({}, { message: 'Email không đúng định dạng' })
   @MaxLength(120)
-  email: string;
+  email?: string;
 
   @ApiProperty({ example: '0912345678' })
   @IsString({ message: 'Số điện thoại không được để trống' })

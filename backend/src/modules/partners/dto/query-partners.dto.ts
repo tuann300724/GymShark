@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsEnum, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { PARTNERSHIP_TYPES } from './partnership.dto';
 import { Type } from 'class-transformer';
 import { PartnerStatus } from '../../../common/constants/db-enums';
 
@@ -13,6 +14,11 @@ export class QueryPartnersDto {
   @IsOptional()
   @IsEnum(PartnerStatus)
   status?: PartnerStatus;
+
+  @ApiPropertyOptional({ enum: PARTNERSHIP_TYPES, description: 'Lọc theo loại hợp tác' })
+  @IsOptional()
+  @IsIn(PARTNERSHIP_TYPES)
+  partnershipType?: (typeof PARTNERSHIP_TYPES)[number];
 
   @ApiPropertyOptional({ example: 1, default: 1 })
   @IsOptional()

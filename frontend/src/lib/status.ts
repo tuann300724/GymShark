@@ -194,6 +194,13 @@ export const AUDIT_ACTION_META: Record<string, { label: string; variant: BadgeVa
   PARTNER_SUSPEND: { label: 'Tạm khóa đối tác', variant: 'warning' },
   PARTNER_PAYMENT_ASSIGN: { label: 'Gán doanh thu cho đối tác', variant: 'info' },
   PARTNER_PAYMENT_UNASSIGN: { label: 'Bỏ gán doanh thu đối tác', variant: 'warning' },
+  PARTNER_LEAD_STATUS: { label: 'Chuyển bước yêu cầu hợp tác', variant: 'info' },
+  PARTNER_LEAD_NOTE: { label: 'Ghi chú yêu cầu hợp tác', variant: 'default' },
+  PARTNER_LEAD_ACCOUNT: { label: 'Cấp tài khoản từ yêu cầu hợp tác', variant: 'success' },
+  PARTNER_LEAD_ASSESS: { label: 'Xếp hạng phòng gym (yêu cầu hợp tác)', variant: 'info' },
+  PARTNER_TIER_UPDATE: { label: 'Cập nhật hạng phòng gym đối tác', variant: 'info' },
+  PARTNER_CONTRACT_UPDATE: { label: 'Cập nhật hợp đồng đối tác', variant: 'info' },
+  PARTNERSHIP_PLAN_UPDATE: { label: 'Sửa giá gói hợp tác', variant: 'warning' },
 };
 
 /** Nhãn cho loại đối tượng bị tác động */

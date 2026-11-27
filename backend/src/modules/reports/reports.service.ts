@@ -2,7 +2,23 @@ import { BadRequestException, Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { Role } from "../../common/enums/role.enum";
 import { PrismaService } from "../../prisma/prisma.service";
+import {
+  memberOwnerWhere,
+  resolveOwnerScope,
+  type ScopeActor,
+  resolvePartnerIdForUser,
+} from "../../common/utils/partner-scope";
 import { RevenueReportQueryDto } from "./dto/revenue-report-query.dto";
+
+/**
+ * Báo cáo/dashboard của quản trị chỉ tính dữ liệu hệ thống Gym Master —
+ * hội viên, gói, PT, lịch của phòng gym đối tác tự quản lý (ownerPartnerId) không lẫn vào.
+ */
+const SYSTEM_ONLY = {
+  member: { ownerPartnerId: null },
+  byMember: { member: { is: { ownerPartnerId: null } } },
+  byTrainer: { trainer: { is: { ownerPartnerId: null } } },
+} as const;
 
 @Injectable()
 export class ReportsService {
@@ -14,11 +30,7 @@ export class ReportsService {
    */
   private async partnerFacilityId(role?: string, userId?: string): Promise<string | null> {
     if (role !== Role.PARTNER || !userId) return null;
-    const partner = await this.prisma.partner.findUnique({
-      where: { userId },
-      select: { id: true },
-    });
-    return partner?.id ?? "__NO_FACILITY__";
+    return (await resolvePartnerIdForUser(this.prisma, userId)) ?? "__NO_FACILITY__";
   }
 
   async getSummary() {
@@ -39,46 +51,46 @@ export class ReportsService {
       todayCheckOuts,
       currentlyInside,
     ] = await Promise.all([
-      this.prisma.member.count(),
+      this.prisma.member.count({ where: SYSTEM_ONLY.member }),
       // Hội viên đang có thẻ còn hiệu lực
       this.prisma.membership.findMany({
-        where: {
+        where: { AND: [{
           status: "ACTIVE",
           endDate: { gte: now },
-        },
+        }, SYSTEM_ONLY.byMember] },
         select: { memberId: true },
         distinct: ["memberId"],
       }),
       // Hội viên có thẻ đã hết hạn và hiện không có thẻ hiệu lực
       this.prisma.membership.findMany({
-        where: {
+        where: { AND: [{
           endDate: { lt: now },
-        },
+        }, SYSTEM_ONLY.byMember] },
         select: { memberId: true, endDate: true },
         distinct: ["memberId"],
       }),
       this.prisma.membership.count({
-        where: { status: "PENDING" },
+        where: { AND: [{ status: "PENDING" }, SYSTEM_ONLY.byMember] },
       }),
       this.prisma.payment.count({
-        where: { status: "PENDING" },
+        where: { AND: [{ status: "PENDING" }, SYSTEM_ONLY.byMember] },
       }),
       this.prisma.payment.aggregate({
         _sum: { amount: true, refundAmount: true },
-        where: { status: { in: ["PAID", "REFUNDED"] } },
+        where: { AND: [{ status: { in: ["PAID", "REFUNDED"] } }, SYSTEM_ONLY.byMember] },
       }),
       this.prisma.payment.aggregate({
         _sum: { amount: true, refundAmount: true },
-        where: {
+        where: { AND: [{
           status: { in: ["PAID", "REFUNDED"] },
           createdAt: { gte: startOfMonth },
-        },
+        }, SYSTEM_ONLY.byMember] },
       }),
       this.prisma.member.count({
-        where: { joinedAt: { gte: startOfMonth } },
+        where: { AND: [{ joinedAt: { gte: startOfMonth } }, SYSTEM_ONLY.member] },
       }),
       this.prisma.trainer.count({
-        where: { status: "ACTIVE" },
+        where: { AND: [{ status: "ACTIVE" }, SYSTEM_ONLY.member] },
       }),
       this.prisma.checkIn.count({
         where: {
@@ -124,7 +136,7 @@ export class ReportsService {
 
   async getRevenueTrend() {
     const payments = await this.prisma.payment.findMany({
-      where: { status: { in: ["PAID", "REFUNDED"] } },
+      where: { AND: [{ status: { in: ["PAID", "REFUNDED"] } }, SYSTEM_ONLY.byMember] },
       select: {
         amount: true,
         refundAmount: true,
@@ -147,7 +159,9 @@ export class ReportsService {
    * Chỉ tính Payment.status = PAID; REFUNDED hạch toán riêng, không tính vào doanh thu.
    * PENDING / FAILED / CANCELLED không tính.
    */
-  async getRevenue(query: RevenueReportQueryDto) {
+  async getRevenue(query: RevenueReportQueryDto, actor?: ScopeActor) {
+    // Đối tác xem doanh thu hội viên phòng mình; hệ thống không tính doanh thu của đối tác
+    const own = memberOwnerWhere(await resolveOwnerScope(this.prisma, actor));
     const now = new Date();
     const startOfToday = this.startOfDay(now);
     const startOfWeek = new Date(now);
@@ -158,6 +172,7 @@ export class ReportsService {
 
     // Filter chung (áp dụng cho toàn bộ aggregation)
     const baseWhere: Prisma.PaymentWhereInput = {
+      ...own,
       status: { in: ["PAID", "REFUNDED"] },
     };
     if (query.method) baseWhere.method = query.method;
@@ -206,6 +221,7 @@ export class ReportsService {
       }),
       this.prisma.payment.findMany({
         where: {
+          ...own,
           status: { in: ["PAID", "REFUNDED"] },
           paidAt: { gte: startOfMonth },
           OR: [
@@ -222,24 +238,28 @@ export class ReportsService {
       this.prisma.payment.count({ where: baseWhere }),
       this.prisma.payment.count({
         where: {
+          ...own,
           status: "PENDING",
           ...(query.method ? { method: query.method } : {}),
         },
       }),
       this.prisma.payment.count({
         where: {
+          ...own,
           status: "FAILED",
           ...(query.method ? { method: query.method } : {}),
         },
       }),
       this.prisma.payment.count({
         where: {
+          ...own,
           status: "CANCELLED",
           ...(query.method ? { method: query.method } : {}),
         },
       }),
       this.prisma.payment.count({
         where: {
+          ...own,
           status: { in: ["PAID", "REFUNDED"] },
           OR: [
             { refundAmount: { gt: 0 } },
@@ -396,7 +416,7 @@ export class ReportsService {
 
     const [recentRegistrations, pendingPayments] = await Promise.all([
       this.prisma.membership.findMany({
-        where: {},
+        where: { AND: [{}, SYSTEM_ONLY.byMember] },
         include: {
           member: {
             select: { id: true, code: true, fullName: true, phone: true },
@@ -407,7 +427,7 @@ export class ReportsService {
         take: 6,
       }),
       this.prisma.payment.findMany({
-        where: { status: "PENDING" },
+        where: { AND: [{ status: "PENDING" }, SYSTEM_ONLY.byMember] },
         include: {
           member: {
             select: { id: true, code: true, fullName: true, phone: true },
@@ -527,7 +547,7 @@ export class ReportsService {
       : {};
 
     const members = await this.prisma.member.findMany({
-      where: whereMember,
+      where: { AND: [whereMember, SYSTEM_ONLY.member] },
       select: {
         id: true,
         code: true,
@@ -601,14 +621,14 @@ export class ReportsService {
 
     const [total, byStatus, recent, activeMemberRows, pendingCount] =
       await Promise.all([
-        this.prisma.member.count({ where: memberWhere }),
+        this.prisma.member.count({ where: { AND: [memberWhere, SYSTEM_ONLY.member] } }),
         this.prisma.member.groupBy({
           by: ["status"],
-          where: memberWhere,
+          where: { AND: [memberWhere, SYSTEM_ONLY.member] },
           _count: true,
         }),
         this.prisma.member.findMany({
-          where: memberWhere,
+          where: { AND: [memberWhere, SYSTEM_ONLY.member] },
           include: {
             _count: { select: { payments: true, checkIns: true } },
           },
@@ -616,21 +636,21 @@ export class ReportsService {
           take: 100,
         }),
         this.prisma.membership.findMany({
-          where: {
+          where: { AND: [{
             status: "ACTIVE",
             endDate: { gte: now },
-          },
+          }, SYSTEM_ONLY.byMember] },
           select: { memberId: true },
           distinct: ["memberId"],
         }),
         this.prisma.membership.count({
-          where: { status: "PENDING" },
+          where: { AND: [{ status: "PENDING" }, SYSTEM_ONLY.byMember] },
         }),
       ]);
 
     // Tăng trưởng theo tháng
     const joinedRows = await this.prisma.member.findMany({
-      where: memberWhere,
+      where: { AND: [memberWhere, SYSTEM_ONLY.member] },
       select: { joinedAt: true },
     });
     const monthMap = new Map<string, number>();
@@ -671,25 +691,25 @@ export class ReportsService {
 
     const [byStatus, packageRows, monthRows, expiredCount, pendingCount] =
       await Promise.all([
-        this.prisma.membership.groupBy({ by: ["status"], where, _count: true }),
+        this.prisma.membership.groupBy({ by: ["status"], where: { AND: [where, SYSTEM_ONLY.byMember] }, _count: true }),
         this.prisma.membership.groupBy({
           by: ["packageId"],
-          where,
+          where: { AND: [where, SYSTEM_ONLY.byMember] },
           _count: true,
         }),
-        this.prisma.membership.findMany({ where, select: { createdAt: true } }),
+        this.prisma.membership.findMany({ where: { AND: [where, SYSTEM_ONLY.byMember] }, select: { createdAt: true } }),
         this.prisma.membership.count({
-          where: { ...where, status: "EXPIRED" },
+          where: { AND: [{ ...where, status: "EXPIRED" }, SYSTEM_ONLY.byMember] },
         }),
         this.prisma.membership.count({
-          where: { ...where, status: "PENDING" },
+          where: { AND: [{ ...where, status: "PENDING" }, SYSTEM_ONLY.byMember] },
         }),
       ]);
 
     const pkgIds = packageRows.map((r) => r.packageId);
     const pkgs = pkgIds.length
       ? await this.prisma.membershipPackage.findMany({
-          where: { id: { in: pkgIds } },
+          where: { AND: [{ id: { in: pkgIds } }, SYSTEM_ONLY.member] },
           select: { id: true, name: true, price: true },
         })
       : [];
@@ -720,7 +740,7 @@ export class ReportsService {
 
   /** GET /reports/trainers — HLV: số hội viên phụ trách, số buổi tập */
   async getTrainersReport() {
-    const trainers = await this.prisma.trainer.findMany({
+    const trainers = await this.prisma.trainer.findMany({ where: SYSTEM_ONLY.member,
       include: {
         user: {
           select: {
@@ -737,7 +757,7 @@ export class ReportsService {
 
     const completedRows = await this.prisma.trainingSchedule.groupBy({
       by: ["trainerId"],
-      where: { status: "COMPLETED" },
+      where: { AND: [{ status: "COMPLETED" }, SYSTEM_ONLY.byTrainer] },
       _count: true,
     });
     const completedMap = new Map(

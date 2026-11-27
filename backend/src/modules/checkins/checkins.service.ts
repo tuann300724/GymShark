@@ -9,10 +9,18 @@ import { Prisma } from "@prisma/client";
 import { CheckInMethod, PackageType } from "../../common/constants/db-enums";
 import { Role } from "../../common/enums/role.enum";
 import { PrismaService } from "../../prisma/prisma.service";
+import { resolvePartnerIdForUser } from "../../common/utils/partner-scope";
 import { AuditService } from "../audit-logs/audit-logs.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { FacesService } from "../faces/faces.service";
 import { FaceCheckInDto, FaceScanDto } from "./dto/checkin.dto";
+import { parseJsonText } from "../../common/utils/json-text";
+
+const GYM_TIER_LABEL: Record<string, string> = {
+  TIER_1: "Standard",
+  TIER_2: "Plus",
+  TIER_3: "Premium",
+};
 
 interface CheckInMember {
   id: string;
@@ -78,6 +86,7 @@ export class CheckinsService {
             type: true,
             visitLimit: true,
             dailyVisitLimit: true,
+            gymTierAccess: true,
           },
         },
       },
@@ -312,11 +321,19 @@ export class CheckinsService {
     userId?: string,
   ): Promise<string | null> {
     if (role !== Role.PARTNER || !userId) return null;
+    // Chủ đối tác hoặc nhân viên của đối tác đều xem dữ liệu cơ sở của đối tác đó
+    return (await resolvePartnerIdForUser(this.prisma, userId)) ?? "__NO_FACILITY__";
+  }
+
+  /** Tên phòng gym đối tác nếu người thao tác là đối tác — để thông báo admin ghi rõ ai làm. */
+  private async partnerActorName(actorId?: string): Promise<string | null> {
+    const partnerId = await resolvePartnerIdForUser(this.prisma, actorId);
+    if (!partnerId) return null;
     const partner = await this.prisma.partner.findUnique({
-      where: { userId },
-      select: { id: true },
+      where: { id: partnerId },
+      select: { businessName: true },
     });
-    return partner?.id ?? "__NO_FACILITY__";
+    return partner?.businessName ?? null;
   }
 
   private computeDurationMinutes(
@@ -526,11 +543,14 @@ export class CheckinsService {
       referenceType: "CHECKOUT",
       referenceId: updated.id,
     });
+    const partnerName = await this.partnerActorName(actorId);
     await this.notificationsService.notifyAdmins(
       {
         type: "CHECKIN",
-        title: "Hội viên check-out (Face ID) 👋",
-        content: `Hội viên ${match.memberCode ?? "hội viên"} vừa quét mặt check-out lúc ${updated.checkOutTime!.toLocaleTimeString("vi-VN")}.`,
+        title: partnerName
+          ? "Đối tác check-out hội viên (Face ID) 👋"
+          : "Hội viên check-out (Face ID) 👋",
+        content: `${partnerName ? `${partnerName}: ` : ""}Hội viên ${match.memberCode ?? "hội viên"} vừa quét mặt check-out lúc ${updated.checkOutTime!.toLocaleTimeString("vi-VN")}.`,
         link: "/admin/checkins",
         referenceType: "CHECKOUT",
         referenceId: updated.id,
@@ -744,14 +764,59 @@ export class CheckinsService {
 
     // Người thao tác là đối tác → ghi nhận lượt tập tại phòng gym của họ và chốt hoa hồng.
     // Admin/staff check-in cho hệ thống chung thì không gắn đối tác.
-    const partner = actorId
+    const actorPartnerId = await resolvePartnerIdForUser(this.prisma, actorId);
+    const partner = actorPartnerId
       ? await this.prisma.partner.findUnique({
-          where: { userId: actorId },
-          select: { id: true, status: true, commissionRate: true },
+          where: { id: actorPartnerId },
+          select: {
+            id: true,
+            status: true,
+            commissionRate: true,
+            businessName: true,
+            gymTier: true,
+            partnershipType: true,
+          },
         })
       : null;
     const attributed = partner?.status === "APPROVED";
-    const rate = attributed ? Number(partner!.commissionRate) : 0;
+
+    // Hội viên riêng của một phòng gym đối tác chỉ check-in được tại chính phòng đó.
+    const ownMember = Boolean(member.ownerPartnerId) && member.ownerPartnerId === partner?.id;
+    if (member.ownerPartnerId && !(attributed && ownMember)) {
+      throw new BadRequestException(
+        "Hội viên này thuộc một phòng gym đối tác khác — chỉ check-in được tại phòng đã đăng ký.",
+      );
+    }
+
+    // Hội viên Gym Master (gói nền tảng) chỉ được tập tại phòng thuộc mạng lưới Gym Cộng đồng.
+    // Phòng tự quản lý (OWNER) chỉ phục vụ hội viên riêng nên không nhận lượt tập & hoa hồng.
+    if (attributed && !ownMember) {
+      if (partner!.partnershipType !== "COMMUNITY") {
+        throw new BadRequestException(
+          "Hội viên này dùng gói Gym Master — phòng tập của bạn chưa tham gia mạng lưới Gym Cộng đồng nên không check-in được.",
+        );
+      }
+      if (!partner!.gymTier) {
+        throw new BadRequestException(
+          "Phòng tập chưa được Gym Master xếp hạng nên chưa nhận hội viên gói Gym Master. Vui lòng liên hệ quản trị viên.",
+        );
+      }
+    }
+
+    // Phòng Gym Cộng đồng → gói (của hệ thống) phải bao gồm hạng phòng này.
+    // Hội viên riêng của phòng dùng gói riêng nên không xét hạng.
+    if (attributed && !ownMember && partner!.gymTier) {
+      const allowed = parseJsonText<string[]>(membership.package?.gymTierAccess) ?? [];
+      if (!allowed.includes(partner!.gymTier)) {
+        const label = GYM_TIER_LABEL[partner!.gymTier] ?? partner!.gymTier;
+        throw new BadRequestException(
+          `Gói "${membership.package?.name ?? "hiện tại"}" của hội viên không bao gồm phòng gym hạng ${label}. Hội viên cần nâng cấp gói để tập tại đây.`,
+        );
+      }
+    }
+    // Hội viên riêng của phòng: ghi nhận lượt tập tại phòng nhưng KHÔNG tính hoa hồng
+    // (doanh thu gói đã thuộc về đối tác).
+    const rate = attributed && !ownMember ? Number(partner!.commissionRate) : 0;
     const total =
       attributed && membership
         ? Number(membership.finalAmount ?? membership.price ?? 0)
@@ -768,7 +833,9 @@ export class CheckinsService {
         : 1;
     // Giá 1 lượt = giá trị hợp đồng / số ngày hiệu lực (không dùng quota buổi PT).
     const unitPrice =
-      attributed && membership ? Math.round((total / days) * 100) / 100 : null;
+      attributed && !ownMember && membership
+        ? Math.round((total / days) * 100) / 100
+        : null;
     const commissionAmount =
       unitPrice !== null ? Math.round(unitPrice * rate * 100) / 100 : null;
 
@@ -780,7 +847,7 @@ export class CheckinsService {
       notes: dto.note ?? null,
       partnerId: attributed ? partner!.id : null,
       unitPrice,
-      commissionRate: attributed ? partner!.commissionRate : null,
+      commissionRate: attributed && !ownMember ? partner!.commissionRate : null,
       commissionAmount,
     });
 
@@ -798,8 +865,8 @@ export class CheckinsService {
     await this.notificationsService.notifyAdmins(
       {
         type: "CHECKIN",
-        title: "Check-in tại quầy 💪",
-        content: `Đã check-in cho ${member.fullName} (${member.code}) lúc ${checkIn.checkInTime.toLocaleTimeString("vi-VN")}.`,
+        title: attributed ? "Đối tác check-in hội viên 💪" : "Check-in tại quầy 💪",
+        content: `${attributed ? `${partner!.businessName}: ` : ""}Đã check-in cho ${member.fullName} (${member.code}) lúc ${checkIn.checkInTime.toLocaleTimeString("vi-VN")}.`,
         link: "/admin/checkins",
         referenceType: "CHECKIN",
         referenceId: checkIn.id,
@@ -885,11 +952,12 @@ export class CheckinsService {
         referenceId: updated.id,
       });
 
+      const partnerName = await this.partnerActorName(actorId);
       await this.notificationsService.notifyAdmins(
         {
           type: "CHECKIN",
-          title: "Check-out tại quầy 👋",
-          content: `Đã check-out cho ${updated.member?.fullName || "hội viên"} (${updated.member?.code || ""}) lúc ${checkOutAt.toLocaleTimeString("vi-VN")}.`,
+          title: partnerName ? "Đối tác check-out hội viên 👋" : "Check-out tại quầy 👋",
+          content: `${partnerName ? `${partnerName}: ` : ""}Đã check-out cho ${updated.member?.fullName || "hội viên"} (${updated.member?.code || ""}) lúc ${checkOutAt.toLocaleTimeString("vi-VN")}.`,
           link: "/admin/checkins",
           referenceType: "CHECKOUT",
           referenceId: updated.id,

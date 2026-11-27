@@ -41,7 +41,8 @@ export default function PaymentDetailPage() {
   const params = useParams();
   const id = params?.id as string;
   const user = getStoredUser();
-  const canReject = user?.role === 'ADMIN' || user?.role === 'MANAGER';
+  // Đối tác được từ chối/hủy giao dịch chờ của hội viên phòng mình (backend kiểm phạm vi)
+  const canReject = user?.role === 'ADMIN' || user?.role === 'MANAGER' || user?.role === 'PARTNER';
   const canRefund = user?.role === 'ADMIN';
 
   const [confirmOpen, setConfirmOpen] = useState(false);

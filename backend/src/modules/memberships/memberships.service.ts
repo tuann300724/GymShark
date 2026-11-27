@@ -11,6 +11,12 @@ import {
   PaymentStatus,
 } from "../../common/constants/db-enums";
 import { PrismaService } from "../../prisma/prisma.service";
+import {
+  assertInScope,
+  memberOwnerWhere,
+  resolveOwnerScope,
+  type ScopeActor,
+} from "../../common/utils/partner-scope";
 import { AuditService } from "../audit-logs/audit-logs.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { PaymentsService } from "../payments/payments.service";
@@ -29,8 +35,10 @@ export class MembershipsService {
     private paymentsService: PaymentsService,
   ) {}
 
-  async findAll() {
+  async findAll(actor?: ScopeActor) {
+    const scope = await resolveOwnerScope(this.prisma, actor);
     return this.prisma.membership.findMany({
+      where: memberOwnerWhere(scope),
       include: {
         member: {
           select: { id: true, code: true, fullName: true, phone: true },
@@ -58,7 +66,8 @@ export class MembershipsService {
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, actor?: ScopeActor) {
+    const scope = await resolveOwnerScope(this.prisma, actor);
     const membership = await this.prisma.membership.findUnique({
       where: { id },
       include: {
@@ -69,6 +78,7 @@ export class MembershipsService {
     });
     if (!membership)
       throw new NotFoundException("Không tìm thấy hợp đồng/thẻ hội viên");
+    assertInScope(membership.member.ownerPartnerId, scope, "Không tìm thấy hợp đồng/thẻ hội viên");
     return membership;
   }
 
@@ -83,16 +93,19 @@ export class MembershipsService {
     id: string,
     dto: UpdateMembershipStatusDto,
     actorId?: string,
+    actor?: ScopeActor,
   ) {
+    const scope = await resolveOwnerScope(this.prisma, actor);
     const membership = await this.prisma.membership.findUnique({
       where: { id },
       include: {
-        member: { select: { id: true, fullName: true } },
+        member: { select: { id: true, fullName: true, ownerPartnerId: true } },
         package: { select: { id: true, name: true } },
       },
     });
     if (!membership)
       throw new NotFoundException("Không tìm thấy hợp đồng/thẻ hội viên");
+    assertInScope(membership.member.ownerPartnerId, scope, "Không tìm thấy hợp đồng/thẻ hội viên");
 
     const next = dto.status;
     const cur = membership.status;
@@ -477,16 +490,18 @@ export class MembershipsService {
   }
 
   /** Admin gia hạn thêm N ngày + tạo Payment PENDING (chờ thu tiền) */
-  async extend(id: string, dto: ExtendMembershipDto, actorId?: string) {
+  async extend(id: string, dto: ExtendMembershipDto, actorId?: string, actor?: ScopeActor) {
+    const scope = await resolveOwnerScope(this.prisma, actor);
     const membership = await this.prisma.membership.findUnique({
       where: { id },
       include: {
-        member: { select: { id: true, code: true, fullName: true } },
+        member: { select: { id: true, code: true, fullName: true, ownerPartnerId: true } },
         package: { select: { id: true, name: true, price: true } },
       },
     });
     if (!membership)
       throw new NotFoundException("Không tìm thấy hợp đồng/thẻ hội viên");
+    assertInScope(membership.member.ownerPartnerId, scope, "Không tìm thấy hợp đồng/thẻ hội viên");
 
     if (membership.status === "EXPIRED" || membership.status === "CANCELLED") {
       throw new ConflictException("Không thể gia hạn hợp đồng đã kết thúc");

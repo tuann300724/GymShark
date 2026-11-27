@@ -24,7 +24,7 @@ interface StaffAccount {
   email: string;
   fullName: string;
   phone: string | null;
-  role: 'STAFF';
+  role: 'STAFF' | 'PARTNER';
   status: string;
   createdAt: string;
 }
@@ -101,7 +101,7 @@ function StaffAccountsPageContent() {
             Tài khoản nhân viên
           </h1>
           <p className="mt-1 text-xs text-muted">
-            Tra cứu, lọc và khóa hoặc kích hoạt lại tài khoản STAFF.
+            Tra cứu, lọc và khóa hoặc kích hoạt lại tài khoản nhân viên.
           </p>
         </div>
         <Button variant="primary" onClick={() => setCreateOpen(true)}>
@@ -196,7 +196,7 @@ function StaffAccountsPageContent() {
             title={staff.length === 0 ? 'Chưa có tài khoản nhân viên' : 'Không tìm thấy nhân viên'}
             description={
               staff.length === 0
-                ? 'Tạo tài khoản STAFF để phân ca và cấp quyền sử dụng hệ thống.'
+                ? 'Tạo tài khoản nhân viên để cùng vận hành và sử dụng hệ thống.'
                 : 'Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc trạng thái.'
             }
             action={

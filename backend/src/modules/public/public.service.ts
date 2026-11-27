@@ -10,7 +10,8 @@ export class PublicService {
   /** Membership packages cho trang public (chỉ lấy gói ACTIVE) */
   async getPackages() {
     const packages = await this.prisma.membershipPackage.findMany({
-      where: { status: "ACTIVE", type: { not: PackageType.SESSION_BASED } },
+      // Trang công khai chỉ bán gói của hệ thống; gói riêng của đối tác bán tại quầy đối tác
+      where: { status: "ACTIVE", type: { not: PackageType.SESSION_BASED }, ownerPartnerId: null },
       orderBy: { price: "asc" },
     });
     return packages.map((pkg) => ({
@@ -19,6 +20,14 @@ export class PublicService {
         pkg.features,
       ),
     }));
+  }
+
+  /** Bảng giá gói hợp tác do admin cấu hình. */
+  async getPartnershipPlans() {
+    return this.prisma.partnershipPlan.findMany({
+      select: { code: true, name: true, monthlyPrice: true },
+      orderBy: { monthlyPrice: "asc" },
+    });
   }
 
   /** Chi nhánh công khai có thể được hội viên chọn khi đăng ký gói tập. */
@@ -33,7 +42,9 @@ export class PublicService {
         name: true,
         address: true,
         phone: true,
-        partner: { select: { businessName: true } },
+        latitude: true,
+        longitude: true,
+        partner: { select: { businessName: true, gymTier: true } },
       },
       orderBy: [{ partner: { businessName: "asc" } }, { name: "asc" }],
     });
@@ -42,7 +53,8 @@ export class PublicService {
   /** Huấn luyện viên đang hoạt động cho trang public */
   async getTrainers() {
     return this.prisma.trainer.findMany({
-      where: { status: "ACTIVE" },
+      // PT riêng của phòng gym đối tác không hiển thị trên trang công khai Gym Master
+      where: { status: "ACTIVE", ownerPartnerId: null },
       include: {
         user: {
           select: {
@@ -62,7 +74,7 @@ export class PublicService {
    */
   async getTrainer(id: string) {
     const trainer = await this.prisma.trainer.findFirst({
-      where: { id, status: "ACTIVE" },
+      where: { id, status: "ACTIVE", ownerPartnerId: null },
       select: {
         id: true,
         specialization: true,
@@ -114,7 +126,7 @@ export class PublicService {
     query: { page?: number; limit?: number } = {},
   ) {
     const trainer = await this.prisma.trainer.findFirst({
-      where: { id, status: "ACTIVE" },
+      where: { id, status: "ACTIVE", ownerPartnerId: null },
       select: { id: true },
     });
     if (!trainer)

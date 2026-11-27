@@ -3,7 +3,8 @@ import apiClient from '@/lib/axios';
 /** Payload tạo hội viên mới tại quầy (POST /members) */
 export interface CreateMemberPayload {
   fullName: string;
-  email: string;
+  /** Bắt buộc với hội viên Gym Master; hội viên riêng của phòng đối tác không cần */
+  email?: string;
   phone: string;
   /** Để trống = hệ thống sinh mật khẩu tạm, trả về 1 lần cho lễ tân đưa hội viên */
   password?: string;
@@ -15,8 +16,9 @@ export interface CreateMemberPayload {
 
 export interface CreateMemberResult {
   message: string;
-  member: { id: string; code: string; fullName: string; email: string; phone: string };
-  user: { id: string; email: string; fullName: string; status: string };
+  member: { id: string; code: string; fullName: string; email: string | null; phone: string };
+  /** null với hội viên riêng của phòng đối tác (không tạo tài khoản đăng nhập) */
+  user: { id: string; email: string; fullName: string; status: string } | null;
   /** Chỉ có mặt khi không nhập mật khẩu — chỉ trả về 1 lần duy nhất */
   tempPassword?: string;
 }

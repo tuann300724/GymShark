@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { getStoredUser, isPartnerRole } from '@/lib/auth';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/axios';
 import {
@@ -19,9 +20,15 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { Spinner } from '@/components/ui/spinner';
 import { PackageFormDialog } from '@/components/admin/package-form-dialog';
+import {
+  DEFAULT_PACKAGE_FILTERS,
+  PackageFilterBar,
+  applyPackageFilters,
+  type PackageFilters,
+} from '@/components/admin/package-filter-bar';
 import { formatCurrency } from '@/lib/utils';
 import { formatTierList, formatVisitLimit, packageTypeBadge } from '@/lib/package-options';
-import { Package, Plus, Check, Pencil, Trash2, Power, Ban, Dumbbell } from 'lucide-react';
+import { Package, Plus, Check, Pencil, Trash2, Power, Ban, Dumbbell, SearchX } from 'lucide-react';
 import type { MembershipPackage } from '@/services/types';
 
 export default function MembershipPackagesPage() {
@@ -30,6 +37,8 @@ export default function MembershipPackagesPage() {
   const queryClient = useQueryClient();
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [isPartner, setIsPartner] = useState(false);
+  useEffect(() => setIsPartner(isPartnerRole(getStoredUser()?.role)), []);
   const [editingPkg, setEditingPkg] = useState<MembershipPackage | null>(null);
 
   const {
@@ -44,6 +53,12 @@ export default function MembershipPackagesPage() {
       return res.data;
     },
   });
+
+  const [filters, setFilters] = useState<PackageFilters>(DEFAULT_PACKAGE_FILTERS);
+  const filteredPackages = useMemo(
+    () => applyPackageFilters(packages ?? [], filters),
+    [packages, filters],
+  );
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['membership-packages'] });
@@ -134,120 +149,144 @@ export default function MembershipPackagesPage() {
           onRetry={() => refetch()}
         />
       ) : packages && packages.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {packages.map((pkg) => {
-            const isLegacy = pkg.type === 'SESSION_BASED';
-            const tiers = tierList(pkg);
-            return (
-              <Card
-                key={pkg.id}
-                className={`relative flex flex-col justify-between transition-all ${
-                  pkg.status === 'ACTIVE' && !isLegacy ? 'hover:border-neon/40' : 'opacity-75'
-                }`}
-              >
-                <CardHeader>
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <Badge variant="outline" className="font-mono text-[10px]">
-                        {pkg.code}
-                      </Badge>
-                      <Badge variant={pkg.type === 'CREDIT_BASED' ? 'info' : 'default'}>
-                        {packageTypeBadge(pkg.type)}
-                      </Badge>
-                    </div>
-                    <Badge variant={pkg.status === 'ACTIVE' ? 'success' : 'warning'}>
-                      {pkg.status === 'ACTIVE' ? 'Đang bán' : 'Ngừng bán'}
-                    </Badge>
-                  </div>
-                  <CardTitle className="text-lg mt-3 text-chalk">{pkg.name}</CardTitle>
-                  <CardDescription className="text-xs line-clamp-2 mt-1">
-                    {pkg.description || 'Không có mô tả chi tiết'}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="p-4 rounded-xl bg-ink border border-line">
-                    <span className="text-3xl font-extrabold text-neon font-display">
-                      {formatCurrency(pkg.price)}
-                    </span>
-                    <span className="text-xs text-muted block mt-1">
-                      Thời hạn: <strong className="text-chalk">{pkg.durationDays} ngày</strong>
-                    </span>
-                    <span className="text-xs text-muted block mt-1">
-                      Hạn mức lượt: <strong className="text-chalk">{formatVisitLimit(pkg)}</strong>
-                    </span>
-                    <span className="text-xs text-muted mt-1 flex items-start gap-1.5">
-                      <Dumbbell className="size-3.5 mt-0.5 shrink-0 text-neon" />
-                      <span>
-                        Hạng phòng gym:{' '}
-                        {tiers ? (
-                          <span className="flex flex-wrap gap-1.5">
-                            {tiers.split(' · ').map((tier) => (
-                              <Badge key={tier} variant="outline" className="text-[10px]">{tier}</Badge>
-                            ))}
+        <>
+          <PackageFilterBar
+            hideTier={isPartner}
+            packages={packages}
+            filters={filters}
+            onChange={setFilters}
+            resultCount={filteredPackages.length}
+          />
+          {filteredPackages.length === 0 ? (
+            <EmptyState
+              icon={SearchX}
+              title="Không có gói phù hợp"
+              description="Không tìm thấy gói tập nào khớp bộ lọc hiện tại. Thử bỏ bớt điều kiện hoặc bấm Đặt lại."
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {filteredPackages.map((pkg) => {
+                const isLegacy = pkg.type === 'SESSION_BASED';
+                const tiers = tierList(pkg);
+                return (
+                  <Card
+                    key={pkg.id}
+                    className={`relative flex flex-col justify-between transition-all ${
+                      pkg.status === 'ACTIVE' && !isLegacy ? 'hover:border-neon/40' : 'opacity-75'
+                    }`}
+                  >
+                    <CardHeader>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Badge variant="outline" className="font-mono text-[10px]">
+                            {pkg.code}
+                          </Badge>
+                          <Badge variant={pkg.type === 'CREDIT_BASED' ? 'info' : 'default'}>
+                            {packageTypeBadge(pkg.type)}
+                          </Badge>
+                        </div>
+                        <Badge variant={pkg.status === 'ACTIVE' ? 'success' : 'warning'}>
+                          {pkg.status === 'ACTIVE' ? 'Đang bán' : 'Ngừng bán'}
+                        </Badge>
+                      </div>
+                      <CardTitle className="text-lg mt-3 text-chalk">{pkg.name}</CardTitle>
+                      <CardDescription className="text-xs line-clamp-2 mt-1">
+                        {pkg.description || 'Không có mô tả chi tiết'}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="p-4 rounded-xl bg-ink border border-line">
+                        <span className="text-3xl font-extrabold text-neon font-display">
+                          {formatCurrency(pkg.price)}
+                        </span>
+                        <span className="text-xs text-muted block mt-1">
+                          Thời hạn: <strong className="text-chalk">{pkg.durationDays} ngày</strong>
+                        </span>
+                        <span className="text-xs text-muted block mt-1">
+                          Hạn mức lượt:{' '}
+                          <strong className="text-chalk">{formatVisitLimit(pkg)}</strong>
+                        </span>
+                        <span className="text-xs text-muted mt-1 flex items-start gap-1.5">
+                          <Dumbbell className="size-3.5 mt-0.5 shrink-0 text-neon" />
+                          <span>
+                            Hạng phòng gym:{' '}
+                            {tiers ? (
+                              <span className="flex flex-wrap gap-1.5">
+                                {tiers.split(' · ').map((tier) => (
+                                  <Badge key={tier} variant="outline" className="text-[10px]">
+                                    {tier}
+                                  </Badge>
+                                ))}
+                              </span>
+                            ) : (
+                              <strong className="text-chalk">
+                                {pkg.ownerPartnerId
+                                  ? 'Chỉ dùng tại phòng của bạn'
+                                  : 'Chưa chọn hạng'}
+                              </strong>
+                            )}
                           </span>
-                        ) : (
-                          <strong className="text-chalk">Chưa chọn hạng</strong>
+                        </span>
+                        {(pkg._count?.memberships ?? 0) > 0 && (
+                          <span className="text-[11px] text-muted block mt-1">
+                            Đã bán {pkg._count?.memberships} thẻ
+                          </span>
                         )}
-                      </span>
-                    </span>
-                    {(pkg._count?.memberships ?? 0) > 0 && (
-                      <span className="text-[11px] text-muted block mt-1">
-                        Đã bán {pkg._count?.memberships} thẻ
-                      </span>
-                    )}
-                  </div>
-                  <ul className="text-xs space-y-2 text-muted">
-                    {(pkg.features?.items || []).slice(0, 4).map((item) => (
-                      <li key={item} className="flex items-center gap-2">
-                        <Check className="size-4 text-neon shrink-0" />
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-                <CardFooter className="pt-2">
-                  <div className="grid w-full grid-cols-3 gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-xs font-semibold"
-                      onClick={() => openEdit(pkg)}
-                      disabled={isLegacy}
-                    >
-                      <Pencil className="size-3.5 mr-1" /> Sửa
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-xs font-semibold"
-                      onClick={() => toggleStatus(pkg)}
-                      disabled={isLegacy}
-                    >
-                      {pkg.status === 'ACTIVE' ? (
-                        <>
-                          <Ban className="size-3.5 mr-1" /> Ngừng bán
-                        </>
-                      ) : (
-                        <>
-                          <Power className="size-3.5 mr-1 text-neon" /> Mở bán
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-xs font-semibold text-danger"
-                      isLoading={deleteMutation.isPending}
-                      onClick={() => confirmDelete(pkg)}
-                    >
-                      <Trash2 className="size-3.5 mr-1" /> Xóa
-                    </Button>
-                  </div>
-                </CardFooter>
-              </Card>
-            );
-          })}
-        </div>
+                      </div>
+                      <ul className="text-xs space-y-2 text-muted">
+                        {(pkg.features?.items || []).slice(0, 4).map((item) => (
+                          <li key={item} className="flex items-center gap-2">
+                            <Check className="size-4 text-neon shrink-0" />
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                    <CardFooter className="pt-2">
+                      <div className="grid w-full grid-cols-3 gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs font-semibold"
+                          onClick={() => openEdit(pkg)}
+                          disabled={isLegacy}
+                        >
+                          <Pencil className="size-3.5 mr-1" /> Sửa
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs font-semibold"
+                          onClick={() => toggleStatus(pkg)}
+                          disabled={isLegacy}
+                        >
+                          {pkg.status === 'ACTIVE' ? (
+                            <>
+                              <Ban className="size-3.5 mr-1" /> Ngừng bán
+                            </>
+                          ) : (
+                            <>
+                              <Power className="size-3.5 mr-1 text-neon" /> Mở bán
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs font-semibold text-danger"
+                          isLoading={deleteMutation.isPending}
+                          onClick={() => confirmDelete(pkg)}
+                        >
+                          <Trash2 className="size-3.5 mr-1" /> Xóa
+                        </Button>
+                      </div>
+                    </CardFooter>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </>
       ) : (
         <EmptyState
           icon={Package}

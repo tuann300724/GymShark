@@ -29,6 +29,60 @@ const PARTNER_ALLOWED: PartnerRule[] = [
   { method: 'GET', pattern: /^\/payments\/bank-info$/ },
   // Tổng hợp hoa hồng của chính đối tác (không chứa dữ liệu hội viên)
   { method: 'GET', pattern: /^\/partners\/me\/commission$/ },
+
+  // --- Phòng gym tự quản lý (đợt 1) ---
+  // Các service tự gói dữ liệu theo ownerPartnerId (common/utils/partner-scope.ts):
+  // đối tác chỉ thấy/sửa hội viên, gói tập, thẻ, giao dịch, hoá đơn của phòng mình.
+  { method: 'GET', pattern: /^\/members(\/[^/]+)?$/ },
+  { method: 'GET', pattern: /^\/members\/[^/]+\/trainers$/ },
+  { method: 'POST', pattern: /^\/members$/ },
+  { method: 'PATCH', pattern: /^\/members\/[^/]+$/ },
+  { method: 'POST', pattern: /^\/members\/[^/]+\/(memberships|change-package)$/ },
+  { method: 'GET', pattern: /^\/membership-packages(\/[^/]+)?$/ },
+  { method: 'POST', pattern: /^\/membership-packages$/ },
+  { method: 'PATCH', pattern: /^\/membership-packages\/[^/]+$/ },
+  { method: 'DELETE', pattern: /^\/membership-packages\/[^/]+$/ },
+  { method: 'GET', pattern: /^\/memberships(\/[^/]+)?$/ },
+  { method: 'PATCH', pattern: /^\/memberships\/[^/]+\/(status|extend)$/ },
+  { method: 'GET', pattern: /^\/payments(\/[^/]+)?$/ },
+  { method: 'POST', pattern: /^\/payments\/[^/]+\/(confirm|reject)$/ },
+  { method: 'PATCH', pattern: /^\/payments\/[^/]+\/(approve|cancel)$/ },
+  { method: 'GET', pattern: /^\/invoices(\/[^/]+)?$/ },
+  { method: 'GET', pattern: /^\/reports\/revenue$/ },
+
+  // --- Phòng gym tự quản lý (đợt 2): PT, phòng tập, lịch tập & lớp, nhân viên ---
+  { method: 'GET', pattern: /^\/trainers(\/[^/]+)?$/ },
+  { method: 'GET', pattern: /^\/trainers\/[^/]+\/members$/ },
+  { method: 'POST', pattern: /^\/trainers$/ },
+  { method: 'PATCH', pattern: /^\/trainers\/[^/]+$/ },
+  { method: 'DELETE', pattern: /^\/trainers\/[^/]+$/ },
+  { method: 'POST', pattern: /^\/trainers\/[^/]+\/members\/[^/]+$/ },
+  { method: 'DELETE', pattern: /^\/trainers\/[^/]+\/members\/[^/]+$/ },
+  { method: 'GET', pattern: /^\/rooms(\/[^/]+)?$/ },
+  { method: 'POST', pattern: /^\/rooms$/ },
+  { method: 'PATCH', pattern: /^\/rooms\/[^/]+(\/status)?$/ },
+  { method: 'DELETE', pattern: /^\/rooms\/[^/]+$/ },
+  { method: 'GET', pattern: /^\/schedules(\/[^/]+)?$/ },
+  { method: 'GET', pattern: /^\/training-sessions(\/[^/]+)?(\/progress)?$/ },
+  { method: 'POST', pattern: /^\/training-sessions$/ },
+  { method: 'PATCH', pattern: /^\/training-sessions\/[^/]+$/ },
+  { method: 'POST', pattern: /^\/training-sessions\/[^/]+\/(cancel|complete|progress)$/ },
+  { method: 'GET', pattern: /^\/class-bookings\/session\/[^/]+$/ },
+  { method: 'POST', pattern: /^\/class-bookings\/session\/[^/]+\/members$/ },
+  { method: 'DELETE', pattern: /^\/class-bookings\/session\/[^/]+\/members\/[^/]+$/ },
+  // Chuông thông báo cá nhân (service tự giới hạn theo userId của chính tài khoản)
+  { method: 'GET', pattern: /^\/notifications\/me(\/unread)?$/ },
+  { method: 'PATCH', pattern: /^\/notifications\/(read-all|[^/]+\/read)$/ },
+  { method: 'DELETE', pattern: /^\/notifications\/[^/]+$/ },
+  // Đăng ký khuôn mặt cho hội viên riêng của phòng (FacesService tự kiểm tra phạm vi)
+  { method: 'GET', pattern: /^\/faces\/member\/[^/]+$/ },
+  { method: 'POST', pattern: /^\/faces\/member\/[^/]+\/enroll$/ },
+  { method: 'POST', pattern: /^\/faces\/check-glasses$/ },
+  { method: 'DELETE', pattern: /^\/faces\/member\/[^/]+$/ },
+  // Nhân viên của phòng (chỉ chủ đối tác — kiểm tra thêm ở UsersController)
+  { method: 'GET', pattern: /^\/users\/staff$/ },
+  { method: 'POST', pattern: /^\/users\/staff$/ },
+  { method: 'PATCH', pattern: /^\/users\/staff\/[^/]+\/status$/ },
 ];
 
 function partnerCanAccess(method: string, path: string): boolean {

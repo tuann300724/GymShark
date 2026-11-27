@@ -7,6 +7,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { InvoiceListQueryDto } from './dto/invoice-list-query.dto';
+import type { ScopeActor } from '../../common/utils/partner-scope';
 
 @ApiTags('Invoices')
 @ApiBearerAuth('JWT-auth')
@@ -18,8 +19,8 @@ export class InvoicesController {
   @Get()
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
   @ApiOperation({ summary: 'Danh sách hóa đơn (admin) — filter, search, phân trang' })
-  findAll(@Query() query: InvoiceListQueryDto) {
-    return this.invoicesService.findAll(query);
+  findAll(@Query() query: InvoiceListQueryDto, @CurrentUser() actor: ScopeActor) {
+    return this.invoicesService.findAll(query, actor);
   }
 
   @Get('me')
@@ -39,7 +40,7 @@ export class InvoicesController {
   @Get(':id')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
   @ApiOperation({ summary: 'Chi tiết một hóa đơn (admin)' })
-  findOne(@Param('id') id: string) {
-    return this.invoicesService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() actor: ScopeActor) {
+    return this.invoicesService.findOne(id, actor);
   }
 }

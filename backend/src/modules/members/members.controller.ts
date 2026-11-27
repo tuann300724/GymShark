@@ -51,6 +51,7 @@ export class MembersController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('sort') sort?: string,
+    @CurrentUser() actor?: StaffActor,
   ) {
     return this.membersService.findAll({
       search,
@@ -60,21 +61,21 @@ export class MembersController {
       page: page ? parseInt(page, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
       sort,
-    });
+    }, actor);
   }
 
   @Get(':id/trainers')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
   @ApiOperation({ summary: 'Lịch sử HLV phụ trách của hội viên (TrainerMember)' })
-  getTrainers(@Param('id') id: string) {
-    return this.membersService.getTrainers(id);
+  getTrainers(@Param('id') id: string, @CurrentUser() actor: StaffActor) {
+    return this.membersService.getTrainers(id, actor);
   }
 
   @Get(':id')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
   @ApiOperation({ summary: 'Chi tiết hồ sơ hội viên: gói tập, hoá đơn, check-in, lịch PT' })
-  findOne(@Param('id') id: string) {
-    return this.membersService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() actor: StaffActor) {
+    return this.membersService.findOne(id, actor);
   }
 
   @Patch(':id')
@@ -83,9 +84,9 @@ export class MembersController {
   update(
     @Param('id') id: string,
     @Body() dto: UpdateMemberDto,
-    @CurrentUser('id') actorId: string,
+    @CurrentUser() actor: StaffActor,
   ) {
-    return this.membersService.update(id, dto, actorId);
+    return this.membersService.update(id, dto, actor?.id, actor);
   }
 
   @Post()

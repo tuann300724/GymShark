@@ -22,13 +22,23 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { PrismaService } from '../../prisma/prisma.service';
+import { resolveOwnerScope, type ScopeActor } from '../../common/utils/partner-scope';
 
 @ApiTags('Trainers')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('trainers')
 export class TrainersController {
-  constructor(private readonly trainersService: TrainersService) {}
+  constructor(
+    private readonly trainersService: TrainersService,
+    private readonly prisma: PrismaService,
+  ) {}
+
+  /** Đối tác chỉ thao tác PT của phòng gym mình */
+  private scope(actor: ScopeActor) {
+    return resolveOwnerScope(this.prisma, actor);
+  }
 
   // ---------------------------------------------------------------------------
   // Self endpoints (khai báo trước :id để không bị route động nuốt)
@@ -72,15 +82,15 @@ export class TrainersController {
   @Get()
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
   @ApiOperation({ summary: 'Danh sách huấn luyện viên (tìm kiếm, lọc, phân trang)' })
-  findAll(@Query() query: TrainerQueryDto) {
-    return this.trainersService.findAll(query);
+  async findAll(@Query() query: TrainerQueryDto, @CurrentUser() actor: ScopeActor) {
+    return this.trainersService.findAll(query, await this.scope(actor));
   }
 
   @Get(':id')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF, Role.TRAINER)
   @ApiOperation({ summary: 'Chi tiết huấn luyện viên + thống kê + hội viên phụ trách + lịch' })
-  findOne(@Param('id') id: string) {
-    return this.trainersService.findOne(id);
+  async findOne(@Param('id') id: string, @CurrentUser() actor: ScopeActor) {
+    return this.trainersService.findOne(id, await this.scope(actor));
   }
 
   // ---------------------------------------------------------------------------
@@ -91,22 +101,26 @@ export class TrainersController {
   @Roles(Role.ADMIN, Role.MANAGER)
   @ApiOperation({ summary: 'Tạo huấn luyện viên mới (kèm tài khoản đăng nhập TRAINER)' })
   @ApiResponse({ status: 201, description: 'Tạo thành công, trả về tempPassword để cấp cho HLV' })
-  create(@Body() dto: CreateTrainerDto, @CurrentUser('id') actorId: string) {
-    return this.trainersService.create(dto, actorId);
+  async create(@Body() dto: CreateTrainerDto, @CurrentUser() actor: ScopeActor) {
+    return this.trainersService.create(dto, actor.id, await this.scope(actor));
   }
 
   @Patch(':id')
   @Roles(Role.ADMIN, Role.MANAGER)
   @ApiOperation({ summary: 'Cập nhật hồ sơ / trạng thái huấn luyện viên' })
-  update(@Param('id') id: string, @Body() dto: UpdateTrainerDto, @CurrentUser('id') actorId: string) {
-    return this.trainersService.update(id, dto, actorId);
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateTrainerDto,
+    @CurrentUser() actor: ScopeActor,
+  ) {
+    return this.trainersService.update(id, dto, actor.id, await this.scope(actor));
   }
 
   @Delete(':id')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Ngừng hoạt động HLV (soft delete — giữ lịch sử)' })
-  remove(@Param('id') id: string, @CurrentUser('id') actorId: string) {
-    return this.trainersService.remove(id, actorId);
+  async remove(@Param('id') id: string, @CurrentUser() actor: ScopeActor) {
+    return this.trainersService.remove(id, actor.id, await this.scope(actor));
   }
 
   // ---------------------------------------------------------------------------
@@ -116,8 +130,8 @@ export class TrainersController {
   @Get(':id/members')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
   @ApiOperation({ summary: 'Danh sách phân công (lịch sử) của một HLV' })
-  getMembers(@Param('id') id: string) {
-    return this.trainersService.getMembers(id);
+  async getMembers(@Param('id') id: string, @CurrentUser() actor: ScopeActor) {
+    return this.trainersService.getMembers(id, await this.scope(actor));
   }
 
   @Post(':id/members/:memberId')
@@ -125,8 +139,12 @@ export class TrainersController {
   @ApiOperation({ summary: 'Gán HLV cho hội viên (kiểm tra trùng lặp ACTIVE)' })
   @ApiParam({ name: 'id', description: 'ID huấn luyện viên' })
   @ApiParam({ name: 'memberId', description: 'ID hội viên' })
-  assignMember(@Param('id') id: string, @Param('memberId') memberId: string) {
-    return this.trainersService.assignMember(id, memberId);
+  async assignMember(
+    @Param('id') id: string,
+    @Param('memberId') memberId: string,
+    @CurrentUser() actor: ScopeActor,
+  ) {
+    return this.trainersService.assignMember(id, memberId, await this.scope(actor));
   }
 
   @Delete(':id/members/:memberId')
@@ -134,7 +152,11 @@ export class TrainersController {
   @ApiOperation({ summary: 'Kết thúc phân công HLV cho hội viên (giữ lịch sử)' })
   @ApiParam({ name: 'id', description: 'ID huấn luyện viên' })
   @ApiParam({ name: 'memberId', description: 'ID hội viên' })
-  unassignMember(@Param('id') id: string, @Param('memberId') memberId: string) {
-    return this.trainersService.unassignMember(id, memberId);
+  async unassignMember(
+    @Param('id') id: string,
+    @Param('memberId') memberId: string,
+    @CurrentUser() actor: ScopeActor,
+  ) {
+    return this.trainersService.unassignMember(id, memberId, await this.scope(actor));
   }
 }

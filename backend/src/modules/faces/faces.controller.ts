@@ -68,8 +68,11 @@ export class FacesController {
   @Get('member/:memberId')
   @Roles(Role.ADMIN, Role.MANAGER, Role.STAFF)
   @ApiOperation({ summary: 'Xem trạng thái + ảnh đăng ký khuôn mặt của một hội viên' })
-  getMemberFace(@Param('memberId') memberId: string) {
-    return this.facesService.getMemberFace(memberId);
+  getMemberFace(
+    @Param('memberId') memberId: string,
+    @CurrentUser() actor: { id: string; role: string },
+  ) {
+    return this.facesService.getMemberFace(memberId, actor);
   }
 
   @Post('member/:memberId/enroll')
@@ -81,15 +84,18 @@ export class FacesController {
   adminEnroll(
     @Param('memberId') memberId: string,
     @Body() dto: EnrollFaceDto,
-    @CurrentUser('id') actorId: string,
+    @CurrentUser() actor: { id: string; role: string },
   ) {
-    return this.facesService.enrollForMember(memberId, dto, actorId);
+    return this.facesService.enrollForMember(memberId, dto, actor);
   }
 
   @Delete('member/:memberId')
   @Roles(Role.ADMIN, Role.MANAGER)
   @ApiOperation({ summary: 'Xoá đăng ký khuôn mặt của một hội viên (khi hội viên yêu cầu)' })
-  adminWithdraw(@Param('memberId') memberId: string, @CurrentUser('id') actorId: string) {
-    return this.facesService.adminWithdraw(memberId, actorId);
+  adminWithdraw(
+    @Param('memberId') memberId: string,
+    @CurrentUser() actor: { id: string; role: string },
+  ) {
+    return this.facesService.adminWithdraw(memberId, actor);
   }
 }

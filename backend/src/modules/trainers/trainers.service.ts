@@ -13,6 +13,7 @@ import {
 } from "../../common/constants/db-enums";
 import * as bcrypt from "bcryptjs";
 import { PrismaService } from "../../prisma/prisma.service";
+import { assertInScope, ownerWhere, type OwnerScope } from "../../common/utils/partner-scope";
 import {
   CreateTrainerDto,
   TrainerQueryDto,
@@ -69,11 +70,12 @@ export class TrainersService {
   // List / Detail
   // ---------------------------------------------------------------------------
 
-  async findAll(query: TrainerQueryDto = {}) {
+  async findAll(query: TrainerQueryDto = {}, scope: OwnerScope = null) {
     const { page = 1, limit = 20, search, status, specialization } = query;
     const skip = (page - 1) * limit;
 
-    const where: any = {};
+    // Đối tác chỉ thấy PT của phòng mình; hệ thống chỉ thấy PT Gym Master
+    const where: any = { ...ownerWhere(scope) };
     if (search) {
       where.OR = [
         { user: { fullName: { contains: search } } },
@@ -121,7 +123,7 @@ export class TrainersService {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, scope: OwnerScope = null) {
     const trainer = await this.prisma.trainer.findUnique({
       where: { id },
       include: {
@@ -167,6 +169,7 @@ export class TrainersService {
 
     if (!trainer)
       throw new NotFoundException("Không tìm thấy huấn luyện viên.");
+    assertInScope(trainer.ownerPartnerId, scope, "Không tìm thấy huấn luyện viên.");
 
     const now = new Date();
     const [totalSessions, activeMembers, upcomingSessions, completedSessions] =
@@ -202,7 +205,7 @@ export class TrainersService {
   // CRUD
   // ---------------------------------------------------------------------------
 
-  async create(dto: CreateTrainerDto, actorId?: string) {
+  async create(dto: CreateTrainerDto, actorId?: string, scope: OwnerScope = null) {
     await this.checkEmailAvailable(dto.email);
 
     const passwordHash = await bcrypt.hash(DEFAULT_TRAINER_PASSWORD, 10);
@@ -215,6 +218,7 @@ export class TrainersService {
           fullName: dto.fullName,
           phone: dto.phone ?? null,
           role: UserRole.TRAINER,
+          ownerPartnerId: scope,
           status:
             dto.status === TrainerStatus.INACTIVE
               ? UserStatus.INACTIVE
@@ -225,6 +229,7 @@ export class TrainersService {
 
       const trainer = await tx.trainer.create({
         data: {
+          ownerPartnerId: scope,
           userId: user.id,
           specialization: dto.specialization,
           certification: dto.certification ?? null,
@@ -271,10 +276,11 @@ export class TrainersService {
     };
   }
 
-  async update(id: string, dto: UpdateTrainerDto, actorId?: string) {
+  async update(id: string, dto: UpdateTrainerDto, actorId?: string, scope: OwnerScope = null) {
     const trainer = await this.prisma.trainer.findUnique({ where: { id } });
     if (!trainer)
       throw new NotFoundException("Không tìm thấy huấn luyện viên.");
+    assertInScope(trainer.ownerPartnerId, scope, "Không tìm thấy huấn luyện viên.");
 
     const userData: any = {};
     if (dto.email) {
@@ -346,10 +352,11 @@ export class TrainersService {
   }
 
   /** Deactivate (soft delete) — giữ lịch sử, chỉ chuyển trạng thái INACTIVE */
-  async remove(id: string, actorId?: string) {
+  async remove(id: string, actorId?: string, scope: OwnerScope = null) {
     const trainer = await this.prisma.trainer.findUnique({ where: { id } });
     if (!trainer)
       throw new NotFoundException("Không tìm thấy huấn luyện viên.");
+    assertInScope(trainer.ownerPartnerId, scope, "Không tìm thấy huấn luyện viên.");
 
     await this.prisma.$transaction([
       this.prisma.user.update({
@@ -379,12 +386,13 @@ export class TrainersService {
   // Assignments (Trainer ↔ Member)
   // ---------------------------------------------------------------------------
 
-  async getMembers(trainerId: string) {
+  async getMembers(trainerId: string, scope: OwnerScope = null) {
     const trainer = await this.prisma.trainer.findUnique({
       where: { id: trainerId },
     });
     if (!trainer)
       throw new NotFoundException("Không tìm thấy huấn luyện viên.");
+    assertInScope(trainer.ownerPartnerId, scope, "Không tìm thấy huấn luyện viên.");
 
     return this.prisma.trainerMember.findMany({
       where: { trainerId },
@@ -405,13 +413,14 @@ export class TrainersService {
     });
   }
 
-  async assignMember(trainerId: string, memberId: string) {
+  async assignMember(trainerId: string, memberId: string, scope: OwnerScope = null) {
     const trainer = await this.prisma.trainer.findUnique({
       where: { id: trainerId },
       include: { user: { select: { fullName: true } } },
     });
     if (!trainer)
       throw new NotFoundException("Không tìm thấy huấn luyện viên.");
+    assertInScope(trainer.ownerPartnerId, scope, "Không tìm thấy huấn luyện viên.");
     if (trainer.status !== TrainerStatus.ACTIVE) {
       throw new BadRequestException(
         "Huấn luyện viên đang không hoạt động, không thể gán hội viên mới.",
@@ -422,6 +431,8 @@ export class TrainersService {
       where: { id: memberId },
     });
     if (!member) throw new NotFoundException("Không tìm thấy hội viên.");
+    // PT và hội viên phải cùng một phòng gym (hệ thống hoặc cùng đối tác)
+    assertInScope(member.ownerPartnerId, scope, "Không tìm thấy hội viên.");
     if (member.status !== "ACTIVE") {
       throw new BadRequestException(
         "Hội viên đang không hoạt động, không thể gán huấn luyện viên.",
@@ -482,7 +493,10 @@ export class TrainersService {
     };
   }
 
-  async unassignMember(trainerId: string, memberId: string) {
+  async unassignMember(trainerId: string, memberId: string, scope: OwnerScope = null) {
+    const owner = await this.prisma.trainer.findUnique({ where: { id: trainerId }, select: { ownerPartnerId: true } });
+    if (!owner) throw new NotFoundException("Không tìm thấy huấn luyện viên.");
+    assertInScope(owner.ownerPartnerId, scope, "Không tìm thấy huấn luyện viên.");
     const assignment = await this.prisma.trainerMember.findFirst({
       where: { trainerId, memberId, status: "ACTIVE" },
     });

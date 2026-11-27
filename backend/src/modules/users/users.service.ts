@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AuditService } from "../audit-logs/audit-logs.service";
+import type { OwnerScope } from "../../common/utils/partner-scope";
 
 @Injectable()
 export class UsersService {
@@ -9,11 +10,16 @@ export class UsersService {
     private auditService: AuditService,
   ) {}
 
-  async findStaff(search?: string) {
+  /**
+   * Nhân viên theo phạm vi: hệ thống = role STAFF của Gym Master;
+   * đối tác = tài khoản PARTNER gắn ownerPartnerId (nhân viên của phòng đó).
+   */
+  async findStaff(search?: string, scope: OwnerScope = null) {
     const term = search?.trim();
     return this.prisma.user.findMany({
       where: {
-        role: "STAFF",
+        role: scope ? "PARTNER" : "STAFF",
+        ownerPartnerId: scope,
         ...(term
           ? {
               OR: [
@@ -41,9 +47,10 @@ export class UsersService {
     id: string,
     status: "ACTIVE" | "INACTIVE",
     actorId: string,
+    scope: OwnerScope = null,
   ) {
     const user = await this.prisma.user.findFirst({
-      where: { id, role: "STAFF" },
+      where: { id, role: scope ? "PARTNER" : "STAFF", ownerPartnerId: scope },
       select: { id: true, status: true, email: true },
     });
     if (!user)
