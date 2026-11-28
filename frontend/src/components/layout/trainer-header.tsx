@@ -22,7 +22,6 @@ import {
   LogOut,
   ChevronDown,
   MessageSquare,
-  Utensils,
   ClipboardList,
   Wallet,
 } from 'lucide-react';
@@ -33,7 +32,6 @@ const NAV_ITEMS = [
   { name: 'Lịch dạy', href: '/trainer/schedule', icon: CalendarDays },
   { name: 'Hội viên', href: '/trainer/members', icon: Users },
   { name: 'Tin nhắn', href: '/trainer/messages', icon: MessageSquare },
-  { name: 'Thực đơn', href: '/trainer/meal-plans', icon: Utensils },
   { name: 'Bài tập', href: '/trainer/programs/builder', icon: ClipboardList },
   { name: 'Thu nhập', href: '/trainer/earnings', icon: Wallet },
 ];

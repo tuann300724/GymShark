@@ -5,6 +5,7 @@ import type {
   Payment,
   PaymentDetail,
   Invoice,
+  RevenueBreakdown,
   RevenueReport,
 } from './types';
 
@@ -133,6 +134,12 @@ export const paymentApi = {
     } = {},
   ): Promise<RevenueReport> => {
     const res = await apiClient.get<RevenueReport>('/reports/revenue', { params });
+    return res.data;
+  },
+
+  /** Phân bổ doanh thu: thu về, chi đối tác Gym Cộng đồng, chi PT, lãi ròng (ADMIN/MANAGER) */
+  getRevenueBreakdown: async (params: { from?: string; to?: string } = {}) => {
+    const res = await apiClient.get<RevenueBreakdown>('/reports/revenue-breakdown', { params });
     return res.data;
   },
 };

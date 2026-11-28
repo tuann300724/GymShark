@@ -11,6 +11,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
 import { PT_SESSION_STATUS_META, ptSessionApi } from '@/services/pt-session.service';
+import { PayoutHistoryCard } from '@/components/payout/payout-history';
 
 /** PT: buổi tập hội viên đặt qua chat + thu nhập sau chiết khấu GymMaster */
 export default function TrainerEarningsPage() {
@@ -61,6 +62,20 @@ export default function TrainerEarningsPage() {
               </Card>
             ))}
           </div>
+
+          <PayoutHistoryCard
+            rows={(data?.payouts ?? []).map((p) => ({
+              id: p.id,
+              amount: p.amount,
+              countLabel: `${p.sessionCount} buổi`,
+              note: p.note,
+              createdAt: p.createdAt,
+              hasProof: p.hasProof,
+            }))}
+            loadProof={ptSessionApi.getMyPayoutProof}
+            description="Mỗi lần GymMaster chuyển thu nhập buổi PT vào tài khoản nhận tiền của bạn, kèm ảnh chứng từ."
+            emptyDescription="Khi GymMaster chi trả, khoản tiền sẽ hiện ở đây và bạn nhận thông báo."
+          />
 
           {(data?.data ?? []).length === 0 ? (
             <EmptyState

@@ -4,7 +4,9 @@ datasource db {
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  // omitApi: PrismaService ẩn mặc định cột STK/QR nhận tiền khỏi mọi truy vấn (xem prisma.service.ts)
+  previewFeatures = ["omitApi"]
 }
 
 // -------------------------------------------------------------
@@ -49,16 +51,45 @@ model Partner {
   monthlyFee      Decimal?  @db.Decimal(12, 2)
   contractStartAt DateTime?
   contractEndAt   DateTime?
+  /// Tài khoản nhận tiền hoa hồng do đối tác tự khai (mã ngân hàng VietQR, STK, chủ TK, ảnh QR)
+  bankCode          String?   @db.NVarChar(20)
+  bankName          String?   @db.NVarChar(200)
+  bankAccountNumber String?   @db.NVarChar(40)
+  bankAccountName   String?   @db.NVarChar(200)
+  bankQrImage       String?   @db.NVarChar(Max)
+  bankUpdatedAt     DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   branches PartnerBranch[]
   payments Payment[]
   checkIns CheckIn[]
+  payouts  PartnerPayout[]
 
   @@unique([userId])
   @@index([status])
   @@index([userId])
+}
+
+/// Lần admin chuyển hoa hồng cho đối tác Gym Cộng đồng (kèm ảnh chứng từ chuyển khoản).
+/// Các lượt check-in được chi trong lần này trỏ về qua CheckIn.partnerPayoutId.
+model PartnerPayout {
+  id         String    @id @default(uuid()) @db.NVarChar(100)
+  partnerId  String    @db.NVarChar(100)
+  partner    Partner   @relation(fields: [partnerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  amount     Decimal   @db.Decimal(12, 2)
+  visitCount Int
+  periodFrom DateTime?
+  periodTo   DateTime?
+  /// Ảnh chụp giao dịch chuyển khoản (data URL đã nén)
+  proofImage String    @db.NVarChar(Max)
+  note       String?   @db.NVarChar(500)
+  paidById   String?   @db.NVarChar(100)
+  createdAt  DateTime  @default(now())
+
+  checkIns CheckIn[]
+
+  @@index([partnerId, createdAt])
 }
 
 /// Bảng giá 2 gói hợp tác đối tác (admin chỉnh được, trang đăng ký đối tác đọc từ đây)
@@ -218,6 +249,18 @@ model Trainer {
   profileSubmittedAt   DateTime?
   profileReviewedAt    DateTime?
   profileRejectReason  String?   @db.NVarChar(500)
+  /// Khu vực / địa điểm dạy PT tự khai — hội viên xem để biết PT có gần mình không.
+  /// Trang công khai chỉ trả toạ độ làm tròn (~1 km).
+  workAddress       String?   @db.NVarChar(500)
+  workLatitude      Float?
+  workLongitude     Float?
+  /// Tài khoản nhận tiền buổi PT do PT tự khai (mã ngân hàng VietQR, STK, chủ TK, ảnh QR)
+  bankCode          String?   @db.NVarChar(20)
+  bankName          String?   @db.NVarChar(200)
+  bankAccountNumber String?   @db.NVarChar(40)
+  bankAccountName   String?   @db.NVarChar(200)
+  bankQrImage       String?   @db.NVarChar(Max)
+  bankUpdatedAt     DateTime?
 
   schedules      TrainingSchedule[]
   trainerMembers TrainerMember[]
@@ -227,6 +270,7 @@ model Trainer {
   programs       Program[]
   reviews        TrainerReview[]
   ptSessions     PtSession[]
+  payouts        TrainerPayout[]
 
   @@index([userId])
   @@index([status])
@@ -563,6 +607,9 @@ model CheckIn {
   unitPrice      Decimal?  @db.Decimal(12, 2)
   commissionRate Decimal?  @db.Decimal(5, 4)
   commissionAmount Decimal? @db.Decimal(12, 2)
+  /// Lần chi hoa hồng đã trả cho lượt này (NULL = chưa chi cho đối tác)
+  partnerPayoutId String?        @db.NVarChar(100)
+  partnerPayout   PartnerPayout? @relation(fields: [partnerPayoutId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_CheckIn_PartnerPayout")
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
@@ -571,6 +618,7 @@ model CheckIn {
   @@index([status])
   @@index([checkInTime])
   @@index([partnerId, checkInTime], map: "IX_CheckIn_Partner_Time")
+  @@index([partnerPayoutId])
 }
 
 /// DỮ LIỆU SINH TRẮC HỌC — vector embedding + ảnh tham chiếu chụp lúc đăng ký.
@@ -946,6 +994,9 @@ model PtSession {
   payoutStatus   String    @default("UNPAID") @db.NVarChar(20)
   payoutAt       DateTime?
   payoutById     String?   @db.NVarChar(100)
+  /// Lần chi trả đã gồm buổi này (NULL = chưa chi, hoặc chi trước khi có lịch sử chi trả)
+  trainerPayoutId String?        @db.NVarChar(100)
+  trainerPayout   TrainerPayout? @relation(fields: [trainerPayoutId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_PtSession_TrainerPayout")
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -956,6 +1007,25 @@ model PtSession {
   @@index([status])
   @@index([paymentId])
   @@index([payoutStatus])
+  @@index([trainerPayoutId])
+}
+
+/// Lần admin chi trả thu nhập buổi PT cho huấn luyện viên (kèm ảnh chứng từ chuyển khoản).
+model TrainerPayout {
+  id           String    @id @default(uuid()) @db.NVarChar(100)
+  trainerId    String    @db.NVarChar(100)
+  trainer      Trainer   @relation(fields: [trainerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  amount       Decimal   @db.Decimal(12, 2)
+  sessionCount Int
+  /// Ảnh chụp giao dịch chuyển khoản (data URL đã nén); NULL khi chi từ trang Buổi PT cũ
+  proofImage   String?   @db.NVarChar(Max)
+  note         String?   @db.NVarChar(500)
+  paidById     String?   @db.NVarChar(100)
+  createdAt    DateTime  @default(now())
+
+  ptSessions PtSession[]
+
+  @@index([trainerId, createdAt])
 }
 
 /// Ảnh/tệp đính kèm của tin nhắn. Ảnh lưu dạng data URL base64 trong DB —

@@ -42,6 +42,31 @@ export interface TrainerProfileChange extends TrainerDetail {
   currentProfile: Required<TrainerProfileDraft>;
 }
 
+/** Khu vực dạy của PT (toạ độ chính xác — chỉ chính chủ thấy) */
+export interface TrainerWorkArea {
+  workAddress: string | null;
+  workLatitude: number | null;
+  workLongitude: number | null;
+}
+
+export const trainerWorkAreaApi = {
+  get: async () => {
+    const res = await apiClient.get<TrainerWorkArea | null>('/trainers/me/work-area');
+    return res.data;
+  },
+  update: async (data: {
+    workAddress: string;
+    workLatitude: number | null;
+    workLongitude: number | null;
+  }) => {
+    const res = await apiClient.patch<{ message: string; area: TrainerWorkArea }>(
+      '/trainers/me/work-area',
+      data,
+    );
+    return res.data;
+  },
+};
+
 export const trainerApi = {
   list: async (params?: {
     page?: number;

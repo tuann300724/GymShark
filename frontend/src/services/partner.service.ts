@@ -229,6 +229,14 @@ export const partnerApi = {
     return res.data;
   },
 
+  /** Ảnh chứng từ một lần Gym Master chuyển hoa hồng */
+  getMyPayoutProof: async (payoutId: string) => {
+    const res = await apiClient.get<{ id: string; proofImage: string }>(
+      `/partners/me/payouts/${payoutId}/proof`,
+    );
+    return res.data;
+  },
+
   /** Hội viên Gym Master (gói nền tảng) đã tập tại phòng của đối tác, 12 tháng gần nhất. */
   getMyNetworkMembers: async (): Promise<PartnerNetworkMembers> => {
     const res = await apiClient.get<PartnerNetworkMembers>('/partners/me/network-members');
@@ -291,6 +299,18 @@ export const partnerApi = {
 
   adminCommission: async (id: string): Promise<PartnerCommissionDetail> => {
     const res = await apiClient.get<PartnerCommissionDetail>(`/admin/partners/${id}/commission`);
+    return res.data;
+  },
+
+  /** Xác nhận đã chuyển hoa hồng chưa chi (trong khoảng ngày) kèm ảnh chứng từ */
+  adminCreatePayout: async (
+    id: string,
+    data: { from?: string; to?: string; proofImage: string; note?: string },
+  ) => {
+    const res = await apiClient.post<{
+      message: string;
+      payout: { id: string; amount: number; visitCount: number; createdAt: string };
+    }>(`/admin/partners/${id}/payouts`, data);
     return res.data;
   },
 

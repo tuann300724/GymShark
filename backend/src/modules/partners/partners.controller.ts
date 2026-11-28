@@ -19,6 +19,7 @@ import { AttributePaymentDto } from './dto/attribute-payment.dto';
 import { UpdateCommissionDto } from './dto/update-commission.dto';
 import { UpdatePartnerTierDto } from './dto/update-tier.dto';
 import {
+  CreatePartnerPayoutDto,
   RenewalRequestDto,
   UpdatePartnerContractDto,
   UpdatePartnershipPlanDto,
@@ -27,6 +28,7 @@ import { PartnerDecisionDto } from './dto/partner-decision.dto';
 import { QueryPartnersDto } from './dto/query-partners.dto';
 import { PartnersService } from './partners.service';
 import { PartnerBranchDto } from './dto/update-partner-branch.dto';
+import { UpdatePayoutBankDto } from '../../common/utils/payout-bank';
 
 @ApiTags('Partners')
 @ApiBearerAuth('JWT-auth')
@@ -57,6 +59,24 @@ export class PartnerSelfController {
   })
   partnership(@CurrentUser('id') userId: string) {
     return this.service.getMyPartnership(userId);
+  }
+
+  @Get('payouts/:payoutId/proof')
+  @ApiOperation({ summary: 'Ảnh chứng từ một lần Gym Master chuyển hoa hồng cho đối tác' })
+  payoutProof(@CurrentUser('id') userId: string, @Param('payoutId') payoutId: string) {
+    return this.service.getMyPayoutProof(userId, payoutId);
+  }
+
+  @Get('bank')
+  @ApiOperation({ summary: 'Tài khoản nhận hoa hồng (STK + QR) của đối tác' })
+  bank(@CurrentUser('id') userId: string) {
+    return this.service.getMyBank(userId);
+  }
+
+  @Patch('bank')
+  @ApiOperation({ summary: 'Chủ đối tác cập nhật STK ngân hàng / ảnh QR nhận hoa hồng' })
+  updateBank(@CurrentUser('id') userId: string, @Body() dto: UpdatePayoutBankDto) {
+    return this.service.updateMyBank(userId, dto);
   }
 
   @Post('renewal-request')
@@ -132,6 +152,18 @@ export class AdminPartnersController {
   @ApiOperation({ summary: 'Danh sách đối tác (admin/manager)' })
   list(@Query() query: QueryPartnersDto) {
     return this.service.adminList(query);
+  }
+
+  @Post(':id/payouts')
+  @ApiOperation({
+    summary: 'Xác nhận đã chuyển hoa hồng chưa chi cho đối tác (kèm ảnh chứng từ chuyển khoản)',
+  })
+  createPayout(
+    @Param('id') id: string,
+    @Body() dto: CreatePartnerPayoutDto,
+    @CurrentUser('id') actorId: string,
+  ) {
+    return this.service.adminCreatePayout(id, dto, actorId);
   }
 
   @Get(':id/commission')

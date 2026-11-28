@@ -13,12 +13,19 @@ import { PartnerBranchDto } from "./dto/update-partner-branch.dto";
 import { UpdatePartnerProfileDto } from "./dto/update-partner-profile.dto";
 import { QueryPartnersDto } from "./dto/query-partners.dto";
 import {
+  CreatePartnerPayoutDto,
   UpdatePartnerContractDto,
   UpdatePartnershipPlanDto,
   RenewalRequestDto,
 } from "./dto/partnership.dto";
+import { AVATAR_DATA_URL_PATTERN } from "../../common/utils/avatar";
 import { parseJsonText } from "../../common/utils/json-text";
 import { assertPartnerOwner, resolvePartnerIdForUser } from "../../common/utils/partner-scope";
+import {
+  PAYOUT_BANK_SELECT,
+  toPayoutBankData,
+  type UpdatePayoutBankDto,
+} from "../../common/utils/payout-bank";
 
 const RENEWAL_ACTION = "PARTNER_RENEWAL_REQUEST";
 const RENEWAL_COOLDOWN_MS = 24 * 60 * 60 * 1000;
@@ -327,11 +334,39 @@ export class PartnersService {
         unitPrice: true,
         commissionRate: true,
         commissionAmount: true,
+        partnerPayoutId: true,
         // Chỉ mã + tên hội viên (không SĐT/email — NĐ13/2023)
         member: { select: { code: true, fullName: true, ownerPartnerId: true } },
       },
       orderBy: { checkInTime: "asc" },
     });
+
+    // Tiền Gym Master đã chuyển / còn nợ (toàn thời gian) + các lần chuyển gần nhất
+    const [paidAgg, unpaidAgg, payouts] = await Promise.all([
+      this.prisma.checkIn.aggregate({
+        _sum: { commissionAmount: true },
+        where: { partnerId: partner.id, partnerPayoutId: { not: null } },
+      }),
+      this.prisma.checkIn.aggregate({
+        _sum: { commissionAmount: true },
+        _count: { _all: true },
+        where: { partnerId: partner.id, partnerPayoutId: null, commissionAmount: { gt: 0 } },
+      }),
+      this.prisma.partnerPayout.findMany({
+        where: { partnerId: partner.id },
+        select: {
+          id: true,
+          amount: true,
+          visitCount: true,
+          periodFrom: true,
+          periodTo: true,
+          note: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      }),
+    ]);
 
     const totalCommission = visits.reduce(
       (sum, v) => sum.add(v.commissionAmount ?? new Prisma.Decimal(0)),
@@ -391,6 +426,10 @@ export class PartnersService {
       visitCount: visits.length,
       totalRevenue: totalRevenue.toString(),
       totalCommission: totalCommission.toString(),
+      received: (paidAgg._sum.commissionAmount ?? 0).toString(),
+      pending: (unpaidAgg._sum.commissionAmount ?? 0).toString(),
+      pendingVisits: unpaidAgg._count._all,
+      payouts: payouts.map((p) => ({ ...p, amount: p.amount.toString() })),
       byMember: Array.from(byMember.values())
         .sort((a, b) => b.commission.comparedTo(a.commission) || b.visitCount - a.visitCount)
         .map((r) => ({
@@ -410,6 +449,8 @@ export class PartnersService {
           unitPrice: (v.unitPrice ?? 0).toString(),
           commissionRate: v.commissionRate != null ? Number(v.commissionRate) : null,
           commissionAmount: (v.commissionAmount ?? 0).toString(),
+          /** Gym Master đã chuyển hoa hồng của lượt này chưa */
+          paid: v.partnerPayoutId != null,
         })),
       monthly: Array.from(monthly.entries())
         .sort(([a], [b]) => a.localeCompare(b))
@@ -762,6 +803,49 @@ export class PartnersService {
     };
   }
 
+  /** Ảnh chứng từ của một lần Gym Master chuyển hoa hồng (chỉ đối tác nhận tiền xem được) */
+  async getMyPayoutProof(userId: string, payoutId: string) {
+    const partner = await this.getPartnerOfUser(userId);
+    const payout = await this.prisma.partnerPayout.findFirst({
+      where: { id: payoutId, partnerId: partner.id },
+      select: { id: true, proofImage: true },
+    });
+    if (!payout) throw new NotFoundException("Không tìm thấy lần chuyển tiền này");
+    return payout;
+  }
+
+  /** Tài khoản nhận hoa hồng (STK + QR) của đối tác đang đăng nhập */
+  async getMyBank(userId: string) {
+    const partner = await this.getPartnerOfUser(userId);
+    return this.prisma.partner.findUnique({
+      where: { id: partner.id },
+      select: PAYOUT_BANK_SELECT,
+    });
+  }
+
+  /** Chủ đối tác tự cập nhật tài khoản nhận hoa hồng (admin chuyển khoản theo thông tin này) */
+  async updateMyBank(userId: string, dto: UpdatePayoutBankDto) {
+    await assertPartnerOwner(this.prisma, userId);
+    const partner = await this.getPartnerOfUser(userId);
+    const bank = await this.prisma.partner.update({
+      where: { id: partner.id },
+      data: toPayoutBankData(dto),
+      select: PAYOUT_BANK_SELECT,
+    });
+    await this.audit.log({
+      userId,
+      action: "PAYOUT_BANK_UPDATE",
+      entity: "Partner",
+      entityId: partner.id,
+      metadata: {
+        bankCode: bank.bankCode,
+        accountTail: bank.bankAccountNumber?.slice(-4) ?? null,
+        hasQrImage: Boolean(bank.bankQrImage),
+      },
+    });
+    return { message: "Đã lưu tài khoản nhận tiền.", bank };
+  }
+
   /** Đối tác xin gia hạn: báo admin qua chuông, ghi nhật ký; tối đa 1 yêu cầu/24h. */
   async requestRenewal(userId: string, dto: RenewalRequestDto) {
     await assertPartnerOwner(this.prisma, userId);
@@ -906,6 +990,97 @@ export class PartnersService {
       link: "/admin/partnership",
     });
     return updated;
+  }
+
+  /**
+   * Admin xác nhận đã chuyển hoa hồng: gom mọi lượt có hoa hồng CHƯA CHI của đối tác
+   * (trong khoảng ngày nếu có), tạo PartnerPayout kèm ảnh chứng từ và gắn các lượt đó vào.
+   */
+  async adminCreatePayout(id: string, dto: CreatePartnerPayoutDto, actorId: string) {
+    const proof = dto.proofImage.trim();
+    if (!AVATAR_DATA_URL_PATTERN.test(proof)) {
+      throw new BadRequestException("Ảnh chứng từ phải là ảnh JPG, PNG hoặc WEBP.");
+    }
+    const partner = await this.prisma.partner.findUnique({
+      where: { id },
+      select: { id: true, userId: true, businessName: true },
+    });
+    if (!partner) throw new NotFoundException("Không tìm thấy đối tác");
+
+    const range: Prisma.DateTimeFilter = {};
+    if (dto.from) {
+      range.gte = new Date(dto.from);
+      range.gte.setHours(0, 0, 0, 0);
+    }
+    if (dto.to) {
+      range.lte = new Date(dto.to);
+      range.lte.setHours(23, 59, 59, 999);
+    }
+    const where: Prisma.CheckInWhereInput = {
+      partnerId: id,
+      commissionAmount: { gt: 0 },
+      partnerPayoutId: null,
+      ...(dto.from || dto.to ? { checkInTime: range } : {}),
+    };
+
+    const payout = await this.prisma.$transaction(async (tx) => {
+      const visits = await tx.checkIn.findMany({
+        where,
+        select: { id: true, commissionAmount: true },
+      });
+      if (!visits.length) {
+        throw new BadRequestException("Đối tác không còn hoa hồng chưa chi trong khoảng này.");
+      }
+      const amount = visits.reduce(
+        (sum, v) => sum.add(v.commissionAmount ?? 0),
+        new Prisma.Decimal(0),
+      );
+      const created = await tx.partnerPayout.create({
+        data: {
+          partnerId: id,
+          amount,
+          visitCount: visits.length,
+          periodFrom: range.gte instanceof Date ? range.gte : null,
+          periodTo: range.lte instanceof Date ? range.lte : null,
+          proofImage: proof,
+          note: dto.note?.trim() || null,
+          paidById: actorId,
+        },
+        select: { id: true, amount: true, visitCount: true, createdAt: true },
+      });
+      await tx.checkIn.updateMany({
+        where: { id: { in: visits.map((v) => v.id) } },
+        data: { partnerPayoutId: created.id },
+      });
+      return created;
+    });
+
+    const amountText = `${Number(payout.amount).toLocaleString("vi-VN")}đ`;
+    await this.audit.log({
+      userId: actorId,
+      action: "PARTNER_PAYOUT",
+      entity: "Partner",
+      entityId: id,
+      metadata: {
+        payoutId: payout.id,
+        businessName: partner.businessName,
+        amount: Number(payout.amount),
+        visitCount: payout.visitCount,
+        from: dto.from ?? null,
+        to: dto.to ?? null,
+      },
+    });
+    await this.notifications.create({
+      userId: partner.userId,
+      type: "SYSTEM",
+      title: "Gym Master đã chuyển hoa hồng 💸",
+      content: `Đã chuyển ${amountText} hoa hồng cho ${payout.visitCount} lượt tập. Vui lòng kiểm tra tài khoản nhận tiền.`,
+      link: "/partner/finance",
+    });
+    return {
+      message: `Đã ghi nhận chi ${amountText} cho ${partner.businessName}.`,
+      payout: { ...payout, amount: Number(payout.amount) },
+    };
   }
 
   async adminUpdateTier(

@@ -14,6 +14,7 @@ import { getStoredUser, isPartnerRole } from '@/lib/auth';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
+import { PayoutReceived } from '@/components/partner/payout-received';
 import {
   Wallet,
   Users,
@@ -198,6 +199,8 @@ export default function AdminFacilityFinancePage() {
           tại thời điểm check-in, nên thay đổi sau này không ảnh hưởng các lượt cũ.
         </p>
 
+        <PayoutReceived commission={commission} />
+
         {/* Theo hội viên */}
         <Card className="overflow-hidden">
           <CardHeader>
@@ -283,6 +286,7 @@ export default function AdminFacilityFinancePage() {
                       <th className="px-4 py-2.5 text-right font-semibold">Giá 1 lượt</th>
                       <th className="px-4 py-2.5 text-right font-semibold">Tỷ lệ</th>
                       <th className="px-4 py-2.5 text-right font-semibold">Hoa hồng</th>
+                      <th className="px-4 py-2.5 font-semibold">Trạng thái</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line">
@@ -305,6 +309,15 @@ export default function AdminFacilityFinancePage() {
                         </td>
                         <td className="px-4 py-2.5 text-right font-mono font-bold text-neon">
                           {formatCurrency(v.commissionAmount)}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          {Number(v.commissionAmount) <= 0 ? (
+                            <span className="text-xs text-muted">—</span>
+                          ) : v.paid ? (
+                            <Badge variant="success">Đã nhận</Badge>
+                          ) : (
+                            <Badge variant="warning">Chờ chuyển</Badge>
+                          )}
                         </td>
                       </tr>
                     ))}

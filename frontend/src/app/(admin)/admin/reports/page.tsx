@@ -27,7 +27,6 @@ import {
   UserCheck,
   Users,
 } from 'lucide-react';
-import { EquipmentReportTab } from './EquipmentReportTab';
 
 const TABS = [
   { value: 'overview', label: 'Tổng quan' },
@@ -36,7 +35,6 @@ const TABS = [
   { value: 'members', label: 'Hội viên' },
   { value: 'memberships', label: 'Gói tập' },
   { value: 'trainers', label: 'HLV' },
-  { value: 'equipment', label: 'Thiết bị & Dụng cụ' },
 ];
 
 const CSV_TYPES: Record<string, 'revenue' | 'members' | 'attendance' | 'memberships'> = {
@@ -881,7 +879,6 @@ export default function ReportsPage() {
       {tab === 'members' && <MembersTab />}
       {tab === 'memberships' && <MembershipsTab />}
       {tab === 'trainers' && <TrainersTab />}
-      {tab === 'equipment' && <EquipmentReportTab />}
     </div>
   );
 }

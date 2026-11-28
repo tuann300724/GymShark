@@ -9,8 +9,18 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { Reveal } from '@/components/home/reveal';
-import { ArrowUpRight, Award, Briefcase, Star, Users } from 'lucide-react';
+import {
+  ArrowUpRight,
+  Award,
+  Briefcase,
+  Crosshair,
+  Loader2,
+  MapPin,
+  Star,
+  Users,
+} from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { distanceKm, formatKm, useDeviceLocation } from '@/lib/geo';
 import { getTrainerFocusTags, getTrainerImage } from '@/lib/trainer-visuals';
 
 const ALL = 'ALL';
@@ -43,13 +53,24 @@ export default function PublicTrainersPage() {
     [trainers],
   );
 
-  const filtered = useMemo(
-    () =>
-      (trainers ?? []).filter(
+  const { origin, locating, error: locateError, locate } = useDeviceLocation();
+
+  const filtered = useMemo(() => {
+    const list = (trainers ?? [])
+      .filter(
         (trainer) => focus === ALL || getTrainerFocusTags(trainer.specialization).includes(focus),
-      ),
-    [trainers, focus],
-  );
+      )
+      .map((trainer) => ({
+        trainer,
+        km:
+          origin && trainer.workLatitude != null && trainer.workLongitude != null
+            ? distanceKm(origin.lat, origin.lng, trainer.workLatitude, trainer.workLongitude)
+            : null,
+      }));
+    // Có vị trí thiết bị thì PT gần nhất lên trước (PT chưa ghim khu vực xuống cuối)
+    if (origin) list.sort((a, b) => (a.km ?? Infinity) - (b.km ?? Infinity));
+    return list;
+  }, [trainers, focus, origin]);
 
   const specialtyCount = useMemo(
     () => new Set((trainers ?? []).flatMap((t) => getTrainerFocusTags(t.specialization))).size,
@@ -115,7 +136,26 @@ export default function PublicTrainersPage() {
                   {option === ALL ? 'Tất cả' : option}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={locate}
+                disabled={locating}
+                aria-pressed={Boolean(origin)}
+                className={`inline-flex items-center gap-1.5 rounded-sm border px-4 py-2 text-sm font-medium transition-colors duration-200 sm:ml-auto ${
+                  origin
+                    ? 'border-neon/60 text-neon'
+                    : 'border-line bg-surface text-muted hover:border-neon/40 hover:text-chalk'
+                }`}
+              >
+                {locating ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Crosshair className="size-4" />
+                )}
+                {origin ? 'Đang xếp theo khoảng cách' : 'PT gần tôi'}
+              </button>
             </div>
+            {locateError && <p className="mt-2 text-xs text-danger">{locateError}</p>}
           </Reveal>
 
           {isLoading ? (
@@ -135,7 +175,7 @@ export default function PublicTrainersPage() {
             />
           ) : (
             <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {filtered.map((trainer, index) => {
+              {filtered.map(({ trainer, km }, index) => {
                 const visual = getTrainerImage(trainer);
                 const tags = getTrainerFocusTags(trainer.specialization);
                 const name = trainer.user?.fullName ?? 'Huấn luyện viên';
@@ -181,6 +221,22 @@ export default function PublicTrainersPage() {
                             {trainer.experienceYears} năm kinh nghiệm
                           </span>
                         </div>
+
+                        {(trainer.workAddress || km != null) && (
+                          <p className="mt-3 flex items-start gap-1.5 text-xs text-muted">
+                            <MapPin className="mt-0.5 size-3.5 shrink-0 text-neon" />
+                            <span className="min-w-0">
+                              {km != null && (
+                                <b className="mr-1.5 font-semibold text-neon">
+                                  Cách bạn ~{formatKm(km)}
+                                </b>
+                              )}
+                              <span className="line-clamp-1">
+                                {trainer.workAddress || 'Chưa cập nhật địa chỉ'}
+                              </span>
+                            </span>
+                          </p>
+                        )}
 
                         <p className="mt-4 line-clamp-2 text-sm leading-relaxed text-muted">
                           {trainer.bio ??

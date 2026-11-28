@@ -135,6 +135,10 @@ export interface PublicTrainer {
   hourlyRate?: string | null;
   status: string;
   user: { id: string; fullName: string; avatarUrl?: string | null };
+  /** Khu vực dạy PT tự khai; toạ độ làm tròn ~1 km */
+  workAddress?: string | null;
+  workLatitude?: number | null;
+  workLongitude?: number | null;
 }
 
 export interface PublicTrainerDetail extends PublicTrainer {
@@ -514,6 +518,61 @@ export interface BankInfo {
   gateways: { method: string; manualConfirmation: boolean; integrated: boolean }[];
 }
 
+/** Tài khoản nhận tiền (STK + ảnh QR) của đối tác / PT */
+export interface PayoutBank {
+  bankCode: string | null;
+  bankName: string | null;
+  bankAccountNumber: string | null;
+  bankAccountName: string | null;
+  bankQrImage: string | null;
+  bankUpdatedAt: string | null;
+}
+
+/** GET /reports/revenue-breakdown — thu về, chi đối tác, chi PT, lãi ròng (ADMIN/MANAGER) */
+export interface RevenueBreakdown {
+  range: { from: string | null; to: string | null };
+  totals: {
+    grossRevenue: number;
+    partnerCommission: number;
+    trainerPayout: number;
+    trainerUnpaid: number;
+    partnerUnpaid: number;
+    totalCost: number;
+    netProfit: number;
+    /** Tỷ suất lãi 0..1 */
+    margin: number;
+  };
+  sources: Record<'membership' | 'ptSession' | 'other', { revenue: number; count: number }>;
+  partners: {
+    partnerId: string;
+    businessName: string;
+    gymTier: GymTier | null;
+    /** Tỷ lệ hoa hồng đối tác nhận, 0..1 */
+    commissionRate: number;
+    visits: number;
+    visitValue: number;
+    commission: number;
+    retained: number;
+    paidOut: number;
+    unpaid: number;
+    bank: PayoutBank | null;
+  }[];
+  trainers: {
+    trainerId: string;
+    fullName: string;
+    avatarUrl: string | null;
+    /** % Gym Master chiết khấu trên mỗi buổi, 0..100 */
+    commissionRate: number;
+    sessions: number;
+    gross: number;
+    trainerEarning: number;
+    platformFee: number;
+    paidOut: number;
+    unpaid: number;
+    bank: PayoutBank | null;
+  }[];
+}
+
 export interface RevenueReport {
   stats: {
     revenueToday: string;
@@ -570,18 +629,6 @@ export interface NotificationListResponse {
 
 export interface UnreadCountResponse {
   count: number;
-}
-
-export interface EquipmentStats {
-  status: string;
-  count: number;
-}
-
-export interface EquipmentUsage {
-  equipmentId: string;
-  name: string;
-  type: string;
-  usageCount: number;
 }
 
 export interface ReportSummary {
@@ -1087,7 +1134,26 @@ export interface PartnerCommissionSummary {
     unitPrice: string;
     commissionRate: number | null;
     commissionAmount: string;
+    /** Gym Master đã chuyển hoa hồng của lượt này */
+    paid?: boolean;
   }>;
+  /** Tổng hoa hồng Gym Master đã chuyển (toàn thời gian) — chỉ ở /partners/me/commission */
+  received?: string;
+  /** Hoa hồng chưa được chuyển + số lượt tương ứng */
+  pending?: string;
+  pendingVisits?: number;
+  /** Các lần Gym Master chuyển hoa hồng, mới nhất trước */
+  payouts?: PartnerPayoutRecord[];
+}
+
+export interface PartnerPayoutRecord {
+  id: string;
+  amount: string;
+  visitCount: number;
+  periodFrom: string | null;
+  periodTo: string | null;
+  note: string | null;
+  createdAt: string;
 }
 
 /** Hội viên Gym Master đã tập tại phòng đối tác — chỉ thông tin tối thiểu, không SĐT/email */

@@ -97,4 +97,16 @@ export class PtPayoutDto {
   @ApiProperty({ description: 'Chi trả cho PT này (mọi buổi đã thanh toán, đã diễn ra, chưa chi)' })
   @IsString()
   trainerId: string;
+
+  @ApiPropertyOptional({ description: 'Ảnh chụp giao dịch chuyển khoản (data URL JPG/PNG/WEBP)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(700_000, { message: 'Ảnh chứng từ quá lớn' })
+  proofImage?: string;
+
+  @ApiPropertyOptional({ description: 'Ghi chú (mã giao dịch...)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string;
 }

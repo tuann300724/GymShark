@@ -33,6 +33,8 @@ import {
 } from 'lucide-react';
 import type { TrainerDetail, TrainerProfileDraft } from '@/services/types';
 import { AvatarUploader } from '@/components/trainer/avatar-uploader';
+import { BankAccountCard } from '@/components/payout/bank-account-card';
+import { WorkAreaCard } from '@/components/trainer/work-area-card';
 
 const DRAFT_LABELS: Record<keyof TrainerProfileDraft, string> = {
   specialization: 'Chuyên môn',
@@ -300,6 +302,10 @@ export default function TrainerProfilePage() {
               )}
             </CardContent>
           </Card>
+
+          <WorkAreaCard />
+
+          <BankAccountCard owner="trainer" />
 
           {/* Change password */}
           <Card>

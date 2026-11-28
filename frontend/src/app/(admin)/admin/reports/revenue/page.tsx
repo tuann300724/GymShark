@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { paymentApi } from '@/services/payment.service';
+import { getStoredUser } from '@/lib/auth';
+import { RevenueBreakdown } from '@/components/admin/revenue-breakdown';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatCard } from '@/components/ui/stat-card';
 import { Button } from '@/components/ui/button';
@@ -134,6 +136,12 @@ export default function RevenueReportPage() {
   const [to, setTo] = useState('');
   const [method, setMethod] = useState('');
   const [applied, setApplied] = useState({ from: '', to: '', method: '' });
+  // Phân bổ thu/chi/lãi chỉ dành cho ADMIN/MANAGER (trang này dùng chung với khu đối tác)
+  const [showBreakdown, setShowBreakdown] = useState(false);
+  useEffect(() => {
+    const role = getStoredUser()?.role;
+    setShowBreakdown(role === 'ADMIN' || role === 'MANAGER');
+  }, []);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['revenue-report', applied],
@@ -308,6 +316,10 @@ export default function RevenueReportPage() {
           </div>
         </CardContent>
       </Card>
+
+      {showBreakdown && (
+        <RevenueBreakdown from={applied.from || undefined} to={applied.to || undefined} />
+      )}
 
       {/* Charts */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

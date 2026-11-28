@@ -12,6 +12,9 @@ import {
   Briefcase,
   CalendarDays,
   Check,
+  Crosshair,
+  Loader2,
+  MapPin,
   MessageSquare,
   Star,
   Users,
@@ -24,6 +27,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/utils';
+import { distanceKm, formatKm, useDeviceLocation } from '@/lib/geo';
 import { getTrainerFocusTags, getTrainerImage } from '@/lib/trainer-visuals';
 
 interface TrainerProfileProps {
@@ -342,6 +346,11 @@ export function TrainerProfile({ id }: TrainerProfileProps) {
                   <dd className="mt-1.5 font-semibold text-chalk">Đang nhận học viên</dd>
                 </div>
               </dl>
+              <TrainerWorkArea
+                address={trainer.workAddress}
+                lat={trainer.workLatitude}
+                lng={trainer.workLongitude}
+              />
             </div>
           </Reveal>
 
@@ -432,6 +441,63 @@ export function TrainerProfile({ id }: TrainerProfileProps) {
           </div>
         </section>
       )}
+    </div>
+  );
+}
+
+/** Khu vực dạy của PT + khoảng cách từ vị trí người xem (toạ độ công khai đã làm tròn ~1 km) */
+function TrainerWorkArea({
+  address,
+  lat,
+  lng,
+}: {
+  address?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+}) {
+  const { origin, locating, error, locate } = useDeviceLocation();
+  const hasPin = lat != null && lng != null;
+  const km = origin && hasPin ? distanceKm(origin.lat, origin.lng, lat, lng) : null;
+
+  return (
+    <div className="mt-6 border-t border-line pt-6 text-sm">
+      <p className="meta-label">Khu vực dạy</p>
+      <p className="mt-1.5 flex items-start gap-2 text-chalk">
+        <MapPin className="mt-0.5 size-4 shrink-0 text-neon" />
+        {address || 'PT chưa cập nhật khu vực dạy.'}
+      </p>
+      {hasPin && (
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          {km != null ? (
+            <span className="font-display text-lg font-bold text-neon">
+              Cách bạn ~{formatKm(km)}
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={locate}
+              disabled={locating}
+              className="inline-flex items-center gap-1.5 rounded-sm border border-line px-3 py-1.5 text-xs font-semibold text-chalk transition-colors hover:border-neon/50"
+            >
+              {locating ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Crosshair className="size-3.5 text-neon" />
+              )}
+              Xem khoảng cách tới tôi
+            </button>
+          )}
+          <a
+            href={`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs font-semibold text-muted underline-offset-2 hover:text-neon hover:underline"
+          >
+            Xem trên bản đồ
+          </a>
+        </div>
+      )}
+      {error && <p className="mt-2 text-xs text-danger">{error}</p>}
     </div>
   );
 }

@@ -18,6 +18,7 @@ import {
   TrainerReviewDto,
   UpdateMyTrainerProfileDto,
   UpdateTrainerDto,
+  UpdateTrainerWorkAreaDto,
 } from './dto/trainer.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -25,6 +26,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
+import { UpdatePayoutBankDto } from '../../common/utils/payout-bank';
 import { resolveOwnerScope, type ScopeActor } from '../../common/utils/partner-scope';
 
 @ApiTags('Trainers')
@@ -75,6 +77,34 @@ export class TrainersController {
     @Body() dto: UpdateMyTrainerProfileDto,
   ) {
     return this.trainersService.updateMyProfile(userId, dto);
+  }
+
+  @Get('me/work-area')
+  @Roles(Role.TRAINER)
+  @ApiOperation({ summary: 'Khu vực / địa điểm dạy của PT đang đăng nhập' })
+  getMyWorkArea(@CurrentUser('id') userId: string) {
+    return this.trainersService.getMyWorkArea(userId);
+  }
+
+  @Patch('me/work-area')
+  @Roles(Role.TRAINER)
+  @ApiOperation({ summary: 'PT cập nhật địa chỉ + điểm ghim khu vực dạy (hội viên xem khoảng cách)' })
+  updateMyWorkArea(@CurrentUser('id') userId: string, @Body() dto: UpdateTrainerWorkAreaDto) {
+    return this.trainersService.updateMyWorkArea(userId, dto);
+  }
+
+  @Get('me/bank')
+  @Roles(Role.TRAINER)
+  @ApiOperation({ summary: 'Tài khoản nhận tiền (STK + QR) của PT đang đăng nhập' })
+  getMyBank(@CurrentUser('id') userId: string) {
+    return this.trainersService.getMyBank(userId);
+  }
+
+  @Patch('me/bank')
+  @Roles(Role.TRAINER)
+  @ApiOperation({ summary: 'PT tự cập nhật STK ngân hàng / ảnh QR nhận tiền buổi tập' })
+  updateMyBank(@CurrentUser('id') userId: string, @Body() dto: UpdatePayoutBankDto) {
+    return this.trainersService.updateMyBank(userId, dto);
   }
 
   @Delete('me/profile/pending')

@@ -9,6 +9,16 @@ import {
   resolvePartnerIdForUser,
 } from "../../common/utils/partner-scope";
 import { RevenueReportQueryDto } from "./dto/revenue-report-query.dto";
+import { PAYOUT_BANK_SELECT, type PayoutBankFields } from "../../common/utils/payout-bank";
+
+const pickPayoutBank = (src: PayoutBankFields): PayoutBankFields => ({
+  bankCode: src.bankCode,
+  bankName: src.bankName,
+  bankAccountNumber: src.bankAccountNumber,
+  bankAccountName: src.bankAccountName,
+  bankQrImage: src.bankQrImage,
+  bankUpdatedAt: src.bankUpdatedAt,
+});
 
 /**
  * Báo cáo/dashboard của quản trị chỉ tính dữ liệu hệ thống Gym Master —
@@ -407,6 +417,208 @@ export class ReportsService {
         amount: Number(p.amount) - Number(p.refundAmount ?? 0),
         createdAt: p.paidAt,
       })),
+    };
+  }
+
+  /**
+   * Phân bổ doanh thu & lãi của Gym Master trong khoảng ngày (mặc định toàn thời gian):
+   * - Thu về: Payment PAID/REFUNDED (trừ tiền hoàn) của hội viên hệ thống, tách gói tập / buổi PT.
+   * - Chi đối tác Gym Cộng đồng: hoa hồng chốt theo từng lượt check-in (CheckIn.commissionAmount).
+   * - Chi PT: phần trainerEarning của các buổi PT đã thanh toán.
+   * Lãi = Thu về − chi đối tác − chi PT.
+   */
+  async getRevenueBreakdown(query: { from?: string; to?: string }) {
+    const range: Prisma.DateTimeFilter = {};
+    if (query.from) range.gte = this.startOfDay(new Date(query.from));
+    if (query.to) range.lte = this.endOfDay(new Date(query.to));
+    const hasRange = Boolean(query.from || query.to);
+
+    const [payments, ptSessions, visits] = await Promise.all([
+      this.prisma.payment.findMany({
+        where: {
+          AND: [
+            { status: { in: ["PAID", "REFUNDED"] } },
+            hasRange ? { paidAt: range } : {},
+            SYSTEM_ONLY.byMember,
+          ],
+        },
+        select: { id: true, amount: true, refundAmount: true, membershipId: true },
+      }),
+      this.prisma.ptSession.findMany({
+        where: {
+          AND: [
+            { status: "PAID" },
+            hasRange ? { paidAt: range } : {},
+            SYSTEM_ONLY.byMember,
+          ],
+        },
+        select: {
+          trainerId: true,
+          paymentId: true,
+          price: true,
+          platformFee: true,
+          trainerEarning: true,
+          commissionRate: true,
+          payoutStatus: true,
+          trainer: {
+            select: {
+              commissionRate: true,
+              ...PAYOUT_BANK_SELECT,
+              user: { select: { fullName: true, avatarUrl: true } },
+            },
+          },
+        },
+      }),
+      this.prisma.checkIn.findMany({
+        where: {
+          partnerId: { not: null },
+          commissionAmount: { not: null },
+          ...(hasRange ? { checkInTime: range } : {}),
+        },
+        select: {
+          partnerId: true,
+          unitPrice: true,
+          commissionAmount: true,
+          partnerPayoutId: true,
+          partner: {
+            select: {
+              businessName: true,
+              commissionRate: true,
+              gymTier: true,
+              partnershipType: true,
+              ...PAYOUT_BANK_SELECT,
+            },
+          },
+        },
+      }),
+    ]);
+
+    // --- Thu về, tách theo nguồn ---
+    const ptPaymentIds = new Set(ptSessions.map((s) => s.paymentId).filter(Boolean));
+    const sources = {
+      membership: { revenue: 0, count: 0 },
+      ptSession: { revenue: 0, count: 0 },
+      other: { revenue: 0, count: 0 },
+    };
+    for (const p of payments) {
+      const net = Number(p.amount) - Number(p.refundAmount ?? 0);
+      const bucket = ptPaymentIds.has(p.id)
+        ? sources.ptSession
+        : p.membershipId
+          ? sources.membership
+          : sources.other;
+      bucket.revenue += net;
+      bucket.count += 1;
+    }
+    const grossRevenue =
+      sources.membership.revenue + sources.ptSession.revenue + sources.other.revenue;
+
+    // --- Đối tác Gym Cộng đồng: giá trị lượt tập & hoa hồng phải trả ---
+    const byPartner = new Map<
+      string,
+      {
+        partnerId: string;
+        businessName: string;
+        gymTier: string | null;
+        commissionRate: number;
+        visits: number;
+        visitValue: number;
+        commission: number;
+        retained: number;
+        paidOut: number;
+        unpaid: number;
+        bank: PayoutBankFields | null;
+      }
+    >();
+    for (const v of visits) {
+      const row = byPartner.get(v.partnerId!) ?? {
+        partnerId: v.partnerId!,
+        businessName: v.partner?.businessName ?? "Đối tác",
+        gymTier: v.partner?.gymTier ?? null,
+        commissionRate: Number(v.partner?.commissionRate ?? 0),
+        bank: v.partner ? pickPayoutBank(v.partner) : null,
+        visits: 0,
+        visitValue: 0,
+        commission: 0,
+        retained: 0,
+        paidOut: 0,
+        unpaid: 0,
+      };
+      const value = Number(v.unitPrice ?? 0);
+      const commission = Number(v.commissionAmount ?? 0);
+      row.visits += 1;
+      row.visitValue += value;
+      row.commission += commission;
+      row.retained += value - commission;
+      if (v.partnerPayoutId) row.paidOut += commission;
+      else row.unpaid += commission;
+      byPartner.set(v.partnerId!, row);
+    }
+    const partners = [...byPartner.values()].sort((a, b) => b.commission - a.commission);
+
+    // --- PT: doanh thu buổi tập, phần PT nhận, phần Gym Master giữ ---
+    const byTrainer = new Map<
+      string,
+      {
+        trainerId: string;
+        fullName: string;
+        avatarUrl: string | null;
+        commissionRate: number;
+        sessions: number;
+        gross: number;
+        trainerEarning: number;
+        platformFee: number;
+        paidOut: number;
+        unpaid: number;
+        bank: PayoutBankFields;
+      }
+    >();
+    for (const s of ptSessions) {
+      const row = byTrainer.get(s.trainerId) ?? {
+        trainerId: s.trainerId,
+        fullName: s.trainer.user.fullName,
+        avatarUrl: s.trainer.user.avatarUrl,
+        commissionRate: Number(s.trainer.commissionRate),
+        bank: pickPayoutBank(s.trainer),
+        sessions: 0,
+        gross: 0,
+        trainerEarning: 0,
+        platformFee: 0,
+        paidOut: 0,
+        unpaid: 0,
+      };
+      const earning = Number(s.trainerEarning);
+      row.sessions += 1;
+      row.gross += Number(s.price);
+      row.trainerEarning += earning;
+      row.platformFee += Number(s.platformFee);
+      if (s.payoutStatus === "PAID_OUT") row.paidOut += earning;
+      else row.unpaid += earning;
+      byTrainer.set(s.trainerId, row);
+    }
+    const trainers = [...byTrainer.values()].sort((a, b) => b.gross - a.gross);
+
+    const partnerCommission = partners.reduce((t, p) => t + p.commission, 0);
+    const trainerPayout = trainers.reduce((t, r) => t + r.trainerEarning, 0);
+    const trainerUnpaid = trainers.reduce((t, r) => t + r.unpaid, 0);
+    const partnerUnpaid = partners.reduce((t, p) => t + p.unpaid, 0);
+    const netProfit = grossRevenue - partnerCommission - trainerPayout;
+
+    return {
+      range: { from: query.from ?? null, to: query.to ?? null },
+      totals: {
+        grossRevenue,
+        partnerCommission,
+        trainerPayout,
+        trainerUnpaid,
+        partnerUnpaid,
+        totalCost: partnerCommission + trainerPayout,
+        netProfit,
+        margin: grossRevenue > 0 ? netProfit / grossRevenue : 0,
+      },
+      sources,
+      partners,
+      trainers,
     };
   }
 

@@ -47,6 +47,16 @@ export class ReportsController {
     return this.reportsService.getRevenue(query, actor);
   }
 
+  @Get('revenue-breakdown')
+  @Roles(Role.ADMIN, Role.MANAGER)
+  @ApiOperation({
+    summary:
+      'Phân bổ doanh thu Gym Master: thu về (gói / PT), hoa hồng trả từng đối tác Gym Cộng đồng, phần chi từng PT và lãi ròng.',
+  })
+  getRevenueBreakdown(@Query() query: RevenueReportQueryDto) {
+    return this.reportsService.getRevenueBreakdown(query);
+  }
+
   @Get('overview')
   @Roles(Role.ADMIN, Role.MANAGER)
   @ApiOperation({

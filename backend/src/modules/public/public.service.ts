@@ -3,6 +3,39 @@ import { PackageType } from "../../common/constants/db-enums";
 import { PrismaService } from "../../prisma/prisma.service";
 import { parseJsonText } from "../../common/utils/json-text";
 
+/** Trường hồ sơ PT được phép hiển thị công khai (không STK/QR, chiết khấu, bản nháp hồ sơ) */
+const PUBLIC_TRAINER_SELECT = {
+  id: true,
+  specialization: true,
+  certification: true,
+  experienceYears: true,
+  bio: true,
+  rating: true,
+  hourlyRate: true,
+  gender: true,
+  status: true,
+  createdAt: true,
+  workAddress: true,
+  workLatitude: true,
+  workLongitude: true,
+  user: { select: { id: true, fullName: true, avatarUrl: true } },
+} as const;
+
+/**
+ * Khu vực dạy công khai: toạ độ làm tròn 2 chữ số thập phân (~1 km) — đủ để hội viên
+ * biết PT có gần mình không mà không lộ vị trí chính xác của PT.
+ */
+function publicWorkArea<
+  T extends { workLatitude: number | null; workLongitude: number | null },
+>(trainer: T): T {
+  const round = (v: number | null) => (v == null ? null : Math.round(v * 100) / 100);
+  return {
+    ...trainer,
+    workLatitude: round(trainer.workLatitude),
+    workLongitude: round(trainer.workLongitude),
+  };
+}
+
 @Injectable()
 export class PublicService {
   constructor(private prisma: PrismaService) {}
@@ -50,22 +83,18 @@ export class PublicService {
     });
   }
 
-  /** Huấn luyện viên đang hoạt động cho trang public */
+  /**
+   * Huấn luyện viên đang hoạt động cho trang public.
+   * Chỉ chọn trường công khai — KHÔNG trả STK/QR nhận tiền, % chiết khấu hay bản nháp hồ sơ.
+   */
   async getTrainers() {
-    return this.prisma.trainer.findMany({
+    const trainers = await this.prisma.trainer.findMany({
       // PT riêng của phòng gym đối tác không hiển thị trên trang công khai Gym Master
       where: { status: "ACTIVE", ownerPartnerId: null },
-      include: {
-        user: {
-          select: {
-            id: true,
-            fullName: true,
-            avatarUrl: true,
-          },
-        },
-      },
+      select: PUBLIC_TRAINER_SELECT,
       orderBy: { rating: "desc" },
     });
+    return trainers.map(publicWorkArea);
   }
 
   /**
@@ -75,25 +104,7 @@ export class PublicService {
   async getTrainer(id: string) {
     const trainer = await this.prisma.trainer.findFirst({
       where: { id, status: "ACTIVE", ownerPartnerId: null },
-      select: {
-        id: true,
-        specialization: true,
-        certification: true,
-        experienceYears: true,
-        bio: true,
-        rating: true,
-        hourlyRate: true,
-        gender: true,
-        status: true,
-        createdAt: true,
-        user: {
-          select: {
-            id: true,
-            fullName: true,
-            avatarUrl: true,
-          },
-        },
-      },
+      select: PUBLIC_TRAINER_SELECT,
     });
 
     if (!trainer)
@@ -114,7 +125,7 @@ export class PublicService {
     ]);
 
     return {
-      ...trainer,
+      ...publicWorkArea(trainer),
       reviewCount,
       stats: { upcomingSessions, activeMembers },
     };

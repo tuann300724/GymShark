@@ -36,6 +36,13 @@ export class PtSessionsController {
     return this.service.listForTrainer(userId);
   }
 
+  @Get('trainer/payouts/:payoutId/proof')
+  @Roles(Role.TRAINER)
+  @ApiOperation({ summary: 'PT: ảnh chứng từ một lần GymMaster chi trả' })
+  payoutProof(@CurrentUser('id') userId: string, @Param('payoutId') payoutId: string) {
+    return this.service.getMyPayoutProof(userId, payoutId);
+  }
+
   @Post(':id/cancel')
   @Roles(Role.TRAINER)
   @ApiOperation({ summary: 'PT huỷ đề nghị hội viên chưa chấp nhận' })
@@ -85,6 +92,6 @@ export class PtSessionsController {
   @Roles(Role.ADMIN, Role.MANAGER)
   @ApiOperation({ summary: 'Admin ghi nhận đã chi trả phần của PT (buổi đã thanh toán + đã diễn ra)' })
   payout(@CurrentUser('id') userId: string, @Body() dto: PtPayoutDto) {
-    return this.service.payout(dto.trainerId, userId);
+    return this.service.payout(dto.trainerId, userId, dto);
   }
 }

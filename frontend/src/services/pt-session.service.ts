@@ -104,7 +104,24 @@ export const ptSessionApi = {
         paidOut: number;
       };
       data: PtSession[];
+      /** Các lần GymMaster chi trả, mới nhất trước */
+      payouts?: {
+        id: string;
+        amount: number;
+        sessionCount: number;
+        note: string | null;
+        createdAt: string;
+        hasProof: boolean;
+      }[];
     }>('/pt-sessions/trainer/me');
+    return res.data;
+  },
+
+  /** PT: ảnh chứng từ một lần GymMaster chi trả */
+  getMyPayoutProof: async (payoutId: string) => {
+    const res = await apiClient.get<{ id: string; proofImage: string }>(
+      `/pt-sessions/trainer/payouts/${payoutId}/proof`,
+    );
     return res.data;
   },
 
@@ -124,10 +141,11 @@ export const ptSessionApi = {
     return res.data;
   },
 
-  payout: async (trainerId: string) => {
+  /** Ghi nhận đã chi trả cho PT; kèm ảnh chứng từ chuyển khoản khi có */
+  payout: async (trainerId: string, extra?: { proofImage?: string; note?: string }) => {
     const res = await apiClient.post<{ message: string; sessions: number; amount: number }>(
       '/pt-sessions/payout',
-      { trainerId },
+      { trainerId, ...extra },
     );
     return res.data;
   },

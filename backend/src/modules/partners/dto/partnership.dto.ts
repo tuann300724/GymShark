@@ -1,10 +1,47 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import {
+  IsIn,
+  IsInt,
+  IsISO8601,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
+
+/** ~500KB ảnh chụp màn hình chuyển khoản sau nén */
+export const PAYOUT_PROOF_MAX_LENGTH = 700_000;
 
 /** 2 loại hợp tác đối tác — khớp hướng hợp tác của yêu cầu (PartnerLead.direction) */
 export const PARTNERSHIP_TYPES = ['OWNER', 'COMMUNITY'] as const;
 export type PartnershipType = (typeof PARTNERSHIP_TYPES)[number];
+
+/** Admin xác nhận đã chuyển hoa hồng cho đối tác (kèm ảnh chứng từ) */
+export class CreatePartnerPayoutDto {
+  @ApiPropertyOptional({ description: 'Chi các lượt từ ngày (ISO) — trống = từ đầu' })
+  @IsOptional()
+  @IsISO8601()
+  from?: string;
+
+  @ApiPropertyOptional({ description: 'Chi các lượt đến ngày (ISO) — trống = đến hiện tại' })
+  @IsOptional()
+  @IsISO8601()
+  to?: string;
+
+  @ApiProperty({ description: 'Ảnh chụp giao dịch chuyển khoản (data URL JPG/PNG/WEBP)' })
+  @IsString()
+  @MaxLength(PAYOUT_PROOF_MAX_LENGTH, { message: 'Ảnh chứng từ quá lớn' })
+  proofImage!: string;
+
+  @ApiPropertyOptional({ description: 'Ghi chú (mã giao dịch, ngân hàng chuyển...)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string;
+}
 
 /** Admin sửa giá gói hợp tác (áp dụng cho hợp đồng ký mới, không đổi hợp đồng cũ) */
 export class UpdatePartnershipPlanDto {

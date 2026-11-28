@@ -17,6 +17,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import { partnerApi } from '@/services/partner.service';
+import { BankAccountCard } from '@/components/payout/bank-account-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
@@ -339,6 +340,8 @@ export default function PartnerPartnershipPage() {
           </div>
         </section>
       )}
+
+      {isCommunity && <BankAccountCard owner="partner" readOnly={isStaff} />}
 
       {isCommunity && <NetworkMembersSection />}
 

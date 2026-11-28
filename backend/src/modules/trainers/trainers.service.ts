@@ -20,11 +20,17 @@ import {
   TrainerReviewDto,
   UpdateMyTrainerProfileDto,
   UpdateTrainerDto,
+  UpdateTrainerWorkAreaDto,
 } from "./dto/trainer.dto";
 import { AuditService } from "../audit-logs/audit-logs.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { MailService } from "../mail/mail.service";
 import { isAvatarDataUrl, saveUserAvatar } from "../../common/utils/avatar";
+import {
+  PAYOUT_BANK_SELECT,
+  toPayoutBankData,
+  type UpdatePayoutBankDto,
+} from "../../common/utils/payout-bank";
 
 /** Các field hồ sơ công khai PT tự sửa (bản nháp chờ duyệt lưu đúng các key này) */
 type ProfileDraft = Partial<{
@@ -725,6 +731,70 @@ export class TrainersService {
       mode: "DRAFT",
       trainer: await this.getMyProfile(userId),
     };
+  }
+
+  /** PT xem khu vực dạy của mình (toạ độ chính xác — chỉ chính chủ thấy) */
+  async getMyWorkArea(userId: string) {
+    const trainer = await this.resolveTrainerByUserId(userId);
+    return this.prisma.trainer.findUnique({
+      where: { id: trainer.id },
+      select: { workAddress: true, workLatitude: true, workLongitude: true },
+    });
+  }
+
+  /** PT tự cập nhật khu vực dạy — áp dụng ngay, không cần duyệt (trang công khai chỉ lộ ~1 km) */
+  async updateMyWorkArea(userId: string, dto: UpdateTrainerWorkAreaDto) {
+    const trainer = await this.resolveTrainerByUserId(userId);
+    const address = dto.workAddress?.trim() || null;
+    const hasPin = dto.workLatitude != null && dto.workLongitude != null;
+    const area = await this.prisma.trainer.update({
+      where: { id: trainer.id },
+      data: {
+        workAddress: address,
+        workLatitude: hasPin ? dto.workLatitude : null,
+        workLongitude: hasPin ? dto.workLongitude : null,
+      },
+      select: { workAddress: true, workLatitude: true, workLongitude: true },
+    });
+    await this.auditService.log({
+      userId,
+      action: "TRAINER_WORK_AREA_UPDATE",
+      entity: "Trainer",
+      entityId: trainer.id,
+      metadata: { hasAddress: Boolean(address), hasPin },
+    });
+    return { message: "Đã lưu khu vực dạy.", area };
+  }
+
+  /** PT xem tài khoản nhận tiền (STK + QR) của mình */
+  async getMyBank(userId: string) {
+    const trainer = await this.resolveTrainerByUserId(userId);
+    return this.prisma.trainer.findUnique({
+      where: { id: trainer.id },
+      select: PAYOUT_BANK_SELECT,
+    });
+  }
+
+  /** PT tự cập nhật tài khoản nhận tiền buổi tập (admin chuyển khoản theo thông tin này) */
+  async updateMyBank(userId: string, dto: UpdatePayoutBankDto) {
+    const trainer = await this.resolveTrainerByUserId(userId);
+    const bank = await this.prisma.trainer.update({
+      where: { id: trainer.id },
+      data: toPayoutBankData(dto),
+      select: PAYOUT_BANK_SELECT,
+    });
+    await this.auditService.log({
+      userId,
+      action: "PAYOUT_BANK_UPDATE",
+      entity: "Trainer",
+      entityId: trainer.id,
+      metadata: {
+        bankCode: bank.bankCode,
+        accountTail: bank.bankAccountNumber?.slice(-4) ?? null,
+        hasQrImage: Boolean(bank.bankQrImage),
+      },
+    });
+    return { message: "Đã lưu tài khoản nhận tiền.", bank };
   }
 
   /** HLV huỷ bản chỉnh sửa hồ sơ đang chờ duyệt */

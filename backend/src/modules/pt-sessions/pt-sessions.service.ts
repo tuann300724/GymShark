@@ -10,6 +10,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { AuditService } from "../audit-logs/audit-logs.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { ChatService } from "../chat/chat.service";
+import { AVATAR_DATA_URL_PATTERN } from "../../common/utils/avatar";
 import {
   AcceptPtSessionDto,
   CreatePtSessionDto,
@@ -152,7 +153,19 @@ export class PtSessionsService {
     const paid = sessions.filter((s) => s.status === "PAID");
     const sum = (rows: typeof sessions, key: "price" | "trainerEarning" | "platformFee") =>
       rows.reduce((t, s) => t + Number(s[key]), 0);
+    // Các lần GymMaster chi trả (không kèm ảnh — ảnh tải riêng khi xem)
+    const payouts = await this.prisma.trainerPayout.findMany({
+      where: { trainerId: trainer.id },
+      select: { id: true, amount: true, sessionCount: true, note: true, createdAt: true, proofImage: true },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
     return {
+      payouts: payouts.map(({ proofImage, ...p }) => ({
+        ...p,
+        amount: Number(p.amount),
+        hasProof: Boolean(proofImage),
+      })),
       commissionRate: Number(trainer.commissionRate),
       summary: {
         paidSessions: paid.length,
@@ -389,7 +402,14 @@ export class PtSessionsService {
   }
 
   /** Admin đánh dấu đã chi trả phần của PT cho mọi buổi đã thanh toán + đã diễn ra */
-  async payout(trainerId: string, actorId: string) {
+  async payout(
+    trainerId: string,
+    actorId: string,
+    opts: { proofImage?: string; note?: string } = {},
+  ) {
+    const proof = opts.proofImage?.trim() || null;
+    if (proof && !AVATAR_DATA_URL_PATTERN.test(proof))
+      throw new BadRequestException("Ảnh chứng từ phải là ảnh JPG, PNG hoặc WEBP.");
     const trainer = await this.prisma.trainer.findUnique({
       where: { id: trainerId },
       select: trainerSelect,
@@ -403,16 +423,41 @@ export class PtSessionsService {
     if (due.length === 0)
       throw new BadRequestException("PT này không có buổi nào đến hạn chi trả.");
     const amount = due.reduce((t, s) => t + Number(s.trainerEarning), 0);
-    await this.prisma.ptSession.updateMany({
-      where: { id: { in: due.map((s) => s.id) }, payoutStatus: "UNPAID" },
-      data: { payoutStatus: "PAID_OUT", payoutAt: now, payoutById: actorId },
+    // Lưu lần chi trả (kèm ảnh chứng từ nếu có) và gắn các buổi vào lần chi này
+    const payoutRecord = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.trainerPayout.create({
+        data: {
+          trainerId,
+          amount,
+          sessionCount: due.length,
+          proofImage: proof,
+          note: opts.note?.trim() || null,
+          paidById: actorId,
+        },
+        select: { id: true },
+      });
+      await tx.ptSession.updateMany({
+        where: { id: { in: due.map((s) => s.id) }, payoutStatus: "UNPAID" },
+        data: {
+          payoutStatus: "PAID_OUT",
+          payoutAt: now,
+          payoutById: actorId,
+          trainerPayoutId: created.id,
+        },
+      });
+      return created;
     });
     await this.audit.log({
       userId: actorId,
       action: "PT_PAYOUT",
       entity: "Trainer",
       entityId: trainerId,
-      metadata: { sessions: due.length, amount },
+      metadata: {
+        payoutId: payoutRecord.id,
+        sessions: due.length,
+        amount,
+        hasProof: Boolean(proof),
+      },
     });
     await this.notifications.create({
       userId: trainer.userId,
@@ -426,6 +471,16 @@ export class PtSessionsService {
       sessions: due.length,
       amount,
     };
+  }
+
+  /** PT xem ảnh chứng từ của một lần chi trả cho chính mình */
+  async getMyPayoutProof(trainerUserId: string, payoutId: string) {
+    const payout = await this.prisma.trainerPayout.findFirst({
+      where: { id: payoutId, trainer: { is: { userId: trainerUserId } } },
+      select: { id: true, proofImage: true },
+    });
+    if (!payout?.proofImage) throw new NotFoundException("Không có ảnh chứng từ cho lần chi trả này.");
+    return { id: payout.id, proofImage: payout.proofImage };
   }
 
   // ---------------------------------------------------------------------------

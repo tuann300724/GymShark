@@ -204,3 +204,28 @@ export class TrainerReviewDto {
   @MaxLength(500)
   reason?: string;
 }
+
+/** PT tự cập nhật khu vực / địa điểm dạy (hội viên xem khoảng cách) */
+export class UpdateTrainerWorkAreaDto {
+  @ApiPropertyOptional({ description: 'Địa chỉ / khu vực dạy — chuỗi rỗng để xoá' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  workAddress?: string;
+
+  @ApiPropertyOptional({ description: 'Vĩ độ điểm ghim (null để xoá)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  workLatitude?: number | null;
+
+  @ApiPropertyOptional({ description: 'Kinh độ điểm ghim (null để xoá)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  workLongitude?: number | null;
+}
